@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}3D-Vorschau {{ project.name if project else '' }} – Druckarchiv{% endblock %}
+{% block body_class %}page-viewer{% endblock %}
+{% block head %}
+<script type="importmap">
+  {"imports": {"three": "/static/vendor/three.module.min.js"}}
+</script>
+{% endblock %}
+{% block topbar %}
+<span class="viewer-title">Platte {{ plate.idx }}{% if plate.name %}: {{ plate.name }}{% endif %}</span>
+{% endblock %}
+{% block back %}{% if project %}<a class="nav-back" href="/p/{{ project.id }}" data-back>Zurück zu {{ project.name }}</a>{% endif %}{% endblock %}
+
+{% block main %}
+<div class="viewer" id="viewer"
+     data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
+  <div class="viewer-stage">
+    <canvas id="viewer-canvas" aria-label="3D-Vorschau der Druckbahnen"></canvas>
+    <div class="viewer-loading" id="viewer-loading" role="status">
+      <p id="viewer-loading-text">Vorschau wird vorbereitet</p>
+      <progress id="viewer-loading-bar" max="100"></progress>
+      <p class="hint">Beim ersten Öffnen wird der G-Code einmalig aufbereitet. Das kann bei großen Drucken bis zu einer Minute dauern.</p>
+    </div>
+  </div>
+
+  <aside class="viewer-panel">
+    {% if nav.total > 1 %}
+    <nav class="plate-pager" aria-label="Platten des Projekts">
+      {% if nav.prev %}<a class="pager-btn" href="/view/{{ nav.prev.fid }}/{{ nav.prev.idx }}" data-pager="prev" aria-label="Vorige Platte">‹</a>{% else %}<span class="pager-btn is-off" aria-hidden="true">‹</span>{% endif %}
+      <span class="pager-label">Platte {{ plate.idx }}<span class="pager-sub">{{ nav.pos }} von {{ nav.total }}</span></span>
+      {% if nav.next %}<a class="pager-btn" href="/view/{{ nav.next.fid }}/{{ nav.next.idx }}" data-pager="next" aria-label="Nächste Platte">›</a>{% else %}<span class="pager-btn is-off" aria-hidden="true">›</span>{% endif %}
+    </nav>
+    {% endif %}
+  <div class="viewer-controls" id="viewer-panel" hidden>
+
+    <div class="seg" role="group" aria-label="Einfärbung">
+      <button type="button" data-mode="tool" aria-pressed="true">Filament</button>
+      <button type="button" data-mode="feature" aria-pressed="false">Linientyp</button>
+      <button type="button" data-mode="uni" aria-pressed="false">Einfarbig</button>
+    </div>
+    <label class="uni-row" id="uni-row" hidden>
+      <input type="color" id="uni-color" value="#2FB36B">
+      <span>Farbe für die einfarbige Ansicht</span>
+    </label>
+
+    <ul class="legend" id="legend"></ul>
+
+    <div class="layer-ctrl">
+      <label for="layer-max">Schicht <strong id="layer-label"></strong></label>
+      <input type="range" id="layer-max" min="0" value="0">
+      <label class="check"><input type="checkbox" id="layer-single"> Nur diese Schicht</label>
+    </div>
+
+    <div class="viewer-actions">
+      <button type="button" class="quiet" id="view-reset">Ansicht zurücksetzen</button>
+      <button type="button" class="quiet" id="view-top">Von oben</button>
+    </div>
+    <p class="hint viewer-help">Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht{% if nav.total > 1 %}, links und rechts die Platte{% endif %}.</p>
+  </div>
+  </aside>
+</div>
+<script id="viewer-filaments" type="application/json">{{ filaments|tojson }}</script>
+<script type="module" src="/static/viewer.js?v={{ ASSET_V }}"></script>
+{% endblock %}
