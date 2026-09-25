@@ -1,32 +1,22 @@
 services:
   druckarchiv:
-    # Fertiges Image aus der GitHub Container Registry (wird bei jedem Release gebaut).
-    # Zum lokalen Bauen stattdessen: build: <Pfad zum Repository>
-    image: ${DRUCKARCHIV_IMAGE:-ghcr.io/CHANGE-ME/druckarchiv:latest}
+    image: ${DRUCKARCHIV_IMAGE:-ghcr.io/schnuecks/druckarchiv:latest}
     container_name: druckarchiv
-    restart: ${RESTART}
-    user: "${PUID}:${PGID}"
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
     security_opt:
-      - ${SECOPTS}
+      - no-new-privileges:true
     environment:
-      - TZ=${TZ}
+      - TZ=${TZ:-Europe/Berlin}
       - SCAN_INTERVAL=${SCAN_INTERVAL:-120}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
       - PREVIEW_PREBUILD=${PREVIEW_PREBUILD:-true}
       - PRINTER_SYNC_INTERVAL=${PRINTER_SYNC_INTERVAL:-600}
+      - PRINTER_IMPORT_DIR=${PRINTER_IMPORT_DIR:-Vom Drucker}
+    ports:
+      - "${PORT:-8000}:8000"
     volumes:
-      - ${LIBRARY}:/library             # deine .gcode.3mf-Sammlung (beschreibbar für Uploads)
-      - ${VOL}/druckarchiv/data:/data   # SQLite + Vorschaubilder
-      - ${PRINTERS_JSON}:/config/printers.json:ro   # Drucker für den Direktimport (optional)
-    networks:
-      - proxy
-    labels:
-      - backup.stop=true
-      - traefik.enable=true
-      - traefik.http.routers.druckarchiv.rule=Host(`druckarchiv.home.lan`)
-      - traefik.http.routers.druckarchiv.middlewares=fancy-error@file
-      - traefik.http.services.druckarchiv.loadbalancer.server.port=8000
-
-networks:
-  proxy:
-    external: true   # an den Namen deines Traefik-Netzes anpassen
+      - ${LIBRARY:-./library}:/library    # .gcode.3mf-Sammlung (für Upload und Löschen beschreibbar)
+      - ${DATA:-./data}:/data             # Datenbank, Vorschaubilder, 3D-Vorschauen
+      # Optional: Direktimport von Bambu-Druckern (siehe README)
+      # - ${PRINTERS_JSON}:/config/printers.json:ro

@@ -1,151 +1,219 @@
 # Druckarchiv
 
-Selbstgehostete Übersicht über deine `.gcode.3mf`-Dateien aus Bambu Studio:
-Plattenvorschau (schräg und von oben), Druckzeit, Gewicht, Schichten, Höhe,
-Filamente pro Slot mit Farbe und Kosten, dazu die wichtigsten Druckeinstellungen.
-Keine Druckerverbindung, kein LAN-Modus nötig.
+Ein selbstgehostetes Archiv für deine 3D-Drucke aus Bambu Studio. Das Druckarchiv
+liest `.gcode.3mf`-Dateien aus und zeigt sie so übersichtlich an, wie du es aus dem
+Slicer kennst: Platten mit Vorschaubildern, Druckzeit, Gewicht, Filamente mit Farbe
+und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 
-## Start
+## Funktionen
 
-    cp .env.example .env      # Pfade anpassen, vor allem LIBRARY
-    docker compose up -d --build
+- **Übersicht** aller Projekte mit Suche und Filtern nach Material, Drucker, Status und Tags
+- **Projektseite** mit Plattenleiste, Vorschaubildern (schräg und von oben), Druckzeit,
+  Gewicht, Schichten, Höhe, Filamenten pro Slot und Materialkosten
+- **Angaben von MakerWorld**, sofern in der Datei enthalten: Titel, Designer, Lizenz,
+  Druckprofil, Beschreibung und Foto des gedruckten Modells
+- **3D-Vorschau** der Druckbahnen, eingefärbt nach Filament, Linientyp oder einfarbig,
+  mit Schichtregler
+- **Automatische Projekte** aus Ordnern oder Dateinamen, zusätzlich manuell zuordenbar
+- **Upload** per Drag & Drop und **Papierkorb** statt endgültigem Löschen
+- **Direktimport von Bambu-Druckern** per FTPS, auch ohne LAN-only-Modus
+- **Notizen, Tags, Status und Quelle** pro Projekt
 
-Danach unter https://druckarchiv.home.lan (bzw. deinem Traefik-Host).
+## Schnellstart
 
-Das Image kommt aus der GitHub Container Registry. In der `.env` den Namen setzen:
+Voraussetzung ist Docker mit Compose.
 
-    DRUCKARCHIV_IMAGE=ghcr.io/<benutzer>/druckarchiv:latest
+```bash
+mkdir druckarchiv && cd druckarchiv
+curl -O https://raw.githubusercontent.com/schnuecks/druckarchiv/main/compose.yaml
+curl -o .env https://raw.githubusercontent.com/schnuecks/druckarchiv/main/.env.example
+mkdir -p library data
+docker compose up -d
+```
 
-Bei einem privaten Repository einmalig am Server anmelden, mit einem Personal
-Access Token (classic) mit der Berechtigung `read:packages`:
+Anschließend ist das Druckarchiv unter `http://<server>:8000` erreichbar. Lege deine
+`.gcode.3mf`-Dateien in den Ordner `library`, sie erscheinen nach spätestens zwei
+Minuten. Sofort geht es über „Bibliothek neu einlesen“ in der Übersicht.
 
-    echo <TOKEN> | docker login ghcr.io -u <benutzer> --password-stdin
+Die Ordner `library` und `data` müssen für den Benutzer beschreibbar sein, unter dem
+der Container läuft (`PUID`/`PGID` in der `.env`, Standard 1000). Andernfalls startet
+der Container mit dem Fehler „unable to open database file“.
 
-Aktualisieren:
+### Aktualisieren
 
-    docker compose pull && docker compose up -d
+```bash
+docker compose pull && docker compose up -d
+```
 
-## Neue Version veröffentlichen
+Beim Start wird die Datenbank bei Bedarf automatisch auf den neuen Stand gebracht.
 
-1. Änderungen in `CHANGELOG.md` unter einer neuen Versionsnummer eintragen.
-2. Taggen und pushen:
+### Hinter einem Reverse-Proxy
 
-       git tag -a v0.2.0 -m "Druckarchiv 0.2.0" && git push --tags
+Das Druckarchiv lauscht im Container auf Port 8000 und braucht keine besonderen
+Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der Compose):
 
-3. GitHub Actions testet, baut das Image und lädt es als `0.2.0`, `0.2` und
-   `latest` hoch. Danach werden ältere Versionen gelöscht, die letzten 5 bleiben.
+```yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.druckarchiv.rule=Host(`druckarchiv.example.com`)
+      - traefik.http.services.druckarchiv.loadbalancer.server.port=8000
+```
 
-Pushes auf `main` ohne Tag werden nur getestet und probeweise gebaut, aber nicht
-hochgeladen. So bleiben Speicher und Datenvolumen des kostenlosen Plans geschont.
+Das Druckarchiv hat keine eigene Anmeldung. Wenn es außerhalb deines Heimnetzes
+erreichbar sein soll, schütze es mit einer Anmeldung am Proxy (z. B. Authelia oder
+Basic Auth), denn jeder mit Zugriff kann Dateien hochladen und löschen.
 
 ## Einstellungen
 
+Alle Einstellungen stehen in der `.env`.
+
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `LIBRARY` (Compose) | – | Ordner mit den `.gcode.3mf`, im Container `/library` |
+| `DRUCKARCHIV_IMAGE` | `ghcr.io/schnuecks/druckarchiv:latest` | Verwendetes Image |
+| `PUID`, `PGID` | 1000 | Benutzer und Gruppe, unter denen der Container läuft |
+| `TZ` | Europe/Berlin | Zeitzone |
+| `PORT` | 8000 | Port auf dem Host |
+| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-Dateien |
+| `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
 | `SCAN_INTERVAL` | 120 | Sekunden zwischen zwei Durchläufen durch die Bibliothek |
-| `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei |
+| `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
 | `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
-| `PRINTERS_JSON` (Compose) | – | `printers.json` für den Direktimport, im Container `/config/printers.json` |
+| `PRINTERS_JSON` | – | Druckerliste für den Direktimport (optional) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
 
-## Wie Projekte entstehen
+## Bibliothek und Projekte
 
-- Jeder Unterordner der Bibliothek ist ein Projekt.
-- Dateien direkt im Hauptordner werden über den Namen zusammengefasst:
-  `Benchy_plate_1.gcode.3mf` und `Benchy_plate_2.gcode.3mf` landen in „Benchy“.
-  Endungen wie `_plate_3`, ` (2)` oder `_v2` werden dafür ignoriert.
-- Auf der Projektseite lässt sich jede Datei per Hand einem anderen Projekt
-  zuordnen. Diese Zuordnung bleibt auch nach einem Neu-Einlesen bestehen.
+Am besten eignen sich **geslicte Dateien** (`.gcode.3mf`), die du in Bambu Studio über
+„Exportieren → Geslicte Plattendatei exportieren“ bzw. „Alle geslicten Dateien
+exportieren“ erzeugst. Nur sie enthalten Druckzeit, Gewicht und Filamentverbrauch.
 
-## Hochladen
+So entstehen Projekte:
+
+- **Jeder Unterordner** der Bibliothek ist ein Projekt.
+- **Dateien im Hauptordner** werden über ihren Namen zusammengefasst.
+  `Benchy_plate_1.gcode.3mf` und `Benchy_plate_2.gcode.3mf` landen beide im Projekt
+  „Benchy“. Zusätze wie `_plate_3`, ` (2)`, `_v2`, `_gcode` oder `.stl` werden dabei
+  ignoriert.
+- **Nichtssagende Namen** wie `(Unsaved)` oder zufällige Kennungen werden durch den
+  Titel aus der Datei ersetzt, sofern vorhanden.
+- Auf der Projektseite lässt sich jede Datei **von Hand einem anderen Projekt
+  zuordnen**. Diese Zuordnung bleibt auch nach einem erneuten Einlesen erhalten.
+
+Exportierst du Platten einzeln, enthält jede Datei zusätzlich die Vorschaubilder aller
+anderen Platten. Liegt eine Platte in einer anderen Datei des Projekts geslict vor,
+wird ihre Vorschau nicht doppelt angezeigt.
+
+### Materialkosten
+
+Die Kosten berechnen sich aus dem Verbrauch pro Filament und dem Feld „Preis“ im
+jeweiligen Filamentprofil von Bambu Studio. Ist dort kein Preis eingetragen, bleibt
+das Feld leer. Strom und Verschleiß sind nicht enthalten.
+
+## Hochladen und Löschen
 
 Über „Hochladen“ oben rechts lassen sich eine oder mehrere Dateien per Drag & Drop
-hochladen. Sie werden direkt in der Bibliothek gespeichert, optional in einem
-Projektordner. Nichts wird überschrieben: identische Dateien werden übersprungen,
-bei gleichem Namen mit anderem Inhalt wird „(2)“ angehängt. Dafür muss die
-Bibliothek beschreibbar eingebunden sein (kein `:ro` am Volume). Größenlimit
-pro Datei über `MAX_UPLOAD_MB` (Standard 1024).
+hochladen, auf Wunsch direkt in einen Projektordner. Vorhandene Dateien werden nie
+überschrieben: Identische Dateien werden übersprungen, bei gleichem Namen mit anderem
+Inhalt wird „(2)“ angehängt.
+
+Dateien oder ganze Projekte löschst du auf der Projektseite. Sie werden nicht
+endgültig entfernt, sondern mit ihrem ursprünglichen Pfad nach
+`.papierkorb/<Datum_Uhrzeit>/` innerhalb der Bibliothek verschoben. Zum
+Wiederherstellen schiebst du sie einfach zurück. Notizen und Tags eines gelöschten
+Projekts gehen dabei allerdings verloren. Den Papierkorb leerst du bei Bedarf selbst.
 
 ## 3D-Vorschau
 
-Auf der Projektseite öffnet „3D-Vorschau“ die Druckbahnen einer geslicten Platte,
-wie in der Vorschau von Bambu Studio: einfärbbar nach Filament oder Linientyp,
-einzelne Filamente und Linientypen ausblendbar, Schichtregler (auch per Pfeiltasten).
-Eine `.gcode.3mf` enthält kein 3D-Modell mehr, deshalb wird der G-Code angezeigt.
+Eine `.gcode.3mf` enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
+3D-Vorschau zeigt deshalb die tatsächlichen Druckbahnen, ähnlich wie die Vorschau in
+Bambu Studio:
 
-Nach dem Einlesen oder Hochladen wird der G-Code einmalig im Hintergrund aufbereitet
-(abschaltbar mit `PREVIEW_PREBUILD=false`, dann erst beim ersten Öffnen) und unter
-`${VOL}/druckarchiv/data/preview` zwischengespeichert (bei 100 MB G-Code etwa
-10 bis 20 Sekunden, danach sofort). Ändert sich die Datei, wird die Vorschau neu erstellt.
-Fast gerade Bahnstücke werden dabei zusammengefasst, damit auch große Drucke im
-Browser flüssig bleiben. Die Bahnen werden als beleuchtete Röhren in echter Breite
-gezeichnet. Beim Öffnen misst der Viewer kurz die Leistung des Geräts und wählt beim
-Drehen automatisch die schönste Darstellung, die noch flüssig läuft (Röhren, Linien
-oder ausgedünnte Linien); im Stillstand werden immer die Röhren gezeigt, sofern das
-Gerät ein Bild in vertretbarer Zeit schafft. three.js liegt lokal bei, eine Internetverbindung ist nicht nötig.
+- Einfärbung nach Filament, nach Linientyp (Außenwand, Infill, Stützen usw.) oder
+  in einer frei wählbaren Farbe, praktisch bei hellen Filamenten
+- Einzelne Filamente und Linientypen lassen sich ausblenden
+- Schichtregler mit Anzeige der Höhe, auch per Pfeiltasten bedienbar
+- Wechsel zwischen den Platten eines Projekts mit den Pfeiltasten links und rechts
 
-## Direktimport von den Druckern
+Der G-Code wird nach dem Einlesen einmalig im Hintergrund aufbereitet und im
+Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert das
+etwa 10 bis 20 Sekunden, danach öffnet sich die Vorschau sofort. Beim Öffnen misst der
+Viewer kurz die Leistung des Geräts und wählt beim Drehen automatisch die schönste
+Darstellung, die noch flüssig läuft. three.js ist im Image enthalten, eine
+Internetverbindung ist nicht nötig.
 
-Das Druckarchiv holt sich alle geslicten Drucke selbst von der SD-Karte der
-Bambu-Drucker, per FTPS mit dem Zugangscode. Der LAN-only-Modus ist dafür nicht
-nötig, solange die Firmware den Dateizugriff erlaubt.
+## Direktimport von Bambu-Druckern
 
-Die Drucker kommen aus einer `printers.json` im Format von
-bambulab-ams-spoolman-filamentstatus, die nur lesend eingebunden wird:
+Das Druckarchiv kann alle geslicten Drucke selbst von der SD-Karte deiner
+Bambu-Drucker holen. Der Zugriff erfolgt per FTPS mit dem Zugangscode des Druckers.
+Der LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
 
-    [{"name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.168.1.20"}]
+**Einrichten:** Lege eine `printers.json` an. Das Format entspricht dem von
+[bambulab-ams-spoolman-filamentstatus](https://github.com/Rdiger-36/bambulab-ams-spoolman-filamentstatus),
+eine vorhandene Datei kannst du also weiterverwenden:
 
-Ablauf:
-- Alle `PRINTER_SYNC_INTERVAL` Sekunden (Standard 600) oder per „Von Druckern holen“
-  in der Übersicht werden die Dateien im Hauptverzeichnis der SD-Karte abgefragt.
-- Neue Dateien landen unter `Vom Drucker/<Druckername>/` und werden über den
-  Dateinamen zu Projekten gruppiert (nicht als ein Sammelprojekt).
-- Jede Datei wird nur einmal geholt. Löschst du sie im Archiv, kommt sie nicht wieder.
-  Ändert sie sich auf dem Drucker (neu gesliced und gedruckt), wird die neue Fassung übernommen.
-- Ist ein Drucker aus oder im Standby, wird das in der Übersicht angezeigt und beim
-  nächsten Durchlauf erneut versucht.
+```json
+[
+  { "name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.0.2.20" }
+]
+```
 
-## Löschen
+Aktiviere anschließend in der `compose.yaml` die Zeile mit `/config/printers.json` und
+setze `PRINTERS_JSON` in der `.env` auf den Pfad der Datei.
 
-Auf der Projektseite lassen sich einzelne Dateien („Datei löschen“) oder das ganze
-Projekt löschen. Nichts wird endgültig entfernt: Die Dateien wandern nach
-`.papierkorb/<Datum_Uhrzeit>/` innerhalb der Bibliothek, mit ihrem ursprünglichen
-Pfad. Zum Wiederherstellen einfach zurückschieben, beim nächsten Scan sind sie
-wieder da (Notizen und Tags eines gelöschten Projekts sind dann allerdings weg).
-Den Papierkorb leerst du bei Bedarf selbst.
+**Ablauf:**
 
-## Daten
+- Alle `PRINTER_SYNC_INTERVAL` Sekunden, oder sofort über „Von Druckern holen“ in der
+  Übersicht, fragt das Druckarchiv die Dateien auf der SD-Karte ab.
+- Neue Drucke landen unter `Vom Drucker/<Druckername>/` in der Bibliothek und werden
+  über ihren Namen zu Projekten zusammengefasst.
+- Der Drucker speichert ein Projekt immer unter demselben Namen und überschreibt es,
+  wenn eine andere Platte gedruckt wird. Das Druckarchiv legt deshalb jede gedruckte
+  Platte als eigene Datei ab (`…_plate_2.gcode.3mf`), so geht nichts verloren.
+- Jede Datei wird nur einmal geholt. Was du im Archiv löschst, wird nicht erneut
+  importiert.
+- Die Dateien auf dem Drucker werden nur gelesen, nie verändert oder gelöscht.
+- Ist ein Drucker ausgeschaltet oder im Standby, wird er beim nächsten Durchlauf
+  erneut abgefragt. Nur ein falscher Zugangscode wird in der Übersicht als Warnung
+  angezeigt.
 
-- Bestehende Dateien werden nie verändert. Gelöschte Dateien landen im Papierkorb-Ordner.
-- Metadaten, Vorschaubilder und deine Notizen liegen in `${VOL}/druckarchiv/data`
-  (SQLite). Für ein Backup reicht dieser Ordner.
-- Neue oder geänderte Dateien werden alle `SCAN_INTERVAL` Sekunden erkannt
-  (Polling, funktioniert auch auf SMB/NFS). Sofort geht es über
-  „Bibliothek neu einlesen“.
+## Daten und Sicherung
 
-## Kosten
-
-Die Materialkosten kommen aus dem Feld „Preis“ deiner Filamentprofile in
-Bambu Studio. Ist dort nichts eingetragen, bleibt die Spalte leer.
-
-## Testen ohne echte Dateien
-
-    python tools/make_sample.py ./library    # erzeugt Beispiel-Dateien
+- Die Dateien in der Bibliothek werden nie verändert.
+- Datenbank (SQLite), Vorschaubilder, 3D-Vorschauen und deine Notizen liegen im
+  Datenordner. Für eine Sicherung genügt dieser Ordner, die 3D-Vorschauen darin
+  werden bei Bedarf neu erzeugt.
+- Neue und geänderte Dateien werden regelmäßig erkannt. Das funktioniert auch auf
+  Netzwerkfreigaben (SMB/NFS). Den Datenordner solltest du dagegen lokal ablegen,
+  da SQLite auf Netzwerkfreigaben unzuverlässig ist.
 
 ## Entwicklung
 
-    python -m venv .venv && . .venv/bin/activate
-    pip install -r requirements-dev.txt
-    python -m pytest -q                      # Tests
-    python tools/make_sample.py ./library    # Beispieldateien erzeugen
-    LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+python -m pytest -q                        # Tests ausführen
+python tools/make_sample.py ./library      # Beispieldateien erzeugen
+LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
+```
 
-Die Tests laufen bei jedem Push automatisch über GitHub Actions; nur wenn sie grün
-sind, wird das Docker-Image gebaut (amd64 und arm64).
+### Neue Version veröffentlichen
+
+1. Änderungen in `CHANGELOG.md` unter einer neuen Versionsnummer eintragen.
+2. Tag setzen und hochladen:
+
+   ```bash
+   git tag -a v0.2.0 -m "Druckarchiv 0.2.0" && git push --tags
+   ```
+
+3. GitHub Actions führt die Tests aus, baut das Image und veröffentlicht es als
+   `0.2.0`, `0.2` und `latest`. Anschließend werden ältere Versionen entfernt, die
+   letzten fünf bleiben erhalten.
+
+Pushes auf `main` ohne Tag werden getestet und probeweise gebaut, aber nicht
+veröffentlicht.
 
 ## Drittanbieter
 
-`app/static/vendor/` enthält three.js und OrbitControls (MIT-Lizenz, siehe
-`three-LICENSE`).
+`app/static/vendor/` enthält [three.js](https://threejs.org) und OrbitControls,
+beide unter der MIT-Lizenz (siehe `three-LICENSE`).

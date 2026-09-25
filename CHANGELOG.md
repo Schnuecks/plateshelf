@@ -5,6 +5,8 @@
 - Image wird nur noch bei Versions-Tags hochgeladen (amd64), ältere Versionen
   werden automatisch entfernt; Pushes auf main bauen nur probeweise.
 - Compose-Vorlage nutzt das Image aus der GitHub Container Registry.
+- README überarbeitet; Compose-Vorlage und `.env.example` allgemein gehalten
+  (Port statt fester Proxy-Anbindung, Beispieladressen statt eigener Umgebung).
 
 ## 0.1.0
 

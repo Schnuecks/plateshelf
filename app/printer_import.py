@@ -5,7 +5,7 @@ dem Zugangscode erlaubt (Port 990, Benutzer "bblp", implizites TLS).
 
 Die Druckerliste kommt aus einer printers.json im Format des Projekts
 bambulab-ams-spoolman-filamentstatus:
-    [{"name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.168.1.20"}]
+    [{"name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.0.2.20"}]
 """
 from __future__ import annotations
 
