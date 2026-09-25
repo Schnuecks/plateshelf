@@ -12,13 +12,31 @@ Keine Druckerverbindung, kein LAN-Modus nötig.
 
 Danach unter https://druckarchiv.home.lan (bzw. deinem Traefik-Host).
 
-Statt selbst zu bauen, kann auch das fertige Image aus der GitHub Container Registry
-verwendet werden (wird von GitHub Actions nach jedem erfolgreichen Push gebaut):
+Das Image kommt aus der GitHub Container Registry. In der `.env` den Namen setzen:
 
-    image: ghcr.io/<benutzer>/druckarchiv:latest
+    DRUCKARCHIV_IMAGE=ghcr.io/<benutzer>/druckarchiv:latest
 
-Bei einem privaten Repository vorher einmal `docker login ghcr.io` mit einem
-Personal Access Token (Berechtigung `read:packages`).
+Bei einem privaten Repository einmalig am Server anmelden, mit einem Personal
+Access Token (classic) mit der Berechtigung `read:packages`:
+
+    echo <TOKEN> | docker login ghcr.io -u <benutzer> --password-stdin
+
+Aktualisieren:
+
+    docker compose pull && docker compose up -d
+
+## Neue Version veröffentlichen
+
+1. Änderungen in `CHANGELOG.md` unter einer neuen Versionsnummer eintragen.
+2. Taggen und pushen:
+
+       git tag -a v0.2.0 -m "Druckarchiv 0.2.0" && git push --tags
+
+3. GitHub Actions testet, baut das Image und lädt es als `0.2.0`, `0.2` und
+   `latest` hoch. Danach werden ältere Versionen gelöscht, die letzten 5 bleiben.
+
+Pushes auf `main` ohne Tag werden nur getestet und probeweise gebaut, aber nicht
+hochgeladen. So bleiben Speicher und Datenvolumen des kostenlosen Plans geschont.
 
 ## Einstellungen
 

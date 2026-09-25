@@ -1,7 +1,8 @@
 services:
   druckarchiv:
-    build: .
-    image: druckarchiv:local
+    # Fertiges Image aus der GitHub Container Registry (wird bei jedem Release gebaut).
+    # Zum lokalen Bauen stattdessen: build: <Pfad zum Repository>
+    image: ${DRUCKARCHIV_IMAGE:-ghcr.io/CHANGE-ME/druckarchiv:latest}
     container_name: druckarchiv
     restart: ${RESTART}
     user: "${PUID}:${PGID}"

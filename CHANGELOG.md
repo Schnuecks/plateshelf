@@ -1,5 +1,11 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Image wird nur noch bei Versions-Tags hochgeladen (amd64), ältere Versionen
+  werden automatisch entfernt; Pushes auf main bauen nur probeweise.
+- Compose-Vorlage nutzt das Image aus der GitHub Container Registry.
+
 ## 0.1.0
 
 Erste Version für den Eigenbetrieb.
