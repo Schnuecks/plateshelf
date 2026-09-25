@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}{{ p.name }} – Druckarchiv{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>Alle Projekte</a>{% endblock %}
+
+{% block main %}
+<article class="project">
+  {% if request.query_params.get('geloescht') %}
+  <p class="flash" role="status">Datei in den Papierkorb verschoben.</p>
+  {% endif %}
+  {% if request.query_params.get('hochgeladen') %}
+  <p class="flash" role="status">{{ request.query_params.get('hochgeladen') }} {{ 'Datei' if request.query_params.get('hochgeladen') == '1' else 'Dateien' }} hochgeladen und eingelesen.</p>
+  {% endif %}
+  <header class="project-head">
+    <div class="project-title">
+      <h1>{{ p.name }}</h1>
+      {% if writable %}
+      <form method="post" action="/p/{{ p.id }}/delete" class="delete-project"
+            data-confirm="Projekt „{{ p.name }}“ mit {{ files|length }} {{ 'Datei' if files|length == 1 else 'Dateien' }} und allen Notizen löschen? Die Dateien landen im Papierkorb.">
+        <button type="submit" class="danger-quiet">Projekt löschen</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if designer and designer.title %}
+    <p class="origin">{{ designer.title }}{% if designer.designer %}, von {{ designer.designer }}{% endif %}</p>
+    {% endif %}
+    <div class="strand strand-wide" style="background: {{ p.filaments|strand }}"></div>
+    <dl class="headline-stats">
+      <div><dt>Druckzeit gesamt</dt><dd>{{ p.time_s|duration }}</dd></div>
+      <div><dt>Filament</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
+      <div><dt>Materialkosten</dt><dd>{{ p.cost|money }}</dd></div>
+      <div><dt>{{ 'Gesliced' if p.plates_total > p.plates|length else 'Platten' }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ p.plates|length }} von {{ p.plates_total }}{% else %}{{ p.plates|length }}{% endif %}</dd></div>
+    </dl>
+  </header>
+
+  <div class="project-layout">
+    <div class="plates-col">
+      {% if strip|length > 1 %}
+      <nav class="project-strip" aria-label="Platten des Projekts" data-plate-nav>
+        <div class="strip-head">
+          <h2>Platten</h2>
+          <div class="seg seg-small" role="group" aria-label="Darstellung">
+            <button type="button" data-plate-mode="single" aria-pressed="true">Einzeln</button>
+            <button type="button" data-plate-mode="all" aria-pressed="false">Alle zeigen</button>
+          </div>
+        </div>
+        <ol class="plate-strip">
+          {% for pl in strip %}
+          <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}">
+            {% if pl.sliced %}<a href="#platte-{{ pl.fid }}-{{ pl.idx }}" data-plate-link="platte-{{ pl.fid }}-{{ pl.idx }}">{% endif %}
+            <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}</div>
+            <span class="strip-title">Platte {{ pl.idx }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
+            {% if pl.sliced %}
+              <span class="strip-sub">{{ pl.prediction_s|duration }}, {{ pl.weight_g|num(1, 'g') }}</span>
+            {% else %}
+              <span class="strip-sub">nicht gesliced</span>
+            {% endif %}
+            {% if pl.sliced %}</a>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+        {% if strip|selectattr('sliced', 'equalto', 0)|list %}<p class="extra-note strip-note">Ausgegraute Platten sind nur als Vorschau enthalten. Für Zeit und Filament in Bambu Studio „Alle slicen“ und „Alle geslicten Dateien exportieren“ wählen.</p>{% endif %}
+        <p class="hint strip-note strip-keys">Pfeiltasten links und rechts wechseln die Platte.</p>
+      </nav>
+      {% endif %}
+      {% for f in files %}
+      <section class="file" data-file>
+        <header class="file-head">
+          <div>
+            <h2 class="file-name">{{ f.path.split('/')[-1] }}</h2>
+            <p class="file-sub">
+              {% if f.printer %}{{ f.printer }}{% endif %}{% if f.nozzle %}, Düse {{ f.nozzle }} mm{% endif %}{% if f.layer_height %}, {{ f.layer_height }} mm Schicht{% endif %}.
+              {% if f.slicer %}Gesliced mit {{ f.slicer }}.{% endif %}
+            </p>
+            {% if f.origin %}<p class="file-sub">Automatisch vom Drucker {{ f.origin.printer_name }} übernommen, Datei vom {{ f.origin.remote_date }}.</p>{% endif %}
+            {% if f.error %}<p class="warn">Datei konnte nicht gelesen werden: {{ f.error }}</p>{% endif %}
+            {% if not f.sliced and not f.error %}<p class="warn">Nicht gesliced, daher ohne Druckzeit und Gewicht.</p>{% endif %}
+          </div>
+          <div class="file-actions">
+            <a class="button" href="/f/{{ f.id }}/download">Datei herunterladen</a>
+            {% if writable %}
+            {% set n = f.all_plates|length if f.all_plates else f.plates|length %}
+            <form method="post" action="/f/{{ f.id }}/delete"
+                  data-confirm="„{{ f.path.split('/')[-1] }}“ {% if n > 1 %}mit {{ n }} Platten {% endif %}in den Papierkorb verschieben?">
+              <button type="submit" class="danger-quiet">Datei löschen</button>
+            </form>
+            {% endif %}
+          </div>
+        </header>
+
+        {% for pl in f.plates %}
+        <div class="plate" id="platte-{{ f.id }}-{{ pl.idx }}">
+          <figure class="bed bed-large" data-thumbs>
+            {% if pl.has_thumb %}
+              <img src="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}" data-iso="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}"
+                   {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ f.v }}"{% endif %} alt="Platte {{ pl.idx }}">
+            {% else %}<span class="bed-empty">Kein Vorschaubild</span>{% endif %}
+            {% if pl.has_thumb and pl.has_top %}
+            <div class="view-toggle" role="group" aria-label="Ansicht">
+              <button type="button" data-view="iso" aria-pressed="true">Schräg</button>
+              <button type="button" data-view="top" aria-pressed="false">Oben</button>
+            </div>
+            {% endif %}
+          </figure>
+          <div class="plate-info">
+            <div class="plate-title">
+              <h3>Platte {{ pl.idx }}{% if pl.name %}: {{ pl.name }}{% endif %}</h3>
+              <a class="button button-small" href="/view/{{ f.id }}/{{ pl.idx }}">3D-Vorschau</a>
+            </div>
+            <dl class="stats">
+              <div><dt>Zeit</dt><dd>{{ pl.prediction_s|duration }}</dd></div>
+              <div><dt>Gewicht</dt><dd>{{ pl.weight_g|num(1, 'g') }}</dd></div>
+              {% if pl.layers %}<div><dt>Schichten</dt><dd>{{ pl.layers }}</dd></div>{% endif %}
+              {% if pl.max_z %}<div><dt>Höhe</dt><dd>{{ pl.max_z|num(1, 'mm') }}</dd></div>{% endif %}
+              {% if pl.cost is not none %}<div><dt>Kosten</dt><dd>{{ pl.cost|money }}</dd></div>{% endif %}
+            </dl>
+            {% if pl.filaments %}
+            <table class="filaments">
+              <thead><tr><th scope="col">Slot</th><th scope="col">Filament</th><th scope="col" class="r">Gramm</th><th scope="col" class="r">Meter</th></tr></thead>
+              <tbody>
+              {% for fi in pl.filaments %}
+                <tr>
+                  <td><span class="swatch" style="background: {{ fi.color }}" title="{{ fi.color }}"></span>{{ fi.slot }}</td>
+                  <td>{{ fi.type }}{% if fi.name %}<span class="fil-name">{{ fi.name }}</span>{% endif %}</td>
+                  <td class="r">{{ fi.used_g|num(2) }}</td>
+                  <td class="r">{{ fi.used_m|num(2) }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+            {% endif %}
+            {% if pl.objects %}<p class="objects">Objekte: {{ pl.objects_label }}</p>{% endif %}
+            {% for w in pl.warnings %}<p class="warn">Slicer-Hinweis: {{ w }}</p>{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+
+
+        {% if f.key_settings %}
+        <details class="settings">
+          <summary>Druckeinstellungen</summary>
+          <dl>
+            {% for label, val in f.key_settings %}<div><dt>{{ label }}</dt><dd>{{ val }}</dd></div>{% endfor %}
+          </dl>
+        </details>
+        {% endif %}
+
+        <details class="move">
+          <summary>Anderem Projekt zuordnen</summary>
+          <form method="post" action="/f/{{ f.id }}/move">
+            <select name="target" data-new-toggle>
+              {% for o in others %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
+              <option value="neu">Neues Projekt …</option>
+            </select>
+            <input type="text" name="new_name" placeholder="Name des neuen Projekts" hidden>
+            <button type="submit">Verschieben</button>
+          </form>
+        </details>
+      </section>
+      {% endfor %}
+    </div>
+
+    <aside class="side">
+      {% if designer %}
+      <section class="designer">
+        {% if designer.photo_urls %}
+        <div class="photos">
+          {% for u in designer.photo_urls %}<a href="{{ u }}" target="_blank" rel="noopener"><img src="{{ u }}" alt="Foto des gedruckten Modells" loading="lazy"></a>{% endfor %}
+        </div>
+        {% endif %}
+        <dl>
+          {% if designer.designer %}<div><dt>Designer</dt><dd>{{ designer.designer }}</dd></div>{% endif %}
+          {% if designer.profile_title %}<div><dt>Druckprofil</dt><dd>{{ designer.profile_title }}{% if designer.profile_user and designer.profile_user != designer.designer %} ({{ designer.profile_user }}){% endif %}</dd></div>{% endif %}
+          {% if designer.license %}<div><dt>Lizenz</dt><dd>{{ designer.license }}</dd></div>{% endif %}
+        </dl>
+        {% if designer.description %}
+        <details class="desc">
+          <summary>Beschreibung des Designers</summary>
+          <p>{{ designer.description }}</p>
+        </details>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <form method="post" action="/p/{{ p.id }}" class="edit">
+        <label>Name<input type="text" name="name" value="{{ p.name }}" required></label>
+        <label>Status
+          <select name="status">
+            {% for key, label in STATUSES.items() %}<option value="{{ key }}" {% if key == p.status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Tags <span class="hint">durch Komma getrennt</span><input type="text" name="tags" value="{{ p.tags }}"></label>
+        <label>Quelle <span class="hint">z. B. MakerWorld-Link</span><input type="url" name="source_url" value="{{ p.source_url }}"></label>
+        {% if p.source_url %}<a class="source" href="{{ p.source_url }}" target="_blank" rel="noopener">Quelle öffnen</a>{% endif %}
+        <label>Notizen<textarea name="notes" rows="8">{{ p.notes }}</textarea></label>
+        <button type="submit">Änderungen speichern</button>
+        {% if request.query_params.get('gespeichert') %}<p class="saved" role="status">Gespeichert.</p>{% endif %}
+      </form>
+
+      {% if p.filaments %}
+      <section class="usage">
+        <h2>Filament im Projekt</h2>
+        <ul>
+          {% for fi in p.filaments %}
+          <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+</article>
+{% endblock %}

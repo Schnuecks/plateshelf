@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Hochladen – Druckarchiv{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>Alle Projekte</a>{% endblock %}
+
+{% block main %}
+<section class="upload">
+  <h1>Dateien hochladen</h1>
+
+  {% if not writable %}
+  <div class="notice">
+    <p>Die Bibliothek ist im Container nur lesend eingebunden, deshalb ist Hochladen gerade nicht möglich.</p>
+    <p>In der <code>compose.yaml</code> beim Bibliotheks-Volume das <code>:ro</code> entfernen und den Container neu starten.</p>
+  </div>
+  {% else %}
+
+  {% if errors %}
+  <div class="notice notice-warn" role="alert">
+    {% if saved %}<p>{{ saved }} {{ 'Datei wurde' if saved == 1 else 'Dateien wurden' }} gespeichert, bei diesen gab es Probleme:</p>
+    {% else %}<p>Es wurde nichts gespeichert:</p>{% endif %}
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/upload" enctype="multipart/form-data" class="upload-form" data-upload>
+    <label class="dropzone" data-dropzone>
+      <input type="file" name="files" accept=".3mf" multiple required data-file-input>
+      <span class="dz-title">Dateien hierher ziehen oder klicken</span>
+      <span class="dz-sub"><code>.gcode.3mf</code> oder <code>.3mf</code>, bis {{ max_mb }} MB pro Datei</span>
+      <ul class="dz-list" data-file-list></ul>
+    </label>
+
+    <label class="folder">Projektordner <span class="hint">optional. Leer lassen, dann wird über den Dateinamen gruppiert.</span>
+      <input type="text" name="folder" list="folders" placeholder="z. B. Werkstatt Wandhalter">
+      <datalist id="folders">{% for f in folders %}<option value="{{ f }}">{% endfor %}</datalist>
+    </label>
+
+    <div class="upload-actions">
+      <button type="submit" data-submit>Hochladen</button>
+      <progress max="100" value="0" hidden data-progress></progress>
+      <span class="hint" data-status aria-live="polite"></span>
+    </div>
+  </form>
+  <p class="hint">Vorhandene Dateien werden nie überschrieben. Bei gleichem Namen wird „(2)“ angehängt.</p>
+  {% endif %}
+</section>
+{% endblock %}

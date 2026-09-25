@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Druckarchiv{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v={{ ASSET_V }}">
+  {% block head %}{% endblock %}
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="topbar">
+    <div class="tb-left">
+      <a class="brand" href="/">Druckarchiv</a>
+      {% block topbar %}{% endblock %}
+    </div>
+    {% block back %}{% endblock %}
+    <a class="upload-link" href="/upload">Hochladen</a>
+  </header>
+  <main>{% block main %}{% endblock %}</main>
+  <script src="/static/app.js?v={{ ASSET_V }}" defer></script>
+</body>
+</html>
