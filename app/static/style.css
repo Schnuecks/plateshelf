@@ -226,6 +226,10 @@ summary { cursor: pointer; font-weight: 500; }
 
 /* Upload */
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
+@media (max-width: 640px) {
+  .tb-right { flex-basis: 100%; flex-wrap: wrap; justify-content: flex-end; gap: .35rem 1rem; }
+  .topbar:has(.nav-back) .tb-left { min-width: max-content; }
+}
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
 .settings-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
 .settings-link:hover { color: var(--ink); }
@@ -338,6 +342,23 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts th.r { text-align: right; }
 .printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
 .printer-watts input { width: 6rem; text-align: right; }
+
+/* Papierkorb */
+.flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
+.flash-undo form { margin: 0; }
+.flash-undo button.quiet { color: var(--ink); padding: 0; }
+.trash-page { max-width: 52rem; }
+.trash-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1.5rem; }
+.trash-head h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1rem; }
+.trash-head form { margin: 0; }
+.trash-page > .hint { margin: 0 0 1.25rem; font-size: .9rem; }
+.trash-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .75rem; }
+.trash-item { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: .9rem 1.1rem;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem 1.5rem; }
+.trash-info { min-width: 0; flex: 1 1 20rem; }
+.trash-info h2 { font: 600 1.1rem/1.25 var(--font-cond); margin: 0; overflow-wrap: anywhere; }
+.trash-info details { margin-top: .4rem; font-size: .85rem; color: var(--muted); }
+.trash-files { margin: .3rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
 
 /* Footer */
 .site-footer { max-width: 1500px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem) 2rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); }

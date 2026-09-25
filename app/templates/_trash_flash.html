@@ -1,0 +1,9 @@
+{% set gone = deleted_entry(request) %}
+{% if gone %}
+<div class="flash flash-undo" role="status">
+  <span>{{ 'Projekt' if gone.kind == 'projekt' else 'Datei' }} „{{ gone.label }}“ in den Papierkorb verschoben.</span>
+  <form method="post" action="/papierkorb/{{ gone.id }}/wiederherstellen">
+    <button type="submit" class="quiet">Rückgängig</button>
+  </form>
+</div>
+{% endif %}

@@ -15,7 +15,7 @@ und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbah
 - **3D-Vorschau** der Druckbahnen, eingefärbt nach Filament, Linientyp oder einfarbig,
   mit Schichtregler
 - **Automatische Projekte** aus Ordnern oder Dateinamen, zusätzlich manuell zuordenbar
-- **Upload** per Drag & Drop und **Papierkorb** statt endgültigem Löschen
+- **Upload** per Drag & Drop und **Papierkorb** mit Wiederherstellen statt endgültigem Löschen
 - **Direktimport von Bambu-Druckern** per FTPS, auch ohne LAN-only-Modus
 - **Notizen, Tags, Status und Quelle** pro Projekt
 
@@ -78,6 +78,7 @@ Alle Einstellungen stehen in der `.env`.
 | `SCAN_INTERVAL` | 120 | Sekunden zwischen zwei Durchläufen durch die Bibliothek |
 | `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
 | `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
+| `TRASH_DAYS` | 30 | Tage, nach denen Einträge im Papierkorb endgültig gelöscht werden (0 = nie) |
 | `PRINTERS_JSON` | – | Druckerliste für den Direktimport (optional) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
@@ -127,10 +128,22 @@ hochladen, auf Wunsch direkt in einen Projektordner. Vorhandene Dateien werden n
 Inhalt wird „(2)“ angehängt.
 
 Dateien oder ganze Projekte löschst du auf der Projektseite. Sie werden nicht
-endgültig entfernt, sondern mit ihrem ursprünglichen Pfad nach
-`.papierkorb/<Datum_Uhrzeit>/` innerhalb der Bibliothek verschoben. Zum
-Wiederherstellen schiebst du sie einfach zurück. Notizen und Tags eines gelöschten
-Projekts gehen dabei allerdings verloren. Den Papierkorb leerst du bei Bedarf selbst.
+endgültig entfernt, sondern mit ihrem ursprünglichen Pfad nach `.papierkorb/`
+innerhalb der Bibliothek verschoben. Direkt nach dem Löschen lässt es sich mit
+„Rückgängig“ zurücknehmen.
+
+Unter „Papierkorb“ oben rechts siehst du alle gelöschten Dateien und Projekte:
+
+- **Wiederherstellen** legt die Dateien an ihren ursprünglichen Ort zurück. Projektname,
+  Notizen, Tags, Status, Quelle und die manuelle Zuordnung von Dateien kommen mit
+  zurück. Liegt dort inzwischen eine andere Datei mit gleichem Namen, wird die
+  wiederhergestellte als „(2)“ abgelegt. Überschrieben wird nie etwas.
+- **Endgültig löschen** entfernt einen Eintrag, **Papierkorb leeren** alle.
+- Nach `TRASH_DAYS` Tagen (Standard 30) werden Einträge automatisch endgültig gelöscht.
+  Mit `TRASH_DAYS=0` bleiben sie, bis du sie selbst löschst.
+
+Ordner, die ältere Versionen im Papierkorb abgelegt haben, erscheinen dort ebenfalls.
+Ihre Frist beginnt mit dem Update, es verschwindet also nichts sofort.
 
 ## 3D-Vorschau
 

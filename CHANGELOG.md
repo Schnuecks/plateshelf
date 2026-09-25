@@ -2,16 +2,35 @@
 
 ## Unveröffentlicht
 
+- Papierkorb in der Oberfläche: gelöschte Dateien und Projekte auflisten,
+  wiederherstellen, einzeln endgültig löschen oder den Papierkorb leeren.
+- Wiederherstellen bringt Projektname, Notizen, Tags, Status, Quelle und die
+  manuelle Zuordnung von Dateien zurück und überschreibt nie vorhandene Dateien.
+- „Rückgängig“ direkt nach dem Löschen.
+- Einträge werden nach `TRASH_DAYS` Tagen (Standard 30, 0 = nie) automatisch
+  endgültig gelöscht. Papierkorb-Ordner älterer Versionen werden übernommen,
+  ihre Frist beginnt mit dem Update.
+- Kopfleiste auf schmalen Bildschirmen: Links überlappen nicht mehr.
+- Tests für die Parser-Hilfsfunktionen `_norm_color` und `_to_float`.
+
+## 0.2.1
+
 - Lizenz: AGPL-3.0-or-later (Datei `LICENSE`, Hinweise in den Quelldateien,
   Link im Footer).
+
+## 0.2.0
+
 - Stromkosten: Strompreis und durchschnittliche Leistung pro Drucker unter
   „Einstellungen“; Kosten werden als Material plus Strom angezeigt.
 - Footer mit Version und Autor auf allen Seiten, auch in der 3D-Vorschau.
+- README überarbeitet; Compose-Vorlage und `.env.example` allgemein gehalten
+  (Port statt fester Proxy-Anbindung, Beispieladressen statt eigener Umgebung).
+
+## 0.1.1
+
 - Image wird nur noch bei Versions-Tags hochgeladen (amd64), ältere Versionen
   werden automatisch entfernt; Pushes auf main bauen nur probeweise.
 - Compose-Vorlage nutzt das Image aus der GitHub Container Registry.
-- README überarbeitet; Compose-Vorlage und `.env.example` allgemein gehalten
-  (Port statt fester Proxy-Anbindung, Beispieladressen statt eigener Umgebung).
 
 ## 0.1.0
 

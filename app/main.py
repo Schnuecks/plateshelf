@@ -12,7 +12,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import filecmp
-import shutil
 import uuid
 import zipfile
 
@@ -22,7 +21,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import gcode_preview, printer_import, store
+from . import gcode_preview, printer_import, store, trash
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 
@@ -50,6 +49,7 @@ async def lifespan(_app):
         threading.Thread(target=store.prebuild_loop, daemon=True).start()
     printer_import.init()
     threading.Thread(target=printer_import.sync_loop, daemon=True).start()
+    threading.Thread(target=trash.purge_loop, daemon=True).start()
     yield
 
 
@@ -109,7 +109,14 @@ def strand(filaments: list[dict]) -> str:
     return f"linear-gradient(90deg, {', '.join(stops)})"
 
 
-templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand)
+def fmt_size(n) -> str:
+    if not n:
+        return "0 MB"
+    return fmt_num(n / 1024 / 1024, 1, "MB") if n >= 100 * 1024 else fmt_num(n / 1024, 0, "KB")
+
+
+templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand,
+                             size=fmt_size)
 templates.env.globals["STATUSES"] = STATUSES
 templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
                              APP_LICENSE=APP_LICENSE)
@@ -475,18 +482,6 @@ def _library_folders() -> list[str]:
         return []
 
 
-def _unique_path(folder: Path, name: str) -> Path:
-    """Nie überschreiben: bei Namensgleichheit ' (2)', ' (3)' … anhängen."""
-    target = folder / name
-    if not target.exists():
-        return target
-    stem, ext = (name[:-10], name[-10:]) if name.lower().endswith(".gcode.3mf") else (name[:-4], name[-4:])
-    n = 2
-    while (folder / f"{stem} ({n}){ext}").exists():
-        n += 1
-    return folder / f"{stem} ({n}){ext}"
-
-
 def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | None]:
     """Speichert eine Datei. Rückgabe: (relativer Pfad, Fehlermeldung)."""
     name = _clean_name(upload.filename)
@@ -510,7 +505,7 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
         existing = folder / name
         if existing.exists() and filecmp.cmp(tmp, existing, shallow=False):
             raise ValueError("ist bereits unverändert in der Bibliothek")
-        target = _unique_path(folder, name)
+        target = store.unique_path(folder, name)
         os.replace(tmp, target)
         return target.relative_to(store.LIBRARY_DIR).as_posix(), None
     except Exception as exc:
@@ -520,74 +515,93 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
             tmp.unlink()
 
 
-# --- Löschen (in den Papierkorb) --------------------------------------------
+# --- Löschen und Papierkorb -------------------------------------------------
 
-TRASH_DIR = ".papierkorb"
-
-
-def _trash_file(rel_path: str, stamp: str) -> None:
-    """Verschiebt eine Datei nach .papierkorb/<Zeitstempel>/<ursprünglicher Pfad>."""
-    lib = store.LIBRARY_DIR.resolve()
-    src = (lib / rel_path).resolve()
-    if not src.is_relative_to(lib):
-        raise HTTPException(400, "Ungültiger Pfad")
-    if src.exists():
-        dst = lib / TRASH_DIR / stamp / rel_path
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(src, dst)
-    # Leer gewordene Projektordner aufräumen
-    parent = src.parent
-    while parent != lib and parent.is_relative_to(lib):
-        try:
-            parent.rmdir()
-        except OSError:
-            break
-        parent = parent.parent
-
-
-def _forget_file(con, fid: int) -> None:
-    con.execute("DELETE FROM plates WHERE file_id = ?", (fid,))
-    con.execute("DELETE FROM files WHERE id = ?", (fid,))
-    shutil.rmtree(store.THUMB_DIR / str(fid), ignore_errors=True)
-    for old in (store.DATA_DIR / "preview").glob(f"{fid}_*"):
-        old.unlink(missing_ok=True)
-    gcode_preview.forget(store.DATA_DIR / "preview", fid)
+def _require_writable() -> None:
+    if not _library_writable():
+        raise HTTPException(403, "Bibliothek ist schreibgeschützt eingebunden")
 
 
 @app.post("/f/{fid}/delete")
 def delete_file(fid: int):
-    if not _library_writable():
-        raise HTTPException(403, "Bibliothek ist schreibgeschützt eingebunden")
-    stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    _require_writable()
     with store.connect() as con:
-        row = con.execute("SELECT path, project_id FROM files WHERE id = ?", (fid,)).fetchone()
+        row = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()
         if not row:
             raise HTTPException(404, "Datei nicht gefunden")
-        _trash_file(row["path"], stamp)
-        _forget_file(con, fid)
-        left = con.execute("SELECT COUNT(*) FROM files WHERE project_id = ? AND missing = 0",
-                           (row["project_id"],)).fetchone()[0]
-        if not left:
-            con.execute("DELETE FROM files WHERE project_id = ?", (row["project_id"],))
-            con.execute("DELETE FROM projects WHERE id = ?", (row["project_id"],))
-            return RedirectResponse("/?geloescht=datei", status_code=303)
-    return RedirectResponse(f"/p/{row['project_id']}?geloescht=datei", status_code=303)
+        try:
+            entry = trash.delete(con, [fid], "datei")
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        still_there = con.execute("SELECT 1 FROM projects WHERE id = ?", (row["project_id"],)).fetchone()
+    if still_there:
+        return RedirectResponse(f"/p/{row['project_id']}?geloescht={entry}", status_code=303)
+    return RedirectResponse(f"/?geloescht={entry}", status_code=303)
 
 
 @app.post("/p/{pid}/delete")
 def delete_project(pid: int):
-    if not _library_writable():
-        raise HTTPException(403, "Bibliothek ist schreibgeschützt eingebunden")
-    stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    _require_writable()
     with store.connect() as con:
-        if not con.execute("SELECT 1 FROM projects WHERE id = ?", (pid,)).fetchone():
+        ids = [r["id"] for r in con.execute("SELECT id FROM files WHERE project_id = ?", (pid,))]
+        if not ids:
             raise HTTPException(404, "Projekt nicht gefunden")
-        for r in con.execute("SELECT id, path, missing FROM files WHERE project_id = ?", (pid,)).fetchall():
-            if not r["missing"]:
-                _trash_file(r["path"], stamp)
-            _forget_file(con, r["id"])
-        con.execute("DELETE FROM projects WHERE id = ?", (pid,))
-    return RedirectResponse("/?geloescht=projekt", status_code=303)
+        try:
+            entry = trash.delete(con, ids, "projekt")
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+    return RedirectResponse(f"/?geloescht={entry}", status_code=303)
+
+
+def _deleted_entry(request: Request) -> dict | None:
+    """Eintrag zur Meldung „… in den Papierkorb verschoben“ mit Rückgängig-Knopf."""
+    raw = request.query_params.get("geloescht", "")
+    if not raw.isdigit():
+        return None
+    with store.connect() as con:
+        row = con.execute("SELECT id, kind, label FROM trash WHERE id = ?", (int(raw),)).fetchone()
+    return dict(row) if row else None
+
+
+templates.env.globals["deleted_entry"] = _deleted_entry
+
+
+@app.get("/papierkorb")
+def trash_page(request: Request):
+    return templates.TemplateResponse(request, "trash.html", {
+        "entries": trash.entries(), "days": trash.TRASH_DAYS, "writable": _library_writable(),
+    })
+
+
+@app.post("/papierkorb/{entry_id}/wiederherstellen")
+def trash_restore(entry_id: int):
+    _require_writable()
+    try:
+        result = trash.restore(entry_id)
+    except LookupError:
+        raise HTTPException(404, "Eintrag nicht gefunden")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    if result["project_id"]:
+        return RedirectResponse(f"/p/{result['project_id']}?wiederhergestellt={result['restored']}", status_code=303)
+    return RedirectResponse(f"/?wiederhergestellt={result['restored']}", status_code=303)
+
+
+@app.post("/papierkorb/{entry_id}/loeschen")
+def trash_purge(entry_id: int):
+    _require_writable()
+    try:
+        trash.purge(entry_id)
+    except LookupError:
+        raise HTTPException(404, "Eintrag nicht gefunden")
+    return RedirectResponse("/papierkorb?endgueltig=1", status_code=303)
+
+
+@app.post("/papierkorb/leeren")
+def trash_purge_all():
+    _require_writable()
+    n = trash.purge_all()
+    return RedirectResponse(f"/papierkorb?endgueltig={n}", status_code=303)
 
 
 @app.get("/upload")
