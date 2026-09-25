@@ -1,6 +1,6 @@
 import zipfile
 
-from app.parser import _html_to_text, parse_3mf, parse_duration
+from app.parser import _html_to_text, _norm_color, _to_float, parse_3mf, parse_duration
 
 
 def test_parse_duration():
@@ -64,3 +64,19 @@ def test_designer_metadata(tmp_path, sample):
 
 def test_html_to_text_double_escaped():
     assert _html_to_text("&amp;lt;b&amp;gt;fett&amp;lt;/b&amp;gt;") == "fett"
+
+
+def test_norm_color():
+    assert _norm_color("#f2c94cff") == "#F2C94C"  # Alpha abgeschnitten, Großbuchstaben
+    assert _norm_color("2d9c74") == "#2D9C74"  # fehlendes # ergänzt
+    assert _norm_color(None) == "#888888"
+    assert _norm_color("") == "#888888"
+    assert _norm_color("rot") == "#888888"
+
+
+def test_to_float():
+    assert _to_float("0,35") == 0.35  # Dezimalkomma
+    assert _to_float(" 15% ") == 15.0
+    assert _to_float(20) == 20.0
+    assert _to_float(None) is None
+    assert _to_float("abc") is None
