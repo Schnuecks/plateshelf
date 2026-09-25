@@ -80,6 +80,7 @@ def test_footer_shows_version(client):
     from app import main
     page = client.get("/").text
     assert f"Druckarchiv {main.APP_VERSION} von Schnuecks" in page
+    assert "blob/main/LICENSE" in page and "AGPL-3.0" in page
 
 
 def test_version_formatting(monkeypatch):

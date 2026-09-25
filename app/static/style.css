@@ -343,3 +343,4 @@ button.danger-quiet:hover { color: var(--ink); }
 .site-footer { max-width: 1500px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem) 2rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); }
 .site-footer a { color: var(--muted); }
 .viewer-footer { margin: auto 0 0; padding-top: 1rem; font-size: .8rem; color: var(--muted); }
+.viewer-footer a { color: var(--muted); }

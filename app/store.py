@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 """SQLite-Speicher und Ordner-Scanner.
 
 Die 3MF-Dateien bleiben unangetastet in der Bibliothek. In der Datenbank

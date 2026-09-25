@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Schnuecks
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
 

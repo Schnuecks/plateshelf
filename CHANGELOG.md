@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- Lizenz: AGPL-3.0-or-later (Datei `LICENSE`, Hinweise in den Quelldateien,
+  Link im Footer).
 - Stromkosten: Strompreis und durchschnittliche Leistung pro Drucker unter
   „Einstellungen“; Kosten werden als Material plus Strom angezeigt.
 - Footer mit Version und Autor auf allen Seiten, auch in der 3D-Vorschau.

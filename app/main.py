@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 from __future__ import annotations
 
 import json
@@ -36,6 +38,7 @@ def _app_version() -> str:
 APP_VERSION = _app_version()
 APP_AUTHOR = "Schnuecks"
 APP_REPO = "https://github.com/schnuecks/druckarchiv"
+APP_LICENSE = "AGPL-3.0"
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
 
 @asynccontextmanager
@@ -108,7 +111,8 @@ def strand(filaments: list[dict]) -> str:
 
 templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand)
 templates.env.globals["STATUSES"] = STATUSES
-templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO)
+templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
+                             APP_LICENSE=APP_LICENSE)
 
 
 def _asset_version() -> str:

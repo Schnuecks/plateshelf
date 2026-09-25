@@ -222,7 +222,25 @@ LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 Pushes auf `main` ohne Tag werden getestet und probeweise gebaut, aber nicht
 veröffentlicht.
 
-## Drittanbieter
+## Lizenz
+
+Copyright (C) 2026 Schnuecks
+
+Das Druckarchiv ist freie Software unter der
+[GNU Affero General Public License, Version 3 oder später](LICENSE)
+(AGPL-3.0-or-later). Du darfst es nutzen, verändern und weitergeben.
+
+Wenn du eine veränderte Fassung weitergibst oder anderen über ein Netzwerk zur
+Nutzung anbietest, musst du ihnen den Quellcode deiner Fassung unter derselben
+Lizenz zugänglich machen. Der Link „Quellcode auf GitHub“ im Footer erfüllt das für
+diese Fassung; bei einer eigenen Fassung passe ihn auf deinen Quellcode an
+(`APP_REPO` in `app/main.py`).
+
+Das Programm wird ohne jede Gewährleistung bereitgestellt, Einzelheiten stehen in
+der [Lizenz](LICENSE).
+
+### Drittanbieter
 
 `app/static/vendor/` enthält [three.js](https://threejs.org) und OrbitControls,
-beide unter der MIT-Lizenz (siehe `three-LICENSE`).
+beide unter der MIT-Lizenz (siehe `three-LICENSE`). Die MIT-Lizenz ist mit der
+AGPL vereinbar.

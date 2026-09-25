@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 """Wandelt den G-Code einer Platte in eine kompakte Vorschau für den 3D-Viewer.
 
 Ausgabe pro Platte (im Cache unter DATA_DIR/preview/):

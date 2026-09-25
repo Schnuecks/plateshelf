@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 """Holt geslicte Drucke per FTPS direkt von der SD-Karte der Bambu-Drucker.
 
 Funktioniert auch ohne LAN-only-Modus, solange der Drucker den Dateizugriff mit

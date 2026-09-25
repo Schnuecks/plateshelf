@@ -58,7 +58,8 @@
     </div>
     <p class="hint viewer-help">Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht{% if nav.total > 1 %}, links und rechts die Platte{% endif %}.</p>
   </div>
-    <p class="viewer-footer">Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}</p>
+    <p class="viewer-footer">Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }},
+      <a href="{{ APP_REPO }}" rel="noopener">Quellcode</a>, <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a></p>
   </aside>
 </div>
 <script id="viewer-filaments" type="application/json">{{ filaments|tojson }}</script>

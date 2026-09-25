@@ -26,7 +26,8 @@
   <main>{% block main %}{% endblock %}</main>
   {% block footer %}
   <footer class="site-footer">
-    Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}, <a href="{{ APP_REPO }}" rel="noopener">Quellcode auf GitHub</a>
+    Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}, <a href="{{ APP_REPO }}" rel="noopener">Quellcode auf GitHub</a>,
+    Lizenz <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a>
   </footer>
   {% endblock %}
   <script src="/static/app.js?v={{ ASSET_V }}" defer></script>

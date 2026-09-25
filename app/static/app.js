@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Schnuecks
 // Umschalten Schrägansicht / Draufsicht
 document.querySelectorAll("[data-thumbs]").forEach((fig) => {
   const img = fig.querySelector("img");

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 """Liest Bambu-Studio-/OrcaSlicer-3MF-Dateien (bevorzugt .gcode.3mf) aus.
 
 Quellen innerhalb des ZIP-Containers:

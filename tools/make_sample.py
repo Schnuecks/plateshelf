@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
 """Erzeugt nachgebaute Bambu-.gcode.3mf-Dateien zum Testen (kein echter G-Code)."""
 import json
 import sys
