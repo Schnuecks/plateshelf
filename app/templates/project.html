@@ -27,7 +27,8 @@
     <dl class="headline-stats">
       <div><dt>Druckzeit gesamt</dt><dd>{{ p.time_s|duration }}</dd></div>
       <div><dt>Filament</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
-      <div><dt>Materialkosten</dt><dd>{{ p.cost|money }}</dd></div>
+      <div><dt>Kosten</dt><dd>{{ p.total_cost|money }}</dd>
+        <dd class="cost-split">Material {{ p.cost|money }}, Strom {{ p.energy_cost|money }}</dd></div>
       <div><dt>{{ 'Gesliced' if p.plates_total > p.plates|length else 'Platten' }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ p.plates|length }} von {{ p.plates_total }}{% else %}{{ p.plates|length }}{% endif %}</dd></div>
     </dl>
   </header>
@@ -111,8 +112,10 @@
               <div><dt>Gewicht</dt><dd>{{ pl.weight_g|num(1, 'g') }}</dd></div>
               {% if pl.layers %}<div><dt>Schichten</dt><dd>{{ pl.layers }}</dd></div>{% endif %}
               {% if pl.max_z %}<div><dt>Höhe</dt><dd>{{ pl.max_z|num(1, 'mm') }}</dd></div>{% endif %}
-              {% if pl.cost is not none %}<div><dt>Kosten</dt><dd>{{ pl.cost|money }}</dd></div>{% endif %}
+              {% if pl.total_cost is not none %}<div><dt>Kosten</dt><dd>{{ pl.total_cost|money }}</dd></div>{% endif %}
             </dl>
+            <p class="cost-line">Material {{ pl.cost|money }}, Strom {{ pl.energy_cost|money }} ({{ pl.energy_kwh|num(2, 'kWh') }})
+              <a href="/einstellungen">anpassen</a></p>
             {% if pl.filaments %}
             <table class="filaments">
               <thead><tr><th scope="col">Slot</th><th scope="col">Filament</th><th scope="col" class="r">Gramm</th><th scope="col" class="r">Meter</th></tr></thead>

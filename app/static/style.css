@@ -63,7 +63,7 @@ th.r, td.r, .r { text-align: right; }
 .tb-left { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem; flex: 1; min-width: 0; }
 /* Seiten mit Zurück-Knopf: Knopf genau in der Mitte der Kopfzeile */
 .topbar:has(.nav-back) { display: grid; grid-template-columns: 1fr auto 1fr; }
-.topbar:has(.nav-back) .upload-link { justify-self: end; }
+.topbar:has(.nav-back) .tb-right { justify-self: end; }
 .nav-back {
   display: inline-flex; align-items: center; gap: .4rem; justify-self: center;
   padding: .45rem 1.1rem .45rem .8rem; border-radius: 999px;
@@ -225,7 +225,10 @@ summary { cursor: pointer; font-weight: 500; }
 .plate { scroll-margin-top: 5rem; }
 
 /* Upload */
-.upload-link { margin-left: auto; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.tb-right { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
+.upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
+.settings-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
+.settings-link:hover { color: var(--ink); }
 .upload { max-width: 44rem; }
 .upload h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
 .upload-form { display: grid; gap: 1.25rem; }
@@ -315,3 +318,28 @@ button.danger-quiet:hover { color: var(--ink); }
 .uni-row { display: flex; align-items: center; gap: .6rem; font-size: .92rem; }
 .uni-row input[type=color] { width: 2.4rem; height: 2rem; padding: .1rem; border-radius: 6px; cursor: pointer; }
 .seg button { font-size: .92rem; }
+
+/* Kosten */
+.headline-stats .cost-split { font: 400 .8rem/1.3 var(--font); color: var(--muted); margin-top: .15rem; }
+.cost-line { margin: .5rem 0 0; font-size: .85rem; color: var(--muted); }
+.cost-line a { margin-left: .35rem; }
+
+/* Einstellungen */
+.settings-page { max-width: 40rem; }
+.settings-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
+.settings-form { display: grid; gap: 1.5rem; }
+.settings-form section { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1.1rem 1.25rem; display: grid; gap: .8rem; }
+.settings-form h2 { font: 600 1.1rem/1.2 var(--font-cond); margin: 0; }
+.settings-form label { display: grid; gap: .3rem; font-weight: 500; }
+.settings-form .hint { margin: 0; }
+.settings-form button { justify-self: start; }
+.printer-watts { border-collapse: collapse; width: 100%; }
+.printer-watts th { text-align: left; font-weight: 500; color: var(--muted); font-size: .85rem; border-bottom: 1px solid var(--line); padding: .3rem 0; }
+.printer-watts th.r { text-align: right; }
+.printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.printer-watts input { width: 6rem; text-align: right; }
+
+/* Footer */
+.site-footer { max-width: 1500px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem) 2rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); }
+.site-footer a { color: var(--muted); }
+.viewer-footer { margin: auto 0 0; padding-top: 1rem; font-size: .8rem; color: var(--muted); }

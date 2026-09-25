@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS plates (
     has_top INTEGER NOT NULL DEFAULT 0,
     sliced INTEGER NOT NULL DEFAULT 1
 );
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_plates_file ON plates(file_id);
 """
@@ -298,6 +302,44 @@ def scan(force: bool = False, wait: bool = False) -> dict:
     if PREBUILD:
         request_prebuild()
     return last_scan
+
+
+SETTING_DEFAULTS = {
+    "strompreis": 0.35,        # Euro pro kWh
+    "leistung_standard": 100,  # durchschnittliche Leistung eines Druckers in Watt
+}
+
+
+def get_settings(con: sqlite3.Connection | None = None) -> dict:
+    """Einstellungen mit Standardwerten; Druckerleistungen als "leistung:<Drucker>"."""
+    own = con is None
+    con = con or connect()
+    try:
+        values = dict(SETTING_DEFAULTS)
+        for r in con.execute("SELECT key, value FROM settings"):
+            try:
+                values[r["key"]] = float(r["value"])
+            except ValueError:
+                values[r["key"]] = r["value"]
+        return values
+    finally:
+        if own:
+            con.close()
+
+
+def save_settings(values: dict) -> None:
+    with connect() as con:
+        for key, value in values.items():
+            if value is None or value == "":
+                con.execute("DELETE FROM settings WHERE key = ?", (key,))
+            else:
+                con.execute("INSERT INTO settings (key, value) VALUES (?, ?) "
+                            "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, str(value)))
+
+
+def printer_watts(settings: dict, printer: str | None) -> float:
+    return float(settings.get(f"leistung:{printer}", settings["leistung_standard"]) if printer
+                 else settings["leistung_standard"])
 
 
 def project_ids_for(paths: list[str]) -> list[int]:

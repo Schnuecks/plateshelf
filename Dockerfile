@@ -1,10 +1,14 @@
 FROM python:3.12-slim
 
+# Wird von GitHub Actions beim Release auf den Tag gesetzt (z. B. v0.2.0)
+ARG VERSION=dev
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     LIBRARY_DIR=/library \
     DATA_DIR=/data \
-    SCAN_INTERVAL=120
+    SCAN_INTERVAL=120 \
+    APP_VERSION=${VERSION}
 
 WORKDIR /srv
 COPY requirements.txt .

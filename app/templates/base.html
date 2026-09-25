@@ -18,9 +18,17 @@
       {% block topbar %}{% endblock %}
     </div>
     {% block back %}{% endblock %}
-    <a class="upload-link" href="/upload">Hochladen</a>
+    <nav class="tb-right">
+      <a class="settings-link" href="/einstellungen">Einstellungen</a>
+      <a class="upload-link" href="/upload">Hochladen</a>
+    </nav>
   </header>
   <main>{% block main %}{% endblock %}</main>
+  {% block footer %}
+  <footer class="site-footer">
+    Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}, <a href="{{ APP_REPO }}" rel="noopener">Quellcode auf GitHub</a>
+  </footer>
+  {% endblock %}
   <script src="/static/app.js?v={{ ASSET_V }}" defer></script>
 </body>
 </html>

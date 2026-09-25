@@ -25,6 +25,17 @@ from . import gcode_preview, printer_import, store
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 
 BASE = Path(__file__).parent
+def _app_version() -> str:
+    """Version aus dem Image: bei Releases der Tag (v0.2.0 -> 0.2.0), sonst dev-<Commit>."""
+    v = os.environ.get("APP_VERSION", "").strip() or "dev"
+    if v.startswith("dev-"):
+        return v[:11]  # dev- plus 7 Zeichen der Commit-Kennung, wie auf GitHub
+    return v.removeprefix("v")
+
+
+APP_VERSION = _app_version()
+APP_AUTHOR = "Schnuecks"
+APP_REPO = "https://github.com/schnuecks/druckarchiv"
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
 
 @asynccontextmanager
@@ -97,6 +108,7 @@ def strand(filaments: list[dict]) -> str:
 
 templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand)
 templates.env.globals["STATUSES"] = STATUSES
+templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO)
 
 
 def _asset_version() -> str:
@@ -160,7 +172,13 @@ def _plate_dict(row) -> dict:
     return d
 
 
+def _total(material, energy):
+    parts = [x for x in (material, energy) if x is not None]
+    return sum(parts) if parts else None
+
+
 def load_projects(con) -> list[dict]:
+    settings = store.get_settings(con)
     projects = {r["id"]: {**dict(r), "files": [], "plates": [], "extra_plates": []}
                 for r in con.execute("SELECT * FROM projects")}
     files = {}
@@ -177,6 +195,11 @@ def load_projects(con) -> list[dict]:
             pd = _plate_dict(r)
             pd["file_id"] = f["id"]
             pd["v"] = file_stamp(f)
+            # Strom: Druckzeit × durchschnittliche Leistung des Druckers × Strompreis
+            watts = store.printer_watts(settings, f["printer"])
+            pd["energy_kwh"] = (pd["prediction_s"] or 0) / 3600 * watts / 1000
+            pd["energy_cost"] = pd["energy_kwh"] * settings["strompreis"]
+            pd["total_cost"] = _total(pd["cost"], pd["energy_cost"])
             # Nicht geslicte Platten einer geslicten Datei: nur Vorschau, zählen nicht mit
             bucket = "plates" if pd["sliced"] else "extra_plates"
             projects[f["project_id"]][bucket].append(pd)
@@ -204,6 +227,9 @@ def load_projects(con) -> list[dict]:
         p["weight_g"] = sum(x["weight_g"] or 0 for x in plates)
         costs = [x["cost"] for x in plates if x["cost"] is not None]
         p["cost"] = sum(costs) if costs else None
+        p["energy_cost"] = sum(x["energy_cost"] for x in plates) if plates else None
+        p["energy_kwh"] = sum(x["energy_kwh"] for x in plates)
+        p["total_cost"] = _total(p["cost"], p["energy_cost"])
         p["filaments"] = _merge_filaments(plates)
         p["materials"] = sorted({f["type"] for f in p["filaments"] if f["type"]})
         p["printers"] = sorted({f["printer"] for f in p["files"] if f["printer"]})
@@ -374,6 +400,52 @@ def move_file(fid: int, target: str = Form(...), new_name: str = Form("")):
                 raise HTTPException(404, "Zielprojekt nicht gefunden")
         con.execute("UPDATE files SET project_id = ?, pinned = 1 WHERE id = ?", (target_id, fid))
     return RedirectResponse(f"/p/{target_id}", status_code=303)
+
+
+# --- Einstellungen -----------------------------------------------------------
+
+@app.get("/einstellungen")
+def settings_form(request: Request):
+    with store.connect() as con:
+        settings = store.get_settings(con)
+        printers = [r[0] for r in con.execute(
+            "SELECT DISTINCT printer FROM files WHERE missing = 0 AND printer IS NOT NULL AND printer != '' "
+            "ORDER BY printer")]
+    rows = [{"name": pr, "watts": settings.get(f"leistung:{pr}")} for pr in printers]
+    return templates.TemplateResponse(request, "settings.html", {
+        "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
+    })
+
+
+def _number(value: str, low: float, high: float) -> float | None:
+    value = (value or "").strip().replace(",", ".")
+    if not value:
+        return None
+    try:
+        number = float(value)
+    except ValueError:
+        raise HTTPException(400, f"„{value}“ ist keine Zahl")
+    if not low <= number <= high:
+        raise HTTPException(400, f"{number} liegt außerhalb von {low} bis {high}")
+    return number
+
+
+@app.post("/einstellungen")
+async def settings_save(request: Request):
+    form = await request.form()
+    def or_default(value, key):
+        # 0 ist ein gültiger Strompreis (z. B. eigene Solaranlage), nur ein leeres Feld nimmt den Standard
+        return store.SETTING_DEFAULTS[key] if value is None else value
+
+    values = {
+        "strompreis": or_default(_number(form.get("strompreis"), 0, 5), "strompreis"),
+        "leistung_standard": or_default(_number(form.get("leistung_standard"), 1, 5000), "leistung_standard"),
+    }
+    for key, value in form.items():
+        if key.startswith("leistung:"):
+            values[key] = _number(value, 1, 5000)  # leer = Standardleistung verwenden
+    store.save_settings(values)
+    return RedirectResponse("/einstellungen?gespeichert=1", status_code=303)
 
 
 # --- Upload -----------------------------------------------------------------

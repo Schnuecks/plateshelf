@@ -66,6 +66,8 @@ jobs:
           push: ${{ steps.release.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.sha) }}
           provenance: false   # keine zusätzlichen Manifeste, spart Speicher
           sbom: false
           cache-from: type=gha

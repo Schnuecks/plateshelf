@@ -11,6 +11,7 @@
 {% endblock %}
 {% block back %}{% if project %}<a class="nav-back" href="/p/{{ project.id }}" data-back>Zurück zu {{ project.name }}</a>{% endif %}{% endblock %}
 
+{% block footer %}{% endblock %}
 {% block main %}
 <div class="viewer" id="viewer"
      data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
@@ -57,6 +58,7 @@
     </div>
     <p class="hint viewer-help">Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht{% if nav.total > 1 %}, links und rechts die Platte{% endif %}.</p>
   </div>
+    <p class="viewer-footer">Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}</p>
   </aside>
 </div>
 <script id="viewer-filaments" type="application/json">{{ filaments|tojson }}</script>

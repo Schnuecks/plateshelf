@@ -83,7 +83,7 @@
         <dl class="stats">
           <div><dt>Zeit</dt><dd>{{ p.time_s|duration }}</dd></div>
           <div><dt>Filament</dt><dd>{{ p.weight_g|num(0, 'g') }}</dd></div>
-          {% if p.cost is not none %}<div><dt>Kosten</dt><dd>{{ p.cost|money }}</dd></div>{% endif %}
+          {% if p.total_cost is not none %}<div><dt>Kosten</dt><dd title="Material {{ p.cost|money }}, Strom {{ p.energy_cost|money }}">{{ p.total_cost|money }}</dd></div>{% endif %}
         </dl>
         <p class="card-meta">
           {{ p.materials|join(', ') or 'Material unbekannt' }}

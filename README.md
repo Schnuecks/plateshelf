@@ -104,11 +104,20 @@ Exportierst du Platten einzeln, enthält jede Datei zusätzlich die Vorschaubild
 anderen Platten. Liegt eine Platte in einer anderen Datei des Projekts geslict vor,
 wird ihre Vorschau nicht doppelt angezeigt.
 
-### Materialkosten
+### Kosten
 
-Die Kosten berechnen sich aus dem Verbrauch pro Filament und dem Feld „Preis“ im
-jeweiligen Filamentprofil von Bambu Studio. Ist dort kein Preis eingetragen, bleibt
-das Feld leer. Strom und Verschleiß sind nicht enthalten.
+Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
+
+- **Material:** Verbrauch pro Filament mal dem Preis aus dem jeweiligen
+  Filamentprofil in Bambu Studio (Feld „Preis“). Ist dort nichts eingetragen, fehlt
+  dieser Anteil.
+- **Strom:** Druckzeit mal durchschnittlicher Leistung des Druckers mal Strompreis.
+  Strompreis und Leistung stellst du unter „Einstellungen“ ein, auf Wunsch für jeden
+  Drucker einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.
+
+Die durchschnittliche Leistung misst du am genauesten mit einer Steckdose mit
+Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden.
+Verschleiß und Fehldrucke sind nicht enthalten.
 
 ## Hochladen und Löschen
 

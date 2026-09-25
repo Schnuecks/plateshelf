@@ -2,6 +2,9 @@
 
 ## Unveröffentlicht
 
+- Stromkosten: Strompreis und durchschnittliche Leistung pro Drucker unter
+  „Einstellungen“; Kosten werden als Material plus Strom angezeigt.
+- Footer mit Version und Autor auf allen Seiten, auch in der 3D-Vorschau.
 - Image wird nur noch bei Versions-Tags hochgeladen (amd64), ältere Versionen
   werden automatisch entfernt; Pushes auf main bauen nur probeweise.
 - Compose-Vorlage nutzt das Image aus der GitHub Container Registry.
