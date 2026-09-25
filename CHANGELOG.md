@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.3.0
 
 - Papierkorb in der Oberfläche: gelöschte Dateien und Projekte auflisten,
   wiederherstellen, einzeln endgültig löschen oder den Papierkorb leeren.
