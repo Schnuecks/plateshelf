@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.git/
+.github/
+.pytest_cache/
+tests/
+tools/
+.env
+printers.json
+*.3mf

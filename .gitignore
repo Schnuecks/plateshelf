@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Lokale Konfiguration und Zugangsdaten: niemals einchecken
+.env
+printers.json
+*.pem
+
+# Laufzeitdaten und Drucke
+data/
+library/
+*.gcode.3mf
+*.3mf
+!tests/**/*.3mf
+
+# Editor / System
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

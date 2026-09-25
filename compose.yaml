@@ -1,0 +1,31 @@
+services:
+  druckarchiv:
+    build: .
+    image: druckarchiv:local
+    container_name: druckarchiv
+    restart: ${RESTART}
+    user: "${PUID}:${PGID}"
+    security_opt:
+      - ${SECOPTS}
+    environment:
+      - TZ=${TZ}
+      - SCAN_INTERVAL=${SCAN_INTERVAL:-120}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-1024}
+      - PREVIEW_PREBUILD=${PREVIEW_PREBUILD:-true}
+      - PRINTER_SYNC_INTERVAL=${PRINTER_SYNC_INTERVAL:-600}
+    volumes:
+      - ${LIBRARY}:/library             # deine .gcode.3mf-Sammlung (beschreibbar für Uploads)
+      - ${VOL}/druckarchiv/data:/data   # SQLite + Vorschaubilder
+      - ${PRINTERS_JSON}:/config/printers.json:ro   # Drucker für den Direktimport (optional)
+    networks:
+      - proxy
+    labels:
+      - backup.stop=true
+      - traefik.enable=true
+      - traefik.http.routers.druckarchiv.rule=Host(`druckarchiv.home.lan`)
+      - traefik.http.routers.druckarchiv.middlewares=fancy-error@file
+      - traefik.http.services.druckarchiv.loadbalancer.server.port=8000
+
+networks:
+  proxy:
+    external: true   # an den Namen deines Traefik-Netzes anpassen
