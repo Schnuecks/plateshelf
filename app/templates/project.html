@@ -4,8 +4,9 @@
 
 {% block main %}
 <article class="project">
-  {% if request.query_params.get('geloescht') %}
-  <p class="flash" role="status">Datei in den Papierkorb verschoben.</p>
+  {% include "_trash_flash.html" %}
+  {% if request.query_params.get('wiederhergestellt') %}
+  <p class="flash" role="status">Aus dem Papierkorb wiederhergestellt{% if p.notes or p.tags %}, mit Notizen und Tags{% endif %}.</p>
   {% endif %}
   {% if request.query_params.get('hochgeladen') %}
   <p class="flash" role="status">{{ request.query_params.get('hochgeladen') }} {{ 'Datei' if request.query_params.get('hochgeladen') == '1' else 'Dateien' }} hochgeladen und eingelesen.</p>
@@ -15,7 +16,7 @@
       <h1>{{ p.name }}</h1>
       {% if writable %}
       <form method="post" action="/p/{{ p.id }}/delete" class="delete-project"
-            data-confirm="Projekt „{{ p.name }}“ mit {{ files|length }} {{ 'Datei' if files|length == 1 else 'Dateien' }} und allen Notizen löschen? Die Dateien landen im Papierkorb.">
+            data-confirm="Projekt „{{ p.name }}“ mit {{ files|length }} {{ 'Datei' if files|length == 1 else 'Dateien' }} in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.">
         <button type="submit" class="danger-quiet">Projekt löschen</button>
       </form>
       {% endif %}

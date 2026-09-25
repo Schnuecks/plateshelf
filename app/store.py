@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS trash (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    folder TEXT UNIQUE NOT NULL,   -- Unterordner in .papierkorb
+    kind TEXT NOT NULL,            -- datei, projekt oder alt (vor Version 0.3 gelöscht)
+    label TEXT NOT NULL,
+    project_json TEXT,             -- Projektangaben zum Wiederherstellen
+    files_json TEXT NOT NULL,      -- [{"path": …, "pinned": 0/1}]
+    deleted REAL NOT NULL,
+    since REAL NOT NULL            -- Beginn der Aufbewahrungsfrist
+);
 CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_plates_file ON plates(file_id);
 """
@@ -342,6 +352,18 @@ def save_settings(values: dict) -> None:
 def printer_watts(settings: dict, printer: str | None) -> float:
     return float(settings.get(f"leistung:{printer}", settings["leistung_standard"]) if printer
                  else settings["leistung_standard"])
+
+
+def unique_path(folder: Path, name: str) -> Path:
+    """Nie überschreiben: bei Namensgleichheit ' (2)', ' (3)' … anhängen."""
+    target = folder / name
+    if not target.exists():
+        return target
+    stem, ext = (name[:-10], name[-10:]) if name.lower().endswith(".gcode.3mf") else (name[:-4], name[-4:])
+    n = 2
+    while (folder / f"{stem} ({n}){ext}").exists():
+        n += 1
+    return folder / f"{stem} ({n}){ext}"
 
 
 def project_ids_for(paths: list[str]) -> list[int]:

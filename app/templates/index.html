@@ -35,8 +35,9 @@
 {% for p in psync.printers.values() if p.error and p.error.startswith('Anmeldung') %}
 <p class="flash flash-warn" role="status">{{ p.name }}: {{ p.error }}</p>
 {% endfor %}
-{% if request.query_params.get('geloescht') %}
-<p class="flash" role="status">{{ 'Projekt' if request.query_params.get('geloescht') == 'projekt' else 'Datei' }} in den Papierkorb verschoben.</p>
+{% include "_trash_flash.html" %}
+{% if request.query_params.get('wiederhergestellt') %}
+<p class="flash" role="status">Aus dem Papierkorb wiederhergestellt.</p>
 {% endif %}
 {% if request.query_params.get('hochgeladen') %}
 <p class="flash" role="status">{{ request.query_params.get('hochgeladen') }} {{ 'Datei' if request.query_params.get('hochgeladen') == '1' else 'Dateien' }} hochgeladen.</p>
