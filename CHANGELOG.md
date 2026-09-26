@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.4.1
 
 - Sprache und Design sitzen jetzt als kleine Symbole in der Titelleiste:
   Sprachmenü hinter der Weltkugel, ein Klick auf das Design-Symbol wechselt
