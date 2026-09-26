@@ -79,7 +79,7 @@ Alle Einstellungen stehen in der `.env`.
 | `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
 | `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
 | `TRASH_DAYS` | 30 | Tage, nach denen Einträge im Papierkorb endgültig gelöscht werden (0 = nie) |
-| `PRINTERS_JSON` | – | Druckerliste für den Direktimport (optional) |
+| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Drucker für den Direktimport (optional, siehe unten) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
 
@@ -170,18 +170,32 @@ Das Druckarchiv kann alle geslicten Drucke selbst von der SD-Karte deiner
 Bambu-Drucker holen. Der Zugriff erfolgt per FTPS mit dem Zugangscode des Druckers.
 Der LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
 
-**Einrichten:** Lege eine `printers.json` an. Das Format entspricht dem von
-[bambulab-ams-spoolman-filamentstatus](https://github.com/Rdiger-36/bambulab-ams-spoolman-filamentstatus),
-eine vorhandene Datei kannst du also weiterverwenden:
+**Einrichten:** Trage deine Drucker unter „Einstellungen“ → „Drucker für den
+Direktimport“ ein: Name, IP-Adresse, Seriennummer und Zugangscode. Die Angaben findest
+du am Drucker in den Netzwerkeinstellungen. Der Zugangscode wird gespeichert, aber nie
+wieder angezeigt. Lässt du das Feld beim Ändern leer, bleibt er erhalten. Nach dem
+Speichern werden die Drucker sofort abgefragt, das Ergebnis steht bei jedem Drucker.
 
-```json
-[
-  { "name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.0.2.20" }
-]
+Alternativ gibst du die Drucker in der `.env` vor, durchnummeriert ab 1:
+
+```bash
+PRINTER_1_NAME=P2S
+PRINTER_1_IP=192.0.2.20
+PRINTER_1_SERIAL=<Seriennummer>
+PRINTER_1_CODE=<Zugangscode>
+PRINTER_2_NAME=A1 mini
+# …
 ```
 
-Aktiviere anschließend in der `compose.yaml` die Zeile mit `/config/printers.json` und
-setze `PRINTERS_JSON` in der `.env` auf den Pfad der Datei.
+So eingerichtete Drucker erscheinen in den Einstellungen schreibgeschützt. Bei gleicher
+Seriennummer hat die `.env` Vorrang. Die `compose.yaml` reicht die `.env` über
+`env_file` an den Container weiter, dafür ist Docker Compose 2.24 oder neuer nötig.
+
+**Umstieg von `printers.json`:** Eine vorhandene Datei unter `/config/printers.json`
+wird beim ersten Start einmalig in die Einstellungen übernommen. Starte das Update
+deshalb einmal mit deiner bisherigen `compose.yaml`, in der die Datei noch eingebunden
+ist. Sobald die Drucker in den Einstellungen stehen, kannst du die Datei und die
+zugehörige Zeile in der `compose.yaml` entfernen.
 
 **Ablauf:**
 

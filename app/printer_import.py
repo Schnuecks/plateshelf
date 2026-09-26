@@ -5,9 +5,10 @@
 Funktioniert auch ohne LAN-only-Modus, solange der Drucker den Dateizugriff mit
 dem Zugangscode erlaubt (Port 990, Benutzer "bblp", implizites TLS).
 
-Die Druckerliste kommt aus einer printers.json im Format des Projekts
-bambulab-ams-spoolman-filamentstatus:
-    [{"name": "P2S", "id": "<Seriennummer>", "code": "<Zugangscode>", "ip": "192.0.2.20"}]
+Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
+Umgebungsvariablen vorgegeben:
+    PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
+Eine printers.json älterer Versionen wird beim ersten Start einmalig übernommen.
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ from .parser import parse_3mf
 
 log = logging.getLogger("druckarchiv.drucker")
 
+# Nur noch für die einmalige Übernahme in die Einstellungen
 PRINTERS_FILE = Path(os.environ.get("PRINTERS_FILE", "/config/printers.json"))
 SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
 IMPORT_DIR = os.environ.get("PRINTER_IMPORT_DIR", "Vom Drucker")
@@ -49,6 +51,13 @@ CREATE TABLE IF NOT EXISTS printer_imports (
     printer_name TEXT,
     remote_name TEXT,
     remote_date TEXT
+);
+CREATE TABLE IF NOT EXISTS printers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    serial TEXT UNIQUE NOT NULL,
+    ip TEXT NOT NULL,
+    code TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS printer_files (
     printer TEXT NOT NULL,
@@ -95,25 +104,114 @@ class ImplicitFTPS(ftplib.FTP_TLS):
         return conn, size
 
 
+_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE)")
+
+
+def env_printers(environ=None) -> list[dict]:
+    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE, sortiert nach <n>."""
+    environ = os.environ if environ is None else environ
+    found: dict[int, dict] = {}
+    for key, value in environ.items():
+        if m := _ENV_KEY.fullmatch(key):
+            found.setdefault(int(m[1]), {})[m[2].lower()] = value.strip()
+    printers = []
+    for n in sorted(found):
+        p = found[n]
+        missing = [k for k in ("ip", "serial", "code") if not p.get(k)]
+        if missing:
+            log.warning("PRINTER_%d unvollständig, es fehlt %s", n, ", ".join(f"PRINTER_{n}_{k.upper()}" for k in missing))
+            continue
+        printers.append({"name": p.get("name") or p["serial"], "id": p["serial"], "code": p["code"],
+                         "ip": p["ip"], "source": "env"})
+    return printers
+
+
+def db_printers() -> list[dict]:
+    with store.connect() as con:
+        return [{"name": r["name"], "id": r["serial"], "code": r["code"], "ip": r["ip"], "source": "db",
+                 "db_id": r["id"]} for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id")]
+
+
 def load_printers() -> list[dict]:
+    """Alle Drucker; bei gleicher Seriennummer gilt die Umgebungsvariable."""
+    env = env_printers()
+    serials = {p["id"] for p in env}
+    return env + [p for p in db_printers() if p["id"] not in serials]
+
+
+def save_printers(rows: list[dict]) -> None:
+    """Speichert die Drucker aus den Einstellungen.
+
+    rows: {"db_id": int|None, "name", "ip", "serial", "code", "delete": bool}.
+    Leerer Zugangscode bei einem vorhandenen Drucker behält den gespeicherten.
+    Wirft ValueError mit einer lesbaren Meldung, dann wird nichts gespeichert.
+    """
+    with store.connect() as con:
+        existing = {r["id"]: dict(r) for r in con.execute("SELECT * FROM printers")}
+        keep, seen = [], set()
+        env_serials = {p["id"] for p in env_printers()}
+        for row in rows:
+            name, ip, serial, code = (str(row.get(k) or "").strip() for k in ("name", "ip", "serial", "code"))
+            old = existing.get(row.get("db_id")) if row.get("db_id") else None
+            if row.get("delete") or (not old and not any((name, ip, serial, code))):
+                continue
+            label = name or serial or ip or "Neuer Drucker"
+            code = code or (old["code"] if old else "")
+            missing = [t for t, v in (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)) if not v]
+            if missing:
+                raise ValueError(f"{label}: {' und '.join(missing)} fehlt")
+            if serial in seen:
+                raise ValueError(f"Seriennummer {serial} ist doppelt eingetragen")
+            if serial in env_serials:
+                raise ValueError(f"{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet")
+            seen.add(serial)
+            keep.append((old["id"] if old else None, name or serial, serial, ip, code))
+        kept_ids = {k[0] for k in keep if k[0]}
+        for pid in set(existing) - kept_ids:
+            con.execute("DELETE FROM printers WHERE id = ?", (pid,))
+        # Erst alle Seriennummern freigeben, damit Tauschen zwischen Zeilen klappt
+        for pid in kept_ids:
+            con.execute("UPDATE printers SET serial = '~' || id WHERE id = ?", (pid,))
+        for pid, name, serial, ip, code in keep:
+            if pid:
+                con.execute("UPDATE printers SET name = ?, serial = ?, ip = ?, code = ? WHERE id = ?",
+                            (name, serial, ip, code, pid))
+            else:
+                con.execute("INSERT INTO printers (name, serial, ip, code) VALUES (?, ?, ?, ?)",
+                            (name, serial, ip, code))
+    current = {p["id"] for p in load_printers()}
+    for serial in set(state["printers"]) - current:
+        state["printers"].pop(serial, None)  # Meldungen gelöschter Drucker nicht mehr zeigen
+    state["enabled"] = bool(current)
+    request_sync()
+
+
+def _import_printers_json(con) -> None:
+    """Übernimmt eine vorhandene printers.json einmalig in die Einstellungen."""
+    if con.execute("SELECT 1 FROM settings WHERE key = 'printers_json_imported'").fetchone():
+        return
     if not PRINTERS_FILE.exists():
-        return []
+        return
     try:
         data = json.loads(PRINTERS_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         log.warning("printers.json nicht lesbar: %s", exc)
-        return []
-    printers = []
+        return
+    count = 0
     for p in data if isinstance(data, list) else []:
-        if all(p.get(k) for k in ("id", "code", "ip")):
-            printers.append({"name": str(p.get("name") or p["id"]), "id": str(p["id"]),
-                             "code": str(p["code"]), "ip": str(p["ip"])})
-    return printers
+        if isinstance(p, dict) and all(p.get(k) for k in ("id", "code", "ip")):
+            count += con.execute(
+                "INSERT OR IGNORE INTO printers (name, serial, ip, code) VALUES (?, ?, ?, ?)",
+                (str(p.get("name") or p["id"]), str(p["id"]), str(p["ip"]), str(p["code"])),
+            ).rowcount
+    con.execute("INSERT INTO settings (key, value) VALUES ('printers_json_imported', ?)", (str(time.time()),))
+    log.info("printers.json: %d Drucker in die Einstellungen übernommen, die Datei wird nicht mehr benötigt", count)
 
 
 def init() -> None:
     with store.connect() as con:
         con.executescript(SCHEMA)
+        _import_printers_json(con)
     state["enabled"] = bool(load_printers())
 
 
@@ -235,7 +333,10 @@ def sync_all() -> None:
     state["running"] = True
     changed = False
     try:
-        for printer in load_printers():
+        printers = load_printers()
+        for serial in set(state["printers"]) - {p["id"] for p in printers}:
+            state["printers"].pop(serial, None)
+        for printer in printers:
             res = sync_printer(printer)
             res["at"] = time.time()
             state["printers"][printer["id"]] = res

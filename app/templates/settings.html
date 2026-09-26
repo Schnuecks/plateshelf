@@ -43,5 +43,59 @@
 
     <button type="submit">Speichern</button>
   </form>
+
+  <form method="post" action="/einstellungen/drucker" class="settings-form" id="drucker">
+    <section>
+      <h2>Drucker für den Direktimport</h2>
+      <p class="hint">Das Druckarchiv holt geslicte Drucke per FTPS von der SD-Karte, alle {{ sync_minutes }} Minuten oder über
+        „Von Druckern holen“ in der Übersicht. Sie landen unter <code>{{ import_dir }}/&lt;Name&gt;/</code> in der Bibliothek.
+        IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.
+        Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.</p>
+      {% if request.query_params.get('drucker') %}<p class="flash" role="status">Gespeichert. Die Drucker werden jetzt abgefragt.</p>{% endif %}
+      {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
+
+      {% for pr in import_printers %}
+      {% set st = pr.status %}
+      {% if pr.source == 'env' %}
+      <div class="printer-row is-env">
+        <div class="printer-title">
+          <strong>{{ pr.name }}</strong>
+          <span class="hint">über Umgebungsvariablen eingerichtet, änderbar nur in der <code>.env</code></span>
+        </div>
+        <p class="printer-meta">{{ pr.ip }}, Seriennummer {{ pr.serial }}</p>
+        {% if st %}<p class="printer-status {{ 'is-error' if st.error else 'is-ok' }}">{{ st.error or ('Erreichbar, %d Dateien auf der SD-Karte (%s)'|format(st.files, st.at|ago)) }}</p>{% endif %}
+      </div>
+      {% else %}
+      <fieldset class="printer-row">
+        <legend class="visually-hidden">{{ pr.name or 'Drucker' }}</legend>
+        <input type="hidden" name="db_id" value="{{ pr.db_id or '' }}">
+        <label>Name <input type="text" name="name" value="{{ pr.name }}" placeholder="z. B. P1S Werkstatt"></label>
+        <label>IP-Adresse <input type="text" name="ip" value="{{ pr.ip }}" required inputmode="decimal" placeholder="192.168.1.20"></label>
+        <label>Seriennummer <input type="text" name="serial" value="{{ pr.serial }}" required autocomplete="off" spellcheck="false"></label>
+        <label>Zugangscode <input type="password" name="code" value="" autocomplete="new-password"
+               placeholder="{{ '••••••••' if pr.db_id else '8 Zeichen' }}" {% if pr.db_id %}title="Gespeichert. Leer lassen, um ihn zu behalten."{% endif %} {% if not pr.db_id %}required{% endif %}></label>
+        {% if pr.db_id %}<label class="check"><input type="checkbox" name="delete" value="{{ pr.db_id }}"> Entfernen</label>{% endif %}
+        {% if st %}<p class="printer-status {{ 'is-error' if st.error else 'is-ok' }}">{{ st.error or ('Erreichbar, %d Dateien auf der SD-Karte (%s)'|format(st.files, st.at|ago)) }}</p>{% endif %}
+      </fieldset>
+      {% endif %}
+      {% endfor %}
+
+      <details class="printer-new" {% if not import_printers %}open{% endif %}>
+        <summary>Drucker hinzufügen</summary>
+        <fieldset class="printer-row">
+          <legend class="visually-hidden">Neuer Drucker</legend>
+          <input type="hidden" name="db_id" value="">
+          <label>Name <input type="text" name="name" placeholder="z. B. P1S Werkstatt"></label>
+          <label>IP-Adresse <input type="text" name="ip" inputmode="decimal" placeholder="192.168.1.20"></label>
+          <label>Seriennummer <input type="text" name="serial" autocomplete="off" spellcheck="false"></label>
+          <label>Zugangscode <input type="password" name="code" autocomplete="new-password" placeholder="8 Zeichen"></label>
+        </fieldset>
+      </details>
+      <p class="hint">Alternativ lassen sich Drucker in der <code>.env</code> vorgeben:
+        <code>PRINTER_1_NAME</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_SERIAL</code>, <code>PRINTER_1_CODE</code>,
+        für weitere Drucker <code>PRINTER_2_…</code> usw.</p>
+    </section>
+    <button type="submit">Drucker speichern</button>
+  </form>
 </section>
 {% endblock %}

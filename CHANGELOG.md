@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Drucker für den Direktimport werden unter „Einstellungen“ eingetragen und
+  bearbeitet, mit Status des letzten Abrufs pro Drucker. Der Zugangscode wird
+  nie wieder angezeigt.
+- Alternativ Drucker per Umgebungsvariablen `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`
+  und `_CODE`; die `compose.yaml` reicht dafür die `.env` weiter.
+- `printers.json` wird nicht mehr benötigt: Eine vorhandene Datei wird beim
+  ersten Start einmalig in die Einstellungen übernommen.
+
 ## 0.3.0
 
 - Papierkorb in der Oberfläche: gelöschte Dateien und Projekte auflisten,

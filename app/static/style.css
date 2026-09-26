@@ -343,6 +343,21 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
 .printer-watts input { width: 6rem; text-align: right; }
 
+/* Drucker für den Direktimport */
+#drucker { margin-top: 2rem; scroll-margin-top: 5rem; }
+.printer-row { border: 1px solid var(--line); border-radius: 4px; padding: .8rem .9rem; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem .9rem; align-items: end; }
+.printer-row.is-env { display: block; }
+.printer-row .check { display: flex; align-items: center; gap: .45rem; align-self: center; font-weight: 400; }
+.printer-row .check input { width: auto; margin: 0; }
+.printer-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .75rem; }
+.printer-meta { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
+.printer-status { grid-column: 1 / -1; margin: .2rem 0 0; font-size: .85rem; }
+.printer-status.is-ok { color: var(--muted); }
+.printer-status.is-error { color: var(--warn); }
+.printer-new summary { cursor: pointer; font-weight: 500; margin-bottom: .6rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 /* Papierkorb */
 .flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
 .flash-undo form { margin: 0; }

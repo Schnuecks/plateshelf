@@ -415,8 +415,22 @@ def move_file(fid: int, target: str = Form(...), new_name: str = Form("")):
 
 # --- Einstellungen -----------------------------------------------------------
 
+def _printer_rows() -> list[dict]:
+    """Drucker für die Einstellungen, ohne Zugangscode, mit dem letzten Abruf."""
+    rows = []
+    for p in printer_import.load_printers():
+        status = printer_import.state["printers"].get(p["id"])
+        rows.append({"db_id": p.get("db_id"), "name": p["name"], "ip": p["ip"], "serial": p["id"],
+                     "source": p["source"], "status": status})
+    return rows
+
+
 @app.get("/einstellungen")
 def settings_form(request: Request):
+    return _render_settings(request)
+
+
+def _render_settings(request: Request, error: str = "", form_rows: list | None = None, status_code: int = 200):
     with store.connect() as con:
         settings = store.get_settings(con)
         printers = [r[0] for r in con.execute(
@@ -425,7 +439,31 @@ def settings_form(request: Request):
     rows = [{"name": pr, "watts": settings.get(f"leistung:{pr}")} for pr in printers]
     return templates.TemplateResponse(request, "settings.html", {
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
-    })
+        "import_printers": form_rows if form_rows is not None else _printer_rows(),
+        "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
+        "import_dir": printer_import.IMPORT_DIR,
+    }, status_code=status_code)
+
+
+@app.post("/einstellungen/drucker")
+async def printers_save(request: Request):
+    form = await request.form()
+    ids, deletes = form.getlist("db_id"), set(form.getlist("delete"))
+    rows = []
+    for i, (name, ip, serial, code) in enumerate(zip(form.getlist("name"), form.getlist("ip"),
+                                                      form.getlist("serial"), form.getlist("code"))):
+        db_id = int(ids[i]) if i < len(ids) and ids[i].isdigit() else None
+        rows.append({"db_id": db_id, "name": name, "ip": ip, "serial": serial, "code": code,
+                     "delete": str(db_id) in deletes if db_id else False})
+    try:
+        await run_in_threadpool(printer_import.save_printers, rows)
+    except ValueError as exc:
+        # Eingaben behalten (ohne Zugangscodes) und Fehler anzeigen
+        env = [r for r in _printer_rows() if r["source"] == "env"]
+        kept = env + [{**r, "source": "db", "status": None} for r in rows if not r["delete"]
+                      and (r["db_id"] or any((r["name"], r["ip"], r["serial"])))]
+        return _render_settings(request, error=str(exc), form_rows=kept, status_code=400)
+    return RedirectResponse("/einstellungen?drucker=1#drucker", status_code=303)
 
 
 def _number(value: str, low: float, high: float) -> float | None:
