@@ -134,3 +134,22 @@ def test_settings_hint_shows_import_folder_as_code(client):
     page = client.get("/einstellungen").text
     assert "<code>Vom Drucker/&lt;Name&gt;/</code>" in page
     assert "&lt;code&gt;" not in page
+
+
+def test_api_stats_for_dashboards(client, lib, sample, monkeypatch):
+    stats = client.get("/api/stats").json()
+    assert (stats["projects"], stats["files"], stats["print_time_s"], stats["cost_eur"]) == (0, 0, 0, None)
+    # 2 Stunden, 10 g zu 20 €/kg; Strom 100 W × 2 h × 0,35 €/kWh = 0,07 €
+    sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 7200, "layers": 5, "fil": [(1, "#FF0000FF", 10.0)]}],
+           costs=("20",))
+    (lib / "Box").mkdir()
+    sample(lib / "Box" / "Deckel.gcode.3mf", [{"idx": 1, "sec": 1800, "layers": 5, "fil": [(1, "#00FF00FF", 1500.0)]},
+                                              {"idx": 2, "sec": 1800, "layers": 5, "fil": [(1, "#00FF00FF", 500.0)]}])
+    store.scan(wait=True)
+    stats = client.get("/api/stats").json()
+    assert (stats["projects"], stats["files"], stats["plates"]) == (2, 2, 3)
+    assert stats["print_time_s"] == 10800 and stats["print_time_h"] == 3.0
+    assert stats["filament_g"] == 2010.0 and stats["filament_kg"] == 2.01
+    assert stats["new_files_7d"] == 2 and stats["last_added"]
+    assert stats["cost_eur"] is not None and stats["energy_kwh"] == 0.3
+    assert stats["trash_items"] == 0 and stats["printers_total"] == 0

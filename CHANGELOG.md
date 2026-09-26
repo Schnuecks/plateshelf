@@ -1,5 +1,11 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Kennzahlen als JSON unter `/api/stats` (Projekte, Dateien, Druckzeit, Filament,
+  Kosten, neue Dateien der letzten 7 Tage, Druckerstatus, Papierkorb), z. B. für
+  das Widget `customapi` in Homepage. Vorlage für die `services.yaml` im README.
+
 ## 0.4.1
 
 - Sprache und Design sitzen jetzt als kleine Symbole in der Titelleiste:

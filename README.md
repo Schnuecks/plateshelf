@@ -20,6 +20,7 @@ und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbah
 - **Notizen, Tags, Status und Quelle** pro Projekt
 - **Sprachen:** Deutsch, English, Français, Español, Italiano und Nederlands
 - **Design** hell, dunkel oder wie das System
+- **Kennzahlen als JSON** unter `/api/stats`, z. B. für ein Widget in [Homepage](https://gethomepage.dev)
 
 ## Schnellstart
 
@@ -220,6 +221,56 @@ Seriennummer hat die `.env` Vorrang. Die `compose.yaml` reicht die `.env` über
 - Ist ein Drucker ausgeschaltet oder im Standby, wird er beim nächsten Durchlauf
   erneut abgefragt. Nur ein falscher Zugangscode wird in der Übersicht als Warnung
   angezeigt.
+
+## Widget für Homepage und andere Dashboards
+
+Unter `/api/stats` liefert das Druckarchiv seine Kennzahlen als JSON:
+
+| Feld | Bedeutung |
+|---|---|
+| `projects`, `files`, `plates` | Anzahl Projekte, Dateien und geslicte Platten |
+| `print_time_h`, `print_time_s` | Druckzeit aller Projekte in Stunden bzw. Sekunden |
+| `filament_kg`, `filament_g` | Filamentverbrauch |
+| `cost_eur`, `energy_kwh` | Kosten (Material und Strom) und Stromverbrauch |
+| `new_files_7d`, `last_added` | Neue Dateien der letzten 7 Tage, Zeitpunkt der neuesten |
+| `printers_ok`, `printers_total`, `last_printer_sync` | Erreichbare und eingerichtete Drucker, letzter Abruf |
+| `trash_items`, `version` | Einträge im Papierkorb, Version des Druckarchivs |
+
+Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customapi` in der
+`services.yaml`. Eine Kachel zeigt bis zu vier Felder:
+
+```yaml
+- Druckarchiv:
+    icon: mdi-printer-3d
+    href: http://<server>:8000
+    description: 3D-Drucke
+    widget:
+      type: customapi
+      url: http://<server>:8000/api/stats
+      refreshInterval: 60000
+      mappings:
+        - field: projects
+          label: Projekte
+          format: number
+        - field: print_time_h
+          label: Druckzeit
+          format: float
+          suffix: h
+        - field: filament_kg
+          label: Filament
+          format: float
+          suffix: kg
+        - field: cost_eur
+          label: Kosten
+          format: float
+          suffix: €
+```
+
+Statt der Kosten passen auch `new_files_7d` („Neu (7 Tage)“) oder `printers_ok`
+(„Drucker online“). Laufen Homepage und Druckarchiv im selben Docker-Netz, trägst du bei
+`url` die interne Adresse ein, z. B. `http://druckarchiv:8000/api/stats`. Das
+funktioniert auch dann, wenn das Druckarchiv nach außen hinter einer Anmeldung am Proxy
+liegt.
 
 ## Daten und Sicherung
 
