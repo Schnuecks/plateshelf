@@ -191,12 +191,6 @@ So eingerichtete Drucker erscheinen in den Einstellungen schreibgeschützt. Bei 
 Seriennummer hat die `.env` Vorrang. Die `compose.yaml` reicht die `.env` über
 `env_file` an den Container weiter, dafür ist Docker Compose 2.24 oder neuer nötig.
 
-**Umstieg von `printers.json`:** Eine vorhandene Datei unter `/config/printers.json`
-wird beim ersten Start einmalig in die Einstellungen übernommen. Starte das Update
-deshalb einmal mit deiner bisherigen `compose.yaml`, in der die Datei noch eingebunden
-ist. Sobald die Drucker in den Einstellungen stehen, kannst du die Datei und die
-zugehörige Zeile in der `compose.yaml` entfernen.
-
 **Ablauf:**
 
 - Alle `PRINTER_SYNC_INTERVAL` Sekunden, oder sofort über „Von Druckern holen“ in der

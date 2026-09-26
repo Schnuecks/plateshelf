@@ -329,7 +329,9 @@ button.danger-quiet:hover { color: var(--ink); }
 .cost-line a { margin-left: .35rem; }
 
 /* Einstellungen */
-.settings-page { max-width: 40rem; }
+.settings-page { max-width: 78rem; }
+.settings-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.5rem; align-items: start; }
+@media (max-width: 960px) { .settings-columns { grid-template-columns: minmax(0, 1fr); } }
 .settings-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
 .settings-form { display: grid; gap: 1.5rem; }
 .settings-form section { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1.1rem 1.25rem; display: grid; gap: .8rem; }
@@ -344,7 +346,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts input { width: 6rem; text-align: right; }
 
 /* Drucker für den Direktimport */
-#drucker { margin-top: 2rem; scroll-margin-top: 5rem; }
+#drucker, #strom { scroll-margin-top: 5rem; }
 .printer-row { border: 1px solid var(--line); border-radius: 4px; padding: .8rem .9rem; margin: 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem .9rem; align-items: end; }
 .printer-row.is-env { display: block; }

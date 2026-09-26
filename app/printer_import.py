@@ -8,12 +8,10 @@ dem Zugangscode erlaubt (Port 990, Benutzer "bblp", implizites TLS).
 Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
 Umgebungsvariablen vorgegeben:
     PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
-Eine printers.json älterer Versionen wird beim ersten Start einmalig übernommen.
 """
 from __future__ import annotations
 
 import ftplib
-import json
 import logging
 import os
 import re
@@ -28,8 +26,6 @@ from .parser import parse_3mf
 
 log = logging.getLogger("druckarchiv.drucker")
 
-# Nur noch für die einmalige Übernahme in die Einstellungen
-PRINTERS_FILE = Path(os.environ.get("PRINTERS_FILE", "/config/printers.json"))
 SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
 IMPORT_DIR = os.environ.get("PRINTER_IMPORT_DIR", "Vom Drucker")
 TIMEOUT = 15
@@ -186,32 +182,9 @@ def save_printers(rows: list[dict]) -> None:
     request_sync()
 
 
-def _import_printers_json(con) -> None:
-    """Übernimmt eine vorhandene printers.json einmalig in die Einstellungen."""
-    if con.execute("SELECT 1 FROM settings WHERE key = 'printers_json_imported'").fetchone():
-        return
-    if not PRINTERS_FILE.exists():
-        return
-    try:
-        data = json.loads(PRINTERS_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        log.warning("printers.json nicht lesbar: %s", exc)
-        return
-    count = 0
-    for p in data if isinstance(data, list) else []:
-        if isinstance(p, dict) and all(p.get(k) for k in ("id", "code", "ip")):
-            count += con.execute(
-                "INSERT OR IGNORE INTO printers (name, serial, ip, code) VALUES (?, ?, ?, ?)",
-                (str(p.get("name") or p["id"]), str(p["id"]), str(p["ip"]), str(p["code"])),
-            ).rowcount
-    con.execute("INSERT INTO settings (key, value) VALUES ('printers_json_imported', ?)", (str(time.time()),))
-    log.info("printers.json: %d Drucker in die Einstellungen übernommen, die Datei wird nicht mehr benötigt", count)
-
-
 def init() -> None:
     with store.connect() as con:
         con.executescript(SCHEMA)
-        _import_printers_json(con)
     state["enabled"] = bool(load_printers())
 
 
