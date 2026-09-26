@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 CREATE TABLE IF NOT EXISTS trash (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    folder TEXT UNIQUE NOT NULL,   -- Unterordner in .papierkorb
+    folder TEXT UNIQUE NOT NULL,   -- Unterordner in .trash
     kind TEXT NOT NULL,            -- datei, projekt oder alt (vor Version 0.3 gelöscht)
     label TEXT NOT NULL,
     project_json TEXT,             -- Projektangaben zum Wiederherstellen

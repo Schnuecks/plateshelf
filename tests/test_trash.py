@@ -86,10 +86,10 @@ def test_file_restore_keeps_current_project_details(lib, sample):
 
 
 def test_old_trash_folders_are_adopted_and_expire_later(lib, sample):
-    old = lib / ".papierkorb" / "2026-01-02_03-04-05" / "Vase"
+    old = lib / ".trash" / "2026-01-02_03-04-05" / "Vase"
     old.mkdir(parents=True)
     sample(old / "Vase.gcode.3mf", PLATE)
-    (lib / ".papierkorb" / "2026-01-03_00-00-00").mkdir()  # leerer Ordner wird ignoriert
+    (lib / ".trash" / "2026-01-03_00-00-00").mkdir()  # leerer Ordner wird ignoriert
 
     entries = trash.entries()
     assert [(e["kind"], e["label"], e["files"]) for e in entries] == [("alt", "Vase", ["Vase/Vase.gcode.3mf"])]
@@ -97,7 +97,7 @@ def test_old_trash_folders_are_adopted_and_expire_later(lib, sample):
     # Die Frist beginnt mit der Übernahme, alte Einträge verschwinden nicht sofort
     assert trash.purge_expired(days=30) == 0
     assert trash.purge_expired(days=30, now=time.time() + 31 * 86400) == 1
-    assert not (lib / ".papierkorb" / "2026-01-02_03-04-05").exists()
+    assert not (lib / ".trash" / "2026-01-02_03-04-05").exists()
 
 
 def test_manually_emptied_entries_disappear(lib, sample):
@@ -106,12 +106,12 @@ def test_manually_emptied_entries_disappear(lib, sample):
     with store.connect() as con:
         entry = trash.delete(con, [con.execute("SELECT id FROM files").fetchone()[0]], "datei")
         folder = con.execute("SELECT folder FROM trash WHERE id = ?", (entry,)).fetchone()[0]
-    (lib / ".papierkorb" / folder / "Teil.gcode.3mf").rename(lib / "Teil.gcode.3mf")  # von Hand zurückgeschoben
+    (lib / ".trash" / folder / "Teil.gcode.3mf").rename(lib / "Teil.gcode.3mf")  # von Hand zurückgeschoben
     assert trash.entries() == []
 
 
 def test_trash_pages_undo_and_purge(client, lib, sample):
-    assert "Der Papierkorb ist leer" in client.get("/papierkorb").text
+    assert "Der Papierkorb ist leer" in client.get("/trash").text
     sample(lib / "Benchy.gcode.3mf", PLATE)
     sample(lib / "Vase.gcode.3mf", PLATE)
     store.scan(wait=True)
@@ -119,15 +119,15 @@ def test_trash_pages_undo_and_purge(client, lib, sample):
         pid = _project(con, "Benchy")["id"]
 
     r = client.post(f"/p/{pid}/delete", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].startswith("/?geloescht=")
+    assert r.status_code == 303 and r.headers["location"].startswith("/?deleted=")
     page = client.get(r.headers["location"]).text
     assert "„Benchy“ in den Papierkorb verschoben" in page and "Rückgängig" in page
     entry = int(r.headers["location"].split("=")[1])
 
-    listing = client.get("/papierkorb").text
+    listing = client.get("/trash").text
     assert "Benchy" in listing and "Wiederherstellen" in listing and "endgültig weg am" in listing
 
-    r = client.post(f"/papierkorb/{entry}/wiederherstellen", follow_redirects=False)
+    r = client.post(f"/trash/{entry}/restore", follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].startswith("/p/")
     assert (lib / "Benchy.gcode.3mf").exists()
     assert "wiederhergestellt" in client.get(r.headers["location"]).text
@@ -138,9 +138,38 @@ def test_trash_pages_undo_and_purge(client, lib, sample):
         client.post(f"/f/{fid}/delete")
     with store.connect() as con:
         first = con.execute("SELECT MIN(id) FROM trash").fetchone()[0]
-    r = client.post(f"/papierkorb/{first}/loeschen", follow_redirects=False)
-    assert r.headers["location"] == "/papierkorb?endgueltig=1"
-    r = client.post("/papierkorb/leeren", follow_redirects=False)
-    assert r.headers["location"] == "/papierkorb?endgueltig=1"
-    assert not list((lib / ".papierkorb").iterdir())
-    assert client.post("/papierkorb/999/wiederherstellen").status_code == 404
+    r = client.post(f"/trash/{first}/delete", follow_redirects=False)
+    assert r.headers["location"] == "/trash?purged=1"
+    r = client.post("/trash/empty", follow_redirects=False)
+    assert r.headers["location"] == "/trash?purged=1"
+    assert not list((lib / ".trash").iterdir())
+    assert client.post("/trash/999/restore").status_code == 404
+
+
+def test_legacy_trash_folder_is_renamed(lib, sample):
+    """Ein „.papierkorb“ aus älteren Versionen wird zu „.trash“, die Einträge bleiben gültig."""
+    sample(lib / "Teil.gcode.3mf", PLATE)
+    store.scan(wait=True)
+    with store.connect() as con:
+        entry = trash.delete(con, [con.execute("SELECT id FROM files").fetchone()[0]], "datei")
+    # So hätte es eine ältere Version abgelegt
+    (lib / ".trash").rename(lib / ".papierkorb")
+    old_only = lib / ".papierkorb" / "2026-01-02_03-04-05" / "Vase"
+    old_only.mkdir(parents=True)
+    sample(old_only / "Vase.gcode.3mf", PLATE)
+
+    labels = sorted(e["label"] for e in trash.entries())
+    assert labels == ["Teil.gcode.3mf", "Vase"]
+    assert (lib / ".trash").is_dir() and not (lib / ".papierkorb").exists()
+    trash.restore(entry)
+    assert (lib / "Teil.gcode.3mf").exists()
+
+
+def test_legacy_trash_folder_merges_with_existing(lib):
+    (lib / ".trash" / "neu").mkdir(parents=True)
+    (lib / ".trash" / "neu" / "a.gcode.3mf").write_bytes(b"x")
+    (lib / ".papierkorb" / "alt").mkdir(parents=True)
+    (lib / ".papierkorb" / "alt" / "b.gcode.3mf").write_bytes(b"y")
+    assert trash.trash_root() == lib / ".trash"
+    assert sorted(p.name for p in (lib / ".trash").iterdir()) == ["alt", "neu"]
+    assert not (lib / ".papierkorb").exists()

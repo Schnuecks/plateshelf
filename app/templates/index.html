@@ -29,18 +29,18 @@
 {% endblock %}
 
 {% block main %}
-{% if request.query_params.get('drucker') %}
+{% if request.query_params.get('printers') %}
 <p class="flash" role="status">{{ _('Die Drucker werden abgefragt. Neue Drucke erscheinen in ein paar Minuten, je nach Anzahl und Größe.') }}</p>
 {% endif %}
 {% for p in psync.printers.values() if p.auth_failed %}
 <p class="flash flash-warn" role="status">{{ p.name }}: {{ _(p.error_msg, **p.error_args) }}</p>
 {% endfor %}
 {% include "_trash_flash.html" %}
-{% if request.query_params.get('wiederhergestellt') %}
+{% if request.query_params.get('restored') %}
 <p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt.') }}</p>
 {% endif %}
-{% if request.query_params.get('hochgeladen') %}
-{% set up = request.query_params.get('hochgeladen')|int(0) %}
+{% if request.query_params.get('uploaded') %}
+{% set up = request.query_params.get('uploaded')|int(0) %}
 <p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen.', '{n} Dateien hochgeladen.', up) }}</p>
 {% endif %}
 <section class="summary">

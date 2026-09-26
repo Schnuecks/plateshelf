@@ -101,6 +101,8 @@ Bis Version 0.6 hieß PlateShelf *Druckarchiv*. Deine Daten bleiben erhalten:
   er weiter benutzt. Neue Installationen verwenden `From printer`.
 - Im Browser gespeicherte Einstellungen (Einfärbung, Kameraposition usw.) bleiben
   erhalten.
+- Der Papierkorb-Ordner `.papierkorb` in der Bibliothek wird in `.trash` umbenannt;
+  gelöschte Einträge lassen sich weiter wiederherstellen.
 
 ## Bedienung
 
@@ -237,7 +239,7 @@ Verschleiß und Fehldrucke sind nicht enthalten.
 ### Papierkorb
 
 Dateien oder ganze Projekte löschst du auf der Projektseite. Sie werden nicht sofort
-entfernt, sondern mit ihrem ursprünglichen Pfad in den Ordner `.papierkorb/` innerhalb
+entfernt, sondern mit ihrem ursprünglichen Pfad in den Ordner `.trash/` innerhalb
 der Bibliothek verschoben. Direkt nach dem Löschen kannst du es mit „Rückgängig“
 zurücknehmen.
 

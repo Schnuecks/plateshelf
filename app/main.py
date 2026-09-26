@@ -60,8 +60,24 @@ async def lifespan(_app):
 app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
+# Deutsche Adressen bis Version 0.7.0, dauerhaft auf die englischen umgeleitet
+LEGACY_PATHS = [(re.compile(old), new) for old, new in (
+    (r"/einstellungen", "/settings"),
+    (r"/einstellungen/drucker", "/settings/printers"),
+    (r"/papierkorb", "/trash"),
+    (r"/papierkorb/leeren", "/trash/empty"),
+    (r"/papierkorb/(\d+)/wiederherstellen", r"/trash/\1/restore"),
+    (r"/papierkorb/(\d+)/loeschen", r"/trash/\1/delete"),
+    (r"/darstellung", "/appearance"),
+)]
+
+
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
+    for pattern, target in LEGACY_PATHS:
+        if m := pattern.fullmatch(request.url.path):
+            url = m.expand(target) + (f"?{request.url.query}" if request.url.query else "")
+            return RedirectResponse(url, status_code=308)  # 308: Formulare bleiben Formulare
     i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
     if request.method not in SAFE_METHODS and not same_origin(request):
         logging.getLogger("plateshelf").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
@@ -79,7 +95,7 @@ async def language_middleware(request: Request, call_next):
 
 # --- Optionale Anmeldung (siehe app/auth.py) --------------------------------
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/login", "/healthz", "/darstellung"}
+PUBLIC_PATHS = {"/login", "/healthz", "/appearance"}
 
 
 def is_public(path: str) -> bool:
@@ -462,7 +478,7 @@ def update_project(pid: int, name: str = Form(...), notes: str = Form(""), tags:
             "UPDATE projects SET name=?, notes=?, tags=?, source_url=?, status=?, updated=? WHERE id=?",
             (name.strip() or _("Ohne Namen"), notes, tags, source_url.strip(), status, time.time(), pid),
         )
-    return RedirectResponse(f"/p/{pid}?gespeichert=1", status_code=303)
+    return RedirectResponse(f"/p/{pid}?saved=1", status_code=303)
 
 
 @app.post("/f/{fid}/move")
@@ -498,7 +514,7 @@ def _printer_rows() -> list[dict]:
     return rows
 
 
-@app.get("/einstellungen")
+@app.get("/settings")
 def settings_form(request: Request):
     return _render_settings(request)
 
@@ -538,7 +554,7 @@ templates.env.globals.update(language_choice=language_choice, current_url=curren
                              NEXT_THEME=NEXT_THEME)
 
 
-@app.post("/darstellung")
+@app.post("/appearance")
 def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None), next: str = Form("/")):
     """Sprache und Design aus der Titelleiste, gespeichert pro Browser als Cookie.
 
@@ -555,7 +571,7 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
     return response
 
 
-@app.post("/einstellungen/drucker")
+@app.post("/settings/printers")
 async def printers_save(request: Request):
     form = await request.form()
     ids, deletes = form.getlist("db_id"), set(form.getlist("delete"))
@@ -573,7 +589,7 @@ async def printers_save(request: Request):
         kept = env + [{**r, "source": "db", "status": None} for r in rows if not r["delete"]
                       and (r["db_id"] or any((r["name"], r["ip"], r["serial"])))]
         return _render_settings(request, error=exc.translated(), form_rows=kept, status_code=400)
-    return RedirectResponse("/einstellungen?drucker=1#drucker", status_code=303)
+    return RedirectResponse("/settings?printers=1#printers", status_code=303)
 
 
 def _number(value: str, low: float, high: float) -> float | None:
@@ -589,7 +605,7 @@ def _number(value: str, low: float, high: float) -> float | None:
     return number
 
 
-@app.post("/einstellungen")
+@app.post("/settings")
 async def settings_save(request: Request):
     form = await request.form()
     def or_default(value, key):
@@ -604,7 +620,7 @@ async def settings_save(request: Request):
         if key.startswith("leistung:"):
             values[key] = _number(value, 1, 5000)  # leer = Standardleistung verwenden
     store.save_settings(values)
-    return RedirectResponse("/einstellungen?gespeichert=1", status_code=303)
+    return RedirectResponse("/settings?saved=1", status_code=303)
 
 
 # --- Upload -----------------------------------------------------------------
@@ -684,8 +700,8 @@ def delete_file(fid: int):
             raise HTTPException(400, str(exc))
         still_there = con.execute("SELECT 1 FROM projects WHERE id = ?", (row["project_id"],)).fetchone()
     if still_there:
-        return RedirectResponse(f"/p/{row['project_id']}?geloescht={entry}", status_code=303)
-    return RedirectResponse(f"/?geloescht={entry}", status_code=303)
+        return RedirectResponse(f"/p/{row['project_id']}?deleted={entry}", status_code=303)
+    return RedirectResponse(f"/?deleted={entry}", status_code=303)
 
 
 @app.post("/p/{pid}/delete")
@@ -699,12 +715,12 @@ def delete_project(pid: int):
             entry = trash.delete(con, ids, "projekt")
         except ValueError as exc:
             raise HTTPException(400, str(exc))
-    return RedirectResponse(f"/?geloescht={entry}", status_code=303)
+    return RedirectResponse(f"/?deleted={entry}", status_code=303)
 
 
 def _deleted_entry(request: Request) -> dict | None:
     """Eintrag zur Meldung „… in den Papierkorb verschoben“ mit Rückgängig-Knopf."""
-    raw = request.query_params.get("geloescht", "")
+    raw = request.query_params.get("deleted", "")
     if not raw.isdigit():
         return None
     with store.connect() as con:
@@ -715,14 +731,14 @@ def _deleted_entry(request: Request) -> dict | None:
 templates.env.globals["deleted_entry"] = _deleted_entry
 
 
-@app.get("/papierkorb")
+@app.get("/trash")
 def trash_page(request: Request):
     return templates.TemplateResponse(request, "trash.html", {
         "entries": trash.entries(), "days": trash.TRASH_DAYS, "writable": _library_writable(),
     })
 
 
-@app.post("/papierkorb/{entry_id}/wiederherstellen")
+@app.post("/trash/{entry_id}/restore")
 def trash_restore(entry_id: int):
     _require_writable()
     try:
@@ -732,25 +748,25 @@ def trash_restore(entry_id: int):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     if result["project_id"]:
-        return RedirectResponse(f"/p/{result['project_id']}?wiederhergestellt={result['restored']}", status_code=303)
-    return RedirectResponse(f"/?wiederhergestellt={result['restored']}", status_code=303)
+        return RedirectResponse(f"/p/{result['project_id']}?restored={result['restored']}", status_code=303)
+    return RedirectResponse(f"/?restored={result['restored']}", status_code=303)
 
 
-@app.post("/papierkorb/{entry_id}/loeschen")
+@app.post("/trash/{entry_id}/delete")
 def trash_purge(entry_id: int):
     _require_writable()
     try:
         trash.purge(entry_id)
     except LookupError:
         raise HTTPException(404, _("Eintrag nicht gefunden"))
-    return RedirectResponse("/papierkorb?endgueltig=1", status_code=303)
+    return RedirectResponse("/trash?purged=1", status_code=303)
 
 
-@app.post("/papierkorb/leeren")
+@app.post("/trash/empty")
 def trash_purge_all():
     _require_writable()
     n = trash.purge_all()
-    return RedirectResponse(f"/papierkorb?endgueltig={n}", status_code=303)
+    return RedirectResponse(f"/trash?purged={n}", status_code=303)
 
 
 @app.get("/upload")
@@ -786,14 +802,14 @@ async def upload(request: Request, files: list[UploadFile] = File(...), folder: 
         }, status_code=400 if not saved else 200)
     ids = store.project_ids_for(saved)
     if len(ids) == 1:
-        return RedirectResponse(f"/p/{ids[0]}?hochgeladen={len(saved)}", status_code=303)
-    return RedirectResponse(f"/?hochgeladen={len(saved)}", status_code=303)
+        return RedirectResponse(f"/p/{ids[0]}?uploaded={len(saved)}", status_code=303)
+    return RedirectResponse(f"/?uploaded={len(saved)}", status_code=303)
 
 
 @app.post("/printer-sync")
 def printer_sync():
     printer_import.request_sync()
-    return RedirectResponse("/?drucker=1", status_code=303)
+    return RedirectResponse("/?printers=1", status_code=303)
 
 
 @app.post("/rescan")

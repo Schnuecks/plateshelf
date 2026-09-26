@@ -2,6 +2,17 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- The trash folder inside the library is now called `.trash` (previously `.papierkorb`),
+  independent of the interface language. Existing `.papierkorb` folders are renamed
+  automatically on first access; deleted items can still be restored. If the library is
+  mounted read-only, the old folder keeps being used.
+- English URLs: `/settings`, `/trash` (with `/trash/<id>/restore`, `/trash/<id>/delete`,
+  `/trash/empty`) and `/appearance`, plus English query parameters and anchors
+  (e.g. `/settings#power`). The old German addresses redirect permanently, including
+  submitted forms, so bookmarks and open tabs keep working.
+
 ## 0.7.0
 
 - **Druckarchiv is now PlateShelf.** New name in the interface, the repository

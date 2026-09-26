@@ -5,11 +5,11 @@
 {% block main %}
 <article class="project">
   {% include "_trash_flash.html" %}
-  {% if request.query_params.get('wiederhergestellt') %}
+  {% if request.query_params.get('restored') %}
   <p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt, mit Notizen und Tags.') if p.notes or p.tags else _('Aus dem Papierkorb wiederhergestellt.') }}</p>
   {% endif %}
-  {% if request.query_params.get('hochgeladen') %}
-  {% set up = request.query_params.get('hochgeladen')|int(0) %}
+  {% if request.query_params.get('uploaded') %}
+  {% set up = request.query_params.get('uploaded')|int(0) %}
   <p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen und eingelesen.', '{n} Dateien hochgeladen und eingelesen.', up) }}</p>
   {% endif %}
   <header class="project-head">
@@ -117,7 +117,7 @@
               {% if pl.total_cost is not none %}<div><dt>{{ _('Kosten') }}</dt><dd>{{ pl.total_cost|money }}</dd></div>{% endif %}
             </dl>
             <p class="cost-line">{{ _('Material {material}, Strom {energy}', material=pl.cost|money, energy=pl.energy_cost|money) }} ({{ pl.energy_kwh|num(2, 'kWh') }})
-              <a href="/einstellungen#strom">{{ _('anpassen') }}</a></p>
+              <a href="/settings#power">{{ _('anpassen') }}</a></p>
             {% if pl.filaments %}
             <table class="filaments">
               <thead><tr><th scope="col">{{ _('Slot') }}</th><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('Gramm') }}</th><th scope="col" class="r">{{ _('Meter') }}</th></tr></thead>
@@ -198,7 +198,7 @@
         {% if p.source_url %}<a class="source" href="{{ p.source_url }}" target="_blank" rel="noopener">{{ _('Quelle öffnen') }}</a>{% endif %}
         <label>{{ _('Notizen') }}<textarea name="notes" rows="8">{{ p.notes }}</textarea></label>
         <button type="submit">{{ _('Änderungen speichern') }}</button>
-        {% if request.query_params.get('gespeichert') %}<p class="saved" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        {% if request.query_params.get('saved') %}<p class="saved" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
       </form>
 
       {% if p.filaments %}

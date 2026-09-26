@@ -114,7 +114,7 @@ def page(browser):
     context.close()
 
 
-@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/einstellungen", "/papierkorb", "/upload", "/about"])
+@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/trash", "/upload", "/about"])
 def test_pages_without_errors(server, page, path):
     response = page.goto(server["url"] + path.format(**server))
     assert response.status == 200
@@ -195,7 +195,7 @@ def test_login_flow(server, page, monkeypatch):
     """Mit AUTH_USER/AUTH_PASSWORD: Anmeldeseite, Anmelden, zurück zum Ziel, Abmelden."""
     monkeypatch.setenv("AUTH_USER", "tester")
     monkeypatch.setenv("AUTH_PASSWORD", "geheim-123")
-    page.goto(server["url"] + "/einstellungen")
+    page.goto(server["url"] + "/settings")
     assert "/login" in page.url
     assert page.locator(".tb-right .settings-link").count() == 0  # keine Navigation vor der Anmeldung
     page.fill('input[name="user"]', "tester")
@@ -207,7 +207,7 @@ def test_login_flow(server, page, monkeypatch):
     page.errors.clear()
     page.fill('input[name="password"]', "geheim-123")
     page.click('.login-form button[type="submit"]')
-    page.wait_for_url("**/einstellungen")
+    page.wait_for_url("**/settings")
     page.click('form[action="/logout"] button')
     page.wait_for_url("**/login")
     assert page.errors == []
