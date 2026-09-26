@@ -1,5 +1,12 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Leerfahrten, Rückzüge und Nahtstellen lassen sich einblenden,
+  jeweils mit Anzahl. Sie folgen dem Schichtregler; die Auswahl wird gemerkt.
+- Vorschauformat Version 4 mit Leerfahrten und Rückzügen; vorhandene Vorschauen
+  werden automatisch neu erzeugt.
+
 ## 0.5.2
 
 - 3D-Vorschau: Einfärbung nach Geschwindigkeit, Volumenstrom, Bauteillüfter und

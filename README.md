@@ -173,6 +173,8 @@ Bambu Studio:
   nach Rot (hoch). Die Skala reicht vom 1. bis zum 99. Perzentil, einzelne Ausreißer
   verzerren sie also nicht.
 - Einzelne Filamente und Linientypen lassen sich ausblenden
+- Leerfahrten, Rückzüge und Nahtstellen (Beginn jeder Außenwand) lassen sich
+  einblenden, jeweils mit Anzahl; praktisch, um Fäden oder eine unruhige Naht zu erklären
 - Schichtregler mit Anzeige der Höhe, auch per Pfeiltasten bedienbar
 - Wechsel zwischen den Platten eines Projekts mit den Pfeiltasten links und rechts
 - Wiedergabe: Der Druckkopf fährt die Bahnen Schicht für Schicht ab (Taste ▶ oder

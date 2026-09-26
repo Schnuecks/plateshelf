@@ -7,7 +7,9 @@ Ausgabe pro Platte (im Cache unter DATA_DIR/preview/):
   <fid>_<plate>.bin.gz Punkte als Uint16 (x, y in 0,01 mm, um 100 mm verschoben),
                        die Tabelle der Bahnen (Uint32) und je Punkt vier Messwerte
                        (Uint16) für das Bahnstück, das an diesem Punkt endet:
-                       Geschwindigkeit, Volumenstrom, Lüfter, Düsentemperatur
+                       Geschwindigkeit, Volumenstrom, Lüfter, Düsentemperatur;
+                       danach Leerfahrten (Uint16: x1, y1, x2, y2, Schicht) und
+                       Rückzüge (Uint16: x, y, Schicht)
 
 Nur Extrusionsbewegungen werden übernommen, Leerfahrten fallen weg. Fast
 gerade Punktfolgen werden zusammengefasst, damit auch 100-MB-G-Code im
@@ -26,7 +28,7 @@ from pathlib import Path
 
 from .i18n import UserError
 
-VERSION = 3
+VERSION = 4
 OFFSET_MM = 100.0
 SCALE = 100.0  # 0,01 mm
 # Messwerte pro Punkt: Name, Faktor für die Speicherung als Uint16, Einheit
@@ -130,6 +132,9 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
 
         pts = array("H")          # x, y abwechselnd
         mets = array("H")         # Geschwindigkeit, Volumenstrom, Lüfter, Temperatur je Punkt
+        travels = array("H")      # Leerfahrten: x1, y1, x2, y2, Schicht
+        retracts = array("H")     # Rückzüge: x, y, Schicht
+        retracted = False         # mehrere Rückzugsbefehle hintereinander zählen einmal
         polys = array("I")        # start, anzahl, schicht, werkzeug, linientyp (je 5 Werte)
         layer_z: list[float] = []
         feature_names: list[str] = []
@@ -259,6 +264,13 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
                         if "F" in p:
                             feed = p["F"]
                         moved = nx != x or ny != y
+                        if layer >= 0 and de < 0 and not retracted:
+                            retracts.extend((q(x), q(y), min(layer, 65535)))
+                            retracted = True
+                        elif de > 0:
+                            retracted = False
+                        if layer >= 0 and moved and (de <= 0 or code == "G0"):
+                            travels.extend((q(x), q(y), q(nx), q(ny), min(layer, 65535)))
                         if layer >= 0 and de > 0 and moved and code != "G0":
                             met = _metrics(feed, de, x, y, nx, ny, p, code, fan, temp,
                                            diameters.get(tool, DEFAULT_DIAMETER))
@@ -342,6 +354,8 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         "points": len(pts) // 2,
         "polys": len(polys) // 5,
         "metrics": _ranges(mets),
+        "travels": len(travels) // 5,
+        "retracts": len(retracts) // 3,
     }
     out_base.parent.mkdir(parents=True, exist_ok=True)
     tmp_bin = out_base.with_suffix(".bin.gz.tmp")
@@ -351,6 +365,8 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
             fh.write(b"\x00\x00")
         fh.write(polys.tobytes())
         fh.write(mets.tobytes())
+        fh.write(travels.tobytes())
+        fh.write(retracts.tobytes())
     tmp_json = out_base.with_suffix(".json.tmp")
     tmp_json.write_text(json.dumps(meta, separators=(",", ":")))
     tmp_bin.replace(out_base.with_suffix(".bin.gz"))
