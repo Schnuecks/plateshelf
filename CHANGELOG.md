@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.0
 
 - **Druckarchiv is now PlateShelf.** New name in the interface, the repository
   (`github.com/schnuecks/plateshelf`) and the image (`ghcr.io/schnuecks/plateshelf`).
