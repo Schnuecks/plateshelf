@@ -7,43 +7,7 @@
   <h1>Einstellungen</h1>
   {% if request.query_params.get('gespeichert') %}<p class="flash" role="status">Gespeichert. Die Kosten aller Projekte sind aktualisiert.</p>{% endif %}
 
-  <form method="post" action="/einstellungen" class="settings-form">
-    <section>
-      <h2>Stromkosten</h2>
-      <p class="hint">Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis.
-        Die Materialkosten kommen weiterhin aus den Filamentprofilen in Bambu Studio.</p>
-      <label>Strompreis in € pro kWh
-        <input type="text" inputmode="decimal" name="strompreis" value="{{ s.strompreis|num(2) }}" required>
-      </label>
-      <label>Standardleistung in Watt <span class="hint">für Drucker ohne eigenen Wert</span>
-        <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
-      </label>
-    </section>
-
-    {% if printers %}
-    <section>
-      <h2>Leistung pro Drucker</h2>
-      <p class="hint">Durchschnitt über einen ganzen Druck, nicht die Spitzenleistung beim Aufheizen.
-        Am genauesten misst du ihn mit einer Steckdose mit Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden.
-        Leer lassen, um die Standardleistung zu verwenden.</p>
-      <table class="printer-watts">
-        <thead><tr><th scope="col">Drucker</th><th scope="col" class="r">Watt</th></tr></thead>
-        <tbody>
-        {% for pr in printers %}
-          <tr>
-            <td>{{ pr.name }}</td>
-            <td class="r"><input type="text" inputmode="numeric" name="leistung:{{ pr.name }}"
-                   value="{{ pr.watts|num(0) if pr.watts is not none else '' }}" placeholder="{{ s.leistung_standard|num(0) }}" aria-label="Leistung {{ pr.name }} in Watt"></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endif %}
-
-    <button type="submit">Speichern</button>
-  </form>
-
+  <div class="settings-columns">
   <form method="post" action="/einstellungen/drucker" class="settings-form" id="drucker">
     <section>
       <h2>Drucker für den Direktimport</h2>
@@ -97,5 +61,42 @@
     </section>
     <button type="submit">Drucker speichern</button>
   </form>
+  <form method="post" action="/einstellungen" class="settings-form" id="strom">
+    <section>
+      <h2>Stromkosten</h2>
+      <p class="hint">Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis.
+        Die Materialkosten kommen weiterhin aus den Filamentprofilen in Bambu Studio.</p>
+      <label>Strompreis in € pro kWh
+        <input type="text" inputmode="decimal" name="strompreis" value="{{ s.strompreis|num(2) }}" required>
+      </label>
+      <label>Standardleistung in Watt <span class="hint">für Drucker ohne eigenen Wert</span>
+        <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
+      </label>
+    </section>
+
+    {% if printers %}
+    <section>
+      <h2>Leistung pro Drucker</h2>
+      <p class="hint">Durchschnitt über einen ganzen Druck, nicht die Spitzenleistung beim Aufheizen.
+        Am genauesten misst du ihn mit einer Steckdose mit Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden.
+        Leer lassen, um die Standardleistung zu verwenden.</p>
+      <table class="printer-watts">
+        <thead><tr><th scope="col">Drucker</th><th scope="col" class="r">Watt</th></tr></thead>
+        <tbody>
+        {% for pr in printers %}
+          <tr>
+            <td>{{ pr.name }}</td>
+            <td class="r"><input type="text" inputmode="numeric" name="leistung:{{ pr.name }}"
+                   value="{{ pr.watts|num(0) if pr.watts is not none else '' }}" placeholder="{{ s.leistung_standard|num(0) }}" aria-label="Leistung {{ pr.name }} in Watt"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+
+    <button type="submit">Stromkosten speichern</button>
+  </form>
+  </div>
 </section>
 {% endblock %}

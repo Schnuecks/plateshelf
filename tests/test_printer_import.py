@@ -146,7 +146,6 @@ def test_env_printers():
 
 
 def test_save_printers_from_settings(lib, monkeypatch):
-    monkeypatch.setattr(pi, "PRINTERS_FILE", lib / "gibt-es-nicht.json")
     pi.init()
     pi.save_printers([{"db_id": None, "name": "P1S", "ip": "192.0.2.30", "serial": "S1", "code": "geheim"},
                       {"db_id": None, "name": "", "ip": "", "serial": "", "code": ""}])  # leere Zeile ignoriert
@@ -172,14 +171,3 @@ def test_save_printers_from_settings(lib, monkeypatch):
     pi.save_printers([{"db_id": p["db_id"], "delete": True}])
     assert pi.db_printers() == []
 
-
-def test_printers_json_is_imported_once(lib, tmp_path, monkeypatch):
-    f = tmp_path / "printers.json"
-    f.write_text('[{"name": "P2S", "id": "SER1", "code": "abc", "ip": "192.0.2.20"}, {"name": "kaputt"}]',
-                 encoding="utf-8")
-    monkeypatch.setattr(pi, "PRINTERS_FILE", f)
-    pi.init()
-    assert [(p["name"], p["id"], p["code"]) for p in pi.db_printers()] == [("P2S", "SER1", "abc")]
-    pi.save_printers([])  # in den Einstellungen alle entfernt
-    pi.init()  # die Datei liegt noch da, wird aber nicht erneut übernommen
-    assert pi.db_printers() == []

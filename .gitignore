@@ -7,7 +7,6 @@ venv/
 
 # Lokale Konfiguration und Zugangsdaten: niemals einchecken
 .env
-printers.json
 *.pem
 
 # Laufzeitdaten und Drucke

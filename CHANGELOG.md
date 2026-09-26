@@ -1,5 +1,12 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Einstellungen zweispaltig: Drucker für den Direktimport links, Stromkosten
+  rechts; auf schmalen Bildschirmen untereinander.
+- Drucker werden ausschließlich unter „Einstellungen“ oder per Umgebungsvariablen
+  eingerichtet, eine Druckerdatei wird nicht mehr gelesen.
+
 ## 0.3.5
 
 - Drucker für den Direktimport werden unter „Einstellungen“ eingetragen und
@@ -7,8 +14,6 @@
   nie wieder angezeigt.
 - Alternativ Drucker per Umgebungsvariablen `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`
   und `_CODE`; die `compose.yaml` reicht dafür die `.env` weiter.
-- `printers.json` wird nicht mehr benötigt: Eine vorhandene Datei wird beim
-  ersten Start einmalig in die Einstellungen übernommen.
 
 ## 0.3.0
 
