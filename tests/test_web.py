@@ -118,3 +118,12 @@ def test_env_printers_are_read_only(client, monkeypatch):
     page = client.get("/einstellungen").text
     assert "A1 mini" in page and "über Umgebungsvariablen eingerichtet" in page
     assert "envcode9" not in page and 'value="ENV1"' not in page  # kein Eingabefeld
+
+
+def test_printer_date_in_german():
+    from app.main import fmt_printer_date
+    assert fmt_printer_date("Aug 22 07:06") == "22. August 07:06"
+    assert fmt_printer_date("Mar 3 2025") == "3. März 2025"
+    assert fmt_printer_date("Nov 29 2025") == "29. November 2025"
+    assert fmt_printer_date("unbekannt") == "unbekannt"
+    assert fmt_printer_date(None) == ""
