@@ -1,0 +1,38 @@
+# Dependabot: meldet Schwachstellen in Abhängigkeiten und schlägt Aktualisierungen
+# als Pull Request vor. Jeder Vorschlag durchläuft die CI (Python-, Browsertest und
+# Image-Build für alle Plattformen), bevor er übernommen wird.
+version: 2
+updates:
+  # Python-Pakete (requirements*.txt)
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+    commit-message:
+      prefix: "Abhängigkeiten"
+
+  # GitHub Actions in .github/workflows
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"
+
+  # Basisimage im Dockerfile (python:3.12-slim)
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "Docker"
