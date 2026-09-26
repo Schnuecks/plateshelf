@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.9
 
 - Image zusätzlich für 64-Bit-ARM (arm64: Raspberry Pi 4/5, viele NAS) und
   32-Bit-ARM (arm/v7: ältere Raspberry Pi). Auf arm/v7 läuft uvicorn ohne die
