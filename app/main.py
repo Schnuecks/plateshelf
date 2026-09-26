@@ -843,6 +843,44 @@ def preview_points(fid: int, idx: int):
                         headers={"Content-Encoding": "gzip", "Cache-Control": "no-cache"})
 
 
+@app.get("/api/stats")
+def api_stats():
+    """Kennzahlen für Dashboards wie Homepage (Widget „customapi“).
+
+    Dieselben Summen wie auf der Startseite, dazu Kosten, neue Dateien und
+    Druckerstatus. Zahlen bleiben unformatiert, das Dashboard formatiert selbst.
+    """
+    week_ago = time.time() - 7 * 86400
+    with store.connect() as con:
+        projects = load_projects(con)
+        files = con.execute("SELECT COUNT(*), MAX(added), SUM(added >= ?) FROM files WHERE missing = 0",
+                            (week_ago,)).fetchone()
+        trash_items = con.execute("SELECT COUNT(*) FROM trash").fetchone()[0]
+    time_s = sum(p["time_s"] for p in projects)
+    weight_g = sum(p["weight_g"] for p in projects)
+    costs = [p["total_cost"] for p in projects if p["total_cost"] is not None]
+    printers = printer_import.state["printers"].values()
+    return {
+        "projects": len(projects),
+        "files": files[0],
+        "plates": sum(len(p["plates"]) for p in projects),
+        "print_time_s": time_s,
+        "print_time_h": round(time_s / 3600, 1),
+        "filament_g": round(weight_g, 1),
+        "filament_kg": round(weight_g / 1000, 2),
+        "cost_eur": round(sum(costs), 2) if costs else None,
+        "energy_kwh": round(sum(p["energy_kwh"] for p in projects), 2),
+        "new_files_7d": files[2] or 0,
+        "last_added": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(files[1])) if files[1] else None,
+        "printers_total": len(printer_import.load_printers()),
+        "printers_ok": sum(1 for p in printers if p.get("ok")),
+        "last_printer_sync": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(printer_import.state["last_run"]))
+        if printer_import.state["last_run"] else None,
+        "trash_items": trash_items,
+        "version": APP_VERSION,
+    }
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "scan": store.last_scan, "printers": printer_import.state}
