@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ _('Einstellungen') }} – Druckarchiv{% endblock %}
+{% block title %}{{ _('Einstellungen') }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
 {% macro printer_status(st) %}
@@ -15,7 +15,7 @@
   <form method="post" action="/einstellungen/drucker" class="settings-form" id="drucker">
     <section>
       <h2>{{ _('Drucker für den Direktimport') }}</h2>
-      <p class="hint">{{ _('Das Druckarchiv holt geslicte Drucke per FTPS von der SD-Karte, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}
+      <p class="hint">{{ _('{app} holt geslicte Drucke per FTPS von der SD-Karte, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', app=APP_NAME, minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}
         {{ _('IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}
         {{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>
       {% if request.query_params.get('drucker') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}

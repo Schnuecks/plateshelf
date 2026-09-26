@@ -7,7 +7,7 @@ ordnet ihnen die Übersetzung zu; fehlt ein Eintrag, bleibt der deutsche Text.
 Platzhalter stehen in geschweiften Klammern: _("Platte {n}", n=3).
 
 Die Sprache gilt pro Anfrage (Cookie „sprache“, sonst DEFAULT_LANGUAGE, sonst
-die Browsersprache), das Design pro Browser (Cookie „design“, sonst DEFAULT_THEME).
+die Browsersprache, sonst Englisch), das Design pro Browser (Cookie „design“, sonst DEFAULT_THEME).
 """
 from __future__ import annotations
 
@@ -25,7 +25,8 @@ LANGUAGES = {
     "it": "Italiano",
     "nl": "Nederlands",
 }
-FALLBACK = "de"
+FALLBACK = "de"   # Sprache der Texte im Code, zugleich Schlüssel der Übersetzungen
+DEFAULT = "en"    # wenn die Browsersprache keine der unterstützten ist
 THEMES = ("system", "light", "dark")
 
 LOCALE_DIR = Path(__file__).parent / "locales"
@@ -102,7 +103,7 @@ def pick_language(cookie: str | None, accept: str | None) -> str:
     for _weight, code in sorted(ranked, key=lambda r: -r[0]):
         if code in LANGUAGES:
             return code
-    return FALLBACK
+    return DEFAULT
 
 
 # --- Formate -------------------------------------------------------------------

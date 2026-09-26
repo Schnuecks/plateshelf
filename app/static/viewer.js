@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Schnuecks
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
-import { POLY_END, loadPreview } from "druckarchiv/geometry";
+import { POLY_END, loadPreview } from "plateshelf/geometry";
 
 // Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
 const I18N = (() => {
@@ -46,7 +46,8 @@ const RAMP = ["#2A4DD9", "#1AB3D9", "#4DC759", "#F2D133", "#E63A2E"];
 const EXTRA_COLORS = { travel: "#5B8DEF", retract: "#E040FB", seam: "#F5F5F5" };
 const METRIC_NAMES = { speed: "Geschwindigkeit", flow: "Volumenstrom", fan: "Lüfter", temp: "Düsentemperatur" };
 const store = {
-  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
+  // Einstellungen aus der Zeit als „Druckarchiv“ werden weiter gelesen
+  get(k, d) { try { return localStorage.getItem(k) ?? localStorage.getItem(k.replace(/^plateshelf-/, "druckarchiv-")) ?? d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* privat */ } },
 };
 const IDLE_MS = 180;          // so lange nach der letzten Bewegung wieder volle Qualität
@@ -636,11 +637,11 @@ function start(data) {
     if (!box) continue;
     box.closest("label").querySelector(".extra-count").textContent = extraCounts[key].toLocaleString(LOCALE);
     box.disabled = extraCounts[key] === 0;
-    box.checked = !box.disabled && store.get(`druckarchiv-show-${key}`, "0") === "1";
+    box.checked = !box.disabled && store.get(`plateshelf-show-${key}`, "0") === "1";
     obj.visible = box.checked;
     box.addEventListener("change", () => {
       obj.visible = box.checked;
-      store.set(`druckarchiv-show-${key}`, box.checked ? "1" : "0");
+      store.set(`plateshelf-show-${key}`, box.checked ? "1" : "0");
       render();
     });
   }
@@ -769,7 +770,7 @@ function start(data) {
   const speedBtn = document.getElementById("play-speed");
   let playDist = null; // null: Schicht vollständig
   let playing = false;
-  let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("druckarchiv-play-speed", 10))));
+  let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("plateshelf-play-speed", 10))));
   const setCut = (dist) => {
     const l = Number(slider.value);
     const [a, b] = layerLen(l);
@@ -839,7 +840,7 @@ function start(data) {
   const showSpeed = () => { if (speedBtn) speedBtn.textContent = `${PLAY_SPEEDS[speedIdx]}×`; };
   speedBtn?.addEventListener("click", () => {
     speedIdx = (speedIdx + 1) % PLAY_SPEEDS.length;
-    store.set("druckarchiv-play-speed", PLAY_SPEEDS[speedIdx]);
+    store.set("plateshelf-play-speed", PLAY_SPEEDS[speedIdx]);
     showSpeed();
   });
   showSpeed();
@@ -918,13 +919,13 @@ function start(data) {
   // Fehlen Bedienelemente (z. B. alte Seitenvorlage), läuft die Vorschau trotzdem
   const uniRow = document.getElementById("uni-row") || { hidden: true };
   const uniInput = document.getElementById("uni-color");
-  const uniValue = store.get("druckarchiv-uni-color", DEFAULT_UNI);
+  const uniValue = store.get("plateshelf-uni-color", DEFAULT_UNI);
   mat.uniforms.uniColor.value.set(uniValue);
   if (uniInput) {
     uniInput.value = uniValue;
     uniInput.addEventListener("input", () => {
       mat.uniforms.uniColor.value.set(uniInput.value);
-      store.set("druckarchiv-uni-color", uniInput.value);
+      store.set("plateshelf-uni-color", uniInput.value);
       render();
     });
   }
@@ -933,12 +934,12 @@ function start(data) {
     if (!btn || btn.disabled) name = "tool";
     mat.uniforms.mode.value = MODES[name] ?? 0;
     document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === name)));
-    store.set("druckarchiv-color-mode", name);
+    store.set("plateshelf-color-mode", name);
     buildLegend();
     render();
   };
   document.querySelectorAll("[data-mode]").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
-  const camKey = `druckarchiv-cam-${fid}-${plate}`;
+  const camKey = `plateshelf-cam-${fid}-${plate}`;
   let camSaveTimer = 0;
   const saveCamera = () => {
     clearTimeout(camSaveTimer);
@@ -1016,7 +1017,7 @@ function start(data) {
     draw();
     const url = canvas.toDataURL("image/png");
     const a = document.createElement("a");
-    const name = (root.dataset.name || "druckarchiv").replace(/[\\/:*?"<>|]+/g, "_").trim() || "druckarchiv";
+    const name = (root.dataset.name || "plateshelf").replace(/[\\/:*?"<>|]+/g, "_").trim() || "plateshelf";
     a.href = url;
     a.download = `${name} – ${t("Platte {n}", { n: plate })}.png`;
     document.body.append(a);
@@ -1039,12 +1040,12 @@ function start(data) {
 
   // Tiefenschattierung: nur im Stillstand, nur bei Röhren und wenn das Gerät es schafft
   const aoToggle = document.getElementById("ao-toggle");
-  let aoWanted = store.get("druckarchiv-ao", "1") === "1";
+  let aoWanted = store.get("plateshelf-ao", "1") === "1";
   if (aoToggle) {
     aoToggle.checked = aoWanted;
     aoToggle.addEventListener("change", () => {
       aoWanted = aoToggle.checked;
-      store.set("druckarchiv-ao", aoWanted ? "1" : "0");
+      store.set("plateshelf-ao", aoWanted ? "1" : "0");
       render();
     });
   }
@@ -1189,7 +1190,7 @@ function start(data) {
   new ResizeObserver(resize).observe(canvas);
 
   if (!restoreCamera()) resetView();
-  setMode(store.get("druckarchiv-color-mode", "tool"));
+  setMode(store.get("plateshelf-color-mode", "tool"));
   resize();
   loadingText.textContent = t("Darstellung wird abgestimmt");
   const w = canvas.clientWidth, h = canvas.clientHeight;

@@ -9,6 +9,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
 
+@pytest.fixture(autouse=True)
+def german_by_default(monkeypatch):
+    """Die Tests prüfen die deutschen Texte; ohne Vorgabe wäre Englisch die Standardsprache."""
+    monkeypatch.setenv("DEFAULT_LANGUAGE", "de")
+
+
 @pytest.fixture
 def lib(tmp_path, monkeypatch):
     """Leere Bibliothek + Datenbank in einem temporären Ordner."""
@@ -19,7 +25,7 @@ def lib(tmp_path, monkeypatch):
     library.mkdir()
     monkeypatch.setattr(store, "LIBRARY_DIR", library)
     monkeypatch.setattr(store, "DATA_DIR", data)
-    monkeypatch.setattr(store, "DB_PATH", data / "druckarchiv.sqlite")
+    monkeypatch.setattr(store, "DB_PATH", data / "plateshelf.sqlite")
     monkeypatch.setattr(store, "THUMB_DIR", data / "thumbs")
     monkeypatch.setattr(store, "PREBUILD", False)
     store.init_db()

@@ -1,361 +1,376 @@
-# Druckarchiv
+<p align="center"><img src="app/static/logo.svg" width="96" alt="PlateShelf"></p>
 
-Das Druckarchiv ist ein selbstgehostetes Archiv für deine 3D-Drucke aus Bambu Studio.
-Es liest `.gcode.3mf`-Dateien aus und zeigt sie so übersichtlich an, wie du es aus dem
-Slicer kennst: Platten mit Vorschaubildern, Druckzeit, Gewicht, Filamente mit Farbe und
-Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
+# PlateShelf
 
-## Inhalt
+**English** · [Deutsch](README.de.md)
 
-- [Funktionen](#funktionen)
+PlateShelf is a self-hosted archive for your 3D prints from Bambu Studio. It reads
+sliced `.gcode.3mf` files and presents them as clearly as you know from your slicer:
+plates with preview images, print time, weight, filaments with colour and cost, the key
+print settings and a 3D preview of the actual toolpaths.
+
+![Overview of all projects](docs/screenshots/overview.png)
+
+## Contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
 - [Installation](#installation)
-- [Bedienung](#bedienung): Bibliothek und Projekte, Hochladen, Direktimport von
-  Bambu-Druckern, 3D-Vorschau, Kosten, Papierkorb, Sprache und Design
-- [Betrieb](#betrieb): Einstellungen, Zugriffsschutz, Reverse-Proxy, Dashboard-Widget,
-  Daten und Sicherung
-- [Entwicklung](#entwicklung)
-- [Lizenz](#lizenz)
+- [Usage](#usage): library and projects, uploading, direct import from Bambu printers,
+  3D preview, costs, trash, language and theme
+- [Running PlateShelf](#running-plateshelf): settings, access control, reverse proxy,
+  dashboard widget, data and backups
+- [Development](#development)
+- [License](#license)
 
-## Funktionen
+## Features
 
-- **Übersicht** aller Projekte mit Suche und Filtern nach Material, Drucker, Status und Tags
-- **Projektseite** mit allen Platten, Vorschaubildern (schräg und von oben), Druckzeit,
-  Gewicht, Schichten, Höhe, Filamenten pro Slot und Kosten
-- **Angaben von MakerWorld**, sofern in der Datei enthalten: Titel, Designer, Lizenz,
-  Druckprofil, Beschreibung und Foto des gedruckten Modells
-- **3D-Vorschau** der Druckbahnen mit Schichtregler, Wiedergabe des Drucks und Einfärbung
-  nach Filament, Linientyp, Geschwindigkeit, Volumenstrom, Lüfter oder Temperatur
-- **Automatische Projekte** aus Ordnern oder Dateinamen, zusätzlich manuell zuordenbar
-- **Notizen, Tags, Status und Quelle** pro Projekt
-- **Hochladen** per Drag & Drop und **Papierkorb** mit Wiederherstellen
-- **Direktimport von Bambu-Druckern** per FTPS, auch ohne LAN-only-Modus
-- **Kosten** aus Material und Strom
-- **Sechs Sprachen** (Deutsch, English, Français, Español, Italiano, Nederlands) und
-  **Design** hell, dunkel oder wie das System
-- **Optionale Anmeldung** und Schutz vor Anfragen fremder Webseiten
-- **Kennzahlen als JSON**, z. B. für ein Widget in [Homepage](https://gethomepage.dev)
+- **Overview** of all projects with search and filters by material, printer, status and tags
+- **Project page** with all plates, preview images (angled and top), print time, weight,
+  layers, height, filaments per slot and costs
+- **MakerWorld details** when included in the file: title, designer, license, print
+  profile, description and a photo of the printed model
+- **3D preview** of the toolpaths with a layer slider, print playback and colouring by
+  filament, line type, speed, volumetric flow, fan or temperature
+- **Automatic projects** from folders or file names, with manual reassignment
+- **Notes, tags, status and source** per project
+- **Upload** by drag & drop and a **trash** with restore
+- **Direct import from Bambu printers** via FTPS, even without LAN-only mode
+- **Costs** from material and electricity
+- **Six languages** (English, Deutsch, Français, Español, Italiano, Nederlands) and a
+  **light, dark or system theme**
+- **Optional sign-in** and protection against requests from other websites
+- **Key figures as JSON**, e.g. for a widget in [Homepage](https://gethomepage.dev)
+
+## Screenshots
+
+| Project | 3D preview |
+|---|---|
+| ![Project page](docs/screenshots/project.png) | ![3D preview coloured by line type](docs/screenshots/preview.png) |
 
 ## Installation
 
-### Voraussetzungen
+### Requirements
 
-Du brauchst Docker mit Docker Compose 2.24 oder neuer. Das Image gibt es für PCs und
-Server (amd64), für 64-Bit-ARM (arm64, z. B. Raspberry Pi 4/5 mit 64-Bit-System und
-viele NAS) und für 32-Bit-ARM (arm/v7, ältere Raspberry Pi). Docker wählt automatisch
-das passende.
+You need Docker with Docker Compose 2.24 or newer. Images are available for PCs and
+servers (amd64), 64-bit ARM (arm64, e.g. Raspberry Pi 4/5 with a 64-bit OS and many NAS
+devices) and 32-bit ARM (arm/v7, older Raspberry Pi). Docker picks the right one
+automatically.
 
-### Schnellstart
+### Quick start
 
 ```bash
-mkdir druckarchiv && cd druckarchiv
-curl -O https://raw.githubusercontent.com/schnuecks/druckarchiv/main/compose.yaml
-curl -o .env https://raw.githubusercontent.com/schnuecks/druckarchiv/main/.env.example
+mkdir plateshelf && cd plateshelf
+curl -O https://raw.githubusercontent.com/schnuecks/plateshelf/main/compose.yaml
+curl -o .env https://raw.githubusercontent.com/schnuecks/plateshelf/main/.env.example
 mkdir -p library data
 docker compose up -d
 ```
 
-Danach ist das Druckarchiv unter `http://<server>:8000` erreichbar. Lege deine
-`.gcode.3mf`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
-Minuten, sofort über „Bibliothek neu einlesen“ in der Übersicht.
+PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf` files into
+the `library` folder. They show up within two minutes, or immediately via “Rescan
+library” in the overview.
 
-Die Ordner `library` und `data` müssen für den Benutzer beschreibbar sein, unter dem
-der Container läuft (`PUID` und `PGID` in der `.env`, Standard 1000). Sonst bricht der
-Start mit dem Fehler „unable to open database file“ ab.
+The `library` and `data` folders must be writable for the user the container runs as
+(`PUID` and `PGID` in the `.env`, default 1000). Otherwise startup fails with “unable
+to open database file”.
 
-### Aktualisieren
+### Updating
 
 ```bash
 docker compose pull && docker compose up -d
 ```
 
-Die Datenbank wird beim Start bei Bedarf automatisch auf den neuen Stand gebracht.
-Wenn sich das Format der 3D-Vorschau ändert, werden die Vorschauen danach einmal im
-Hintergrund neu erzeugt. Was sich in einer Version geändert hat, steht im
-[CHANGELOG](CHANGELOG.md).
+The database is upgraded automatically on startup if needed. If the format of the 3D
+preview changes, the previews are rebuilt once in the background. What changed in each
+version is listed in the [CHANGELOG](CHANGELOG.md).
 
-## Bedienung
+### Upgrading from Druckarchiv
 
-### Bibliothek und Projekte
+PlateShelf was called *Druckarchiv* up to version 0.6. Your data carries over as is:
 
-Am besten eignen sich **geslicte Dateien** (`.gcode.3mf`). Du erzeugst sie in Bambu
-Studio über „Exportieren → Geslicte Plattendatei exportieren“ bzw. „Alle geslicten
-Dateien exportieren“. Nur diese Dateien enthalten Druckzeit, Gewicht und
-Filamentverbrauch.
+- In your `.env`, replace `DRUCKARCHIV_IMAGE` with
+  `PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:latest`, or download the new
+  `compose.yaml` and `.env.example` as in the quick start and copy your values over.
+- The database `druckarchiv.sqlite` in the data folder is renamed to
+  `plateshelf.sqlite` automatically on first start.
+- If your library already has a `Vom Drucker` folder from the direct import, it keeps
+  being used. New installations use `From printer`.
+- Settings stored in the browser (colour mode, camera position and so on) are kept.
 
-So entstehen Projekte:
+## Usage
 
-- **Jeder Unterordner** der Bibliothek ist ein Projekt.
-- **Dateien im Hauptordner** werden über ihren Namen zusammengefasst:
-  `Benchy_plate_1.gcode.3mf` und `Benchy_plate_2.gcode.3mf` landen beide im Projekt
-  „Benchy“. Zusätze wie `_plate_3`, ` (2)`, `_v2`, `_gcode` oder `.stl` werden dabei
-  ignoriert.
-- **Nichtssagende Namen** wie `(Unsaved)` oder zufällige Kennungen werden durch den
-  Titel aus der Datei ersetzt, sofern vorhanden.
-- Auf der Projektseite lässt sich jede Datei **von Hand einem anderen Projekt
-  zuordnen**. Diese Zuordnung bleibt auch nach einem erneuten Einlesen erhalten.
+### Library and projects
 
-Exportierst du Platten einzeln, enthält jede Datei zusätzlich die Vorschaubilder aller
-anderen Platten. Liegt eine Platte in einer anderen Datei des Projekts geslict vor, wird
-ihre Vorschau nicht doppelt angezeigt.
+**Sliced files** (`.gcode.3mf`) work best. Create them in Bambu Studio via “Export →
+Export plate sliced file” or “Export all sliced file”. Only these files contain print
+time, weight and filament usage.
 
-### Hochladen
+This is how projects are formed:
 
-Über „Hochladen“ oben rechts lädst du eine oder mehrere Dateien per Drag & Drop hoch,
-auf Wunsch direkt in einen Projektordner. Vorhandene Dateien werden nie überschrieben:
-Identische Dateien werden übersprungen, bei gleichem Namen mit anderem Inhalt wird
-„(2)“ angehängt.
+- **Each subfolder** of the library is a project.
+- **Files in the main folder** are grouped by name: `Benchy_plate_1.gcode.3mf` and
+  `Benchy_plate_2.gcode.3mf` both end up in the project “Benchy”. Suffixes such as
+  `_plate_3`, ` (2)`, `_v2`, `_gcode` or `.stl` are ignored.
+- **Meaningless names** such as `(Unsaved)` or random IDs are replaced by the title
+  stored in the file, if there is one.
+- On the project page, every file can be **assigned to another project by hand**. This
+  assignment survives a rescan.
 
-### Direktimport von Bambu-Druckern
+If you export plates individually, each file also contains the preview images of all
+other plates. If a plate is available sliced in another file of the project, its
+preview is not shown twice.
 
-Das Druckarchiv kann geslicte Drucke selbst von der SD-Karte deiner Bambu-Drucker holen.
-Der Zugriff erfolgt per FTPS mit dem Zugangscode des Druckers. Der LAN-only-Modus ist
-dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
+### Uploading
 
-**Einrichten in der Oberfläche:** Trage deine Drucker unter „Einstellungen“ →
-„Drucker für den Direktimport“ ein: Name, IP-Adresse, Seriennummer und Zugangscode. Die
-Angaben findest du am Drucker in den Netzwerkeinstellungen. Der Zugangscode wird
-gespeichert, aber nie wieder angezeigt; lässt du das Feld beim Ändern leer, bleibt er
-erhalten. Nach dem Speichern werden die Drucker sofort abgefragt, das Ergebnis steht
-bei jedem Drucker.
+Use “Upload” in the top right to upload one or more files by drag & drop, optionally
+straight into a project folder. Existing files are never overwritten: identical files
+are skipped, and files with the same name but different content get “(2)” appended.
 
-**Einrichten über die `.env`:** Alternativ gibst du die Drucker durchnummeriert ab 1 vor:
+### Direct import from Bambu printers
+
+PlateShelf can fetch sliced prints from the SD card of your Bambu printers itself. It
+connects via FTPS using the printer’s access code. LAN-only mode is not required as long
+as the firmware allows file access.
+
+**Set up in the interface:** Add your printers under “Settings” → “Printers for direct
+import”: name, IP address, serial number and access code. You find these in the network
+settings on the printer. The access code is stored but never shown again; leave the
+field empty when editing to keep it. After saving, the printers are queried right away
+and the result is shown next to each printer.
+
+**Set up via `.env`:** Alternatively, define the printers numbered from 1:
 
 ```bash
 PRINTER_1_NAME=P2S
 PRINTER_1_IP=192.0.2.20
-PRINTER_1_SERIAL=<Seriennummer>
-PRINTER_1_CODE=<Zugangscode>
+PRINTER_1_SERIAL=<serial number>
+PRINTER_1_CODE=<access code>
 PRINTER_2_NAME=A1 mini
 # …
 ```
 
-So eingerichtete Drucker erscheinen in den Einstellungen schreibgeschützt. Bei gleicher
-Seriennummer hat die `.env` Vorrang.
+Printers set up this way appear read-only in the settings. If a serial number is set in
+both places, the `.env` wins.
 
-**Ablauf:**
+**How it works:**
 
-- Alle `PRINTER_SYNC_INTERVAL` Sekunden (Standard 600) oder sofort über „Von Druckern
-  holen“ in der Übersicht fragt das Druckarchiv die Dateien auf der SD-Karte ab.
-- Neue Drucke landen unter `Vom Drucker/<Druckername>/` in der Bibliothek und werden
-  über ihren Namen zu Projekten zusammengefasst.
-- Der Drucker speichert ein Projekt immer unter demselben Namen und überschreibt es,
-  wenn eine andere Platte gedruckt wird. Das Druckarchiv legt deshalb jede gedruckte
-  Platte als eigene Datei ab (`…_plate_2.gcode.3mf`), so geht nichts verloren.
-- Jede Datei wird nur einmal geholt. Was du im Archiv löschst, wird nicht erneut
-  importiert.
-- Die Dateien auf dem Drucker werden nur gelesen, nie verändert oder gelöscht.
-- Ist ein Drucker ausgeschaltet oder im Standby, wird er beim nächsten Durchlauf erneut
-  abgefragt. Nur ein falscher Zugangscode erscheint in der Übersicht als Warnung.
+- Every `PRINTER_SYNC_INTERVAL` seconds (default 600), or immediately via “Fetch from
+  printers” in the overview, PlateShelf lists the files on the SD card.
+- New prints are stored under `From printer/<printer name>/` in the library and grouped
+  into projects by name.
+- The printer always saves a project under the same name and overwrites it when a
+  different plate is printed. PlateShelf therefore stores each printed plate as a file
+  of its own (`…_plate_2.gcode.3mf`), so nothing gets lost.
+- Each file is fetched only once. What you delete in the archive is not imported again.
+- Files on the printer are only read, never changed or deleted.
+- If a printer is switched off or in standby, it is simply queried again next time. Only
+  a wrong access code shows up as a warning in the overview.
 
-### 3D-Vorschau
+### 3D preview
 
-Eine `.gcode.3mf` enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
-3D-Vorschau zeigt deshalb die tatsächlichen Druckbahnen, ähnlich wie Bambu Studio.
+A `.gcode.3mf` no longer contains a 3D model but the finished G-code. The 3D preview
+therefore shows the actual toolpaths, similar to Bambu Studio.
 
-**Einfärbung**
+**Colouring**
 
-- nach Filament, nach Linientyp (Außenwand, Infill, Stützen usw.) oder einfarbig in
-  einer frei wählbaren Farbe, praktisch bei hellen Filamenten
-- nach Messwert wie im Slicer: Geschwindigkeit (mm/s), Volumenstrom (mm³/s),
-  Bauteillüfter (%) und Düsentemperatur (°C), mit einer Farbskala von Blau (niedrig)
-  nach Rot (hoch). Einzelne Ausreißer verzerren die Skala nicht.
-- Einzelne Filamente und Linientypen lassen sich ausblenden.
-- Leerfahrten, Rückzüge und Nahtstellen (Beginn jeder Außenwand) lassen sich
-  einblenden, jeweils mit Anzahl. Das hilft, Fäden oder eine unruhige Naht zu erklären.
+- by filament, by line type (outer wall, infill, supports and so on) or in a single
+  colour of your choice, handy for light filaments
+- by measurement, like in the slicer: speed (mm/s), volumetric flow (mm³/s), part
+  cooling fan (%) and nozzle temperature (°C), on a scale from blue (low) to red (high).
+  Single outliers don’t distort the scale.
+- Individual filaments and line types can be hidden.
+- Travel moves, retractions and seams (start of each outer wall) can be shown, each with
+  a count. This helps to explain stringing or an uneven seam.
 
-**Schichten und Wiedergabe**
+**Layers and playback**
 
-- Schichtregler mit Anzeige der Höhe, auch mit den Pfeiltasten hoch und runter
-- „Nur diese Schicht“ zeigt eine einzelne Schicht.
-- Die Wiedergabe lässt den Druckkopf die Bahnen Schicht für Schicht abfahren (▶ oder
-  Leertaste, Tempo 1×, 10× oder 50×). Mit „Position in der Schicht“ steuerst du jede
-  Stelle einer Schicht von Hand an.
-- Pfeiltasten links und rechts wechseln zwischen den Platten eines Projekts.
+- Layer slider with height display, also via the up and down arrow keys
+- “This layer only” shows a single layer.
+- Playback lets the print head trace the toolpaths layer by layer (▶ or space bar,
+  speed 1×, 10× or 50×). “Position in layer” moves to any point of a layer by hand.
+- The left and right arrow keys switch between the plates of a project.
 
-**Ansicht**
+**View**
 
-- Drehen mit der linken, Verschieben mit der rechten Maustaste, Zoomen mit dem Mausrad
-  zum Mauszeiger hin; auf Touch-Geräten mit einem bzw. zwei Fingern
-- Doppelklick oder Doppeltipp setzt die Ansicht zurück, die Kameraposition wird pro
-  Platte gemerkt.
-- Vollbild (auch Taste F) und „Bild speichern“ als PNG
-- Das Modell steht auf einer Druckplatte mit 10- und 50-mm-Linien. Von unten gesehen
-  wird die Platte ausgeblendet, damit die erste Schicht sichtbar bleibt.
-- Die Tiefenschattierung dunkelt Rillen zwischen Bahnen und Schichten ab und lässt das
-  Modell plastischer wirken. Sie ist nur im Stillstand aktiv, schaltet sich auf
-  langsamen Geräten automatisch ab und lässt sich auch von Hand abschalten.
+- Rotate with the left mouse button, pan with the right, zoom towards the cursor with
+  the mouse wheel; on touch devices with one or two fingers
+- Double-click or double-tap resets the view; the camera position is remembered per plate.
+- Full screen (also key F) and “Save image” as PNG
+- The model stands on a build plate with 10 and 50 mm lines. Seen from below, the plate
+  is hidden so the first layer stays visible.
+- Ambient occlusion darkens the grooves between lines and layers and makes the model look
+  more three-dimensional. It is only active while the view is still, switches off
+  automatically on slow devices and can be turned off by hand.
 
-**Leistung:** Der G-Code wird nach dem Einlesen einmalig im Hintergrund aufbereitet und
-im Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert das
-etwa 10 bis 20 Sekunden, danach öffnet sich die Vorschau sofort. Beim Öffnen misst die
-Vorschau kurz die Leistung des Geräts und wählt beim Drehen automatisch die schönste
-Darstellung, die noch flüssig läuft. Eine Internetverbindung ist nicht nötig.
+**Performance:** After a file is read, its G-code is processed once in the background
+and cached in the data folder. For very large prints (100 MB of G-code) this takes about
+10 to 20 seconds; after that the preview opens instantly. When opening, the preview
+briefly measures the device and, while rotating, automatically picks the best-looking
+display that still runs smoothly. No internet connection is required.
 
-### Kosten
+### Costs
 
-Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
+The costs shown consist of material and electricity:
 
-- **Material:** Verbrauch pro Filament mal dem Preis aus dem Filamentprofil in Bambu
-  Studio (Feld „Preis“). Ist dort nichts eingetragen, fehlt dieser Anteil.
-- **Strom:** Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis.
-  Strompreis und Leistung stellst du unter „Einstellungen“ ein, auf Wunsch für jeden
-  Drucker einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.
+- **Material:** usage per filament times the price from the filament profile in Bambu
+  Studio (“Price” field). If no price is set there, this part is missing.
+- **Electricity:** print time times the printer’s average power times the electricity
+  price. You set price and power under “Settings”, per printer if you like. Defaults are
+  €0.35 per kWh and 100 watts.
 
-Die durchschnittliche Leistung misst du am genauesten mit einer Steckdose mit
-Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden.
-Verschleiß und Fehldrucke sind nicht enthalten.
+The most accurate way to measure average power is a smart plug with energy metering:
+energy of one print in Wh divided by the print time in hours. Wear and failed prints are
+not included.
 
-### Papierkorb
+### Trash
 
-Dateien oder ganze Projekte löschst du auf der Projektseite. Sie werden nicht sofort
-entfernt, sondern mit ihrem ursprünglichen Pfad in den Ordner `.papierkorb/` innerhalb
-der Bibliothek verschoben. Direkt nach dem Löschen kannst du es mit „Rückgängig“
-zurücknehmen.
+You delete files or entire projects on the project page. They are not removed right
+away but moved, with their original path, into the `.papierkorb/` folder inside the
+library. Right after deleting, you can take it back with “Undo”.
 
-Unter „Papierkorb“ oben rechts siehst du alle gelöschten Dateien und Projekte:
+“Trash” in the top right lists all deleted files and projects:
 
-- **Wiederherstellen** legt die Dateien an ihren ursprünglichen Ort zurück.
-  Projektname, Notizen, Tags, Status, Quelle und die manuelle Zuordnung kommen mit
-  zurück. Liegt dort inzwischen eine andere Datei mit gleichem Namen, wird die
-  wiederhergestellte als „(2)“ abgelegt. Überschrieben wird nie etwas.
-- **Endgültig löschen** entfernt einen Eintrag, **Papierkorb leeren** alle.
-- Nach `TRASH_DAYS` Tagen (Standard 30) werden Einträge automatisch endgültig gelöscht.
-  Mit `TRASH_DAYS=0` bleiben sie, bis du sie selbst löschst.
+- **Restore** puts the files back where they were. Project name, notes, tags, status,
+  source and manual assignments come back too. If another file with the same name is
+  there by now, the restored one is saved as “(2)”. Nothing is ever overwritten.
+- **Delete permanently** removes one item, **Empty trash** removes all of them.
+- Items are deleted permanently after `TRASH_DAYS` days (default 30). With
+  `TRASH_DAYS=0` they stay until you delete them yourself.
 
-### Sprache und Design
+### Language and theme
 
-Oben rechts in der Titelleiste wählst du die Sprache (Weltkugel mit Kürzel, z. B. „DE“)
-und das Design: Ein Klick auf das Symbol wechselt zwischen System, Hell und Dunkel.
-Beides gilt für den jeweiligen Browser, jeder im Haushalt kann also seine eigene
-Einstellung haben. Zahlen, Beträge und Datumsangaben folgen der gewählten Sprache.
+In the top right of the title bar you choose the language (globe with a code such as
+“EN”) and the theme: clicking the icon switches between system, light and dark. Both
+apply per browser, so everyone in the household can have their own setting. Numbers,
+amounts and dates follow the selected language.
 
-Ohne eigene Auswahl gelten `DEFAULT_LANGUAGE` und `DEFAULT_THEME` aus der `.env`. Ist
-keine Sprache vorgegeben, gilt die Sprache des Browsers.
+Without a choice, `DEFAULT_LANGUAGE` and `DEFAULT_THEME` from the `.env` apply. If no
+language is set there either, the browser language is used, and English if that isn’t
+one of the six.
 
-## Betrieb
+## Running PlateShelf
 
-### Einstellungen
+### Settings
 
-Alle Einstellungen stehen in der `.env`. Die `compose.yaml` reicht sie an den Container
-weiter.
+All settings live in the `.env`. The `compose.yaml` passes them to the container.
 
-**Container und Ordner**
+**Container and folders**
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 |---|---|---|
-| `DRUCKARCHIV_IMAGE` | `ghcr.io/schnuecks/druckarchiv:latest` | Verwendetes Image |
-| `PUID`, `PGID` | 1000 | Benutzer und Gruppe, unter denen der Container läuft |
-| `TZ` | Europe/Berlin | Zeitzone |
-| `PORT` | 8000 | Port auf dem Host |
-| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-Dateien |
-| `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
-| `LOG_LEVEL` | INFO | Ausführlichkeit der Protokolle (`docker compose logs`): `DEBUG`, `INFO` oder `WARNING` |
+| `PLATESHELF_IMAGE` | `ghcr.io/schnuecks/plateshelf:latest` | Image to use |
+| `PUID`, `PGID` | 1000 | User and group the container runs as |
+| `TZ` | Europe/Berlin | Time zone |
+| `PORT` | 8000 | Port on the host |
+| `LIBRARY` | `./library` | Folder with the `.gcode.3mf` files |
+| `DATA` | `./data` | Folder for database, preview images and 3D previews |
+| `LOG_LEVEL` | INFO | Log verbosity (`docker compose logs`): `DEBUG`, `INFO` or `WARNING` |
 
-**Bibliothek**
+**Library**
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 |---|---|---|
-| `SCAN_INTERVAL` | 120 | Sekunden zwischen zwei Durchläufen durch die Bibliothek |
-| `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
-| `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
-| `TRASH_DAYS` | 30 | Tage bis zum endgültigen Löschen aus dem Papierkorb (0 = nie) |
+| `SCAN_INTERVAL` | 120 | Seconds between two scans of the library |
+| `MAX_UPLOAD_MB` | 1024 | Size limit per uploaded file in MB |
+| `PREVIEW_PREBUILD` | true | Prepare 3D previews in the background after reading files |
+| `TRASH_DAYS` | 30 | Days until items are deleted permanently from the trash (0 = never) |
 
-**Direktimport**
+**Direct import**
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 |---|---|---|
-| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Drucker für den Direktimport (optional) |
-| `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
-| `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
+| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Printers for the direct import (optional) |
+| `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
+| `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
 
-**Oberfläche**
+**Interface**
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 |---|---|---|
-| `DEFAULT_LANGUAGE` | – | Voreingestellte Sprache: `de`, `en`, `fr`, `es`, `it` oder `nl`; leer: Sprache des Browsers |
-| `DEFAULT_THEME` | system | Voreingestelltes Design: `system`, `light` oder `dark` |
+| `DEFAULT_LANGUAGE` | – | Default language: `en`, `de`, `fr`, `es`, `it` or `nl`; empty: browser language |
+| `DEFAULT_THEME` | system | Default theme: `system`, `light` or `dark` |
 
-**Zugriffsschutz**
+**Access control**
 
-| Variable | Standard | Bedeutung |
+| Variable | Default | Meaning |
 |---|---|---|
-| `AUTH_USER`, `AUTH_PASSWORD` | – | Anmeldung einschalten (beide setzen) |
-| `SESSION_DAYS` | 30 | Wie lange eine Anmeldung im Browser gilt |
-| `SECRET_KEY` | – | Schlüssel für die Anmeldung; leer: wird einmalig erzeugt und im Datenordner gespeichert |
-| `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
+| `AUTH_USER`, `AUTH_PASSWORD` | – | Turn on sign-in (set both) |
+| `SESSION_DAYS` | 30 | How long a sign-in lasts in the browser |
+| `SECRET_KEY` | – | Key for sign-in sessions; empty: generated once and stored in the data folder |
+| `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
 
-### Zugriffsschutz
+### Access control
 
-Ohne weitere Einstellungen hat das Druckarchiv keine Anmeldung: Jeder, der es erreicht,
-kann Dateien hochladen und löschen. Im Heimnetz ist das meist in Ordnung. Für mehr
-Schutz gibt es zwei Wege, die sich auch kombinieren lassen.
+Out of the box, PlateShelf has no sign-in: anyone who can reach it can upload and
+delete files. On a home network that is usually fine. For more protection there are two
+options, which can also be combined.
 
-**Eigene Anmeldung:** Setze `AUTH_USER` und `AUTH_PASSWORD` in der `.env`.
+**Built-in sign-in:** set `AUTH_USER` and `AUTH_PASSWORD` in the `.env`.
 
-- Der Browser zeigt dann eine Anmeldeseite. Die Anmeldung gilt `SESSION_DAYS` Tage,
-  oben rechts gibt es „Abmelden“.
-- Nach fünf Fehlversuchen ist eine Adresse für fünf Minuten gesperrt.
-- Ändert sich das Passwort, sind alle bestehenden Anmeldungen ungültig.
-- Skripte und Dashboards melden sich mit denselben Zugangsdaten per HTTP Basic Auth an.
-- `/healthz` bleibt für den Docker-Healthcheck erreichbar, meldet ohne Anmeldung aber
-  nur, dass das Druckarchiv läuft.
+- The browser then shows a sign-in page. A sign-in lasts `SESSION_DAYS` days, and “Sign
+  out” appears in the top right.
+- After five failed attempts, an address is blocked for five minutes.
+- Changing the password ends all existing sessions.
+- Scripts and dashboards sign in with the same credentials via HTTP Basic Auth.
+- `/healthz` stays reachable for the Docker health check, but without sign-in it only
+  reports that PlateShelf is running.
 
-**Anmeldung am Proxy**, z. B. mit Authelia oder Basic Auth. Das empfiehlt sich
-besonders, wenn das Druckarchiv aus dem Internet erreichbar ist.
+**Sign-in at the reverse proxy**, e.g. with Authelia or Basic Auth. This is recommended
+especially if PlateShelf is reachable from the internet.
 
-**Schutz vor fremden Webseiten:** Unabhängig davon nimmt das Druckarchiv Änderungen
-(Hochladen, Löschen, Einstellungen …) nur von seinen eigenen Seiten an. Formulare, die
-eine fremde Webseite im Hintergrund an das Druckarchiv schickt, werden abgelehnt.
-Maßgeblich ist die Adresse, die der Browser mitsendet; hinter einem Proxy zählt der
-weitergereichte Host (`X-Forwarded-Host`). Skripte ohne Browser (z. B. `curl`) sind
-nicht betroffen. Sollen weitere Seiten Änderungen schicken dürfen, trage sie in
-`TRUSTED_ORIGINS` ein, etwa `TRUSTED_ORIGINS=https://dashboard.example.com`.
+**Protection against other websites:** Regardless of the above, PlateShelf only accepts
+changes (upload, delete, settings …) from its own pages. Forms that another website
+sends to PlateShelf in the background are rejected. What counts is the address the
+browser sends along; behind a proxy, the forwarded host (`X-Forwarded-Host`) counts.
+Scripts without a browser (e.g. `curl`) are not affected. To allow additional sites to
+send changes, add them to `TRUSTED_ORIGINS`, for example
+`TRUSTED_ORIGINS=https://dashboard.example.com`.
 
-### Hinter einem Reverse-Proxy
+### Behind a reverse proxy
 
-Das Druckarchiv lauscht im Container auf Port 8000 und braucht keine besonderen
-Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
-`compose.yaml`):
+PlateShelf listens on port 8000 inside the container and needs no special proxy
+settings. An example for Traefik (instead of `ports:` in the `compose.yaml`):
 
 ```yaml
     labels:
       - traefik.enable=true
-      - traefik.http.routers.druckarchiv.rule=Host(`druckarchiv.example.com`)
-      - traefik.http.services.druckarchiv.loadbalancer.server.port=8000
+      - traefik.http.routers.plateshelf.rule=Host(`plateshelf.example.com`)
+      - traefik.http.services.plateshelf.loadbalancer.server.port=8000
 ```
 
-### Widget für Homepage und andere Dashboards
+### Widget for Homepage and other dashboards
 
-Unter `/api/stats` liefert das Druckarchiv seine Kennzahlen als JSON:
+At `/api/stats`, PlateShelf provides its key figures as JSON:
 
-| Feld | Bedeutung |
+| Field | Meaning |
 |---|---|
-| `projects`, `files`, `plates` | Anzahl Projekte, Dateien und geslicte Platten |
-| `print_time_h`, `print_time_s` | Druckzeit aller Projekte in Stunden bzw. Sekunden |
-| `filament_kg`, `filament_g` | Filamentverbrauch |
-| `cost_eur`, `energy_kwh` | Kosten (Material und Strom) und Stromverbrauch |
-| `new_files_7d`, `last_added` | Neue Dateien der letzten 7 Tage, Zeitpunkt der neuesten |
-| `printers_ok`, `printers_total`, `last_printer_sync` | Erreichbare und eingerichtete Drucker, letzter Abruf |
-| `trash_items`, `version` | Einträge im Papierkorb, Version des Druckarchivs |
+| `projects`, `files`, `plates` | Number of projects, files and sliced plates |
+| `print_time_h`, `print_time_s` | Print time of all projects in hours or seconds |
+| `filament_kg`, `filament_g` | Filament usage |
+| `cost_eur`, `energy_kwh` | Costs (material and electricity) and energy use |
+| `new_files_7d`, `last_added` | New files in the last 7 days, time of the newest |
+| `printers_ok`, `printers_total`, `last_printer_sync` | Reachable and configured printers, last query |
+| `trash_items`, `version` | Items in the trash, PlateShelf version |
 
-Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customapi` in der
-`services.yaml`. Eine Kachel zeigt bis zu vier Felder:
+For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
+`services.yaml` is all you need. A tile shows up to four fields:
 
 ```yaml
-- Druckarchiv:
+- PlateShelf:
     icon: mdi-printer-3d
     href: http://<server>:8000
-    description: 3D-Drucke
+    description: 3D prints
     widget:
       type: customapi
       url: http://<server>:8000/api/stats
       refreshInterval: 60000
       mappings:
         - field: projects
-          label: Projekte
+          label: Projects
           format: number
         - field: print_time_h
-          label: Druckzeit
+          label: Print time
           format: float
           suffix: h
         - field: filament_kg
@@ -363,44 +378,43 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
           format: float
           suffix: kg
         - field: cost_eur
-          label: Kosten
+          label: Cost
           format: float
           suffix: €
 ```
 
-- Statt der Kosten passen auch `new_files_7d` („Neu (7 Tage)“) oder `printers_ok`
-  („Drucker online“).
-- Ist die eigene Anmeldung eingeschaltet, trage im Widget zusätzlich `username` und
-  `password` ein, also dieselben Werte wie `AUTH_USER` und `AUTH_PASSWORD`.
-- Laufen Homepage und Druckarchiv im selben Docker-Netz, nimm bei `url` die interne
-  Adresse, z. B. `http://druckarchiv:8000/api/stats`. Das funktioniert auch, wenn das
-  Druckarchiv nach außen hinter einer Anmeldung am Proxy liegt.
+- Instead of the costs, `new_files_7d` (“New (7 days)”) or `printers_ok` (“Printers
+  online”) work well too.
+- If the built-in sign-in is on, also add `username` and `password` to the widget, with
+  the same values as `AUTH_USER` and `AUTH_PASSWORD`.
+- If Homepage and PlateShelf share a Docker network, use the internal address for
+  `url`, e.g. `http://plateshelf:8000/api/stats`. This also works if PlateShelf sits
+  behind a sign-in at the proxy from the outside.
 
-### Daten und Sicherung
+### Data and backups
 
-- Die Dateien in der Bibliothek werden nie verändert, nur beim Löschen in den
-  Papierkorb verschoben.
-- Datenbank (SQLite), Vorschaubilder, 3D-Vorschauen und deine Notizen liegen im
-  Datenordner. Für eine Sicherung genügt dieser Ordner; die 3D-Vorschauen darin werden
-  bei Bedarf neu erzeugt.
-- Neue und geänderte Dateien werden regelmäßig erkannt, auch auf Netzwerkfreigaben
-  (SMB/NFS). Den Datenordner solltest du dagegen lokal ablegen, weil SQLite auf
-  Netzwerkfreigaben unzuverlässig ist.
+- Files in the library are never modified, only moved to the trash when you delete them.
+- The database (SQLite), preview images, 3D previews and your notes are stored in the
+  data folder. Backing up this folder is enough; the 3D previews in it are rebuilt when
+  needed.
+- New and changed files are detected regularly, also on network shares (SMB/NFS). Keep
+  the data folder on a local disk, though, because SQLite is unreliable on network
+  shares.
 
-## Entwicklung
+## Development
 
-### Lokal starten und testen
+### Running and testing locally
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m pytest -q                        # Tests ausführen
-python tools/make_sample.py ./library      # Beispieldateien erzeugen
+python -m pytest -q                        # run the tests
+python tools/make_sample.py ./library      # create sample files
 LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 ```
 
-Zusätzlich gibt es einen Browsertest, der alle Seiten und die 3D-Vorschau in Chromium
-öffnet und bei jedem JavaScript-Fehler fehlschlägt:
+There is also a browser test that opens all pages and the 3D preview in Chromium and
+fails on any JavaScript error:
 
 ```bash
 pip install -r requirements-browser.txt
@@ -408,61 +422,61 @@ python -m playwright install chromium
 python -m pytest -q tests/test_browser.py
 ```
 
-### Übersetzungen
+`python tools/make_screenshots.py` recreates the screenshots in this README.
 
-Die deutschen Texte im Code sind zugleich die Schlüssel für die Übersetzungen in
-`app/locales/<Sprache>.json`. Nach dem Ändern oder Hinzufügen von Texten zeigt
+### Translations
+
+The German texts in the code double as keys for the translations in
+`app/locales/<language>.json`. After changing or adding texts,
 
 ```bash
 python tools/i18n_extract.py
 ```
 
-je Sprache, was fehlt oder nicht mehr gebraucht wird. Die Tests schlagen fehl, solange
-eine Übersetzung fehlt oder ihre Platzhalter (`{n}`, `{name}` …) nicht zum deutschen
-Text passen. Eine neue Sprache braucht einen Eintrag in `LANGUAGES`, `NUMBER_FORMAT`,
-`MONTHS` und `DAY_MONTH` in `app/i18n.py` sowie eine eigene JSON-Datei.
+shows per language what is missing or no longer used. The tests fail as long as a
+translation is missing or its placeholders (`{n}`, `{name}` …) don’t match the German
+text. A new language needs an entry in `LANGUAGES`, `NUMBER_FORMAT`, `MONTHS` and
+`DAY_MONTH` in `app/i18n.py` plus its own JSON file.
 
-### Tests, Builds und Releases
+### Tests, builds and releases
 
-- Jeder Pull Request und jeder Push auf `main` durchläuft die Python-Tests und den
-  Browsertest und baut das Image probeweise für amd64, arm64 und arm/v7. Veröffentlicht
-  wird dabei nichts.
-- Ein Release entsteht durch einen Versions-Tag:
+- Every pull request and every push to `main` runs the Python tests and the browser
+  test and builds the image for amd64, arm64 and arm/v7 as a trial. Nothing is
+  published.
+- A release is created by a version tag:
 
-  1. Änderungen in `CHANGELOG.md` unter der neuen Versionsnummer eintragen.
-  2. Tag setzen und hochladen:
+  1. Add the changes to `CHANGELOG.md` under the new version number.
+  2. Create and push the tag:
 
      ```bash
-     git tag -a v1.2.3 -m "Druckarchiv 1.2.3" && git push --tags
+     git tag -a v1.2.3 -m "PlateShelf 1.2.3" && git push --tags
      ```
 
-  3. GitHub Actions testet, baut das Image für alle Plattformen und veröffentlicht es
-     als `1.2.3`, `1.2` und `latest`. Anschließend werden ältere Versionen entfernt, die
-     letzten fünf Releases bleiben erhalten.
+  3. GitHub Actions tests, builds the image for all platforms and publishes it as
+     `1.2.3`, `1.2` and `latest`. Older versions are then removed; the last five releases
+     are kept.
 
-- Dependabot (`.github/dependabot.yml`) prüft wöchentlich Python-Pakete, GitHub Actions
-  und das Basisimage und schlägt Aktualisierungen als Pull Request vor. Bekannte
-  Schwachstellen werden sofort gemeldet und automatisch als Pull Request behoben. In das
-  veröffentlichte Image gelangen solche Aktualisierungen mit dem nächsten Release.
+- Dependabot (`.github/dependabot.yml`) checks Python packages, GitHub Actions and the
+  base image weekly and proposes updates as pull requests. Known vulnerabilities are
+  reported immediately and fixed automatically via pull request. Such updates reach the
+  published image with the next release.
 
-## Lizenz
+## License
 
 Copyright (C) 2026 Schnuecks
 
-Das Druckarchiv ist freie Software unter der
-[GNU Affero General Public License, Version 3 oder später](LICENSE)
-(AGPL-3.0-or-later). Du darfst es nutzen, verändern und weitergeben.
+PlateShelf is free software under the
+[GNU Affero General Public License, version 3 or later](LICENSE) (AGPL-3.0-or-later). You
+may use, modify and share it.
 
-Gibst du eine veränderte Fassung weiter oder bietest sie anderen über ein Netzwerk zur
-Nutzung an, musst du ihnen den Quellcode deiner Fassung unter derselben Lizenz
-zugänglich machen. Der Link „Quellcode auf GitHub“ im Footer erfüllt das für diese
-Fassung; bei einer eigenen Fassung passe ihn auf deinen Quellcode an (`APP_REPO` in
-`app/main.py`).
+If you distribute a modified version or offer it to others over a network, you must make
+the source code of your version available to them under the same license. The “Source
+code on GitHub” link in the footer does that for this version; for your own version,
+point it to your source code (`APP_REPO` in `app/main.py`).
 
-Das Programm wird ohne jede Gewährleistung bereitgestellt. Einzelheiten stehen in der
-[Lizenz](LICENSE).
+The program is provided without any warranty. See the [license](LICENSE) for details.
 
-### Drittanbieter
+### Third-party components
 
-`app/static/vendor/` enthält [three.js](https://threejs.org) und OrbitControls, beide
-unter der MIT-Lizenz (siehe `three-LICENSE`). Die MIT-Lizenz ist mit der AGPL vereinbar.
+`app/static/vendor/` contains [three.js](https://threejs.org) and OrbitControls, both
+under the MIT license (see `three-LICENSE`). The MIT license is compatible with the AGPL.

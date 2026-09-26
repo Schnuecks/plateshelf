@@ -24,7 +24,7 @@ import time
 
 from . import store
 
-log = logging.getLogger("druckarchiv")
+log = logging.getLogger("plateshelf")
 
 COOKIE = "sitzung"
 SESSION_DAYS = max(1, int(os.environ.get("SESSION_DAYS", "30")))

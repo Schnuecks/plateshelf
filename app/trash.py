@@ -20,7 +20,7 @@ from pathlib import Path
 
 from . import store
 
-log = logging.getLogger("druckarchiv")
+log = logging.getLogger("plateshelf")
 
 TRASH_DIR = ".papierkorb"
 TRASH_DAYS = int(os.environ.get("TRASH_DAYS", "30"))

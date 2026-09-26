@@ -25,10 +25,22 @@ from . import store
 from .i18n import UserError
 from .parser import parse_3mf
 
-log = logging.getLogger("druckarchiv.drucker")
+log = logging.getLogger("plateshelf.printers")
 
 SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
-IMPORT_DIR = os.environ.get("PRINTER_IMPORT_DIR", "Vom Drucker")
+LEGACY_IMPORT_DIR = "Vom Drucker"  # Standard bis Version 0.6
+
+
+def import_dir() -> str:
+    """Zielordner für importierte Drucke.
+
+    PRINTER_IMPORT_DIR, sonst „From printer“. Gibt es aus älteren Versionen schon den
+    Ordner „Vom Drucker“, wird er weiter benutzt, damit nichts auseinanderfällt.
+    """
+    env = os.environ.get("PRINTER_IMPORT_DIR", "").strip()
+    if env:
+        return env
+    return LEGACY_IMPORT_DIR if (store.LIBRARY_DIR / LEGACY_IMPORT_DIR).is_dir() else "From printer"
 TIMEOUT = 15
 
 # Zeile aus einem Unix-artigen LIST: Rechte, Links, Besitzer, Gruppe, Größe, Datum, Name
@@ -243,7 +255,7 @@ def sync_printer(printer: dict, connect=_connect) -> dict:
     def fail(msg: str, **kwargs) -> None:
         # error: deutscher Text für Log und Tests, error_msg/error_args zum Übersetzen
         result.update(error=msg.format(**kwargs), error_msg=msg, error_args=kwargs)
-    target_dir = store.LIBRARY_DIR / IMPORT_DIR / _local_name(printer["name"])
+    target_dir = store.LIBRARY_DIR / import_dir() / _local_name(printer["name"])
     try:
         ftp = connect(printer)
     except ftplib.error_perm as exc:

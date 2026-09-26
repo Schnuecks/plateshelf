@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Über {app}', app=APP_NAME) }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
+
+{% block main %}
+<article class="about-page">
+  <header class="about-head">
+    <img src="/static/logo.svg?v={{ ASSET_V }}" alt="">
+    <div>
+      <h1>{{ APP_NAME }}</h1>
+      <p class="tagline">{{ _('Das selbstgehostete Archiv für deine 3D-Drucke aus Bambu Studio.') }}</p>
+    </div>
+  </header>
+
+  <section>
+    <h2>{{ _('Was {app} macht', app=APP_NAME) }}</h2>
+    <p>{{ _('{app} liest geslicte .gcode.3mf-Dateien aus und zeigt sie so übersichtlich an, wie du es aus dem Slicer kennst: Platten mit Vorschaubildern, Druckzeit, Gewicht, Filamente mit Farbe und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der echten Druckbahnen.', app=APP_NAME) }}</p>
+    <p>{{ _('Dateien kommen aus einem Ordner, per Hochladen oder direkt von der SD-Karte deiner Bambu-Drucker. Deine Dateien bleiben dabei unverändert; Notizen, Tags und Vorschauen liegen in einer eigenen Datenbank.') }}</p>
+  </section>
+
+  <section>
+    <h2>{{ _('Funktionen') }}</h2>
+    <ul>
+      <li>{{ _('Projekte automatisch aus Ordnern und Dateinamen, mit Suche, Filtern, Notizen, Tags und Status') }}</li>
+      <li>{{ _('3D-Vorschau mit Wiedergabe des Drucks und Einfärbung nach Filament, Linientyp, Geschwindigkeit, Volumenstrom, Lüfter oder Temperatur') }}</li>
+      <li>{{ _('Kosten aus Material und Strom, pro Drucker einstellbar') }}</li>
+      <li>{{ _('Direktimport von Bambu-Druckern per FTPS, auch ohne LAN-only-Modus') }}</li>
+      <li>{{ _('Papierkorb mit Wiederherstellen, optionale Anmeldung, sechs Sprachen, hell und dunkel') }}</li>
+      <li>{{ _('Kennzahlen als JSON für Dashboards wie Homepage') }}</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>{{ _('Informationen') }}</h2>
+    <dl class="about-facts">
+      <dt>{{ _('Version') }}</dt><dd>{{ APP_VERSION }}</dd>
+      <dt>{{ _('Autor') }}</dt><dd>{{ APP_AUTHOR }}</dd>
+      <dt>{{ _('Quellcode') }}</dt><dd><a href="{{ APP_REPO }}" target="_blank" rel="noopener">{{ APP_REPO.split('//')[1] }}</a></dd>
+      <dt>{{ _('Änderungen') }}</dt><dd><a href="{{ changelog_url }}" target="_blank" rel="noopener">CHANGELOG</a></dd>
+      <dt>{{ _('Lizenz') }}</dt><dd><a href="{{ license_url }}" target="_blank" rel="noopener license">{{ APP_LICENSE }}</a></dd>
+      <dt>{{ _('Enthält') }}</dt><dd><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT)</dd>
+    </dl>
+  </section>
+</article>
+{% endblock %}

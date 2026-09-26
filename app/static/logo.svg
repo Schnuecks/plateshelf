@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PlateShelf">
+  <!-- PlateShelf: drei gestapelte Druckplatten, auf der obersten ein gedrucktes Teil -->
+  <rect width="64" height="64" rx="14" fill="#0B6E63"/>
+  <g transform="translate(0 -5)">
+  <!-- unterste Platte -->
+  <path d="M32 40 54 50 32 60 10 50z" fill="#9FD3C8"/>
+  <path d="M10 50v3l22 10v-3zM54 50v3L32 63v-3z" fill="#5FA89A"/>
+  <!-- mittlere Platte -->
+  <path d="M32 29 54 39 32 49 10 39z" fill="#C8E8E1"/>
+  <path d="M10 39v3l22 10v-3zM54 39v3L32 52v-3z" fill="#7BBFB2"/>
+  <!-- oberste Platte -->
+  <path d="M32 18 54 28 32 38 10 28z" fill="#F2FAF8"/>
+  <path d="M10 28v3l22 10v-3zM54 28v3L32 41v-3z" fill="#A6D8CE"/>
+  <!-- gedrucktes Teil in Filamentfarben -->
+  <path d="M32 11 41 15v8l-9 4-9-4v-8z" fill="#F2A33A"/>
+  <path d="M32 11 41 15 32 19 23 15z" fill="#FFC766"/>
+  <path d="M32 19v8l9-4v-8z" fill="#D9822B"/>
+  </g>
+</svg>
