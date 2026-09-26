@@ -83,14 +83,14 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     assert 'name="design" value="light"' in page  # Klick auf das Symbol wechselt zu Hell
 
     # Sprache aus dem Menü der Titelleiste: nur die Sprache ändert sich, zurück zur Seite
-    r = client.post("/darstellung", data={"sprache": "it", "next": "/papierkorb"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/papierkorb"
+    r = client.post("/appearance", data={"sprache": "it", "next": "/trash"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/trash"
     assert "sprache=it" in r.headers["set-cookie"] and "design=" not in r.headers["set-cookie"]
-    r = client.post("/darstellung", data={"design": "dark", "next": "/einstellungen"}, follow_redirects=False)
+    r = client.post("/appearance", data={"design": "dark", "next": "/settings"}, follow_redirects=False)
     assert "design=dark" in r.headers["set-cookie"] and "sprache" not in r.headers["set-cookie"]
     client.cookies.set("sprache", "it")
     client.cookies.set("design", "dark")
-    page = client.get("/einstellungen").text
+    page = client.get("/settings").text
     assert '<html lang="it" data-theme="dark">' in page and "Impostazioni" in page
     assert 'name="design" value="system"' in page  # nach Dunkel kommt wieder System
     assert 'value="it" lang="it" role="menuitemradio" aria-checked="true"' in page
@@ -98,11 +98,11 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     assert texts["Außenwand"] == "Parete esterna"
 
     # Automatisch: Cookie wird entfernt, danach gilt wieder die Browsersprache
-    r = client.post("/darstellung", data={"sprache": "auto"}, follow_redirects=False)
+    r = client.post("/appearance", data={"sprache": "auto"}, follow_redirects=False)
     assert 'sprache=""' in r.headers["set-cookie"] or "sprache=;" in r.headers["set-cookie"]
     # Nur Pfade dieser Seite als Ziel, keine fremden Adressen
     for bad in ("https://example.com/", "//example.com/"):
-        r = client.post("/darstellung", data={"design": "light", "next": bad}, follow_redirects=False)
+        r = client.post("/appearance", data={"design": "light", "next": bad}, follow_redirects=False)
         assert r.headers["location"] == "/"
     client.cookies.clear()
     monkeypatch.setenv("DEFAULT_THEME", "light")
@@ -113,7 +113,7 @@ def test_printer_errors_are_translated(client, monkeypatch):
     from app import printer_import as pi
     monkeypatch.setattr(pi, "sync_all", lambda: None)
     client.cookies.set("sprache", "fr")
-    r = client.post("/einstellungen/drucker", data={
+    r = client.post("/settings/printers", data={
         "db_id": [""], "name": ["Neu"], "ip": ["192.0.2.31"], "serial": ["S2"], "code": [""]})
     assert r.status_code == 400 and "Neu : Code d’accès manquant" in r.text
 

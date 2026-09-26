@@ -21,11 +21,11 @@
     {% block back %}{% endblock %}
     <nav class="tb-right">
       {% block nav_links %}
-      <a class="settings-link" href="/papierkorb">{{ _('Papierkorb') }}</a>
-      <a class="settings-link" href="/einstellungen">{{ _('Einstellungen') }}</a>
+      <a class="settings-link" href="/trash">{{ _('Papierkorb') }}</a>
+      <a class="settings-link" href="/settings">{{ _('Einstellungen') }}</a>
       <a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>
       {% endblock %}
-      <form method="post" action="/darstellung" class="tb-prefs">
+      <form method="post" action="/appearance" class="tb-prefs">
         <input type="hidden" name="next" value="{{ current_url(request) }}">
         {% set chosen = language_choice(request) %}
         <details class="lang-menu" data-menu>

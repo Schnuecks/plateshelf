@@ -384,7 +384,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts input { width: 6rem; text-align: right; }
 
 /* Drucker für den Direktimport */
-#drucker, #strom { scroll-margin-top: 5rem; }
+#printers, #power { scroll-margin-top: 5rem; }
 .printer-row { border: 1px solid var(--line); border-radius: 4px; padding: .8rem .9rem; margin: 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem .9rem; align-items: end; }
 .printer-row.is-env { display: block; }

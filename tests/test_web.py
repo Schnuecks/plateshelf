@@ -57,21 +57,21 @@ def test_energy_costs_and_settings(client, lib, sample):
     assert round(p["energy_cost"], 3) == 0.07
     assert round(p["total_cost"], 3) == 0.27
 
-    page = client.get("/einstellungen")
+    page = client.get("/settings")
     assert page.status_code == 200 and "Bambu Lab P1S" in page.text
-    r = client.post("/einstellungen", data={
+    r = client.post("/settings", data={
         "strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": "150"}, follow_redirects=False)
     assert r.status_code == 303
     with store.connect() as con:
         p = main.load_projects(con)[0]
     assert round(p["energy_cost"], 3) == round(0.3 * 0.40, 3)  # 150 W × 2 h = 0,3 kWh
     # Leeres Feld: wieder Standardleistung
-    client.post("/einstellungen", data={"strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": ""})
+    client.post("/settings", data={"strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": ""})
     with store.connect() as con:
         assert round(main.load_projects(con)[0]["energy_kwh"], 3) == 0.2
-    assert client.post("/einstellungen", data={"strompreis": "abc", "leistung_standard": "100"}).status_code == 400
+    assert client.post("/settings", data={"strompreis": "abc", "leistung_standard": "100"}).status_code == 400
     # 0 € (z. B. Solarstrom) bleibt 0 und wird nicht durch den Standard ersetzt
-    client.post("/einstellungen", data={"strompreis": "0", "leistung_standard": "100"})
+    client.post("/settings", data={"strompreis": "0", "leistung_standard": "100"})
     with store.connect() as con:
         assert main.load_projects(con)[0]["energy_cost"] == 0
 
@@ -93,19 +93,19 @@ def test_version_formatting(monkeypatch):
 def test_printer_settings_page(client, monkeypatch):
     from app import printer_import as pi
     monkeypatch.setattr(pi, "sync_all", lambda: None)
-    r = client.post("/einstellungen/drucker", data={
+    r = client.post("/settings/printers", data={
         "db_id": [""], "name": ["P1S"], "ip": ["192.0.2.30"], "serial": ["S1"], "code": ["geheim123"]},
         follow_redirects=False)
     assert r.status_code == 303
-    page = client.get("/einstellungen").text
+    page = client.get("/settings").text
     assert "P1S" in page and "192.0.2.30" in page and "S1" in page
     assert "geheim123" not in page  # Zugangscode wird nie ausgegeben
     db_id = pi.db_printers()[0]["db_id"]
-    r = client.post("/einstellungen/drucker", data={
+    r = client.post("/settings/printers", data={
         "db_id": [str(db_id), ""], "name": ["P1S", "Neu"], "ip": ["192.0.2.30", "192.0.2.31"],
         "serial": ["S1", "S2"], "code": ["", ""]})
     assert r.status_code == 400 and "Neu: Zugangscode fehlt" in r.text and "192.0.2.31" in r.text
-    r = client.post("/einstellungen/drucker", data={
+    r = client.post("/settings/printers", data={
         "db_id": [str(db_id), ""], "name": ["P1S", ""], "ip": ["192.0.2.30", ""],
         "serial": ["S1", ""], "code": ["", ""], "delete": [str(db_id)]}, follow_redirects=False)
     assert r.status_code == 303 and pi.db_printers() == []
@@ -115,7 +115,7 @@ def test_env_printers_are_read_only(client, monkeypatch):
     for k, v in {"PRINTER_1_NAME": "A1 mini", "PRINTER_1_IP": "192.0.2.60",
                  "PRINTER_1_SERIAL": "ENV1", "PRINTER_1_CODE": "envcode9"}.items():
         monkeypatch.setenv(k, v)
-    page = client.get("/einstellungen").text
+    page = client.get("/settings").text
     assert "A1 mini" in page and "über Umgebungsvariablen eingerichtet" in page
     assert "envcode9" not in page and 'value="ENV1"' not in page  # kein Eingabefeld
 
@@ -131,7 +131,7 @@ def test_printer_date_in_german():
 
 def test_settings_hint_shows_import_folder_as_code(client):
     """Regression: Verketten mit ~ hatte das <code> im Hinweis mit escapt."""
-    page = client.get("/einstellungen").text
+    page = client.get("/settings").text
     assert "<code>From printer/&lt;Name&gt;/</code>" in page
     assert "&lt;code&gt;" not in page
 
@@ -168,7 +168,7 @@ def test_foreign_sites_cannot_change_anything(client, lib, sample, monkeypatch):
         assert r.status_code == 403 and "fremden Seite" in r.text, headers
     assert (lib / "Teil.gcode.3mf").exists()
     # Hinter einem Proxy: der weitergereichte Host zählt
-    r = client.post("/einstellungen", data={"strompreis": "0,35", "leistung_standard": "100"},
+    r = client.post("/settings", data={"strompreis": "0,35", "leistung_standard": "100"},
                     headers={"Origin": "https://druck.example", "X-Forwarded-Host": "druck.example"},
                     follow_redirects=False)
     assert r.status_code == 303
@@ -189,3 +189,16 @@ def test_about_page_and_logo(client):
     assert 'href="/about"' in client.get("/").text  # Link im Footer
     logo = client.get("/static/logo.svg")
     assert logo.status_code == 200 and "<svg" in logo.text
+
+
+def test_old_german_urls_redirect(client):
+    """Lesezeichen und offene Seiten aus der Zeit vor 0.7.1 funktionieren weiter."""
+    for old, new in (("/einstellungen", "/settings"), ("/papierkorb?purged=1", "/trash?purged=1"),
+                     ("/darstellung", "/appearance")):
+        r = client.get(old, follow_redirects=False)
+        assert (r.status_code, r.headers["location"]) == (308, new), old
+    # Formulare: 308 behält POST samt Inhalt
+    r = client.post("/papierkorb/7/wiederherstellen", follow_redirects=False)
+    assert (r.status_code, r.headers["location"]) == (308, "/trash/7/restore")
+    r = client.post("/einstellungen", data={"strompreis": "0,40", "leistung_standard": "100"})
+    assert r.status_code == 200 and r.url.path == "/settings"

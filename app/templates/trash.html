@@ -7,13 +7,13 @@
   <div class="trash-head">
     <h1>{{ _('Papierkorb') }}</h1>
     {% if entries and writable %}
-    <form method="post" action="/papierkorb/leeren"
+    <form method="post" action="/trash/empty"
           data-confirm="{{ ngettext('{n} Eintrag im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', 'Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', entries|length) }}">
       <button type="submit" class="danger-quiet">{{ _('Papierkorb leeren') }}</button>
     </form>
     {% endif %}
   </div>
-  {% set purged = request.query_params.get('endgueltig')|int(0) %}
+  {% set purged = request.query_params.get('purged')|int(0) %}
   {% if purged %}<p class="flash" role="status">{{ ngettext('{n} Eintrag endgültig gelöscht.', '{n} Einträge endgültig gelöscht.', purged) }}</p>{% endif %}
   <p class="hint">
     {{ _('Gelöschte Dateien liegen im Ordner {folder} der Bibliothek.', folder='<code>.trash</code>')|safe }}
@@ -40,10 +40,10 @@
       </div>
       {% if writable %}
       <div class="file-actions">
-        <form method="post" action="/papierkorb/{{ e.id }}/wiederherstellen">
+        <form method="post" action="/trash/{{ e.id }}/restore">
           <button type="submit">{{ _('Wiederherstellen') }}</button>
         </form>
-        <form method="post" action="/papierkorb/{{ e.id }}/loeschen"
+        <form method="post" action="/trash/{{ e.id }}/delete"
               data-confirm="{{ _('„{name}“ endgültig löschen? Das lässt sich nicht rückgängig machen.', name=label) }}">
           <button type="submit" class="danger-quiet">{{ _('Endgültig löschen') }}</button>
         </form>

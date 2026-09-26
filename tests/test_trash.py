@@ -111,7 +111,7 @@ def test_manually_emptied_entries_disappear(lib, sample):
 
 
 def test_trash_pages_undo_and_purge(client, lib, sample):
-    assert "Der Papierkorb ist leer" in client.get("/papierkorb").text
+    assert "Der Papierkorb ist leer" in client.get("/trash").text
     sample(lib / "Benchy.gcode.3mf", PLATE)
     sample(lib / "Vase.gcode.3mf", PLATE)
     store.scan(wait=True)
@@ -119,15 +119,15 @@ def test_trash_pages_undo_and_purge(client, lib, sample):
         pid = _project(con, "Benchy")["id"]
 
     r = client.post(f"/p/{pid}/delete", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].startswith("/?geloescht=")
+    assert r.status_code == 303 and r.headers["location"].startswith("/?deleted=")
     page = client.get(r.headers["location"]).text
     assert "„Benchy“ in den Papierkorb verschoben" in page and "Rückgängig" in page
     entry = int(r.headers["location"].split("=")[1])
 
-    listing = client.get("/papierkorb").text
+    listing = client.get("/trash").text
     assert "Benchy" in listing and "Wiederherstellen" in listing and "endgültig weg am" in listing
 
-    r = client.post(f"/papierkorb/{entry}/wiederherstellen", follow_redirects=False)
+    r = client.post(f"/trash/{entry}/restore", follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].startswith("/p/")
     assert (lib / "Benchy.gcode.3mf").exists()
     assert "wiederhergestellt" in client.get(r.headers["location"]).text
@@ -138,12 +138,12 @@ def test_trash_pages_undo_and_purge(client, lib, sample):
         client.post(f"/f/{fid}/delete")
     with store.connect() as con:
         first = con.execute("SELECT MIN(id) FROM trash").fetchone()[0]
-    r = client.post(f"/papierkorb/{first}/loeschen", follow_redirects=False)
-    assert r.headers["location"] == "/papierkorb?endgueltig=1"
-    r = client.post("/papierkorb/leeren", follow_redirects=False)
-    assert r.headers["location"] == "/papierkorb?endgueltig=1"
+    r = client.post(f"/trash/{first}/delete", follow_redirects=False)
+    assert r.headers["location"] == "/trash?purged=1"
+    r = client.post("/trash/empty", follow_redirects=False)
+    assert r.headers["location"] == "/trash?purged=1"
     assert not list((lib / ".trash").iterdir())
-    assert client.post("/papierkorb/999/wiederherstellen").status_code == 404
+    assert client.post("/trash/999/restore").status_code == 404
 
 
 def test_legacy_trash_folder_is_renamed(lib, sample):

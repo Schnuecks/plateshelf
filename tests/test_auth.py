@@ -38,17 +38,17 @@ def test_browser_login_and_logout(secured, lib, sample):
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
     store.scan(wait=True)
     # Ohne Anmeldung: Weiterleitung zur Anmeldung, das Ziel bleibt erhalten
-    r = secured.get("/einstellungen?x=1", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/login?next=/einstellungen%3Fx%3D1"
-    page = secured.get("/login?next=/einstellungen").text
+    r = secured.get("/settings?x=1", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/login?next=/settings%3Fx%3D1"
+    page = secured.get("/login?next=/settings").text
     assert "Benutzername" in page and "Abmelden" not in page and "Papierkorb</a>" not in page
     # Falsches Passwort
-    r = secured.post("/login", data={"user": "andreas", "password": "falsch", "next": "/einstellungen"})
+    r = secured.post("/login", data={"user": "andreas", "password": "falsch", "next": "/settings"})
     assert r.status_code == 401 and "falsch" in r.text and "sitzung" not in r.headers.get("set-cookie", "")
     # Richtig: Cookie und zurück zum Ziel
-    r = secured.post("/login", data={"user": "andreas", "password": "geheim-123", "next": "/einstellungen"},
+    r = secured.post("/login", data={"user": "andreas", "password": "geheim-123", "next": "/settings"},
                      follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/einstellungen"
+    assert r.status_code == 303 and r.headers["location"] == "/settings"
     cookie = r.headers["set-cookie"]
     assert "sitzung=" in cookie and "HttpOnly" in cookie and "samesite=lax" in cookie.lower()
     page = secured.get("/")
@@ -85,7 +85,7 @@ def test_public_paths_and_reduced_healthcheck(secured):
     full = secured.get("/healthz", headers=basic("andreas", "geheim-123")).json()
     assert "scan" in full and "printers" in full
     # Sprache und Design lassen sich auch auf der Anmeldeseite umstellen
-    assert secured.post("/darstellung", data={"sprache": "en", "next": "/login"}, follow_redirects=False).status_code == 303
+    assert secured.post("/appearance", data={"sprache": "en", "next": "/login"}, follow_redirects=False).status_code == 303
 
 
 def test_password_change_ends_sessions(secured, monkeypatch):

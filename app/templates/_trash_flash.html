@@ -2,7 +2,7 @@
 {% if gone %}
 <div class="flash flash-undo" role="status">
   <span>{{ _('Projekt „{name}“ in den Papierkorb verschoben.', name=gone.label or _('Unbekanntes Projekt')) if gone.kind == 'projekt' else _('Datei „{name}“ in den Papierkorb verschoben.', name=gone.label) }}</span>
-  <form method="post" action="/papierkorb/{{ gone.id }}/wiederherstellen">
+  <form method="post" action="/trash/{{ gone.id }}/restore">
     <button type="submit" class="quiet">{{ _('Rückgängig') }}</button>
   </form>
 </div>
