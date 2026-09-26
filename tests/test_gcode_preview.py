@@ -94,3 +94,21 @@ def test_metrics_speed_flow_fan_temp(tmp_path):
     assert (r["speed"]["min"], r["speed"]["max"], r["speed"]["unit"]) == (50.0, 100.0, "mm/s")
     assert (r["fan"]["min"], r["fan"]["max"]) == (50, 100)
     assert r["temp"]["max"] == 230 and r["flow"]["scale"] == 100
+
+
+def test_travels_and_retractions(tmp_path):
+    src = tmp_path / "t.gcode.3mf"
+    with zipfile.ZipFile(src, "w") as z:
+        z.writestr("Metadata/plate_1.gcode", GCODE + "G1 E-0.8\nG1 E-0.2 ; zweiter Rückzug direkt danach zählt nicht\n")
+    meta = convert(src, 1, tmp_path / "out" / "1_1")
+    raw = gzip.open(tmp_path / "out" / "1_1.bin.gz").read()
+    n = meta["points"] * 2
+    off = n * 2 + (2 if n % 2 else 0) + meta["polys"] * 20 + meta["points"] * 8
+    travels = array("H", raw[off:off + meta["travels"] * 10])
+    retracts = array("H", raw[off + meta["travels"] * 10:])
+    q = lambda v: int((v + 100) * 100 + 0.5)  # noqa: E731
+    # Anfahrt in Schicht 0, Rückzug mit Wischen, Fahrt zum Start von Schicht 1
+    assert [tuple(travels[i:i + 5]) for i in range(0, len(travels), 5)] == [
+        (q(10), q(10), q(0), q(0), 0), (q(20), q(10), q(30), q(10), 0), (q(40), q(10), q(0), q(0), 1)]
+    # Rückzug beim Wischen und einer am Ende; der zweite direkt danach fällt weg
+    assert [tuple(retracts[i:i + 3]) for i in range(0, len(retracts), 3)] == [(q(20), q(10), 0), (q(5), q(5), 1)]

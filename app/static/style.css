@@ -303,6 +303,11 @@ summary { cursor: pointer; font-weight: 500; }
 .layer-ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
 .check { display: flex; align-items: center; gap: .45rem; font-size: .92rem; }
 .play-ctrl { display: grid; gap: .45rem; }
+.extras { border: 0; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.extras legend { font-weight: 500; padding: 0; margin-bottom: .3rem; }
+.extras .swatch { margin-right: 0; }
+.extra-count { margin-left: auto; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.extras input:disabled ~ * { opacity: .5; }
 .seg-metrics { margin-top: -.6rem; }
 .seg-metrics button { font-size: .85rem; }
 .seg button:disabled { opacity: .4; cursor: default; }

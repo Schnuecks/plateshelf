@@ -42,6 +42,7 @@ const MODES = { tool: 0, feature: 1, uni: 2, speed: 3, flow: 4, fan: 5, temp: 6 
 const METRIC_KEYS = ["speed", "flow", "fan", "temp"];
 // Farbskala wie in den Slicern: langsam/kühl blau, schnell/heiß rot
 const RAMP = ["#2A4DD9", "#1AB3D9", "#4DC759", "#F2D133", "#E63A2E"];
+const EXTRA_COLORS = { travel: "#5B8DEF", retract: "#E040FB", seam: "#F5F5F5" };
 const METRIC_NAMES = { speed: "Geschwindigkeit", flow: "Volumenstrom", fan: "Lüfter", temp: "Düsentemperatur" };
 const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
@@ -93,7 +94,12 @@ async function loadData() {
   const mets = buf.byteLength >= metOffset + meta.points * 8
     ? new Uint16Array(buf, metOffset, meta.points * 4)
     : new Uint16Array(meta.points * 4); // ältere Vorschau ohne Messwerte
-  return { meta, pts, polys, mets };
+  const trOffset = metOffset + meta.points * 8;
+  const nTr = meta.travels || 0, nRe = meta.retracts || 0;
+  const hasExtras = buf.byteLength >= trOffset + nTr * 10 + nRe * 6;
+  const travels = hasExtras ? new Uint16Array(buf, trOffset, nTr * 5) : new Uint16Array(0);
+  const retracts = hasExtras ? new Uint16Array(buf, trOffset + nTr * 10, nRe * 3) : new Uint16Array(0);
+  return { meta, pts, polys, mets, travels, retracts };
 }
 
 function buildGeometry(meta, pts, polys, mets) {
@@ -324,6 +330,49 @@ function makeTubeMaterial(uniforms) {
 
 // Umgebungsverdeckung aus dem Tiefenpuffer: Rillen zwischen den Schichten und
 // Ecken werden abgedunkelt. Wird als Faktor multiplikativ über das Bild gelegt.
+// Leerfahrten: dünne Linien, sichtbar im gewählten Schichtbereich
+function makeTravelMaterial(uniforms, color) {
+  return new THREE.ShaderMaterial({
+    uniforms: { ...uniforms, color: { value: new THREE.Color(color) } },
+    transparent: true, depthWrite: false,
+    vertexShader: /* glsl */ `
+      attribute float layer;
+      uniform float minLayer; uniform float maxLayer;
+      void main() {
+        if (layer < minLayer || layer > maxLayer) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 color;
+      void main() { gl_FragColor = vec4(color, 0.75); }`,
+  });
+}
+
+// Rückzüge und Nahtstellen: runde Punkte mit dunklem Rand, leicht zur Kamera versetzt,
+// damit sie nicht in der Röhre verschwinden, auf der sie liegen
+function makeMarkerMaterial(uniforms, color, size) {
+  return new THREE.ShaderMaterial({
+    uniforms: { ...uniforms, color: { value: new THREE.Color(color) }, size: { value: size }, lift: { value: 0.5 } },
+    vertexShader: /* glsl */ `
+      attribute float layer;
+      uniform float minLayer; uniform float maxLayer; uniform float size; uniform float lift;
+      void main() {
+        if (layer < minLayer || layer > maxLayer) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return; }
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        mv.xyz += normalize(-mv.xyz) * lift;
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = size;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 color;
+      void main() {
+        float r = length(gl_PointCoord - 0.5) * 2.0;
+        if (r > 1.0) discard;
+        gl_FragColor = vec4(r > 0.7 ? vec3(0.08) : color, 1.0);
+      }`,
+  });
+}
+
 const FULLSCREEN_VERT = /* glsl */ `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -416,7 +465,7 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#222";
 }
 
-function start({ meta, pts, polys, mets }) {
+function start({ meta, pts, polys, mets, travels, retracts }) {
   const canvas = document.getElementById("viewer-canvas");
   // Hohe Pixeldichte ist selbst schon glatt, Kantenglättung nur für normale Displays
   const dpr = window.devicePixelRatio || 1;
@@ -465,6 +514,66 @@ function start({ meta, pts, polys, mets }) {
   const lines = new THREE.LineSegments(geo, lineMat);
   const tubes = new THREE.Mesh(tube, tubeMat);
   for (const o of [lines, tubes]) { o.frustumCulled = false; o.visible = false; scene.add(o); }
+
+  // --- Leerfahrten, Rückzüge und Nahtstellen -------------------------------------------
+  const layerZ = (l) => meta.layers[l] || 0;
+  const unq = (v) => v / meta.scale - meta.offset;
+  const extraLayerGeo = (positions, layers) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    g.setAttribute("layer", new THREE.BufferAttribute(layers, 1));
+    g.boundingSphere = geo.boundingSphere;
+    return g;
+  };
+  const nTr = travels.length / 5;
+  const trPos = new Float32Array(nTr * 6), trLayer = new Float32Array(nTr * 2);
+  for (let i = 0; i < nTr; i++) {
+    const l = travels[i * 5 + 4], z = layerZ(l) + uniforms.halfWidth.value;
+    trPos.set([unq(travels[i * 5]), unq(travels[i * 5 + 1]), z, unq(travels[i * 5 + 2]), unq(travels[i * 5 + 3]), z], i * 6);
+    trLayer[i * 2] = trLayer[i * 2 + 1] = l;
+  }
+  const nRe = retracts.length / 3;
+  const rePos = new Float32Array(nRe * 3), reLayer = new Float32Array(nRe);
+  for (let i = 0; i < nRe; i++) {
+    const l = retracts[i * 3 + 2];
+    rePos.set([unq(retracts[i * 3]), unq(retracts[i * 3 + 1]), layerZ(l)], i * 3);
+    reLayer[i] = l;
+  }
+  // Nahtstellen: Anfang jeder Außenwand-Bahn
+  const outer = meta.features.indexOf("Außenwand");
+  const seamIdx = [];
+  if (outer >= 0) for (let i = 0; i < polys.length; i += 5) if (polys[i + 4] === outer) seamIdx.push(i);
+  const sePos = new Float32Array(seamIdx.length * 3), seLayer = new Float32Array(seamIdx.length);
+  seamIdx.forEach((i, k) => {
+    const p = polys[i];
+    sePos.set([pos[p * 3], pos[p * 3 + 1], pos[p * 3 + 2]], k * 3);
+    seLayer[k] = polys[i + 2];
+  });
+  const pointScale = Math.min(dpr, 2);
+  const extras = {
+    travel: new THREE.LineSegments(extraLayerGeo(trPos, trLayer), makeTravelMaterial(uniforms, EXTRA_COLORS.travel)),
+    retract: new THREE.Points(extraLayerGeo(rePos, reLayer), makeMarkerMaterial(uniforms, EXTRA_COLORS.retract, 7 * pointScale)),
+    seam: new THREE.Points(extraLayerGeo(sePos, seLayer), makeMarkerMaterial(uniforms, EXTRA_COLORS.seam, 7 * pointScale)),
+  };
+  const extraCounts = { travel: nTr, retract: nRe, seam: seamIdx.length };
+  for (const [key, obj] of Object.entries(extras)) {
+    obj.frustumCulled = false;
+    obj.renderOrder = 2;
+    if (obj.material.uniforms.lift) obj.material.uniforms.lift.value = uniforms.halfWidth.value * 2.5;
+    obj.visible = false;
+    scene.add(obj);
+    const box = document.getElementById(`show-${key}`);
+    if (!box) continue;
+    box.closest("label").querySelector(".extra-count").textContent = extraCounts[key].toLocaleString(LOCALE);
+    box.disabled = extraCounts[key] === 0;
+    box.checked = !box.disabled && store.get(`druckarchiv-show-${key}`, "0") === "1";
+    obj.visible = box.checked;
+    box.addEventListener("change", () => {
+      obj.visible = box.checked;
+      store.set(`druckarchiv-show-${key}`, box.checked ? "1" : "0");
+      render();
+    });
+  }
 
   // Darstellungen, von schön nach schnell. Ausgedünnte Linien entstehen bei Bedarf.
   const lods = new Map(); // Schrittweite -> LineSegments
@@ -816,12 +925,15 @@ function start({ meta, pts, polys, mets }) {
     }
     // 1. Tiefe und Normalen der Röhren
     const bg = scene.background;
+    const extrasShown = Object.values(extras).map((o) => o.visible);
+    Object.values(extras).forEach((o) => { o.visible = false; });
     grid.visible = false; nozzle.visible = false; scene.background = null;
     uniforms.normalPass.value = 1;
     renderer.setRenderTarget(aoTarget);
     renderer.render(scene, camera);
     uniforms.normalPass.value = 0;
     grid.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
+    Object.values(extras).forEach((o, i) => { o.visible = extrasShown[i]; });
     // 2. Schattierung in einen eigenen Puffer
     aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
     aoMat.uniforms.projInv.value.copy(camera.projectionMatrixInverse);
