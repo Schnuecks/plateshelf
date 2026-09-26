@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.5
 
 - 3D-Vorschau: Druckplatte mit Struktur, 10-mm- und 50-mm-Linien und Rand statt
   Linienraster; sie geht in die Tiefenschattierung ein, das Modell wirft einen
