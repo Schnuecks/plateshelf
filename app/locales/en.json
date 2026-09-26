@@ -13,6 +13,7 @@
  "Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.": "Permanently delete all {n} items in the trash? This cannot be undone.",
  "Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.": "Printers can also be set in the {env}: {vars}, for more printers {more} and so on.",
  "Anderem Projekt zuordnen": "Assign to another project",
+ "Anfrage von einer fremden Seite abgelehnt.": "Request from a foreign site rejected.",
  "Anhalten": "Pause",
  "Anmeldung abgelehnt, Zugangscode prüfen ({detail})": "Login rejected, check the access code ({detail})",
  "Ansicht": "View",

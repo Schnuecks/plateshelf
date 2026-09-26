@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Sicherheit: Änderungen werden nur noch von den eigenen Seiten angenommen (Prüfung
+  von Origin bzw. Referer). Formulare fremder Webseiten, z. B. „Papierkorb leeren“,
+  werden abgelehnt. Weitere erlaubte Adressen über `TRUSTED_ORIGINS`.
+- Links zu GitHub und zur Lizenz öffnen in einem neuen Tab.
+- 3D-Vorschau: zwei harmlose Shader-Warnungen unter Windows (X4000, X3595) behoben.
+- GitHub Actions auf aktuelle Versionen (Node.js 24) gehoben, Build-System fest auf
+  Ubuntu 24.04.
+
 ## 0.5.6
 
 - 3D-Vorschau: Röhren in Schichtblöcken (je mindestens 40.000 Bahnstücke, höchstens

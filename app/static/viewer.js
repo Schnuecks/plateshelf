@@ -218,13 +218,18 @@ const SHARED_GLSL = /* glsl */ `
     return mix(ramp[i], ramp[i + 1], x - float(i));
   }
   vec3 baseColor(vec4 inf, vec4 met) {
+    // Genau ein return: sonst warnt der Shader-Compiler unter Windows (ANGLE/D3D)
+    vec3 c = featureColors[int(inf.y)];
     if (mode >= 3) {
       int k = mode - 3;
       float span = max(metricHi[k] - metricLo[k], 1.0);
-      return rampColor((met[k] - metricLo[k]) / span);
+      c = rampColor((met[k] - metricLo[k]) / span);
+    } else if (mode == 2) {
+      c = uniColor;
+    } else if (mode == 0) {
+      c = toolColors[int(inf.z)];
     }
-    if (mode == 2) return uniColor;
-    return mode == 0 ? toolColors[int(inf.z)] : featureColors[int(inf.y)];
+    return c;
   }
 `;
 
@@ -386,7 +391,8 @@ const FULLSCREEN_VERT = /* glsl */ `
 const VIEWPOS_GLSL = /* glsl */ `
   uniform sampler2D tDepth; uniform mat4 projInv;
   vec3 viewPos(vec2 uv) {
-    vec4 v = projInv * vec4(uv * 2.0 - 1.0, texture2D(tDepth, uv).x * 2.0 - 1.0, 1.0);
+    // Feste Detailstufe: in Schleifen sonst undefiniert (Warnung X3595 unter Windows)
+    vec4 v = projInv * vec4(uv * 2.0 - 1.0, textureLod(tDepth, uv, 0.0).x * 2.0 - 1.0, 1.0);
     return v.xyz / v.w;
   }`;
 
@@ -459,7 +465,7 @@ function makeAoBlurMaterial(depthTexture, aoTexture) {
           for (int y = -2; y <= 2; y++) {
             vec2 uv = vUv + vec2(float(x), float(y)) * texel;
             float w = 1.0 - smoothstep(0.0, 0.01 * abs(z0), abs(viewPos(uv).z - z0));
-            sum += texture2D(tAo, uv).r * w;
+            sum += textureLod(tAo, uv, 0.0).r * w;
             wsum += w;
           }
         }
