@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.3.5
 
 - Drucker für den Direktimport werden unter „Einstellungen“ eingetragen und
   bearbeitet, mit Status des letzten Abrufs pro Drucker. Der Zugangscode wird
