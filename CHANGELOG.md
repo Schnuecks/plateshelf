@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.2
 
 - 3D-Vorschau: Einfärbung nach Geschwindigkeit, Volumenstrom, Bauteillüfter und
   Düsentemperatur mit Farbskala und Werten in der Legende. Messwerte, die im
