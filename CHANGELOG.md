@@ -1,5 +1,16 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Druckplatte mit Struktur, 10-mm- und 50-mm-Linien und Rand statt
+  Linienraster; sie geht in die Tiefenschattierung ein, das Modell wirft einen
+  weichen Kontaktschatten. Von unten gesehen wird sie ausgeblendet.
+- 3D-Vorschau: korrekte Farbverrechnung. Filamentfarben, Farbskala, Leerfahrten und
+  Markierungen werden linear beleuchtet und in sRGB ausgegeben; die Röhren haben
+  jetzt dieselbe Farbe wie die Farbfelder in der Legende und im Slicer.
+- 3D-Vorschau: Laden und Aufbereiten im Web Worker mit Fortschrittsanzeige, die
+  Seite bleibt bedienbar; ohne Worker-Unterstützung wie bisher im Hauptthread.
+
 ## 0.5.4
 
 - 3D-Vorschau: Vollbild (Knopf und Taste F), Bild als PNG speichern (mit

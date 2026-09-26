@@ -3,7 +3,7 @@
 {% block body_class %}page-viewer{% endblock %}
 {% block head %}
 <script type="importmap">
-  {"imports": {"three": "/static/vendor/three.module.min.js"}}
+  {"imports": {"three": "/static/vendor/three.module.min.js", "druckarchiv/geometry": "/static/geometry.js?v={{ ASSET_V }}"}}
 </script>
 {% endblock %}
 {% block topbar %}
@@ -13,7 +13,7 @@
 
 {% block footer %}{% endblock %}
 {% block main %}
-<div class="viewer" id="viewer" data-name="{{ project.name if project else '' }}"
+<div class="viewer" id="viewer" data-assets="{{ ASSET_V }}" data-name="{{ project.name if project else '' }}"
      data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
   <div class="viewer-stage">
     <canvas id="viewer-canvas" aria-label="{{ _('3D-Vorschau der Druckbahnen') }}"></canvas>

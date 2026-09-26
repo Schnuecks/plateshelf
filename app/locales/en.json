@@ -105,6 +105,7 @@
  "Gelöscht am {deleted}.": "Deleted on {deleted}.",
  "Gelöschte Dateien liegen im Ordner {folder} der Bibliothek.": "Deleted files are kept in the {folder} folder of the library.",
  "Gelöschte Dateien und Projekte erscheinen hier und lassen sich wiederherstellen.": "Deleted files and projects appear here and can be restored.",
+ "Geometrie wird aufgebaut: {pct} %": "Building geometry: {pct} %",
  "Geplant": "Planned",
  "Geschwindigkeit": "Speed",
  "Geschwindigkeit der Wiedergabe": "Playback speed",
