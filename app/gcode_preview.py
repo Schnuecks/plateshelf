@@ -3,8 +3,11 @@
 """Wandelt den G-Code einer Platte in eine kompakte Vorschau für den 3D-Viewer.
 
 Ausgabe pro Platte (im Cache unter DATA_DIR/preview/):
-  <fid>_<plate>.json   Schichthöhen, Filamente, Linientypen, Tabelle der Bahnen
-  <fid>_<plate>.bin.gz Punkte als Uint16 (x, y in 0,01 mm, um 100 mm verschoben)
+  <fid>_<plate>.json   Schichthöhen, Filamente, Linientypen, Wertebereiche
+  <fid>_<plate>.bin.gz Punkte als Uint16 (x, y in 0,01 mm, um 100 mm verschoben),
+                       die Tabelle der Bahnen (Uint32) und je Punkt vier Messwerte
+                       (Uint16) für das Bahnstück, das an diesem Punkt endet:
+                       Geschwindigkeit, Volumenstrom, Lüfter, Düsentemperatur
 
 Nur Extrusionsbewegungen werden übernommen, Leerfahrten fallen weg. Fast
 gerade Punktfolgen werden zusammengefasst, damit auch 100-MB-G-Code im
@@ -23,9 +26,12 @@ from pathlib import Path
 
 from .i18n import UserError
 
-VERSION = 2
+VERSION = 3
 OFFSET_MM = 100.0
 SCALE = 100.0  # 0,01 mm
+# Messwerte pro Punkt: Name, Faktor für die Speicherung als Uint16, Einheit
+METRICS = (("speed", 10, "mm/s"), ("flow", 100, "mm³/s"), ("fan", 1, "%"), ("temp", 1, "°C"))
+DEFAULT_DIAMETER = 1.75
 
 FEATURES = {
     "Outer wall": "Außenwand",
@@ -72,16 +78,58 @@ def _params(parts):
     return out
 
 
+def _diameters(z: zipfile.ZipFile) -> dict[int, float]:
+    """Filamentdurchmesser je Werkzeug aus den Projekteinstellungen (sonst 1,75 mm)."""
+    try:
+        settings = json.loads(z.read("Metadata/project_settings.config"))
+        values = settings.get("filament_diameter") or []
+        values = values if isinstance(values, list) else str(values).split(",")
+        return {i: float(v) for i, v in enumerate(values) if float(v) > 0}
+    except (KeyError, ValueError, TypeError):
+        return {}
+
+
+def _metrics(feed, de, x, y, nx, ny, p, code, fan, temp, diameter) -> tuple[int, int, int, int]:
+    """Messwerte eines Bahnstücks in gespeicherter Form (siehe METRICS)."""
+    speed = feed / 60.0
+    if code == "G1":
+        length = math.hypot(nx - x, ny - y)
+    else:  # Bogen: Länge über den Winkel
+        cx, cy = x + p.get("I", 0.0), y + p.get("J", 0.0)
+        r = math.hypot(x - cx, y - cy)
+        a = abs(math.atan2(ny - cy, nx - cx) - math.atan2(y - cy, x - cx))
+        length = max(r * a, math.hypot(nx - x, ny - y))
+    area = math.pi * diameter * diameter / 4
+    flow = de * area / length * speed if length > 1e-6 else 0.0
+    return (min(65535, round(speed * 10)), min(65535, round(flow * 100)), fan, temp)
+
+
+def _ranges(mets: array) -> dict:
+    """Typischer Wertebereich je Messwert (1. bis 99. Perzentil), in echten Einheiten."""
+    out = {}
+    for i, (key, factor, unit) in enumerate(METRICS):
+        values = sorted(mets[i::4][::max(1, len(mets) // 4 // 20000)])  # Stichprobe genügt
+        if not values:
+            out[key] = {"min": 0, "max": 0, "unit": unit, "scale": factor}
+            continue
+        lo = values[int(len(values) * 0.01)]
+        hi = values[min(len(values) - 1, int(len(values) * 0.99))]
+        out[key] = {"min": lo / factor, "max": max(hi, lo) / factor, "unit": unit, "scale": factor}
+    return out
+
+
 def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = None) -> dict:
     progress = progress if progress is not None else {}
     name = f"Metadata/plate_{plate}.gcode"
     with zipfile.ZipFile(zip_path) as z:
+        diameters = _diameters(z)
         info = z.getinfo(name)
         total = info.file_size or 1
         tol = _tolerance(total)
         tol2 = tol * tol
 
         pts = array("H")          # x, y abwechselnd
+        mets = array("H")         # Geschwindigkeit, Volumenstrom, Lüfter, Temperatur je Punkt
         polys = array("I")        # start, anzahl, schicht, werkzeug, linientyp (je 5 Werte)
         layer_z: list[float] = []
         feature_names: list[str] = []
@@ -93,6 +141,10 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         rel_e = True
         e_abs = 0.0
         tool = 0
+        feed = 0.0       # mm/min
+        fan = 0          # Prozent
+        temp = 0         # °C
+        met = (0, 0, 0, 0)  # Messwerte des aktuellen Bahnstücks (gespeicherte Form)
         feat = -1
         layer = -1
         cur_start = -1  # Punktindex der aktuellen Bahn, -1 = keine offen
@@ -115,6 +167,7 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
                 polys.extend((cur_start, cur_n, layer, tool, feat if feat >= 0 else feature_id("")))
             elif cur_start >= 0:
                 del pts[cur_start * 2:]
+                del mets[cur_start * 4:]
             cur_start = -1
             cur_n = 0
 
@@ -127,15 +180,17 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         def put(px, py):
             append(q(px))
             append(q(py))
+            mets.extend(met)
 
         def extrude_to(nx, ny):
             nonlocal cur_start, cur_n, ax, ay, bx, by, minx, miny, maxx, maxy
             if cur_start < 0:
                 cur_start = len(pts) // 2
-                put(x, y)
+                put(x, y)  # Startpunkt trägt die Werte des ersten Bahnstücks
                 cur_n = 1
                 ax, ay, bx, by = x, y, x, y
-            if cur_n >= 3:
+            # Zusammenfassen nur bei gleichen Messwerten, sonst gingen Wechsel verloren
+            if cur_n >= 3 and tuple(mets[-4:]) == met:
                 # Liegt der letzte Punkt b fast auf der Linie a -> neu? Dann ersetzen.
                 dx, dy = nx - ax, ny - ay
                 ll = dx * dx + dy * dy
@@ -201,8 +256,12 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
                                 de = p["E"]
                             else:
                                 de, e_abs = p["E"] - e_abs, p["E"]
+                        if "F" in p:
+                            feed = p["F"]
                         moved = nx != x or ny != y
                         if layer >= 0 and de > 0 and moved and code != "G0":
+                            met = _metrics(feed, de, x, y, nx, ny, p, code, fan, temp,
+                                           diameters.get(tool, DEFAULT_DIAMETER))
                             if code == "G1":
                                 extrude_to(nx, ny)
                             else:
@@ -234,7 +293,16 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
                             e_abs = p["E"]
                     continue
                 if c0 == "M":
-                    if line.startswith("M620 S"):
+                    if line.startswith(("M106", "M107")):
+                        mp = _params(line.partition(";")[0].split()[1:])
+                        # Bauteillüfter: ohne P, P0 oder P1 (Bambu); P2/P3 sind Zusatz- und Kammerlüfter
+                        if mp.get("P", 1) in (0, 1):
+                            fan = 0 if line.startswith("M107") else round(max(0.0, min(255.0, mp.get("S", 255))) / 2.55)
+                    elif line.startswith(("M104", "M109")):
+                        mp = _params(line.partition(";")[0].split()[1:])
+                        if "S" in mp and mp["S"] > 0:
+                            temp = round(mp["S"])
+                    elif line.startswith("M620 S"):
                         # Bambu wählt das AMS-Filament mit "M620 S<n>A"
                         num = line[6:].split("A", 1)[0].strip()
                         if num.isdigit() and int(num) < 32:
@@ -273,6 +341,7 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         "bbox": [minx, miny, maxx, maxy, max(layer_z) if layer_z else 0],
         "points": len(pts) // 2,
         "polys": len(polys) // 5,
+        "metrics": _ranges(mets),
     }
     out_base.parent.mkdir(parents=True, exist_ok=True)
     tmp_bin = out_base.with_suffix(".bin.gz.tmp")
@@ -281,6 +350,7 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         if len(pts) % 2:  # Uint32-Block auf 4 Byte ausrichten
             fh.write(b"\x00\x00")
         fh.write(polys.tobytes())
+        fh.write(mets.tobytes())
     tmp_json = out_base.with_suffix(".json.tmp")
     tmp_json.write_text(json.dumps(meta, separators=(",", ":")))
     tmp_bin.replace(out_base.with_suffix(".bin.gz"))

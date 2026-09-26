@@ -39,6 +39,12 @@
       <button type="button" data-mode="feature" aria-pressed="false">{{ _('Linientyp') }}</button>
       <button type="button" data-mode="uni" aria-pressed="false">{{ _('Einfarbig') }}</button>
     </div>
+    <div class="seg seg-metrics" role="group" aria-label="{{ _('Einfärbung nach Messwert') }}">
+      <button type="button" data-mode="speed" aria-pressed="false" title="{{ _('Geschwindigkeit') }}">{{ _('Tempo') }}</button>
+      <button type="button" data-mode="flow" aria-pressed="false" title="{{ _('Volumenstrom') }}">{{ _('Fluss') }}</button>
+      <button type="button" data-mode="fan" aria-pressed="false" title="{{ _('Lüfter') }}">{{ _('Lüfter') }}</button>
+      <button type="button" data-mode="temp" aria-pressed="false" title="{{ _('Düsentemperatur') }}">{{ _('Temp.') }}</button>
+    </div>
     <label class="uni-row" id="uni-row" hidden>
       <input type="color" id="uni-color" value="#2FB36B">
       <span>{{ _('Farbe für die einfarbige Ansicht') }}</span>
