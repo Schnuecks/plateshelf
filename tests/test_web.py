@@ -153,3 +153,30 @@ def test_api_stats_for_dashboards(client, lib, sample, monkeypatch):
     assert stats["new_files_7d"] == 2 and stats["last_added"]
     assert stats["cost_eur"] is not None and stats["energy_kwh"] == 0.3
     assert stats["trash_items"] == 0 and stats["printers_total"] == 0
+
+
+def test_foreign_sites_cannot_change_anything(client, lib, sample, monkeypatch):
+    """CSRF: Formulare von fremden Seiten werden abgelehnt, eigene und Skripte ohne Origin nicht."""
+    from app import main
+    sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    store.scan(wait=True)
+    with store.connect() as con:
+        fid = con.execute("SELECT id FROM files").fetchone()[0]
+    for headers in ({"Origin": "https://boese.example"}, {"Origin": "null"},
+                    {"Referer": "http://boese.example/seite"}, {"Origin": "http://testserver.boese.example"}):
+        r = client.post(f"/f/{fid}/delete", headers=headers, follow_redirects=False)
+        assert r.status_code == 403 and "fremden Seite" in r.text, headers
+    assert (lib / "Teil.gcode.3mf").exists()
+    # Hinter einem Proxy: der weitergereichte Host zählt
+    r = client.post("/einstellungen", data={"strompreis": "0,35", "leistung_standard": "100"},
+                    headers={"Origin": "https://druck.example", "X-Forwarded-Host": "druck.example"},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    # Ausdrücklich erlaubte Adresse
+    monkeypatch.setattr(main, "TRUSTED_ORIGINS", {"https://dashboard.example"})
+    r = client.post("/rescan", headers={"Origin": "https://dashboard.example"}, follow_redirects=False)
+    assert r.status_code == 303
+    # Eigene Seite und Anfragen ohne Origin (Skripte, Tests) funktionieren
+    r = client.post(f"/f/{fid}/delete", headers={"Origin": "http://testserver"}, follow_redirects=False)
+    assert r.status_code == 303 and not (lib / "Teil.gcode.3mf").exists()
+    assert client.get("/", headers={"Origin": "https://boese.example"}).status_code == 200  # Lesen bleibt erlaubt

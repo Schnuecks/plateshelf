@@ -10,6 +10,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import filecmp
 import uuid
@@ -17,7 +18,7 @@ import zipfile
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -61,7 +62,38 @@ app = FastAPI(title="Druckarchiv", docs_url=None, redoc_url=None, lifespan=lifes
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
     i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
+    if request.method not in SAFE_METHODS and not same_origin(request):
+        logging.getLogger("druckarchiv").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
+                                                 request.method, request.url.path,
+                                                 request.headers.get("origin") or request.headers.get("referer"))
+        return PlainTextResponse(_("Anfrage von einer fremden Seite abgelehnt."), status_code=403)
     return await call_next(request)
+
+
+# --- Schutz vor fremden Seiten (CSRF) ----------------------------------------
+# Das Druckarchiv hat keine Anmeldung. Ohne diese Prüfung könnte jede Webseite, die
+# man im selben Netz öffnet, dem Browser ein Formular an das Druckarchiv unterschieben
+# (z. B. „Papierkorb leeren“). Browser schicken bei solchen Anfragen immer Origin oder
+# Referer mit; stimmt deren Host nicht mit dem angefragten überein, wird abgelehnt.
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+TRUSTED_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("TRUSTED_ORIGINS", "").split(",")
+                   if o.strip()}
+
+
+def same_origin(request: Request) -> bool:
+    source = request.headers.get("origin") or request.headers.get("referer")
+    if not source:
+        return True  # kein Browser-Formular, z. B. curl oder ein Skript im Heimnetz
+    if source == "null":
+        return False  # Sandbox, Datei oder Weiterleitung von fremder Seite
+    parts = urlsplit(source)
+    if not parts.netloc:
+        return False
+    if f"{parts.scheme}://{parts.netloc}".lower() in TRUSTED_ORIGINS:
+        return True
+    # Hinter einem Reverse-Proxy zählt der Host, den der Proxy weiterreicht
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0]
+    return parts.netloc.lower() == host.strip().lower()
 
 
 def current_theme(request: Request) -> str:

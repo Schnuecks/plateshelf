@@ -52,8 +52,8 @@
   <main>{% block main %}{% endblock %}</main>
   {% block footer %}
   <footer class="site-footer">
-    {{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }}, <a href="{{ APP_REPO }}" rel="noopener">{{ _('Quellcode auf GitHub') }}</a>,
-    {{ _('Lizenz') }} <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a>
+    {{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }}, <a href="{{ APP_REPO }}" target="_blank" rel="noopener">{{ _('Quellcode auf GitHub') }}</a>,
+    {{ _('Lizenz') }} <a href="{{ APP_REPO }}/blob/main/LICENSE" target="_blank" rel="noopener license">{{ APP_LICENSE }}</a>
   </footer>
   {% endblock %}
   <script id="i18n" type="application/json">{{ js_texts()|tojson }}</script>

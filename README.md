@@ -66,6 +66,14 @@ Das Druckarchiv hat keine eigene Anmeldung. Wenn es außerhalb deines Heimnetzes
 erreichbar sein soll, schütze es mit einer Anmeldung am Proxy (z. B. Authelia oder
 Basic Auth), denn jeder mit Zugriff kann Dateien hochladen und löschen.
 
+Änderungen (Hochladen, Löschen, Einstellungen …) nimmt das Druckarchiv nur von seinen
+eigenen Seiten an. Formulare, die eine fremde Webseite im Hintergrund an das
+Druckarchiv schickt, werden abgelehnt. Maßgeblich ist die Adresse, die der Browser
+mitsendet; hinter einem Proxy zählt der weitergereichte Host (`X-Forwarded-Host`).
+Skripte ohne Browser (z. B. `curl`) sind nicht betroffen. Sollen weitere Seiten
+Änderungen schicken dürfen, trage sie in `TRUSTED_ORIGINS` ein, etwa
+`TRUSTED_ORIGINS=https://dashboard.example.com`.
+
 ## Einstellungen
 
 Alle Einstellungen stehen in der `.env`.
@@ -87,6 +95,7 @@ Alle Einstellungen stehen in der `.env`.
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
 | `DEFAULT_LANGUAGE` | – | Voreingestellte Sprache: `de`, `en`, `fr`, `es`, `it` oder `nl`. Leer: Sprache des Browsers |
 | `DEFAULT_THEME` | system | Voreingestelltes Design: `system`, `light` oder `dark` |
+| `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt (siehe unten) |
 
 ### Sprache und Design
 

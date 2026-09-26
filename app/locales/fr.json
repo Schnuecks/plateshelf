@@ -13,6 +13,7 @@
  "Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.": "Supprimer définitivement les {n} éléments de la corbeille ? Cette action est irréversible.",
  "Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.": "Les imprimantes peuvent aussi être définies dans le fichier {env} : {vars}, pour d’autres imprimantes {more}, etc.",
  "Anderem Projekt zuordnen": "Attribuer à un autre projet",
+ "Anfrage von einer fremden Seite abgelehnt.": "Requête provenant d’un site externe refusée.",
  "Anhalten": "Pause",
  "Anmeldung abgelehnt, Zugangscode prüfen ({detail})": "Connexion refusée, vérifiez le code d’accès ({detail})",
  "Ansicht": "Vue",
