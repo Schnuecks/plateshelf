@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.1
 
 - The trash folder inside the library is now called `.trash` (previously `.papierkorb`),
   independent of the interface language. Existing `.papierkorb` folders are renamed
