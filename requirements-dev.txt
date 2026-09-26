@@ -1,6 +1,6 @@
 -r requirements.txt
-pytest>=8
-httpx2>=2.13  # Testclient von Starlette (httpx ist dort veraltet)
-pyftpdlib>=1.5.9
-pyopenssl>=24
-pillow>=10
+pytest>=9.1.1
+httpx2>=2.13.1  # Testclient von Starlette (httpx ist dort veraltet)
+pyftpdlib>=2.2.0
+pyopenssl>=26.4.0
+pillow>=12.3.0

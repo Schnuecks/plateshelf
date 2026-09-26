@@ -1,6 +1,6 @@
-fastapi>=0.115,<1
-uvicorn[standard]>=0.30; platform_machine != "armv7l"
+fastapi>=0.141.1,<1
+uvicorn[standard]>=0.53.0; platform_machine != "armv7l"
 # 32-Bit-ARM: für uvloop und httptools gibt es dort keine fertigen Pakete, ohne sie läuft uvicorn genauso
 uvicorn>=0.30; platform_machine == "armv7l"
-jinja2>=3.1
-python-multipart>=0.0.9
+jinja2>=3.1.6
+python-multipart>=0.0.32
