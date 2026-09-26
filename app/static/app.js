@@ -108,6 +108,14 @@ document.querySelectorAll("[data-autofilter]").forEach((form) => {
   } catch (e) {}
 });
 
+// Sprachmenü in der Titelleiste: schließen bei Klick daneben oder mit Esc
+document.querySelectorAll("details[data-menu]").forEach((menu) => {
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) menu.open = false; });
+  menu.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menu.open) { e.preventDefault(); e.stopPropagation(); menu.open = false; menu.querySelector("summary").focus(); }
+  });
+});
+
 // Sicherheitsabfrage vor dem Löschen
 document.querySelectorAll("form[data-confirm]").forEach((form) => {
   form.addEventListener("submit", (e) => {

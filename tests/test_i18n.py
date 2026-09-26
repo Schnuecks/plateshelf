@@ -79,20 +79,30 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     page = client.get("/", headers={"Accept-Language": "en-US,en;q=0.9"}).text
     assert '<html lang="en">' in page and "Settings" in page and "Upload" in page
     assert "data-theme" not in page  # System ist die Vorgabe
+    assert 'name="design" value="light"' in page  # Klick auf das Symbol wechselt zu Hell
 
-    r = client.post("/einstellungen/darstellung", data={"sprache": "it", "design": "dark"}, follow_redirects=False)
-    assert r.status_code == 303
-    assert "sprache=it" in r.headers["set-cookie"] and "design=dark" in r.headers["set-cookie"]
+    # Sprache aus dem Menü der Titelleiste: nur die Sprache ändert sich, zurück zur Seite
+    r = client.post("/darstellung", data={"sprache": "it", "next": "/papierkorb"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/papierkorb"
+    assert "sprache=it" in r.headers["set-cookie"] and "design=" not in r.headers["set-cookie"]
+    r = client.post("/darstellung", data={"design": "dark", "next": "/einstellungen"}, follow_redirects=False)
+    assert "design=dark" in r.headers["set-cookie"] and "sprache" not in r.headers["set-cookie"]
     client.cookies.set("sprache", "it")
     client.cookies.set("design", "dark")
     page = client.get("/einstellungen").text
     assert '<html lang="it" data-theme="dark">' in page and "Impostazioni" in page
+    assert 'name="design" value="system"' in page  # nach Dunkel kommt wieder System
+    assert 'value="it" lang="it" role="menuitemradio" aria-checked="true"' in page
     texts = json.loads(re.search(r'<script id="i18n" type="application/json">(.*?)</script>', page).group(1))
     assert texts["Außenwand"] == "Parete esterna"
 
     # Automatisch: Cookie wird entfernt, danach gilt wieder die Browsersprache
-    r = client.post("/einstellungen/darstellung", data={"sprache": "", "design": "light"}, follow_redirects=False)
+    r = client.post("/darstellung", data={"sprache": "auto"}, follow_redirects=False)
     assert 'sprache=""' in r.headers["set-cookie"] or "sprache=;" in r.headers["set-cookie"]
+    # Nur Pfade dieser Seite als Ziel, keine fremden Adressen
+    for bad in ("https://example.com/", "//example.com/"):
+        r = client.post("/darstellung", data={"design": "light", "next": bad}, follow_redirects=False)
+        assert r.headers["location"] == "/"
     client.cookies.clear()
     monkeypatch.setenv("DEFAULT_THEME", "light")
     assert '<html lang="de" data-theme="light">' in client.get("/").text

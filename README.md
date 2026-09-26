@@ -89,8 +89,10 @@ Alle Einstellungen stehen in der `.env`.
 
 ### Sprache und Design
 
-Unter „Einstellungen“ → „Darstellung“ wählst du Sprache und Design. Beides gilt für
-den jeweiligen Browser, jeder im Haushalt kann also seine eigene Einstellung haben.
+Oben rechts in der Titelleiste wählst du die Sprache (Weltkugel mit Kürzel, z. B. „DE“)
+und das Design: Ein Klick auf das Symbol wechselt zwischen System, Hell und Dunkel.
+Beides gilt für den jeweiligen Browser, jeder im Haushalt kann also seine eigene
+Einstellung haben.
 Ohne Auswahl gelten `DEFAULT_LANGUAGE` und `DEFAULT_THEME` aus der `.env`, ohne
 `DEFAULT_LANGUAGE` die Sprache des Browsers. Zahlen, Beträge und Datumsangaben
 folgen der gewählten Sprache.
