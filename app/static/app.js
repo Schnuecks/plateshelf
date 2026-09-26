@@ -138,7 +138,7 @@ document.querySelectorAll("[data-back]").forEach((link) => {
   });
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape" || e.defaultPrevented) return;
+  if (e.key !== "Escape" || e.defaultPrevented || document.fullscreenElement) return;
   const el = document.activeElement;
   if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) { el.blur(); return; }
   const back = document.querySelector("[data-back]");

@@ -180,6 +180,9 @@ Bambu Studio:
 - Wiedergabe: Der Druckkopf fährt die Bahnen Schicht für Schicht ab (Taste ▶ oder
   Leertaste, Tempo 1×, 10× oder 50×). Mit dem Regler „Position in der Schicht“ lässt
   sich jede Stelle einer Schicht von Hand ansteuern.
+- Vollbild (auch Taste F), Bild als PNG speichern, die Kameraposition wird pro Platte
+  gemerkt; Zoom zum Mauszeiger bzw. zu den Fingern, Doppelklick oder Doppeltipp setzt
+  die Ansicht zurück
 - Tiefenschattierung (Ambient Occlusion): Rillen zwischen Bahnen und Schichten werden
   im Stillstand abgedunkelt, das Modell wirkt plastischer. Sie schaltet sich nur ein,
   wenn das Gerät schnell genug ist, und lässt sich abschalten.

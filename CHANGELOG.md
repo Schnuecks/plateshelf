@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Vollbild (Knopf und Taste F), Bild als PNG speichern (mit
+  Tiefenschattierung, Dateiname aus Projekt und Platte).
+- 3D-Vorschau: Kameraposition wird pro Platte gemerkt, „Ansicht zurücksetzen“
+  vergisst sie wieder.
+- 3D-Vorschau: Zoom zum Mauszeiger bzw. zu den Fingern; Doppelklick oder
+  Doppeltipp setzt die Ansicht zurück.
+- Esc im Vollbild verlässt nur das Vollbild und nicht die Seite.
+
 ## 0.5.3
 
 - 3D-Vorschau: Leerfahrten, Rückzüge und Nahtstellen lassen sich einblenden,
