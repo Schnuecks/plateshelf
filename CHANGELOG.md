@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.0
 
 - Kennzahlen als JSON unter `/api/stats` (Projekte, Dateien, Druckzeit, Filament,
   Kosten, neue Dateien der letzten 7 Tage, Druckerstatus, Papierkorb), z. B. für
