@@ -485,6 +485,7 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.12;
+  controls.zoomToCursor = true;
 
   const resetView = () => {
     controls.target.set(cx, cy, cz);
@@ -875,7 +876,91 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
     render();
   };
   document.querySelectorAll("[data-mode]").forEach((btn) => btn.addEventListener("click", () => setMode(btn.dataset.mode)));
-  document.getElementById("view-reset").addEventListener("click", () => { resetView(); render(); });
+  const camKey = `druckarchiv-cam-${fid}-${plate}`;
+  let camSaveTimer = 0;
+  const saveCamera = () => {
+    clearTimeout(camSaveTimer);
+    camSaveTimer = setTimeout(() => store.set(camKey, JSON.stringify({
+      p: camera.position.toArray().map((v) => +v.toFixed(3)),
+      t: controls.target.toArray().map((v) => +v.toFixed(3)),
+    })), 400);
+  };
+  const restoreCamera = () => {
+    try {
+      const c = JSON.parse(store.get(camKey, "null"));
+      if (!c || c.p.length !== 3 || c.t.length !== 3 || !c.p.concat(c.t).every(Number.isFinite)) return false;
+      camera.position.fromArray(c.p);
+      controls.target.fromArray(c.t);
+      controls.update();
+      return true;
+    } catch (e) { return false; }
+  };
+  const forgetCamera = () => { clearTimeout(camSaveTimer); try { localStorage.removeItem(camKey); } catch (e) { /* privat */ } };
+  const resetAll = () => { resetView(); forgetCamera(); render(); };
+  document.getElementById("view-reset").addEventListener("click", resetAll);
+
+  // Doppelklick bzw. Doppeltipp setzt die Ansicht zurück
+  canvas.addEventListener("dblclick", resetAll);
+  // Tippen = kurz und fast ohne Bewegung; nach einer Zwei-Finger-Geste zählt nichts als Tippen
+  let lastTap = 0, tapX = 0, tapY = 0, touches = 0, multi = false, downAt = 0, downX = 0, downY = 0;
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch") return;
+    touches++;
+    if (touches > 1) multi = true;
+    downAt = performance.now(); downX = e.clientX; downY = e.clientY;
+  });
+  const touchEnd = (e, cancelled) => {
+    if (e.pointerType !== "touch") return;
+    touches = Math.max(0, touches - 1);
+    const wasMulti = multi;
+    if (touches === 0) multi = false;
+    const now = performance.now();
+    const isTap = !cancelled && !wasMulti && now - downAt < 250 && Math.hypot(e.clientX - downX, e.clientY - downY) < 10;
+    if (!isTap) { lastTap = 0; return; }
+    if (lastTap && now - lastTap < 350 && Math.hypot(e.clientX - tapX, e.clientY - tapY) < 30) {
+      lastTap = 0;
+      resetAll();
+    } else {
+      lastTap = now; tapX = e.clientX; tapY = e.clientY;
+    }
+  };
+  canvas.addEventListener("pointerup", (e) => touchEnd(e, false));
+  canvas.addEventListener("pointercancel", (e) => touchEnd(e, true));
+
+  // Vollbild für Vorschau und Bedienfeld, auch mit der Taste F
+  const fullBtn = document.getElementById("view-full");
+  const toggleFull = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    else root.requestFullscreen?.().catch(() => { /* vom Browser abgelehnt */ });
+  };
+  if (fullBtn) {
+    if (!document.fullscreenEnabled) fullBtn.hidden = true;
+    fullBtn.addEventListener("click", toggleFull);
+    document.addEventListener("fullscreenchange", () => {
+      fullBtn.textContent = document.fullscreenElement ? t("Vollbild beenden") : t("Vollbild");
+    });
+  }
+  window.addEventListener("keydown", (e) => {
+    if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey &&
+        !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && document.fullscreenEnabled) {
+      e.preventDefault();
+      toggleFull();
+    }
+  });
+
+  // Bild speichern: direkt nach dem Zeichnen auslesen, solange der Puffer noch gefüllt ist
+  document.getElementById("view-png")?.addEventListener("click", () => {
+    controls.update();
+    draw();
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    const name = (root.dataset.name || "druckarchiv").replace(/[\\/:*?"<>|]+/g, "_").trim() || "druckarchiv";
+    a.href = url;
+    a.download = `${name} – ${t("Platte {n}", { n: plate })}.png`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+  });
   document.getElementById("view-top").addEventListener("click", () => { topView(); render(); });
 
   // Rendern nur bei Bedarf, das schont Akku und Lüfter
@@ -1016,6 +1101,7 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
   let moving = false;
   let idleTimer = 0;
   controls.addEventListener("change", () => {
+    saveCamera();
     const obj = motionObject();
     if (!moving || !obj.visible) show(obj);
     moving = true;
@@ -1038,7 +1124,7 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
   };
   new ResizeObserver(resize).observe(canvas);
 
-  resetView();
+  if (!restoreCamera()) resetView();
   setMode(store.get("druckarchiv-color-mode", "tool"));
   resize();
   loadingText.textContent = t("Darstellung wird abgestimmt");

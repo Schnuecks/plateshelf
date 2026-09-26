@@ -13,7 +13,7 @@
 
 {% block footer %}{% endblock %}
 {% block main %}
-<div class="viewer" id="viewer"
+<div class="viewer" id="viewer" data-name="{{ project.name if project else '' }}"
      data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
   <div class="viewer-stage">
     <canvas id="viewer-canvas" aria-label="{{ _('3D-Vorschau der Druckbahnen') }}"></canvas>
@@ -79,8 +79,10 @@
     <div class="viewer-actions">
       <button type="button" class="quiet" id="view-reset">{{ _('Ansicht zurücksetzen') }}</button>
       <button type="button" class="quiet" id="view-top">{{ _('Von oben') }}</button>
+      <button type="button" class="quiet" id="view-full">{{ _('Vollbild') }}</button>
+      <button type="button" class="quiet" id="view-png">{{ _('Bild speichern') }}</button>
     </div>
-    <p class="hint viewer-help">{% if nav.total > 1 %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht, links und rechts die Platte.') }}{% else %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht.') }}{% endif %} {{ _('Leertaste startet und stoppt die Wiedergabe.') }}</p>
+    <p class="hint viewer-help">{% if nav.total > 1 %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht, links und rechts die Platte.') }}{% else %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht.') }}{% endif %} {{ _('Leertaste startet und stoppt die Wiedergabe.') }} {{ _('Doppelklick oder Doppeltipp setzt die Ansicht zurück, F schaltet das Vollbild.') }}</p>
   </div>
     <p class="viewer-footer">{{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }},
       <a href="{{ APP_REPO }}" rel="noopener">{{ _('Quellcode') }}</a>, <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a></p>
