@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.4.0
 
 - Oberfläche in Deutsch, Englisch, Französisch, Spanisch, Italienisch und
   Niederländisch, einschließlich Zahlen-, Betrags- und Datumsformaten, der
