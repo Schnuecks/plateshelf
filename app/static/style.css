@@ -364,18 +364,8 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
 .printer-watts input { width: 6rem; text-align: right; }
 
-.settings-stack { display: grid; gap: 1.5rem; }
-.theme-choice { border: 0; padding: 0; margin: 0; display: grid; gap: .3rem; }
-.theme-choice legend { font-weight: 500; padding: 0; margin-bottom: .3rem; }
-.theme-choice .seg label { flex: 1; display: block; position: relative; cursor: pointer; }
-.theme-choice .seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.theme-choice .seg span { display: block; text-align: center; padding: .4rem .5rem; font-weight: 500; }
-.theme-choice .seg label + label span { border-left: 1px solid var(--line); }
-.theme-choice .seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
-.theme-choice .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
-
 /* Drucker für den Direktimport */
-#drucker, #strom, #darstellung { scroll-margin-top: 5rem; }
+#drucker, #strom { scroll-margin-top: 5rem; }
 .printer-row { border: 1px solid var(--line); border-radius: 4px; padding: .8rem .9rem; margin: 0;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem .9rem; align-items: end; }
 .printer-row.is-env { display: block; }
@@ -388,6 +378,23 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-status.is-error { color: var(--warn); }
 .printer-new summary { cursor: pointer; font-weight: 500; margin-bottom: .6rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Sprache und Design in der Titelleiste */
+.tb-prefs { display: flex; align-items: center; gap: .15rem; margin: 0; }
+.icon-btn { display: inline-flex; align-items: center; gap: .25rem; background: none; color: var(--muted);
+  border: 0; border-radius: 6px; padding: .3rem .35rem; cursor: pointer; font: 500 .8rem/1 var(--font); list-style: none; }
+.icon-btn::-webkit-details-marker { display: none; }
+.icon-btn:hover, .lang-menu[open] > .icon-btn { color: var(--ink); background: var(--bg); }
+.icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.lang-code { letter-spacing: .03em; }
+.lang-menu { position: relative; border: 0; padding: 0; margin: 0; }
+.lang-menu .menu { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 20; min-width: 10.5rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: .3rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / .18); display: grid; }
+.lang-menu .menu button { background: none; color: var(--ink); text-align: left; padding: .4rem .6rem; border-radius: 4px; font-weight: 400; }
+.lang-menu .menu button:hover { background: var(--bg); }
+.lang-menu .menu button[aria-checked="true"] { font-weight: 600; color: var(--accent); }
+.lang-menu .menu button:first-child { border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0; margin-bottom: .2rem; }
 
 /* Papierkorb */
 .flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }

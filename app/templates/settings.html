@@ -15,7 +15,7 @@
   <form method="post" action="/einstellungen/drucker" class="settings-form" id="drucker">
     <section>
       <h2>{{ _('Drucker für den Direktimport') }}</h2>
-      <p class="hint">{{ _('Das Druckarchiv holt geslicte Drucke per FTPS von der SD-Karte, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', minutes=sync_minutes, folder='<code>' ~ (import_dir|e) ~ '/&lt;Name&gt;/</code>')|safe }}
+      <p class="hint">{{ _('Das Druckarchiv holt geslicte Drucke per FTPS von der SD-Karte, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}
         {{ _('IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}
         {{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>
       {% if request.query_params.get('drucker') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
@@ -62,30 +62,6 @@
     <button type="submit">{{ _('Drucker speichern') }}</button>
   </form>
 
-  <div class="settings-stack">
-  <form method="post" action="/einstellungen/darstellung" class="settings-form" id="darstellung">
-    <section>
-      <h2>{{ _('Darstellung') }}</h2>
-      {% if request.query_params.get('darstellung') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
-      <p class="hint">{{ _('Gilt für diesen Browser.') }}</p>
-      <label>{{ _('Sprache') }}
-        <select name="sprache">
-          <option value="" {% if not lang_choice %}selected{% endif %}>{{ _('Automatisch ({language})', language=LANGUAGES[lang()]) }}</option>
-          {% for code, name in LANGUAGES.items() %}<option value="{{ code }}" lang="{{ code }}" {% if code == lang_choice %}selected{% endif %}>{{ name }}</option>{% endfor %}
-        </select>
-      </label>
-      <fieldset class="theme-choice">
-        <legend>{{ _('Design') }}</legend>
-        <div class="seg" role="radiogroup">
-          {% for key, label in themes.items() %}
-          <label><input type="radio" name="design" value="{{ key }}" {% if key == theme_choice %}checked{% endif %}><span>{{ _(label) }}</span></label>
-          {% endfor %}
-        </div>
-      </fieldset>
-    </section>
-    <button type="submit">{{ _('Darstellung speichern') }}</button>
-  </form>
-
   <form method="post" action="/einstellungen" class="settings-form" id="strom">
     <section>
       <h2>{{ _('Stromkosten') }}</h2>
@@ -119,7 +95,6 @@
 
     <button type="submit">{{ _('Stromkosten speichern') }}</button>
   </form>
-  </div>
   </div>
 </section>
 {% endblock %}

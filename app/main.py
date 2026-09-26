@@ -455,24 +455,41 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
-        "import_dir": printer_import.IMPORT_DIR, "themes": THEME_LABELS,
-        "lang_choice": request.cookies.get("sprache") if request.cookies.get("sprache") in i18n.LANGUAGES else "",
-        "theme_choice": current_theme(request),
+        "import_dir": printer_import.IMPORT_DIR,
     }, status_code=status_code)
 
 
 THEME_LABELS = {"system": "Wie das System", "light": "Hell", "dark": "Dunkel"}
+NEXT_THEME = {"system": "light", "light": "dark", "dark": "system"}
 ONE_YEAR = 365 * 86400
 
 
-@app.post("/einstellungen/darstellung")
-def appearance_save(sprache: str = Form(""), design: str = Form("system")):
-    """Sprache und Design gelten pro Browser und werden als Cookie gespeichert."""
-    response = RedirectResponse("/einstellungen?darstellung=1#darstellung", status_code=303)
+def language_choice(request: Request) -> str:
+    """Ausdrücklich gewählte Sprache dieses Browsers, leer = automatisch."""
+    lang = request.cookies.get("sprache")
+    return lang if lang in i18n.LANGUAGES else ""
+
+
+def current_url(request: Request) -> str:
+    return request.url.path + (f"?{request.url.query}" if request.url.query else "")
+
+
+templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
+                             NEXT_THEME=NEXT_THEME)
+
+
+@app.post("/darstellung")
+def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None), next: str = Form("/")):
+    """Sprache und Design aus der Titelleiste, gespeichert pro Browser als Cookie.
+
+    Geändert wird nur, was mitgeschickt wurde; danach geht es zurück zur Seite.
+    """
+    target = next if next.startswith("/") and not next.startswith("//") else "/"
+    response = RedirectResponse(target, status_code=303)
     if sprache in i18n.LANGUAGES:
         response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax")
-    else:
-        response.delete_cookie("sprache")  # automatisch: Vorgabe oder Browsersprache
+    elif sprache == "auto":
+        response.delete_cookie("sprache")  # Vorgabe oder Browsersprache
     if design in i18n.THEMES:
         response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax")
     return response

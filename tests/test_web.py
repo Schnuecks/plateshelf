@@ -127,3 +127,10 @@ def test_printer_date_in_german():
     assert fmt_printer_date("Nov 29 2025") == "29. November 2025"
     assert fmt_printer_date("unbekannt") == "unbekannt"
     assert fmt_printer_date(None) == ""
+
+
+def test_settings_hint_shows_import_folder_as_code(client):
+    """Regression: Verketten mit ~ hatte das <code> im Hinweis mit escapt."""
+    page = client.get("/einstellungen").text
+    assert "<code>Vom Drucker/&lt;Name&gt;/</code>" in page
+    assert "&lt;code&gt;" not in page

@@ -1,5 +1,13 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Sprache und Design sitzen jetzt als kleine Symbole in der Titelleiste:
+  Sprachmenü hinter der Weltkugel, ein Klick auf das Design-Symbol wechselt
+  zwischen System, Hell und Dunkel. Der Abschnitt „Darstellung“ in den
+  Einstellungen entfällt.
+- Hinweis zum Direktimport in den Einstellungen zeigte `<code>` als Text.
+
 ## 0.4.0
 
 - Oberfläche in Deutsch, Englisch, Französisch, Spanisch, Italienisch und
