@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     env_file:
-      - path: .env       # u. a. für PRINTER_1_NAME, PRINTER_1_IP … (Direktimport)
+      - path: .env       # u. a. für PRINTER_1_… (Direktimport), DEFAULT_LANGUAGE, DEFAULT_THEME
         required: false
     security_opt:
       - no-new-privileges:true

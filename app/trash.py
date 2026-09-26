@@ -107,7 +107,7 @@ def delete(con: sqlite3.Connection, file_ids: list[int], kind: str) -> int:
         con.execute("DELETE FROM projects WHERE id = ?", (pid,))
 
     if kind == "projekt" or len(moved) != 1:
-        label = project["name"] if project else "Unbekanntes Projekt"
+        label = project["name"] if project else ""  # leer: „Unbekanntes Projekt“ in der Anzeigesprache
     else:
         label = moved[0]["path"].rsplit("/", 1)[-1]
     snapshot = {**{k: project[k] for k in PROJECT_FIELDS}, "removed": removed} if project else None
@@ -256,7 +256,7 @@ def sync() -> None:
             if not files:
                 continue
             names = {f.split("/", 1)[0] for f in files}  # Projektordner oder Dateiname
-            label = names.pop() if len(names) == 1 else f"{len(files)} Dateien"
+            label = names.pop() if len(names) == 1 else ""  # leer: Anzahl der Dateien in der Anzeigesprache
             con.execute(
                 "INSERT INTO trash (folder, kind, label, project_json, files_json, deleted, since) "
                 "VALUES (?, 'alt', ?, NULL, ?, ?, ?)",

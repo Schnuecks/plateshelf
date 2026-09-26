@@ -1,70 +1,71 @@
 {% extends "base.html" %}
 {% block topbar %}
 <form class="search" method="get" action="/" data-autofilter>
-  <input type="search" name="q" value="{{ q }}" placeholder="Projekte, Objekte oder Tags suchen" aria-label="Suche">
-  <select name="material" aria-label="Material">
-    <option value="">Alle Materialien</option>
+  <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Projekte, Objekte oder Tags suchen') }}" aria-label="{{ _('Suche') }}">
+  <select name="material" aria-label="{{ _('Material') }}">
+    <option value="">{{ _('Alle Materialien') }}</option>
     {% for m in all_materials %}<option {% if m == material %}selected{% endif %}>{{ m }}</option>{% endfor %}
   </select>
   {% if all_printers|length > 1 %}
-  <select name="printer" aria-label="Drucker">
-    <option value="">Alle Drucker</option>
+  <select name="printer" aria-label="{{ _('Drucker') }}">
+    <option value="">{{ _('Alle Drucker') }}</option>
     {% for m in all_printers %}<option {% if m == printer %}selected{% endif %}>{{ m }}</option>{% endfor %}
   </select>
   {% endif %}
-  <select name="status" aria-label="Status">
-    <option value="">Jeder Status</option>
-    {% for key, label in STATUSES.items() if key %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ label }}</option>{% endfor %}
-    <option value="ohne" {% if status == 'ohne' %}selected{% endif %}>Ohne Status</option>
+  <select name="status" aria-label="{{ _('Status') }}">
+    <option value="">{{ _('Jeder Status') }}</option>
+    {% for key, label in STATUSES.items() if key %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
+    <option value="ohne" {% if status == 'ohne' %}selected{% endif %}>{{ _('Ohne Status') }}</option>
   </select>
-  <select name="sort" aria-label="Sortierung">
-    <option value="neu" {% if sort == 'neu' %}selected{% endif %}>Neueste zuerst</option>
-    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-    <option value="dauer" {% if sort == 'dauer' %}selected{% endif %}>Längste Druckzeit</option>
-    <option value="gewicht" {% if sort == 'gewicht' %}selected{% endif %}>Meistes Filament</option>
+  <select name="sort" aria-label="{{ _('Sortierung') }}">
+    <option value="neu" {% if sort == 'neu' %}selected{% endif %}>{{ _('Neueste zuerst') }}</option>
+    <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Name') }}</option>
+    <option value="dauer" {% if sort == 'dauer' %}selected{% endif %}>{{ _('Längste Druckzeit') }}</option>
+    <option value="gewicht" {% if sort == 'gewicht' %}selected{% endif %}>{{ _('Meistes Filament') }}</option>
   </select>
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
-  <button type="submit" data-filter-button>Filtern</button>
+  <button type="submit" data-filter-button>{{ _('Filtern') }}</button>
 </form>
 {% endblock %}
 
 {% block main %}
 {% if request.query_params.get('drucker') %}
-<p class="flash" role="status">Die Drucker werden abgefragt. Neue Drucke erscheinen in ein paar Minuten, je nach Anzahl und Größe.</p>
+<p class="flash" role="status">{{ _('Die Drucker werden abgefragt. Neue Drucke erscheinen in ein paar Minuten, je nach Anzahl und Größe.') }}</p>
 {% endif %}
-{% for p in psync.printers.values() if p.error and p.error.startswith('Anmeldung') %}
-<p class="flash flash-warn" role="status">{{ p.name }}: {{ p.error }}</p>
+{% for p in psync.printers.values() if p.auth_failed %}
+<p class="flash flash-warn" role="status">{{ p.name }}: {{ _(p.error_msg, **p.error_args) }}</p>
 {% endfor %}
 {% include "_trash_flash.html" %}
 {% if request.query_params.get('wiederhergestellt') %}
-<p class="flash" role="status">Aus dem Papierkorb wiederhergestellt.</p>
+<p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt.') }}</p>
 {% endif %}
 {% if request.query_params.get('hochgeladen') %}
-<p class="flash" role="status">{{ request.query_params.get('hochgeladen') }} {{ 'Datei' if request.query_params.get('hochgeladen') == '1' else 'Dateien' }} hochgeladen.</p>
+{% set up = request.query_params.get('hochgeladen')|int(0) %}
+<p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen.', '{n} Dateien hochgeladen.', up) }}</p>
 {% endif %}
 <section class="summary">
   <p>
-    <strong>{{ totals.count }}</strong> {{ 'Projekt' if totals.count == 1 else 'Projekte' }},
-    zusammen <strong>{{ totals.time_s|duration }}</strong> Druckzeit und
-    <strong>{{ (totals.weight_g / 1000)|num(2) }} kg</strong> Filament.
+    {{ ngettext('<strong>{n}</strong> Projekt, zusammen <strong>{time}</strong> Druckzeit und <strong>{kg} kg</strong> Filament.',
+                '<strong>{n}</strong> Projekte, zusammen <strong>{time}</strong> Druckzeit und <strong>{kg} kg</strong> Filament.',
+                totals.count, time=totals.time_s|duration, kg=(totals.weight_g / 1000)|num(2))|safe }}
   </p>
-  {% if tag %}<a class="chip is-active" href="/?q={{ q|urlencode }}&material={{ material|urlencode }}&status={{ status }}&sort={{ sort }}">{{ tag }} entfernen</a>{% endif %}
+  {% if tag %}<a class="chip is-active" href="/?q={{ q|urlencode }}&material={{ material|urlencode }}&status={{ status }}&sort={{ sort }}">{{ _('{tag} entfernen', tag=tag) }}</a>{% endif %}
   <div class="rescan">
     {% if psync.enabled %}
     <form method="post" action="/printer-sync">
-      <button type="submit" class="quiet" title="{% for p in psync.printers.values() %}{{ p.name }}: {{ p.error if p.error else ('%d Dateien auf dem Drucker'|format(p.files)) }}&#10;{% endfor %}">
-        {% if psync.running %}Drucker werden abgefragt …{% else %}Von Druckern holen ({{ psync.last_run|ago }}){% endif %}
+      <button type="submit" class="quiet" title="{% for p in psync.printers.values() %}{{ p.name }}: {{ _(p.error_msg, **p.error_args) if p.error_msg else ngettext('{n} Datei auf dem Drucker', '{n} Dateien auf dem Drucker', p.files) }}&#10;{% endfor %}">
+        {% if psync.running %}{{ _('Drucker werden abgefragt …') }}{% else %}{{ _('Von Druckern holen ({ago})', ago=psync.last_run|ago) }}{% endif %}
       </button>
     </form>
     {% endif %}
     <form method="post" action="/rescan">
-      <button type="submit" class="quiet">Bibliothek neu einlesen</button>
+      <button type="submit" class="quiet">{{ _('Bibliothek neu einlesen') }}</button>
     </form>
   </div>
 </section>
 
 {% if all_tags and not tag %}
-<nav class="tags" aria-label="Tags">
+<nav class="tags" aria-label="{{ _('Tags') }}">
   {% for t in all_tags %}<a class="chip" href="/?tag={{ t|urlencode }}">{{ t }}</a>{% endfor %}
 </nav>
 {% endif %}
@@ -75,20 +76,20 @@
   <li class="card">
     <a href="/p/{{ p.id }}" class="card-link">
       <div class="bed">
-        {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy">{% else %}<span class="bed-empty">Kein Vorschaubild</span>{% endif %}
-        {% if p.plates|length > 1 %}<span class="bed-count">{{ p.plates|length }} Platten</span>{% endif %}
+        {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy">{% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
+        {% if p.plates|length > 1 %}<span class="bed-count">{{ _('{n} Platten', n=p.plates|length) }}</span>{% endif %}
       </div>
       <div class="strand" style="background: {{ p.filaments|strand }}"></div>
       <div class="card-body">
         <h2>{{ p.name }}</h2>
         <dl class="stats">
-          <div><dt>Zeit</dt><dd>{{ p.time_s|duration }}</dd></div>
-          <div><dt>Filament</dt><dd>{{ p.weight_g|num(0, 'g') }}</dd></div>
-          {% if p.total_cost is not none %}<div><dt>Kosten</dt><dd title="Material {{ p.cost|money }}, Strom {{ p.energy_cost|money }}">{{ p.total_cost|money }}</dd></div>{% endif %}
+          <div><dt>{{ _('Zeit') }}</dt><dd>{{ p.time_s|duration }}</dd></div>
+          <div><dt>{{ _('Filament') }}</dt><dd>{{ p.weight_g|num(0, 'g') }}</dd></div>
+          {% if p.total_cost is not none %}<div><dt>{{ _('Kosten') }}</dt><dd title="{{ _('Material {material}, Strom {energy}', material=p.cost|money, energy=p.energy_cost|money) }}">{{ p.total_cost|money }}</dd></div>{% endif %}
         </dl>
         <p class="card-meta">
-          {{ p.materials|join(', ') or 'Material unbekannt' }}
-          {% if p.status %}<span class="status status-{{ p.status }}">{{ STATUSES[p.status] }}</span>{% endif %}
+          {{ p.materials|join(', ') or _('Material unbekannt') }}
+          {% if p.status %}<span class="status status-{{ p.status }}">{{ _(STATUSES[p.status]) }}</span>{% endif %}
         </p>
       </div>
     </a>
@@ -98,14 +99,14 @@
 {% else %}
 <div class="empty">
   {% if q or material or printer or status or tag %}
-    <h2>Keine Treffer</h2>
-    <p>Kein Projekt passt zu diesen Filtern. <a href="/">Alle Projekte anzeigen</a></p>
+    <h2>{{ _('Keine Treffer') }}</h2>
+    <p>{{ _('Kein Projekt passt zu diesen Filtern.') }} <a href="/">{{ _('Alle Projekte anzeigen') }}</a></p>
   {% elif scan.running or not scan.finished %}
-    <h2>Bibliothek wird eingelesen</h2>
-    <p>Die Dateien werden gerade ausgewertet. Lade die Seite in ein paar Sekunden neu.</p>
+    <h2>{{ _('Bibliothek wird eingelesen') }}</h2>
+    <p>{{ _('Die Dateien werden gerade ausgewertet. Lade die Seite in ein paar Sekunden neu.') }}</p>
   {% else %}
-    <h2>Noch keine Drucke</h2>
-    <p>Lege <code>.gcode.3mf</code>-Dateien in den Bibliotheksordner. Ein Unterordner wird zu einem Projekt, Dateien im Hauptordner werden über den Namen zusammengefasst.</p>
+    <h2>{{ _('Noch keine Drucke') }}</h2>
+    <p>{{ _('Lege <code>.gcode.3mf</code>-Dateien in den Bibliotheksordner. Ein Unterordner wird zu einem Projekt, Dateien im Hauptordner werden über den Namen zusammengefasst.')|safe }}</p>
   {% endif %}
 </div>
 {% endif %}

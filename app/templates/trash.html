@@ -1,50 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Papierkorb – Druckarchiv{% endblock %}
-{% block back %}<a class="nav-back" href="/" data-back>Alle Projekte</a>{% endblock %}
+{% block title %}{{ _('Papierkorb') }} – Druckarchiv{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
 {% block main %}
 <section class="trash-page">
   <div class="trash-head">
-    <h1>Papierkorb</h1>
+    <h1>{{ _('Papierkorb') }}</h1>
     {% if entries and writable %}
     <form method="post" action="/papierkorb/leeren"
-          data-confirm="Alle {{ entries|length }} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.">
-      <button type="submit" class="danger-quiet">Papierkorb leeren</button>
+          data-confirm="{{ ngettext('{n} Eintrag im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', 'Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', entries|length) }}">
+      <button type="submit" class="danger-quiet">{{ _('Papierkorb leeren') }}</button>
     </form>
     {% endif %}
   </div>
-  {% set purged = request.query_params.get('endgueltig') %}
-  {% if purged %}<p class="flash" role="status">{{ 'Eintrag' if purged == '1' else purged ~ ' Einträge' }} endgültig gelöscht.</p>{% endif %}
+  {% set purged = request.query_params.get('endgueltig')|int(0) %}
+  {% if purged %}<p class="flash" role="status">{{ ngettext('{n} Eintrag endgültig gelöscht.', '{n} Einträge endgültig gelöscht.', purged) }}</p>{% endif %}
   <p class="hint">
-    Gelöschte Dateien liegen im Ordner <code>.papierkorb</code> der Bibliothek.
-    {% if days > 0 %}Nach {{ days }} Tagen werden sie automatisch endgültig gelöscht.{% else %}Sie bleiben dort, bis du sie endgültig löschst.{% endif %}
-    Beim Wiederherstellen kommen Projektname, Notizen, Tags, Status und die Zuordnung der Dateien mit zurück.
+    {{ _('Gelöschte Dateien liegen im Ordner {folder} der Bibliothek.', folder='<code>.papierkorb</code>')|safe }}
+    {% if days > 0 %}{{ _('Nach {n} Tagen werden sie automatisch endgültig gelöscht.', n=days) }}{% else %}{{ _('Sie bleiben dort, bis du sie endgültig löschst.') }}{% endif %}
+    {{ _('Beim Wiederherstellen kommen Projektname, Notizen, Tags, Status und die Zuordnung der Dateien mit zurück.') }}
   </p>
-  {% if not writable %}<p class="flash flash-warn" role="status">Die Bibliothek ist schreibgeschützt eingebunden, Wiederherstellen und Löschen sind nicht möglich.</p>{% endif %}
+  {% if not writable %}<p class="flash flash-warn" role="status">{{ _('Die Bibliothek ist schreibgeschützt eingebunden, Wiederherstellen und Löschen sind nicht möglich.') }}</p>{% endif %}
 
   {% if entries %}
   <ul class="trash-list">
     {% for e in entries %}
+    {% set label = e.label or (ngettext('{n} Datei', '{n} Dateien', e.files|length) if e.kind == 'alt' else _('Unbekanntes Projekt')) %}
     <li class="trash-item">
       <div class="trash-info">
-        <h2>{{ e.label }}</h2>
+        <h2>{{ label }}</h2>
         <p class="file-sub">
-          {% if e.kind == 'projekt' %}Projekt{% elif e.kind == 'datei' %}Datei{% else %}Aus einer älteren Version{% endif %},
-          {{ e.files|length }} {{ 'Datei' if e.files|length == 1 else 'Dateien' }}, {{ e.size|size }}{% if e.has_notes %}, mit Notizen oder Tags{% endif %}.
-          Gelöscht am {{ e.deleted|date }}{% if e.expires %}, endgültig weg am {{ e.expires|date }}{% endif %}.
+          {% if e.kind == 'projekt' %}{{ _('Projekt') }}{% elif e.kind == 'datei' %}{{ _('Datei') }}{% else %}{{ _('Aus einer älteren Version') }}{% endif %},
+          {{ ngettext('{n} Datei', '{n} Dateien', e.files|length) }}, {{ e.size|size }}{% if e.has_notes %}, {{ _('mit Notizen oder Tags') }}{% endif %}.
+          {% if e.expires %}{{ _('Gelöscht am {deleted}, endgültig weg am {expires}.', deleted=e.deleted|date, expires=e.expires|date) }}{% else %}{{ _('Gelöscht am {deleted}.', deleted=e.deleted|date) }}{% endif %}
         </p>
         {% if e.files|length > 1 %}
-        <details><summary>Dateien</summary><ul class="trash-files">{% for f in e.files %}<li>{{ f }}</li>{% endfor %}</ul></details>
+        <details><summary>{{ _('Dateien') }}</summary><ul class="trash-files">{% for f in e.files %}<li>{{ f }}</li>{% endfor %}</ul></details>
         {% endif %}
       </div>
       {% if writable %}
       <div class="file-actions">
         <form method="post" action="/papierkorb/{{ e.id }}/wiederherstellen">
-          <button type="submit">Wiederherstellen</button>
+          <button type="submit">{{ _('Wiederherstellen') }}</button>
         </form>
         <form method="post" action="/papierkorb/{{ e.id }}/loeschen"
-              data-confirm="„{{ e.label }}“ endgültig löschen? Das lässt sich nicht rückgängig machen.">
-          <button type="submit" class="danger-quiet">Endgültig löschen</button>
+              data-confirm="{{ _('„{name}“ endgültig löschen? Das lässt sich nicht rückgängig machen.', name=label) }}">
+          <button type="submit" class="danger-quiet">{{ _('Endgültig löschen') }}</button>
         </form>
       </div>
       {% endif %}
@@ -53,8 +54,8 @@
   </ul>
   {% else %}
   <div class="empty">
-    <h2>Der Papierkorb ist leer</h2>
-    <p>Gelöschte Dateien und Projekte erscheinen hier und lassen sich wiederherstellen.</p>
+    <h2>{{ _('Der Papierkorb ist leer') }}</h2>
+    <p>{{ _('Gelöschte Dateien und Projekte erscheinen hier und lassen sich wiederherstellen.') }}</p>
   </div>
   {% endif %}
 </section>

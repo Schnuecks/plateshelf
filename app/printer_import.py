@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 from . import store
+from .i18n import UserError
 from .parser import parse_3mf
 
 log = logging.getLogger("druckarchiv.drucker")
@@ -140,7 +141,7 @@ def save_printers(rows: list[dict]) -> None:
 
     rows: {"db_id": int|None, "name", "ip", "serial", "code", "delete": bool}.
     Leerer Zugangscode bei einem vorhandenen Drucker behält den gespeicherten.
-    Wirft ValueError mit einer lesbaren Meldung, dann wird nichts gespeichert.
+    Wirft UserError mit einer übersetzbaren Meldung, dann wird nichts gespeichert.
     """
     with store.connect() as con:
         existing = {r["id"]: dict(r) for r in con.execute("SELECT * FROM printers")}
@@ -151,15 +152,16 @@ def save_printers(rows: list[dict]) -> None:
             old = existing.get(row.get("db_id")) if row.get("db_id") else None
             if row.get("delete") or (not old and not any((name, ip, serial, code))):
                 continue
-            label = name or serial or ip or "Neuer Drucker"
+            label = name or serial or ip
             code = code or (old["code"] if old else "")
-            missing = [t for t, v in (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)) if not v]
-            if missing:
-                raise ValueError(f"{label}: {' und '.join(missing)} fehlt")
+            for field, value in (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)):
+                if not value:
+                    raise UserError("{label}: {field} fehlt", label=label, field=field) if label else                         UserError("Neuer Drucker: {field} fehlt", field=field)
             if serial in seen:
-                raise ValueError(f"Seriennummer {serial} ist doppelt eingetragen")
+                raise UserError("Seriennummer {serial} ist doppelt eingetragen", serial=serial)
             if serial in env_serials:
-                raise ValueError(f"{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet")
+                raise UserError("{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet",
+                                label=label, serial=serial)
             seen.add(serial)
             keep.append((old["id"] if old else None, name or serial, serial, ip, code))
         kept_ids = {k[0] for k in keep if k[0]}
@@ -235,15 +237,21 @@ def _connect(printer: dict) -> ImplicitFTPS:
 
 def sync_printer(printer: dict, connect=_connect) -> dict:
     """Holt neue oder geänderte Dateien eines Druckers. Liefert eine kurze Bilanz."""
-    result = {"name": printer["name"], "ok": False, "new": 0, "updated": 0, "error": None, "files": 0}
+    result = {"name": printer["name"], "ok": False, "new": 0, "updated": 0, "error": None, "files": 0,
+              "error_msg": None, "error_args": {}, "auth_failed": False}
+
+    def fail(msg: str, **kwargs) -> None:
+        # error: deutscher Text für Log und Tests, error_msg/error_args zum Übersetzen
+        result.update(error=msg.format(**kwargs), error_msg=msg, error_args=kwargs)
     target_dir = store.LIBRARY_DIR / IMPORT_DIR / _local_name(printer["name"])
     try:
         ftp = connect(printer)
     except ftplib.error_perm as exc:
-        result["error"] = f"Anmeldung abgelehnt, Zugangscode prüfen ({exc})"
+        fail("Anmeldung abgelehnt, Zugangscode prüfen ({detail})", detail=exc)
+        result["auth_failed"] = True
         return result
     except (OSError, ftplib.Error, socket.timeout) as exc:
-        result["error"] = f"nicht erreichbar, ausgeschaltet oder im Standby? ({exc.__class__.__name__})"
+        fail("nicht erreichbar, ausgeschaltet oder im Standby? ({detail})", detail=exc.__class__.__name__)
         return result
     try:
         lines: list[str] = []
@@ -291,7 +299,7 @@ def sync_printer(printer: dict, connect=_connect) -> dict:
             log.info("%s: %s übernommen", printer["name"], f["name"])
         result["ok"] = True
     except (OSError, ftplib.Error, socket.timeout) as exc:
-        result["error"] = f"Fehler beim Abrufen ({exc.__class__.__name__}: {exc})"
+        fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
     finally:
         try:
             ftp.quit()

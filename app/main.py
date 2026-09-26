@@ -21,7 +21,8 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import gcode_preview, printer_import, store, trash
+from . import gcode_preview, i18n, printer_import, store, trash
+from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
 
@@ -38,6 +39,7 @@ APP_VERSION = _app_version()
 APP_AUTHOR = "Schnuecks"
 APP_REPO = "https://github.com/schnuecks/druckarchiv"
 APP_LICENSE = "AGPL-3.0"
+# Beschriftungen werden beim Anzeigen übersetzt
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
 
 @asynccontextmanager
@@ -54,11 +56,22 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="Druckarchiv", docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def language_middleware(request: Request, call_next):
+    i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
+    return await call_next(request)
+
+
+def current_theme(request: Request) -> str:
+    theme = request.cookies.get("design")
+    return theme if theme in i18n.THEMES else i18n.default_theme()
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 templates = Jinja2Templates(directory=BASE / "templates")
 
 
-# --- Formatierung (deutsch) -------------------------------------------------
+# --- Formatierung (sprachabhängig, siehe i18n) -----------------------------
 
 def fmt_duration(sec) -> str:
     if not sec:
@@ -68,29 +81,10 @@ def fmt_duration(sec) -> str:
     h, rem = divmod(rem, 3600)
     m = rem // 60
     if d:
-        return f"{d} d {h} h"
+        return _("{d} d {h} h", d=d, h=h)
     if h:
         return f"{h} h {m:02d} min"
     return f"{max(m, 1)} min"
-
-
-def fmt_num(value, digits=1, unit="") -> str:
-    if value is None:
-        return "–"
-    out = f"{value:,.{digits}f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"{out} {unit}" if unit else out
-
-
-def fmt_money(value) -> str:
-    if value is None:
-        return "–"
-    if 0 < value < 0.005:
-        return "< 0,01 €"
-    return fmt_num(value, 2) + " €"
-
-
-def fmt_date(ts) -> str:
-    return time.strftime("%d.%m.%Y", time.localtime(ts)) if ts else "–"
 
 
 def strand(filaments: list[dict]) -> str:
@@ -109,23 +103,6 @@ def strand(filaments: list[dict]) -> str:
     return f"linear-gradient(90deg, {', '.join(stops)})"
 
 
-_MONTHS = {m: (i, name) for i, (m, name) in enumerate(zip(
-    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"),
-    ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
-     "November", "Dezember")), 1)}
-
-
-def fmt_printer_date(text) -> str:
-    """Datum aus der Dateiliste des Druckers auf Deutsch: 'Aug 22 07:06' -> '22. August 07:06'.
-
-    Ältere Dateien listet der Drucker mit Jahr statt Uhrzeit: 'Nov 29 2025' -> '29. November 2025'.
-    """
-    parts = str(text or "").split()
-    if len(parts) != 3 or parts[0][:3].lower() not in _MONTHS or not parts[1].isdigit():
-        return str(text or "")
-    return f"{int(parts[1])}. {_MONTHS[parts[0][:3].lower()][1]} {parts[2]}"
-
-
 def fmt_size(n) -> str:
     if not n:
         return "0 MB"
@@ -136,6 +113,25 @@ templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money
                              printer_date=fmt_printer_date,
                              size=fmt_size)
 templates.env.globals["STATUSES"] = STATUSES
+templates.env.globals.update(_=_, ngettext=ngettext, lang=i18n.current, theme=current_theme,
+                             LANGUAGES=i18n.LANGUAGES)
+
+# Texte, die das JavaScript braucht
+JS_TEXTS = [
+    "{pct} % übertragen", "Wird eingelesen …", "Übertragung fehlgeschlagen. Bitte erneut versuchen.",
+    "G-Code wird aufbereitet: {pct} %", "Druckbahnen werden geladen", "Darstellung wird abgestimmt",
+    "Die Vorschau konnte nicht erstellt werden: {error}", "Vorschau nicht verfügbar", "Aufbereitung fehlgeschlagen", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
+    "Außenwand", "Innenwand", "Überhangwand", "Infill", "Massives Infill", "Oberfläche", "Unterseite", "Brücke",
+    "Lückenfüllung", "Schwebende Hülle", "Stützen", "Stützen-Kontakt", "Stützen-Übergang", "Reinigungsturm",
+    "Brim", "Skirt", "Glätten", "Sonstiges",
+]
+
+
+def js_texts() -> dict[str, str]:
+    return {t: _(t) for t in JS_TEXTS}
+
+
+templates.env.globals["js_texts"] = js_texts
 templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
                              APP_LICENSE=APP_LICENSE)
 
@@ -319,7 +315,7 @@ def project(request: Request, pid: int):
     with store.connect() as con:
         projects = {p["id"]: p for p in load_projects(con)}
         if pid not in projects:
-            raise HTTPException(404, "Projekt nicht gefunden")
+            raise HTTPException(404, _("Projekt nicht gefunden"))
         p = projects[pid]
         rows = con.execute("SELECT * FROM files WHERE project_id = ? AND missing = 0", (pid,)).fetchall()
         file_rows = {r["id"]: dict(r) for r in sorted(rows, key=lambda r: natural_key(r["path"]))}
@@ -388,11 +384,11 @@ def _key_settings(settings: dict) -> list[tuple[str, str]]:
         if isinstance(val, list):
             uniq = list(dict.fromkeys(str(v) for v in val if str(v) != ""))
             val = ", ".join(uniq)
-        val = BOOL_WORDS.get(str(val), str(val))
+        val = _(BOOL_WORDS[str(val)]) if str(val) in BOOL_WORDS else str(val)
         if val and unit and not val.endswith(unit.strip("°")):
             val = f"{val} {unit}"
         if val:
-            out.append((label, val))
+            out.append((_(label), val))
     return out
 
 
@@ -400,12 +396,12 @@ def _key_settings(settings: dict) -> list[tuple[str, str]]:
 def update_project(pid: int, name: str = Form(...), notes: str = Form(""), tags: str = Form(""),
                    source_url: str = Form(""), status: str = Form("")):
     if status not in STATUSES:
-        raise HTTPException(400, "Unbekannter Status")
+        raise HTTPException(400, _("Unbekannter Status"))
     tags = ", ".join(dict.fromkeys(t.strip() for t in tags.split(",") if t.strip()))
     with store.connect() as con:
         con.execute(
             "UPDATE projects SET name=?, notes=?, tags=?, source_url=?, status=?, updated=? WHERE id=?",
-            (name.strip() or "Ohne Namen", notes, tags, source_url.strip(), status, time.time(), pid),
+            (name.strip() or _("Ohne Namen"), notes, tags, source_url.strip(), status, time.time(), pid),
         )
     return RedirectResponse(f"/p/{pid}?gespeichert=1", status_code=303)
 
@@ -415,10 +411,10 @@ def move_file(fid: int, target: str = Form(...), new_name: str = Form("")):
     with store.connect() as con:
         row = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()
         if not row:
-            raise HTTPException(404, "Datei nicht gefunden")
+            raise HTTPException(404, _("Datei nicht gefunden"))
         if target == "neu":
             now = time.time()
-            name = new_name.strip() or "Neues Projekt"
+            name = new_name.strip() or _("Neues Projekt")
             target_id = con.execute(
                 "INSERT INTO projects (group_key, name, created, updated) VALUES (?, ?, ?, ?)",
                 (f"manual:{now}", name, now, now),
@@ -426,7 +422,7 @@ def move_file(fid: int, target: str = Form(...), new_name: str = Form("")):
         else:
             target_id = int(target)
             if not con.execute("SELECT 1 FROM projects WHERE id = ?", (target_id,)).fetchone():
-                raise HTTPException(404, "Zielprojekt nicht gefunden")
+                raise HTTPException(404, _("Zielprojekt nicht gefunden"))
         con.execute("UPDATE files SET project_id = ?, pinned = 1 WHERE id = ?", (target_id, fid))
     return RedirectResponse(f"/p/{target_id}", status_code=303)
 
@@ -459,8 +455,27 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
-        "import_dir": printer_import.IMPORT_DIR,
+        "import_dir": printer_import.IMPORT_DIR, "themes": THEME_LABELS,
+        "lang_choice": request.cookies.get("sprache") if request.cookies.get("sprache") in i18n.LANGUAGES else "",
+        "theme_choice": current_theme(request),
     }, status_code=status_code)
+
+
+THEME_LABELS = {"system": "Wie das System", "light": "Hell", "dark": "Dunkel"}
+ONE_YEAR = 365 * 86400
+
+
+@app.post("/einstellungen/darstellung")
+def appearance_save(sprache: str = Form(""), design: str = Form("system")):
+    """Sprache und Design gelten pro Browser und werden als Cookie gespeichert."""
+    response = RedirectResponse("/einstellungen?darstellung=1#darstellung", status_code=303)
+    if sprache in i18n.LANGUAGES:
+        response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax")
+    else:
+        response.delete_cookie("sprache")  # automatisch: Vorgabe oder Browsersprache
+    if design in i18n.THEMES:
+        response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax")
+    return response
 
 
 @app.post("/einstellungen/drucker")
@@ -475,12 +490,12 @@ async def printers_save(request: Request):
                      "delete": str(db_id) in deletes if db_id else False})
     try:
         await run_in_threadpool(printer_import.save_printers, rows)
-    except ValueError as exc:
+    except i18n.UserError as exc:
         # Eingaben behalten (ohne Zugangscodes) und Fehler anzeigen
         env = [r for r in _printer_rows() if r["source"] == "env"]
         kept = env + [{**r, "source": "db", "status": None} for r in rows if not r["delete"]
                       and (r["db_id"] or any((r["name"], r["ip"], r["serial"])))]
-        return _render_settings(request, error=str(exc), form_rows=kept, status_code=400)
+        return _render_settings(request, error=exc.translated(), form_rows=kept, status_code=400)
     return RedirectResponse("/einstellungen?drucker=1#drucker", status_code=303)
 
 
@@ -491,9 +506,9 @@ def _number(value: str, low: float, high: float) -> float | None:
     try:
         number = float(value)
     except ValueError:
-        raise HTTPException(400, f"„{value}“ ist keine Zahl")
+        raise HTTPException(400, _("„{value}“ ist keine Zahl", value=value))
     if not low <= number <= high:
-        raise HTTPException(400, f"{number} liegt außerhalb von {low} bis {high}")
+        raise HTTPException(400, _("{number} liegt außerhalb von {low} bis {high}", number=number, low=low, high=high))
     return number
 
 
@@ -542,7 +557,7 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
     """Speichert eine Datei. Rückgabe: (relativer Pfad, Fehlermeldung)."""
     name = _clean_name(upload.filename)
     if not name.lower().endswith(".3mf"):
-        return None, f"{upload.filename or 'Datei'}: keine .3mf-Datei"
+        return None, _("{name}: keine .3mf-Datei", name=upload.filename or _("Datei"))
     tmp = folder / f".upload-{uuid.uuid4().hex}.part"
     limit = MAX_UPLOAD_MB * 1024 * 1024
     written = 0
@@ -551,21 +566,22 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
             while chunk := upload.file.read(1024 * 1024):
                 written += len(chunk)
                 if written > limit:
-                    raise ValueError(f"größer als {MAX_UPLOAD_MB} MB")
+                    raise i18n.UserError("größer als {mb} MB", mb=MAX_UPLOAD_MB)
                 out.write(chunk)
         if not zipfile.is_zipfile(tmp):
-            raise ValueError("keine gültige 3MF-Datei")
+            raise i18n.UserError("keine gültige 3MF-Datei")
         with zipfile.ZipFile(tmp) as z:
             if not any(n.startswith(("Metadata/", "3D/")) for n in z.namelist()):
-                raise ValueError("keine gültige 3MF-Datei")
+                raise i18n.UserError("keine gültige 3MF-Datei")
         existing = folder / name
         if existing.exists() and filecmp.cmp(tmp, existing, shallow=False):
-            raise ValueError("ist bereits unverändert in der Bibliothek")
+            raise i18n.UserError("ist bereits unverändert in der Bibliothek")
         target = store.unique_path(folder, name)
         os.replace(tmp, target)
         return target.relative_to(store.LIBRARY_DIR).as_posix(), None
     except Exception as exc:
-        return None, f"{name}: {exc}"
+        reason = exc.translated() if isinstance(exc, i18n.UserError) else str(exc)
+        return None, f"{name}: {reason}"
     finally:
         if tmp.exists():
             tmp.unlink()
@@ -575,7 +591,7 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
 
 def _require_writable() -> None:
     if not _library_writable():
-        raise HTTPException(403, "Bibliothek ist schreibgeschützt eingebunden")
+        raise HTTPException(403, _("Bibliothek ist schreibgeschützt eingebunden"))
 
 
 @app.post("/f/{fid}/delete")
@@ -584,7 +600,7 @@ def delete_file(fid: int):
     with store.connect() as con:
         row = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()
         if not row:
-            raise HTTPException(404, "Datei nicht gefunden")
+            raise HTTPException(404, _("Datei nicht gefunden"))
         try:
             entry = trash.delete(con, [fid], "datei")
         except ValueError as exc:
@@ -601,7 +617,7 @@ def delete_project(pid: int):
     with store.connect() as con:
         ids = [r["id"] for r in con.execute("SELECT id FROM files WHERE project_id = ?", (pid,))]
         if not ids:
-            raise HTTPException(404, "Projekt nicht gefunden")
+            raise HTTPException(404, _("Projekt nicht gefunden"))
         try:
             entry = trash.delete(con, ids, "projekt")
         except ValueError as exc:
@@ -635,7 +651,7 @@ def trash_restore(entry_id: int):
     try:
         result = trash.restore(entry_id)
     except LookupError:
-        raise HTTPException(404, "Eintrag nicht gefunden")
+        raise HTTPException(404, _("Eintrag nicht gefunden"))
     except ValueError as exc:
         raise HTTPException(400, str(exc))
     if result["project_id"]:
@@ -649,7 +665,7 @@ def trash_purge(entry_id: int):
     try:
         trash.purge(entry_id)
     except LookupError:
-        raise HTTPException(404, "Eintrag nicht gefunden")
+        raise HTTPException(404, _("Eintrag nicht gefunden"))
     return RedirectResponse("/papierkorb?endgueltig=1", status_code=303)
 
 
@@ -671,7 +687,7 @@ def upload_form(request: Request):
 @app.post("/upload")
 async def upload(request: Request, files: list[UploadFile] = File(...), folder: str = Form("")):
     if not _library_writable():
-        raise HTTPException(403, "Bibliothek ist schreibgeschützt eingebunden")
+        raise HTTPException(403, _("Bibliothek ist schreibgeschützt eingebunden"))
     folder_name = _clean_name(folder)
     target_dir = store.LIBRARY_DIR / folder_name if folder_name else store.LIBRARY_DIR
     await run_in_threadpool(target_dir.mkdir, parents=True, exist_ok=True)
@@ -748,11 +764,11 @@ def _plate_for_view(fid: int, idx: int):
         f = con.execute("SELECT id, path, project_id, nozzle FROM files WHERE id = ? AND missing = 0", (fid,)).fetchone()
         pl = con.execute("SELECT * FROM plates WHERE file_id = ? AND idx = ? AND sliced = 1", (fid, idx)).fetchone()
         if not f or not pl:
-            raise HTTPException(404, "Platte nicht gefunden oder nicht gesliced")
+            raise HTTPException(404, _("Platte nicht gefunden oder nicht gesliced"))
         proj = con.execute("SELECT id, name FROM projects WHERE id = ?", (f["project_id"],)).fetchone()
     path = (store.LIBRARY_DIR / f["path"]).resolve()
     if not path.is_relative_to(store.LIBRARY_DIR.resolve()) or not path.exists():
-        raise HTTPException(404, "Datei nicht gefunden")
+        raise HTTPException(404, _("Datei nicht gefunden"))
     return f, _plate_dict(pl), proj, path
 
 
@@ -762,7 +778,7 @@ def _preview_base(fid: int, idx: int) -> Path:
 
 @app.get("/view/{fid}/{idx}")
 def viewer(request: Request, fid: int, idx: int):
-    f, pl, proj, _ = _plate_for_view(fid, idx)
+    f, pl, proj, _path = _plate_for_view(fid, idx)
     siblings = []
     if proj:
         with store.connect() as con:
@@ -786,8 +802,11 @@ def viewer(request: Request, fid: int, idx: int):
 
 @app.get("/api/preview/{fid}/{idx}")
 def preview_status(fid: int, idx: int):
-    _, _, _, path = _plate_for_view(fid, idx)
-    return gcode_preview.status(path, idx, _preview_base(fid, idx))
+    *_rest, path = _plate_for_view(fid, idx)  # _ ist die Übersetzungsfunktion
+    st = gcode_preview.status(path, idx, _preview_base(fid, idx))
+    if st.get("error"):
+        st = {**st, "error": _(st["error"])}
+    return st
 
 
 @app.get("/api/preview/{fid}/{idx}/meta")
@@ -814,13 +833,13 @@ def healthz():
 
 def fmt_ago(ts) -> str:
     if not ts:
-        return "noch nie"
+        return _("noch nie")
     mins = int((time.time() - ts) // 60)
     if mins < 1:
-        return "gerade eben"
+        return _("gerade eben")
     if mins < 60:
-        return f"vor {mins} min"
-    return f"vor {mins // 60} h"
+        return _("vor {n} min", n=mins)
+    return _("vor {n} h", n=mins // 60)
 
 
 templates.env.filters["ago"] = fmt_ago

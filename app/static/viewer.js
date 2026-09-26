@@ -3,6 +3,13 @@
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
 
+// Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
+const I18N = (() => {
+  try { return JSON.parse(document.getElementById("i18n").textContent); } catch (e) { return {}; }
+})();
+const t = (key, vars = {}) => (I18N[key] || key).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+const LOCALE = document.documentElement.lang || "de";
+
 const root = document.getElementById("viewer");
 const fid = root.dataset.fid;
 const plate = root.dataset.plate;
@@ -54,18 +61,18 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function waitForPreview() {
   for (;;) {
     const res = await fetch(api);
-    if (!res.ok) throw new Error("Vorschau nicht verfügbar");
+    if (!res.ok) throw new Error(t("Vorschau nicht verfügbar"));
     const st = await res.json();
     if (st.state === "ready") return;
-    if (st.state === "error") throw new Error(st.error || "Aufbereitung fehlgeschlagen");
-    loadingText.textContent = `G-Code wird aufbereitet: ${Math.round((st.progress || 0) * 100)} %`;
+    if (st.state === "error") throw new Error(st.error || t("Aufbereitung fehlgeschlagen"));
+    loadingText.textContent = t("G-Code wird aufbereitet: {pct} %", { pct: Math.round((st.progress || 0) * 100) });
     loadingBar.value = (st.progress || 0) * 100;
     await sleep(1000);
   }
 }
 
 async function loadData() {
-  loadingText.textContent = "Druckbahnen werden geladen";
+  loadingText.textContent = t("Druckbahnen werden geladen");
   loadingBar.removeAttribute("value");
   const [meta, buf] = await Promise.all([
     fetch(`${api}/meta`).then((r) => r.json()),
@@ -373,7 +380,7 @@ function start({ meta, pts, polys }) {
   const label = document.getElementById("layer-label");
   slider.max = nLayers - 1;
   slider.value = nLayers - 1;
-  const fmt = (v) => v.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+  const fmt = (v) => v.toLocaleString(LOCALE, { maximumFractionDigits: 2 });
   const applyLayers = () => {
     const v = Number(slider.value);
     const lo = single.checked ? v : 0;
@@ -382,7 +389,7 @@ function start({ meta, pts, polys }) {
     range = { lo, hi: v };
     // Nur den sichtbaren Schichtbereich an die Grafikkarte schicken
     show(restObject());
-    label.textContent = `${v + 1} von ${nLayers} (${fmt(meta.layers[v] || 0)} mm)`;
+    label.textContent = t("{n} von {total} ({mm} mm)", { n: v + 1, total: nLayers, mm: fmt(meta.layers[v] || 0) });
     render();
   };
   slider.addEventListener("input", applyLayers);
@@ -402,9 +409,9 @@ function start({ meta, pts, polys }) {
     const mode = mat.uniforms.mode.value;
     uniRow.hidden = mode !== MODES.uni;
     const items = mode !== MODES.feature
-      ? (meta.tools.length ? meta.tools : [0]).map((t) => {
-          const f = toolFil(t);
-          return { bit: t, color: f ? f.color : "#888888", text: f ? `Slot ${f.slot}: ${f.type}` : `Werkzeug ${t}`, sub: f?.name || "" };
+      ? (meta.tools.length ? meta.tools : [0]).map((tool) => {
+          const f = toolFil(tool);
+          return { bit: tool, color: f ? f.color : "#888888", text: f ? `Slot ${f.slot}: ${f.type}` : t("Werkzeug {n}", { n: tool }), sub: f?.name || "" };
         })
       : meta.features
           .map((name, i) => ({ bit: i, color: FEATURE_COLORS[name] || "#7F868C", text: name, sub: "" }))
@@ -425,7 +432,7 @@ function start({ meta, pts, polys }) {
       sw.className = "swatch";
       sw.style.background = it.color;
       const txt = document.createElement("span");
-      txt.textContent = it.text;
+      txt.textContent = mode === MODES.feature ? t(it.text) : it.text;
       lab.append(cb, sw, txt);
       if (it.sub) {
         const s = document.createElement("span");
@@ -563,7 +570,7 @@ function start({ meta, pts, polys }) {
   resetView();
   setMode(store.get("druckarchiv-color-mode", "tool"));
   resize();
-  loadingText.textContent = "Darstellung wird abgestimmt";
+  loadingText.textContent = t("Darstellung wird abgestimmt");
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false);
   calibrate();
@@ -578,6 +585,6 @@ function start({ meta, pts, polys }) {
     start(await loadData());
   } catch (err) {
     loadingBar.hidden = true;
-    loadingText.textContent = `Die Vorschau konnte nicht erstellt werden: ${err.message}`;
+    loadingText.textContent = t("Die Vorschau konnte nicht erstellt werden: {error}", { error: err.message });
   }
 })();

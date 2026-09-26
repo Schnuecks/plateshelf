@@ -1,5 +1,16 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Oberfläche in Deutsch, Englisch, Französisch, Spanisch, Italienisch und
+  Niederländisch, einschließlich Zahlen-, Betrags- und Datumsformaten, der
+  3D-Vorschau und aller Meldungen.
+- Design hell, dunkel oder wie das System.
+- Sprache und Design unter „Einstellungen“ → „Darstellung“, gespeichert pro
+  Browser; Vorgaben per `DEFAULT_LANGUAGE` und `DEFAULT_THEME`, ohne Vorgabe
+  gilt die Sprache des Browsers.
+- `tools/i18n_extract.py` prüft, ob alle Texte übersetzt sind.
+
 ## 0.3.7
 
 - Datum der vom Drucker übernommenen Dateien auf Deutsch, z. B.

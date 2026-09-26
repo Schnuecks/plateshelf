@@ -1,48 +1,49 @@
 {% extends "base.html" %}
 {% block title %}{{ p.name }} – Druckarchiv{% endblock %}
-{% block back %}<a class="nav-back" href="/" data-back>Alle Projekte</a>{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
 {% block main %}
 <article class="project">
   {% include "_trash_flash.html" %}
   {% if request.query_params.get('wiederhergestellt') %}
-  <p class="flash" role="status">Aus dem Papierkorb wiederhergestellt{% if p.notes or p.tags %}, mit Notizen und Tags{% endif %}.</p>
+  <p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt, mit Notizen und Tags.') if p.notes or p.tags else _('Aus dem Papierkorb wiederhergestellt.') }}</p>
   {% endif %}
   {% if request.query_params.get('hochgeladen') %}
-  <p class="flash" role="status">{{ request.query_params.get('hochgeladen') }} {{ 'Datei' if request.query_params.get('hochgeladen') == '1' else 'Dateien' }} hochgeladen und eingelesen.</p>
+  {% set up = request.query_params.get('hochgeladen')|int(0) %}
+  <p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen und eingelesen.', '{n} Dateien hochgeladen und eingelesen.', up) }}</p>
   {% endif %}
   <header class="project-head">
     <div class="project-title">
       <h1>{{ p.name }}</h1>
       {% if writable %}
       <form method="post" action="/p/{{ p.id }}/delete" class="delete-project"
-            data-confirm="Projekt „{{ p.name }}“ mit {{ files|length }} {{ 'Datei' if files|length == 1 else 'Dateien' }} in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.">
-        <button type="submit" class="danger-quiet">Projekt löschen</button>
+            data-confirm="{{ ngettext('Projekt „{name}“ mit {n} Datei in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', 'Projekt „{name}“ mit {n} Dateien in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', files|length, name=p.name) }}">
+        <button type="submit" class="danger-quiet">{{ _('Projekt löschen') }}</button>
       </form>
       {% endif %}
     </div>
     {% if designer and designer.title %}
-    <p class="origin">{{ designer.title }}{% if designer.designer %}, von {{ designer.designer }}{% endif %}</p>
+    <p class="origin">{{ _('{title}, von {designer}', title=designer.title, designer=designer.designer) if designer.designer else designer.title }}</p>
     {% endif %}
     <div class="strand strand-wide" style="background: {{ p.filaments|strand }}"></div>
     <dl class="headline-stats">
-      <div><dt>Druckzeit gesamt</dt><dd>{{ p.time_s|duration }}</dd></div>
-      <div><dt>Filament</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
-      <div><dt>Kosten</dt><dd>{{ p.total_cost|money }}</dd>
-        <dd class="cost-split">Material {{ p.cost|money }}, Strom {{ p.energy_cost|money }}</dd></div>
-      <div><dt>{{ 'Gesliced' if p.plates_total > p.plates|length else 'Platten' }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ p.plates|length }} von {{ p.plates_total }}{% else %}{{ p.plates|length }}{% endif %}</dd></div>
+      <div><dt>{{ _('Druckzeit gesamt') }}</dt><dd>{{ p.time_s|duration }}</dd></div>
+      <div><dt>{{ _('Filament') }}</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
+      <div><dt>{{ _('Kosten') }}</dt><dd>{{ p.total_cost|money }}</dd>
+        <dd class="cost-split">{{ _('Material {material}, Strom {energy}', material=p.cost|money, energy=p.energy_cost|money) }}</dd></div>
+      <div><dt>{{ _('Gesliced') if p.plates_total > p.plates|length else _('Platten') }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ _('{n} von {total}', n=p.plates|length, total=p.plates_total) }}{% else %}{{ p.plates|length }}{% endif %}</dd></div>
     </dl>
   </header>
 
   <div class="project-layout">
     <div class="plates-col">
       {% if strip|length > 1 %}
-      <nav class="project-strip" aria-label="Platten des Projekts" data-plate-nav>
+      <nav class="project-strip" aria-label="{{ _('Platten des Projekts') }}" data-plate-nav>
         <div class="strip-head">
-          <h2>Platten</h2>
-          <div class="seg seg-small" role="group" aria-label="Darstellung">
-            <button type="button" data-plate-mode="single" aria-pressed="true">Einzeln</button>
-            <button type="button" data-plate-mode="all" aria-pressed="false">Alle zeigen</button>
+          <h2>{{ _('Platten') }}</h2>
+          <div class="seg seg-small" role="group" aria-label="{{ _('Darstellung') }}">
+            <button type="button" data-plate-mode="single" aria-pressed="true">{{ _('Einzeln') }}</button>
+            <button type="button" data-plate-mode="all" aria-pressed="false">{{ _('Alle zeigen') }}</button>
           </div>
         </div>
         <ol class="plate-strip">
@@ -50,18 +51,18 @@
           <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}">
             {% if pl.sliced %}<a href="#platte-{{ pl.fid }}-{{ pl.idx }}" data-plate-link="platte-{{ pl.fid }}-{{ pl.idx }}">{% endif %}
             <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}</div>
-            <span class="strip-title">Platte {{ pl.idx }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
+            <span class="strip-title">{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
             {% if pl.sliced %}
               <span class="strip-sub">{{ pl.prediction_s|duration }}, {{ pl.weight_g|num(1, 'g') }}</span>
             {% else %}
-              <span class="strip-sub">nicht gesliced</span>
+              <span class="strip-sub">{{ _('nicht gesliced') }}</span>
             {% endif %}
             {% if pl.sliced %}</a>{% endif %}
           </li>
           {% endfor %}
         </ol>
-        {% if strip|selectattr('sliced', 'equalto', 0)|list %}<p class="extra-note strip-note">Ausgegraute Platten sind nur als Vorschau enthalten. Für Zeit und Filament in Bambu Studio „Alle slicen“ und „Alle geslicten Dateien exportieren“ wählen.</p>{% endif %}
-        <p class="hint strip-note strip-keys">Pfeiltasten links und rechts wechseln die Platte.</p>
+        {% if strip|selectattr('sliced', 'equalto', 0)|list %}<p class="extra-note strip-note">{{ _('Ausgegraute Platten sind nur als Vorschau enthalten. Für Zeit und Filament in Bambu Studio „Alle slicen“ und „Alle geslicten Dateien exportieren“ wählen.') }}</p>{% endif %}
+        <p class="hint strip-note strip-keys">{{ _('Pfeiltasten links und rechts wechseln die Platte.') }}</p>
       </nav>
       {% endif %}
       {% for f in files %}
@@ -70,20 +71,20 @@
           <div>
             <h2 class="file-name">{{ f.path.split('/')[-1] }}</h2>
             <p class="file-sub">
-              {% if f.printer %}{{ f.printer }}{% endif %}{% if f.nozzle %}, Düse {{ f.nozzle }} mm{% endif %}{% if f.layer_height %}, {{ f.layer_height }} mm Schicht{% endif %}.
-              {% if f.slicer %}Gesliced mit {{ f.slicer }}.{% endif %}
+              {% if f.printer %}{{ f.printer }}{% endif %}{% if f.nozzle %}, {{ _('Düse {mm} mm', mm=f.nozzle) }}{% endif %}{% if f.layer_height %}, {{ _('{mm} mm Schicht', mm=f.layer_height) }}{% endif %}.
+              {% if f.slicer %}{{ _('Gesliced mit {slicer}.', slicer=f.slicer) }}{% endif %}
             </p>
-            {% if f.origin %}<p class="file-sub">Automatisch vom Drucker {{ f.origin.printer_name }} übernommen, Datei vom {{ f.origin.remote_date|printer_date }}.</p>{% endif %}
-            {% if f.error %}<p class="warn">Datei konnte nicht gelesen werden: {{ f.error }}</p>{% endif %}
-            {% if not f.sliced and not f.error %}<p class="warn">Nicht gesliced, daher ohne Druckzeit und Gewicht.</p>{% endif %}
+            {% if f.origin %}<p class="file-sub">{{ _('Automatisch vom Drucker {printer} übernommen, Datei vom {date}.', printer=f.origin.printer_name, date=f.origin.remote_date|printer_date) }}</p>{% endif %}
+            {% if f.error %}<p class="warn">{{ _('Datei konnte nicht gelesen werden: {error}', error=f.error) }}</p>{% endif %}
+            {% if not f.sliced and not f.error %}<p class="warn">{{ _('Nicht gesliced, daher ohne Druckzeit und Gewicht.') }}</p>{% endif %}
           </div>
           <div class="file-actions">
-            <a class="button" href="/f/{{ f.id }}/download">Datei herunterladen</a>
+            <a class="button" href="/f/{{ f.id }}/download">{{ _('Datei herunterladen') }}</a>
             {% if writable %}
             {% set n = f.all_plates|length if f.all_plates else f.plates|length %}
             <form method="post" action="/f/{{ f.id }}/delete"
-                  data-confirm="„{{ f.path.split('/')[-1] }}“ {% if n > 1 %}mit {{ n }} Platten {% endif %}in den Papierkorb verschieben?">
-              <button type="submit" class="danger-quiet">Datei löschen</button>
+                  data-confirm="{{ _('„{name}“ mit {n} Platten in den Papierkorb verschieben?', name=f.path.split('/')[-1], n=n) if n > 1 else _('„{name}“ in den Papierkorb verschieben?', name=f.path.split('/')[-1]) }}">
+              <button type="submit" class="danger-quiet">{{ _('Datei löschen') }}</button>
             </form>
             {% endif %}
           </div>
@@ -94,32 +95,32 @@
           <figure class="bed bed-large" data-thumbs>
             {% if pl.has_thumb %}
               <img src="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}" data-iso="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}"
-                   {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ f.v }}"{% endif %} alt="Platte {{ pl.idx }}">
-            {% else %}<span class="bed-empty">Kein Vorschaubild</span>{% endif %}
+                   {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ f.v }}"{% endif %} alt="{{ _('Platte {n}', n=pl.idx) }}">
+            {% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
             {% if pl.has_thumb and pl.has_top %}
-            <div class="view-toggle" role="group" aria-label="Ansicht">
-              <button type="button" data-view="iso" aria-pressed="true">Schräg</button>
-              <button type="button" data-view="top" aria-pressed="false">Oben</button>
+            <div class="view-toggle" role="group" aria-label="{{ _('Ansicht') }}">
+              <button type="button" data-view="iso" aria-pressed="true">{{ _('Schräg') }}</button>
+              <button type="button" data-view="top" aria-pressed="false">{{ _('Oben') }}</button>
             </div>
             {% endif %}
           </figure>
           <div class="plate-info">
             <div class="plate-title">
-              <h3>Platte {{ pl.idx }}{% if pl.name %}: {{ pl.name }}{% endif %}</h3>
-              <a class="button button-small" href="/view/{{ f.id }}/{{ pl.idx }}">3D-Vorschau</a>
+              <h3>{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</h3>
+              <a class="button button-small" href="/view/{{ f.id }}/{{ pl.idx }}">{{ _('3D-Vorschau') }}</a>
             </div>
             <dl class="stats">
-              <div><dt>Zeit</dt><dd>{{ pl.prediction_s|duration }}</dd></div>
-              <div><dt>Gewicht</dt><dd>{{ pl.weight_g|num(1, 'g') }}</dd></div>
-              {% if pl.layers %}<div><dt>Schichten</dt><dd>{{ pl.layers }}</dd></div>{% endif %}
-              {% if pl.max_z %}<div><dt>Höhe</dt><dd>{{ pl.max_z|num(1, 'mm') }}</dd></div>{% endif %}
-              {% if pl.total_cost is not none %}<div><dt>Kosten</dt><dd>{{ pl.total_cost|money }}</dd></div>{% endif %}
+              <div><dt>{{ _('Zeit') }}</dt><dd>{{ pl.prediction_s|duration }}</dd></div>
+              <div><dt>{{ _('Gewicht') }}</dt><dd>{{ pl.weight_g|num(1, 'g') }}</dd></div>
+              {% if pl.layers %}<div><dt>{{ _('Schichten') }}</dt><dd>{{ pl.layers }}</dd></div>{% endif %}
+              {% if pl.max_z %}<div><dt>{{ _('Höhe') }}</dt><dd>{{ pl.max_z|num(1, 'mm') }}</dd></div>{% endif %}
+              {% if pl.total_cost is not none %}<div><dt>{{ _('Kosten') }}</dt><dd>{{ pl.total_cost|money }}</dd></div>{% endif %}
             </dl>
-            <p class="cost-line">Material {{ pl.cost|money }}, Strom {{ pl.energy_cost|money }} ({{ pl.energy_kwh|num(2, 'kWh') }})
-              <a href="/einstellungen">anpassen</a></p>
+            <p class="cost-line">{{ _('Material {material}, Strom {energy}', material=pl.cost|money, energy=pl.energy_cost|money) }} ({{ pl.energy_kwh|num(2, 'kWh') }})
+              <a href="/einstellungen#strom">{{ _('anpassen') }}</a></p>
             {% if pl.filaments %}
             <table class="filaments">
-              <thead><tr><th scope="col">Slot</th><th scope="col">Filament</th><th scope="col" class="r">Gramm</th><th scope="col" class="r">Meter</th></tr></thead>
+              <thead><tr><th scope="col">{{ _('Slot') }}</th><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('Gramm') }}</th><th scope="col" class="r">{{ _('Meter') }}</th></tr></thead>
               <tbody>
               {% for fi in pl.filaments %}
                 <tr>
@@ -132,8 +133,8 @@
               </tbody>
             </table>
             {% endif %}
-            {% if pl.objects %}<p class="objects">Objekte: {{ pl.objects_label }}</p>{% endif %}
-            {% for w in pl.warnings %}<p class="warn">Slicer-Hinweis: {{ w }}</p>{% endfor %}
+            {% if pl.objects %}<p class="objects">{{ _('Objekte: {list}', list=pl.objects_label) }}</p>{% endif %}
+            {% for w in pl.warnings %}<p class="warn">{{ _('Slicer-Hinweis: {text}', text=w) }}</p>{% endfor %}
           </div>
         </div>
         {% endfor %}
@@ -141,7 +142,7 @@
 
         {% if f.key_settings %}
         <details class="settings">
-          <summary>Druckeinstellungen</summary>
+          <summary>{{ _('Druckeinstellungen') }}</summary>
           <dl>
             {% for label, val in f.key_settings %}<div><dt>{{ label }}</dt><dd>{{ val }}</dd></div>{% endfor %}
           </dl>
@@ -149,14 +150,14 @@
         {% endif %}
 
         <details class="move">
-          <summary>Anderem Projekt zuordnen</summary>
+          <summary>{{ _('Anderem Projekt zuordnen') }}</summary>
           <form method="post" action="/f/{{ f.id }}/move">
             <select name="target" data-new-toggle>
               {% for o in others %}<option value="{{ o.id }}">{{ o.name }}</option>{% endfor %}
-              <option value="neu">Neues Projekt …</option>
+              <option value="neu">{{ _('Neues Projekt …') }}</option>
             </select>
-            <input type="text" name="new_name" placeholder="Name des neuen Projekts" hidden>
-            <button type="submit">Verschieben</button>
+            <input type="text" name="new_name" placeholder="{{ _('Name des neuen Projekts') }}" hidden>
+            <button type="submit">{{ _('Verschieben') }}</button>
           </form>
         </details>
       </section>
@@ -168,17 +169,17 @@
       <section class="designer">
         {% if designer.photo_urls %}
         <div class="photos">
-          {% for u in designer.photo_urls %}<a href="{{ u }}" target="_blank" rel="noopener"><img src="{{ u }}" alt="Foto des gedruckten Modells" loading="lazy"></a>{% endfor %}
+          {% for u in designer.photo_urls %}<a href="{{ u }}" target="_blank" rel="noopener"><img src="{{ u }}" alt="{{ _('Foto des gedruckten Modells') }}" loading="lazy"></a>{% endfor %}
         </div>
         {% endif %}
         <dl>
-          {% if designer.designer %}<div><dt>Designer</dt><dd>{{ designer.designer }}</dd></div>{% endif %}
-          {% if designer.profile_title %}<div><dt>Druckprofil</dt><dd>{{ designer.profile_title }}{% if designer.profile_user and designer.profile_user != designer.designer %} ({{ designer.profile_user }}){% endif %}</dd></div>{% endif %}
-          {% if designer.license %}<div><dt>Lizenz</dt><dd>{{ designer.license }}</dd></div>{% endif %}
+          {% if designer.designer %}<div><dt>{{ _('Designer') }}</dt><dd>{{ designer.designer }}</dd></div>{% endif %}
+          {% if designer.profile_title %}<div><dt>{{ _('Druckprofil') }}</dt><dd>{{ designer.profile_title }}{% if designer.profile_user and designer.profile_user != designer.designer %} ({{ designer.profile_user }}){% endif %}</dd></div>{% endif %}
+          {% if designer.license %}<div><dt>{{ _('Lizenz') }}</dt><dd>{{ designer.license }}</dd></div>{% endif %}
         </dl>
         {% if designer.description %}
         <details class="desc">
-          <summary>Beschreibung des Designers</summary>
+          <summary>{{ _('Beschreibung des Designers') }}</summary>
           <p>{{ designer.description }}</p>
         </details>
         {% endif %}
@@ -186,23 +187,23 @@
       {% endif %}
 
       <form method="post" action="/p/{{ p.id }}" class="edit">
-        <label>Name<input type="text" name="name" value="{{ p.name }}" required></label>
-        <label>Status
+        <label>{{ _('Name') }}<input type="text" name="name" value="{{ p.name }}" required></label>
+        <label>{{ _('Status') }}
           <select name="status">
-            {% for key, label in STATUSES.items() %}<option value="{{ key }}" {% if key == p.status %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            {% for key, label in STATUSES.items() %}<option value="{{ key }}" {% if key == p.status %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
           </select>
         </label>
-        <label>Tags <span class="hint">durch Komma getrennt</span><input type="text" name="tags" value="{{ p.tags }}"></label>
-        <label>Quelle <span class="hint">z. B. MakerWorld-Link</span><input type="url" name="source_url" value="{{ p.source_url }}"></label>
-        {% if p.source_url %}<a class="source" href="{{ p.source_url }}" target="_blank" rel="noopener">Quelle öffnen</a>{% endif %}
-        <label>Notizen<textarea name="notes" rows="8">{{ p.notes }}</textarea></label>
-        <button type="submit">Änderungen speichern</button>
-        {% if request.query_params.get('gespeichert') %}<p class="saved" role="status">Gespeichert.</p>{% endif %}
+        <label>{{ _('Tags') }} <span class="hint">{{ _('durch Komma getrennt') }}</span><input type="text" name="tags" value="{{ p.tags }}"></label>
+        <label>{{ _('Quelle') }} <span class="hint">{{ _('z. B. MakerWorld-Link') }}</span><input type="url" name="source_url" value="{{ p.source_url }}"></label>
+        {% if p.source_url %}<a class="source" href="{{ p.source_url }}" target="_blank" rel="noopener">{{ _('Quelle öffnen') }}</a>{% endif %}
+        <label>{{ _('Notizen') }}<textarea name="notes" rows="8">{{ p.notes }}</textarea></label>
+        <button type="submit">{{ _('Änderungen speichern') }}</button>
+        {% if request.query_params.get('gespeichert') %}<p class="saved" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
       </form>
 
       {% if p.filaments %}
       <section class="usage">
-        <h2>Filament im Projekt</h2>
+        <h2>{{ _('Filament im Projekt') }}</h2>
         <ul>
           {% for fi in p.filaments %}
           <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
