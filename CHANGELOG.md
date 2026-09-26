@@ -1,5 +1,12 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Röhren in Schichtblöcken (je mindestens 40.000 Bahnstücke, höchstens
+  etwa 32 Blöcke) mit eigenem Begrenzungsrahmen. Blöcke außerhalb des Bildes oder
+  des Schichtbereichs werden übersprungen, z. B. zeichnet „Nur diese Schicht“ in
+  der Mitte eines hohen Drucks nur noch einen Block statt alles darunter.
+
 ## 0.5.5
 
 - 3D-Vorschau: Druckplatte mit Struktur, 10-mm- und 50-mm-Linien und Rand statt

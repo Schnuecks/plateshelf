@@ -121,25 +121,55 @@ function buildGeometry(d) {
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
   geo.userData = { layerStart, nSeg };
 
-  // Röhren: ein Rechteck pro Bahnstück, als Instanzen über dieselben Punktdaten.
-  // Instanz i verbindet Punkt i mit Punkt i+1; Bahnenden sind markiert und entfallen.
-  // Eckpunkte eines Rechtecks: x = Position entlang der Bahn (0..1), y = Seite (-1..1)
-  const quad = new Float32Array([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, -1, 0, 1, 1, 0, 0, 1, 0]);
-  const tube = new THREE.InstancedBufferGeometry();
-  tube.setAttribute("position", new THREE.BufferAttribute(quad, 3));
-  const posBuf = new THREE.InstancedInterleavedBuffer(pos, 3, 1);
-  tube.setAttribute("aStart", new THREE.InterleavedBufferAttribute(posBuf, 3, 0));
-  tube.setAttribute("aEnd", new THREE.InterleavedBufferAttribute(posBuf, 3, 3));
-  const infoBuf = new THREE.InstancedInterleavedBuffer(info, 4, 1);
-  tube.setAttribute("aInfo", new THREE.InterleavedBufferAttribute(infoBuf, 4, 0));
-  // Messwerte gehören zum Punkt am Ende des Bahnstücks
-  const metBuf = new THREE.InstancedInterleavedBuffer(mets, 4, 1);
-  tube.setAttribute("aMetric", new THREE.InterleavedBufferAttribute(metBuf, 4, 4));
-  tube.instanceCount = Math.max(0, nPts - 1);
-  tube.boundingSphere = geo.boundingSphere;
-  tube.userData = { layerPoint, nPts };
-
+  const tube = { userData: { layerPoint, nPts } };
   return { geo, tube, pos, info };
+}
+
+// Röhren in Blöcken aus aufeinanderfolgenden Schichten. Jeder Block hat einen eigenen
+// Begrenzungsrahmen: Blöcke außerhalb des Bildes oder des Schichtbereichs werden gar
+// nicht erst gezeichnet. Die Blöcke nutzen Ausschnitte derselben Arrays, auf der
+// Grafikkarte liegt nichts doppelt.
+// Instanz i verbindet Punkt i mit Punkt i+1; Bahnenden sind markiert und entfallen.
+function buildTubeChunks(d, meta, pad) {
+  const { pos, info, mets, layerPoint: lp } = d;
+  const nPts = pos.length / 3, nL = meta.layers.length;
+  const target = Math.max(40000, Math.ceil(nPts / 32));
+  // Eckpunkte eines Rechtecks: x = Position entlang der Bahn (0..1), y = Seite (-1..1)
+  const quad = new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, -1, 0, 1, 1, 0, 0, 1, 0]), 3);
+  const chunks = [];
+  let la = 0;
+  while (la < nL) {
+    const first = lp[la];
+    let lb = la;
+    while (lb + 1 < nL && lp[lb + 2] - first < target) lb++;
+    const end = Math.min(lp[lb + 1], nPts - 1); // Instanzen [first, end)
+    if (end > first) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let p = first; p <= end; p++) {
+        const x = pos[p * 3], y = pos[p * 3 + 1];
+        if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      const z0 = (meta.layers[la] || 0) - 1, z1 = (meta.layers[lb] || 0) + pad;
+      const box = new THREE.Box3(new THREE.Vector3(x0 - pad, y0 - pad, z0), new THREE.Vector3(x1 + pad, y1 + pad, z1));
+      const g = new THREE.InstancedBufferGeometry();
+      g.setAttribute("position", quad);
+      const posBuf = new THREE.InstancedInterleavedBuffer(pos.subarray(first * 3, (end + 1) * 3), 3, 1);
+      g.setAttribute("aStart", new THREE.InterleavedBufferAttribute(posBuf, 3, 0));
+      g.setAttribute("aEnd", new THREE.InterleavedBufferAttribute(posBuf, 3, 3));
+      const infoBuf = new THREE.InstancedInterleavedBuffer(info.subarray(first * 4, (end + 1) * 4), 4, 1);
+      g.setAttribute("aInfo", new THREE.InterleavedBufferAttribute(infoBuf, 4, 0));
+      // Messwerte gehören zum Punkt am Ende des Bahnstücks
+      const metBuf = new THREE.InstancedInterleavedBuffer(mets.subarray(first * 4, (end + 1) * 4), 4, 1);
+      g.setAttribute("aMetric", new THREE.InterleavedBufferAttribute(metBuf, 4, 4));
+      g.instanceCount = end - first;
+      g.boundingBox = box;
+      g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+      chunks.push({ geometry: g, first, end });
+    }
+    la = lb + 1;
+  }
+  return chunks;
 }
 
 // Ausgedünnte Linien: nur jede step-te Schicht, gleiche Punktdaten
@@ -253,7 +283,7 @@ function makeTubeMaterial(uniforms) {
     side: THREE.DoubleSide, // die Bänder richten sich zur Kamera aus, die Wickelrichtung ist egal
     vertexShader: /* glsl */ `
       attribute vec3 aStart; attribute vec3 aEnd; attribute vec4 aInfo; attribute vec4 aMetric;
-      uniform float halfWidth;
+      uniform float halfWidth; uniform float pointOffset; // erster Punkt des Blocks
       ${SHARED_GLSL}
       varying vec3 vColor; varying float vSide; varying vec3 vPerp; varying vec3 vToCam;
       void main() {
@@ -261,7 +291,7 @@ function makeTubeMaterial(uniforms) {
         vec4 e = modelViewMatrix * vec4(aEnd, 1.0);
         vec3 d = e.xyz - s.xyz;
         float len = length(d);
-        float cut = aInfo.x == maxLayer ? cutPoint - float(gl_InstanceID) : 1.0;
+        float cut = aInfo.x == maxLayer ? cutPoint - (float(gl_InstanceID) + pointOffset) : 1.0;
         if (aInfo.w >= ${POLY_END}.0 || len < 1e-5 || !visibleFor(aInfo) || cut <= 0.0) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
@@ -538,11 +568,16 @@ function start(data) {
   const mat = { uniforms }; // gemeinsame Einstellungen für Linien und Röhren
   uniforms.halfWidth.value = (Number(root.dataset.nozzle) || 0.4) * 1.05 / 2;
   const lineMat = makeLineMaterial(uniforms);
-  const tubeMat = makeTubeMaterial(uniforms);
 
   const lines = new THREE.LineSegments(geo, lineMat);
-  const tubes = new THREE.Mesh(tube, tubeMat);
-  for (const o of [lines, tubes]) { o.frustumCulled = false; o.visible = false; scene.add(o); }
+  lines.frustumCulled = false;
+  const tubes = new THREE.Group();
+  const chunks = buildTubeChunks(data, meta, uniforms.halfWidth.value * 2 + 0.5);
+  for (const c of chunks) {
+    c.mesh = new THREE.Mesh(c.geometry, makeTubeMaterial({ ...uniforms, pointOffset: { value: c.first } }));
+    tubes.add(c.mesh);
+  }
+  for (const o of [lines, tubes]) { o.visible = false; scene.add(o); }
 
   // --- Leerfahrten, Rückzüge und Nahtstellen -------------------------------------------
   const layerZ = (l) => meta.layers[l] || 0;
@@ -619,8 +654,11 @@ function start(data) {
     const { lo, hi } = range;
     if (obj === tubes) {
       const lp = tube.userData.layerPoint;
-      tube.instanceCount = Math.max(0, Math.min(lp[hi + 1], tube.userData.nPts - 1));
-      tube.setDrawRange(0, 6);
+      const from = lp[lo], to = Math.min(lp[hi + 1], tube.userData.nPts - 1);
+      for (const c of chunks) {
+        c.mesh.visible = c.end > from && c.first < to;
+        c.geometry.instanceCount = Math.max(0, Math.min(c.end, to) - c.first);
+      }
     } else {
       const ls = obj.geometry.userData.layerStart;
       obj.geometry.setDrawRange(ls[lo], ls[hi + 1] - ls[lo]);

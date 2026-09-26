@@ -196,7 +196,9 @@ Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert
 etwa 10 bis 20 Sekunden, danach öffnet sich die Vorschau sofort. Beim Öffnen misst der
 Viewer kurz die Leistung des Geräts und wählt beim Drehen automatisch die schönste
 Darstellung, die noch flüssig läuft. Laden und Aufbereiten der Druckbahnen laufen in
-einem Web Worker, die Seite bleibt dabei bedienbar. three.js (r186) ist im Image enthalten, eine
+einem Web Worker, die Seite bleibt dabei bedienbar. Die Röhren sind in Blöcke aus
+aufeinanderfolgenden Schichten aufgeteilt; Blöcke außerhalb des Bildes oder des
+gewählten Schichtbereichs werden nicht gezeichnet. three.js (r186) ist im Image enthalten, eine
 Internetverbindung ist nicht nötig.
 
 ## Direktimport von Bambu-Druckern
