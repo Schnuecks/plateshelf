@@ -303,6 +303,12 @@ summary { cursor: pointer; font-weight: 500; }
 .layer-ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
 .check { display: flex; align-items: center; gap: .45rem; font-size: .92rem; }
 .play-ctrl { display: grid; gap: .45rem; }
+.seg-metrics { margin-top: -.6rem; }
+.seg-metrics button { font-size: .85rem; }
+.seg button:disabled { opacity: .4; cursor: default; }
+.metric-legend { display: grid; gap: .35rem; padding: .35rem 0 .5rem; font-size: .92rem; }
+.metric-bar { display: block; height: .7rem; border-radius: 3px; }
+.metric-scale { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; }
 .play-row { display: flex; align-items: center; gap: .5rem; }
 .play-row input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
 .play-btn { width: 2.2rem; height: 2.2rem; padding: 0; border-radius: 50%; font-size: .85rem; line-height: 1; flex-shrink: 0; }

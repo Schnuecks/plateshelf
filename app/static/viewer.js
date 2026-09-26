@@ -38,7 +38,11 @@ const featureRank = (name) => {
 };
 
 const DEFAULT_UNI = "#2FB36B"; // kräftiges Grün für die einfarbige Ansicht
-const MODES = { tool: 0, feature: 1, uni: 2 };
+const MODES = { tool: 0, feature: 1, uni: 2, speed: 3, flow: 4, fan: 5, temp: 6 };
+const METRIC_KEYS = ["speed", "flow", "fan", "temp"];
+// Farbskala wie in den Slicern: langsam/kühl blau, schnell/heiß rot
+const RAMP = ["#2A4DD9", "#1AB3D9", "#4DC759", "#F2D133", "#E63A2E"];
+const METRIC_NAMES = { speed: "Geschwindigkeit", flow: "Volumenstrom", fan: "Lüfter", temp: "Düsentemperatur" };
 const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* privat */ } },
@@ -85,10 +89,14 @@ async function loadData() {
   const pts = new Uint16Array(buf, 0, nPtsVals);
   const polyOffset = Math.ceil((nPtsVals * 2) / 4) * 4;
   const polys = new Uint32Array(buf, polyOffset, meta.polys * 5);
-  return { meta, pts, polys };
+  const metOffset = polyOffset + meta.polys * 5 * 4;
+  const mets = buf.byteLength >= metOffset + meta.points * 8
+    ? new Uint16Array(buf, metOffset, meta.points * 4)
+    : new Uint16Array(meta.points * 4); // ältere Vorschau ohne Messwerte
+  return { meta, pts, polys, mets };
 }
 
-function buildGeometry(meta, pts, polys) {
+function buildGeometry(meta, pts, polys, mets) {
   const nPts = pts.length / 2;
   const off = meta.offset, sc = meta.scale;
   const pos = new Float32Array(nPts * 3);
@@ -131,6 +139,7 @@ function buildGeometry(meta, pts, polys) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("info", new THREE.BufferAttribute(info, 4));
+  geo.setAttribute("metric", new THREE.BufferAttribute(mets, 4));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
   geo.userData = { layerStart, nSeg };
@@ -146,6 +155,9 @@ function buildGeometry(meta, pts, polys) {
   tube.setAttribute("aEnd", new THREE.InterleavedBufferAttribute(posBuf, 3, 3));
   const infoBuf = new THREE.InstancedInterleavedBuffer(info, 4, 1);
   tube.setAttribute("aInfo", new THREE.InterleavedBufferAttribute(infoBuf, 4, 0));
+  // Messwerte gehören zum Punkt am Ende des Bahnstücks
+  const metBuf = new THREE.InstancedInterleavedBuffer(mets, 4, 1);
+  tube.setAttribute("aMetric", new THREE.InterleavedBufferAttribute(metBuf, 4, 4));
   tube.instanceCount = Math.max(0, nPts - 1);
   tube.boundingSphere = geo.boundingSphere;
   tube.userData = { layerPoint, nPts };
@@ -172,6 +184,7 @@ function buildLod(meta, polys, geo, step) {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", geo.getAttribute("position"));
   g.setAttribute("info", geo.getAttribute("info"));
+  g.setAttribute("metric", geo.getAttribute("metric"));
   g.setIndex(new THREE.BufferAttribute(index, 1));
   g.boundingSphere = geo.boundingSphere;
   g.userData = { layerStart, nSeg: n };
@@ -190,7 +203,19 @@ const SHARED_GLSL = /* glsl */ `
     return inf.x >= minLayer && inf.x <= maxLayer
       && ((featureMask >> uint(f)) & 1u) == 1u && ((toolMask >> uint(t)) & 1u) == 1u;
   }
-  vec3 baseColor(vec4 inf) {
+  uniform vec4 metricLo; uniform vec4 metricHi;
+  uniform vec3 ramp[5];
+  vec3 rampColor(float t) {
+    float x = clamp(t, 0.0, 1.0) * 4.0;
+    int i = int(min(floor(x), 3.0));
+    return mix(ramp[i], ramp[i + 1], x - float(i));
+  }
+  vec3 baseColor(vec4 inf, vec4 met) {
+    if (mode >= 3) {
+      int k = mode - 3;
+      float span = max(metricHi[k] - metricLo[k], 1.0);
+      return rampColor((met[k] - metricLo[k]) / span);
+    }
     if (mode == 2) return uniColor;
     return mode == 0 ? toolColors[int(inf.z)] : featureColors[int(inf.y)];
   }
@@ -207,6 +232,9 @@ function makeUniforms() {
     halfWidth: { value: 0.21 },
     normalPass: { value: 0 },
     uniColor: { value: new THREE.Color(DEFAULT_UNI) },
+    metricLo: { value: new THREE.Vector4() }, metricHi: { value: new THREE.Vector4(1, 1, 1, 1) },
+    // Direkt als Ausgabefarbe, ohne Umrechnung: entspricht dem Verlauf in der Legende
+    ramp: { value: RAMP.map((h) => new THREE.Vector3(...[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255))) },
   };
 }
 
@@ -214,7 +242,7 @@ function makeLineMaterial(uniforms) {
   return new THREE.ShaderMaterial({
     uniforms,
     vertexShader: /* glsl */ `
-      attribute vec4 info;
+      attribute vec4 info; attribute vec4 metric;
       ${SHARED_GLSL}
       varying vec3 vColor; varying float vIdx; varying float vTop;
       void main() {
@@ -228,7 +256,7 @@ function makeLineMaterial(uniforms) {
         }
         float shade = mod(info.w, ${POLY_END}.0) / 1000.0;
         if (info.x == maxLayer) shade = min(1.0, shade + 0.12);
-        vColor = baseColor(info) * shade;
+        vColor = baseColor(info, metric) * shade;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -246,7 +274,7 @@ function makeTubeMaterial(uniforms) {
     uniforms,
     side: THREE.DoubleSide, // die Bänder richten sich zur Kamera aus, die Wickelrichtung ist egal
     vertexShader: /* glsl */ `
-      attribute vec3 aStart; attribute vec3 aEnd; attribute vec4 aInfo;
+      attribute vec3 aStart; attribute vec3 aEnd; attribute vec4 aInfo; attribute vec4 aMetric;
       uniform float halfWidth;
       ${SHARED_GLSL}
       varying vec3 vColor; varying float vSide; varying vec3 vPerp; varying vec3 vToCam;
@@ -271,7 +299,7 @@ function makeTubeMaterial(uniforms) {
         perp = pl > 1e-4 ? perp / pl : vec3(1.0, 0.0, 0.0);
         vec3 p = mid + perp * halfWidth * corner.y + d * halfWidth * (corner.x * 2.0 - 1.0);
         vSide = corner.y; vPerp = perp; vToCam = toCam;
-        vColor = baseColor(aInfo);
+        vColor = baseColor(aInfo, aMetric);
         if (aInfo.x == maxLayer) vColor = min(vec3(1.0), vColor * 1.12);
         gl_Position = projectionMatrix * vec4(p, 1.0);
       }`,
@@ -388,7 +416,7 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#222";
 }
 
-function start({ meta, pts, polys }) {
+function start({ meta, pts, polys, mets }) {
   const canvas = document.getElementById("viewer-canvas");
   // Hohe Pixeldichte ist selbst schon glatt, Kantenglättung nur für normale Displays
   const dpr = window.devicePixelRatio || 1;
@@ -427,7 +455,7 @@ function start({ meta, pts, polys }) {
   grid.position.set(bed / 2, bed / 2, -0.01);
   scene.add(grid);
 
-  const { geo, tube, pos } = buildGeometry(meta, pts, polys);
+  const { geo, tube, pos } = buildGeometry(meta, pts, polys, mets);
   const uniforms = makeUniforms();
   const mat = { uniforms }; // gemeinsame Einstellungen für Linien und Röhren
   uniforms.halfWidth.value = (Number(root.dataset.nozzle) || 0.4) * 1.05 / 2;
@@ -478,6 +506,17 @@ function start({ meta, pts, polys }) {
     if (f) mat.uniforms.toolColors.value[t].set(f.color);
   }
   meta.features.forEach((name, i) => mat.uniforms.featureColors.value[i].set(FEATURE_COLORS[name] || "#7F868C"));
+  const ranges = meta.metrics || {};
+  METRIC_KEYS.forEach((key, i) => {
+    const r = ranges[key] || { min: 0, max: 0, scale: 1 };
+    uniforms.metricLo.value.setComponent(i, r.min * r.scale);
+    uniforms.metricHi.value.setComponent(i, r.max * r.scale);
+  });
+  // Messwerte, die im G-Code fehlen (z. B. keine Lüfterbefehle), nicht zur Wahl stellen
+  document.querySelectorAll("[data-mode]").forEach((b) => {
+    const r = ranges[b.dataset.mode];
+    if (METRIC_KEYS.includes(b.dataset.mode) && (!r || r.max <= 0)) b.disabled = true;
+  });
 
   // Schichtregler
   const nLayers = meta.layers.length;
@@ -640,9 +679,33 @@ function start({ meta, pts, polys }) {
 
   // Legende mit Ein-/Ausblenden
   const legend = document.getElementById("legend");
+  const metricLegend = (key) => {
+    const r = ranges[key];
+    const num = (v) => v.toLocaleString(LOCALE, { maximumFractionDigits: key === "flow" ? 1 : 0 });
+    const li = document.createElement("li");
+    li.className = "metric-legend";
+    const title = document.createElement("span");
+    title.textContent = t(METRIC_NAMES[key]);
+    const bar = document.createElement("span");
+    bar.className = "metric-bar";
+    bar.style.background = `linear-gradient(90deg, ${RAMP.join(", ")})`;
+    const scale = document.createElement("span");
+    scale.className = "metric-scale";
+    const lo = document.createElement("span");
+    const hi = document.createElement("span");
+    lo.textContent = `${num(r.min)} ${r.unit}`;
+    hi.textContent = r.max > r.min ? `${num(r.max)} ${r.unit}` : "";
+    scale.append(lo, hi);
+    li.append(title, bar, scale);
+    return li;
+  };
   const buildLegend = () => {
     const mode = mat.uniforms.mode.value;
     uniRow.hidden = mode !== MODES.uni;
+    if (mode >= MODES.speed) {
+      legend.replaceChildren(metricLegend(METRIC_KEYS[mode - MODES.speed]));
+      return;
+    }
     const items = mode !== MODES.feature
       ? (meta.tools.length ? meta.tools : [0]).map((tool) => {
           const f = toolFil(tool);
@@ -694,7 +757,8 @@ function start({ meta, pts, polys }) {
     });
   }
   const setMode = (name) => {
-    if (!document.querySelector(`[data-mode="${name}"]`)) name = "tool";
+    const btn = document.querySelector(`[data-mode="${name}"]`);
+    if (!btn || btn.disabled) name = "tool";
     mat.uniforms.mode.value = MODES[name] ?? 0;
     document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === name)));
     store.set("druckarchiv-color-mode", name);

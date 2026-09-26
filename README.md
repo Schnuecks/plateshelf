@@ -168,6 +168,10 @@ Bambu Studio:
 
 - Einfärbung nach Filament, nach Linientyp (Außenwand, Infill, Stützen usw.) oder
   in einer frei wählbaren Farbe, praktisch bei hellen Filamenten
+- Einfärbung nach Messwert wie im Slicer: Geschwindigkeit (mm/s), Volumenstrom
+  (mm³/s), Bauteillüfter (%) und Düsentemperatur (°C), mit Farbskala von Blau (niedrig)
+  nach Rot (hoch). Die Skala reicht vom 1. bis zum 99. Perzentil, einzelne Ausreißer
+  verzerren sie also nicht.
 - Einzelne Filamente und Linientypen lassen sich ausblenden
 - Schichtregler mit Anzeige der Höhe, auch per Pfeiltasten bedienbar
 - Wechsel zwischen den Platten eines Projekts mit den Pfeiltasten links und rechts

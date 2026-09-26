@@ -1,5 +1,13 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Einfärbung nach Geschwindigkeit, Volumenstrom, Bauteillüfter und
+  Düsentemperatur mit Farbskala und Werten in der Legende. Messwerte, die im
+  G-Code fehlen, sind ausgegraut.
+- Vorschauformat Version 3 mit Messwerten je Punkt; vorhandene Vorschauen werden
+  beim nächsten Öffnen bzw. im Hintergrund automatisch neu erzeugt.
+
 ## 0.5.1
 
 - 3D-Vorschau: Wiedergabe des Drucks innerhalb der Schichten mit Düsenmarke,
