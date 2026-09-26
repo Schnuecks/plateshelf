@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- 3D-Vorschau: Wiedergabe des Drucks innerhalb der Schichten mit Düsenmarke,
+  Regler „Position in der Schicht“, Tempo 1×/10×/50×, Leertaste zum Starten
+  und Stoppen. Die Bahnen wachsen gleichmäßig nach Länge, auch mitten im Bahnstück.
+- 3D-Vorschau: Tiefenschattierung (Ambient Occlusion) im Stillstand, aus den
+  Normalen der Röhren berechnet und kantenbewahrend geglättet; aus der Ferne
+  blendet sie sich aus, damit auf feinen Rillen kein Moiré entsteht. Abschaltbar.
+- three.js von r160 auf r186 aktualisiert.
+
 ## 0.5.0
 
 - Kennzahlen als JSON unter `/api/stats` (Projekte, Dateien, Druckzeit, Filament,

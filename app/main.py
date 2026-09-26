@@ -120,7 +120,8 @@ templates.env.globals.update(_=_, ngettext=ngettext, lang=i18n.current, theme=cu
 JS_TEXTS = [
     "{pct} % übertragen", "Wird eingelesen …", "Übertragung fehlgeschlagen. Bitte erneut versuchen.",
     "G-Code wird aufbereitet: {pct} %", "Druckbahnen werden geladen", "Darstellung wird abgestimmt",
-    "Die Vorschau konnte nicht erstellt werden: {error}", "Vorschau nicht verfügbar", "Aufbereitung fehlgeschlagen", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
+    "Die Vorschau konnte nicht erstellt werden: {error}", "Vorschau nicht verfügbar", "Aufbereitung fehlgeschlagen",
+    "Abspielen", "Anhalten", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
     "Außenwand", "Innenwand", "Überhangwand", "Infill", "Massives Infill", "Oberfläche", "Unterseite", "Brücke",
     "Lückenfüllung", "Schwebende Hülle", "Stützen", "Stützen-Kontakt", "Stützen-Übergang", "Reinigungsturm",
     "Brim", "Skirt", "Glätten", "Sonstiges",
