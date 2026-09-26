@@ -413,6 +413,15 @@ button.danger-quiet:hover { color: var(--ink); }
 .lang-menu .menu button[aria-checked="true"] { font-weight: 600; color: var(--accent); }
 .lang-menu .menu button:first-child { border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0; margin-bottom: .2rem; }
 
+/* Anmeldung */
+.login-page { display: grid; place-items: center; min-height: 60vh; }
+.login-form { width: min(22rem, 100%); background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  padding: 1.5rem 1.4rem; display: grid; gap: .9rem; }
+.login-form h1 { font: 600 1.6rem/1.1 var(--font-cond); margin: 0 0 .2rem; }
+.login-form label { display: grid; gap: .3rem; font-weight: 500; }
+.login-form .flash { margin: 0; }
+.login-form button { justify-self: stretch; }
+
 /* Papierkorb */
 .flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
 .flash-undo form { margin: 0; }

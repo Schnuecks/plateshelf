@@ -1,5 +1,15 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Optionale Anmeldung: mit `AUTH_USER` und `AUTH_PASSWORD` zeigt das Druckarchiv eine
+  Anmeldeseite (alle Sprachen, hell/dunkel) und oben rechts „Abmelden“. Die Sitzung ist
+  signiert und gilt `SESSION_DAYS` Tage; eine Passwortänderung beendet alle Sitzungen.
+  Nach fünf Fehlversuchen wird eine Adresse fünf Minuten gesperrt.
+- Skripte und Dashboards (z. B. das Homepage-Widget) melden sich per HTTP Basic Auth an.
+- `/healthz` meldet ohne Anmeldung nur noch, dass das Druckarchiv läuft.
+- Ohne `AUTH_USER`/`AUTH_PASSWORD` ändert sich nichts.
+
 ## 0.5.9
 
 - Image zusätzlich für 64-Bit-ARM (arm64: Raspberry Pi 4/5, viele NAS) und
