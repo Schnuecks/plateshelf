@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.3
 
 - 3D-Vorschau: Leerfahrten, Rückzüge und Nahtstellen lassen sich einblenden,
   jeweils mit Anzahl. Sie folgen dem Schichtregler; die Auswahl wird gemerkt.
