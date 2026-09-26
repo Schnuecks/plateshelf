@@ -10,7 +10,7 @@ import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import filecmp
 import uuid
@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import gcode_preview, i18n, printer_import, store, trash
+from . import auth, gcode_preview, i18n, printer_import, store, trash
 from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
@@ -67,11 +67,36 @@ async def language_middleware(request: Request, call_next):
                                                  request.method, request.url.path,
                                                  request.headers.get("origin") or request.headers.get("referer"))
         return PlainTextResponse(_("Anfrage von einer fremden Seite abgelehnt."), status_code=403)
+    if auth.enabled() and not is_public(request.url.path) and not signed_in(request):
+        if request.method == "GET" and not request.url.path.startswith("/api/"):
+            return RedirectResponse(f"/login?next={quote(current_url(request))}", status_code=303)
+        # Skripte und Dashboards: Anmeldung per HTTP Basic Auth
+        return PlainTextResponse(_("Anmeldung erforderlich."), status_code=401,
+                                 headers={"WWW-Authenticate": 'Basic realm="Druckarchiv", charset="UTF-8"'})
     return await call_next(request)
 
 
+# --- Optionale Anmeldung (siehe app/auth.py) --------------------------------
+PUBLIC_PREFIXES = ("/static/",)
+PUBLIC_PATHS = {"/login", "/healthz", "/darstellung"}
+
+
+def is_public(path: str) -> bool:
+    return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+
+
+def signed_in(request: Request) -> bool:
+    return (auth.session_valid(request.cookies.get(auth.COOKIE))
+            or auth.basic_auth_valid(request.headers.get("authorization")))
+
+
+def _local_target(target: str) -> str:
+    """Nur Pfade dieser Seite als Ziel nach der Anmeldung, keine fremden Adressen."""
+    return target if target.startswith("/") and not target.startswith("//") and "\\" not in target else "/"
+
+
 # --- Schutz vor fremden Seiten (CSRF) ----------------------------------------
-# Das Druckarchiv hat keine Anmeldung. Ohne diese Prüfung könnte jede Webseite, die
+# Ohne Anmeldung (Standard) und selbst mit gültiger Sitzung könnte jede Webseite, die
 # man im selben Netz öffnet, dem Browser ein Formular an das Druckarchiv unterschieben
 # (z. B. „Papierkorb leeren“). Browser schicken bei solchen Anfragen immer Origin oder
 # Referer mit; stimmt deren Host nicht mit dem angefragten überein, wird abgelehnt.
@@ -507,6 +532,7 @@ def current_url(request: Request) -> str:
     return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
 
+templates.env.globals.update(auth_enabled=auth.enabled)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
                              NEXT_THEME=NEXT_THEME)
 
@@ -914,8 +940,50 @@ def api_stats():
     }
 
 
+@app.get("/login")
+def login_form(request: Request, next: str = "/"):
+    if not auth.enabled():
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"next": _local_target(next), "error": ""})
+
+
+@app.post("/login")
+def login(request: Request, user: str = Form(""), password: str = Form(""), next: str = Form("/")):
+    if not auth.enabled():
+        return RedirectResponse("/", status_code=303)
+    address = request.client.host if request.client else "?"
+    context = {"next": _local_target(next), "user": user}
+    wait = auth.locked_out(address)
+    if wait:
+        minutes = max(1, (wait + 59) // 60)
+        return templates.TemplateResponse(request, "login.html", {
+            **context, "error": ngettext("Zu viele Fehlversuche. Bitte in {n} Minute erneut versuchen.",
+                                         "Zu viele Fehlversuche. Bitte in {n} Minuten erneut versuchen.", minutes),
+        }, status_code=429)
+    if not auth.check(user.strip(), password):
+        auth.record_failure(address)
+        return templates.TemplateResponse(request, "login.html", {
+            **context, "error": _("Benutzername oder Passwort ist falsch."),
+        }, status_code=401)
+    auth.record_success(address)
+    response = RedirectResponse(_local_target(next), status_code=303)
+    response.set_cookie(auth.COOKIE, auth.new_session(user.strip()), max_age=auth.SESSION_DAYS * 86400,
+                        httponly=True, samesite="lax", secure=request.url.scheme == "https")
+    return response
+
+
+@app.post("/logout")
+def logout():
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(auth.COOKIE)
+    return response
+
+
 @app.get("/healthz")
-def healthz():
+def healthz(request: Request):
+    # Mit Anmeldung verrät der offene Healthcheck nur, dass das Druckarchiv läuft
+    if auth.enabled() and not signed_in(request):
+        return {"ok": True}
     return {"ok": True, "scan": store.last_scan, "printers": printer_import.state}
 
 

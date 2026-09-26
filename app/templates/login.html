@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Anmelden') }} – Druckarchiv{% endblock %}
+{% block nav_links %}{% endblock %}
+
+{% block main %}
+<section class="login-page">
+  <form method="post" action="/login" class="login-form">
+    <h1>{{ _('Anmelden') }}</h1>
+    {% if error %}<p class="flash flash-warn" role="alert">{{ error }}</p>{% endif %}
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>{{ _('Benutzername') }}
+      <input type="text" name="user" value="{{ user or '' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required {% if not user %}autofocus{% endif %}>
+    </label>
+    <label>{{ _('Passwort') }}
+      <input type="password" name="password" autocomplete="current-password" required {% if user %}autofocus{% endif %}>
+    </label>
+    <button type="submit">{{ _('Anmelden') }}</button>
+  </form>
+</section>
+{% endblock %}

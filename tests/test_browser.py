@@ -189,3 +189,25 @@ def test_language_and_theme_from_topbar(server, page):
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("data-theme") == "light"
     assert page.errors == []
+
+
+def test_login_flow(server, page, monkeypatch):
+    """Mit AUTH_USER/AUTH_PASSWORD: Anmeldeseite, Anmelden, zurück zum Ziel, Abmelden."""
+    monkeypatch.setenv("AUTH_USER", "tester")
+    monkeypatch.setenv("AUTH_PASSWORD", "geheim-123")
+    page.goto(server["url"] + "/einstellungen")
+    assert "/login" in page.url
+    assert page.locator(".tb-right .settings-link").count() == 0  # keine Navigation vor der Anmeldung
+    page.fill('input[name="user"]', "tester")
+    page.fill('input[name="password"]', "falsch")
+    page.click('.login-form button[type="submit"]')
+    assert "falsch" in page.locator(".login-form .flash").inner_text()
+    # Die Seite kommt absichtlich mit Status 401, das meldet Chrome in der Konsole
+    assert all("401" in e for e in page.errors), page.errors
+    page.errors.clear()
+    page.fill('input[name="password"]', "geheim-123")
+    page.click('.login-form button[type="submit"]')
+    page.wait_for_url("**/einstellungen")
+    page.click('form[action="/logout"] button')
+    page.wait_for_url("**/login")
+    assert page.errors == []

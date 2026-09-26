@@ -20,9 +20,11 @@
     </div>
     {% block back %}{% endblock %}
     <nav class="tb-right">
+      {% block nav_links %}
       <a class="settings-link" href="/papierkorb">{{ _('Papierkorb') }}</a>
       <a class="settings-link" href="/einstellungen">{{ _('Einstellungen') }}</a>
       <a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>
+      {% endblock %}
       <form method="post" action="/darstellung" class="tb-prefs">
         <input type="hidden" name="next" value="{{ current_url(request) }}">
         {% set chosen = language_choice(request) %}
@@ -47,6 +49,13 @@
           {% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>{% endif %}
         </button>
       </form>
+      {% if auth_enabled() and self.nav_links() | trim %}
+      <form method="post" action="/logout" class="tb-prefs">
+        <button type="submit" class="icon-btn" title="{{ _('Abmelden') }}" aria-label="{{ _('Abmelden') }}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>
+        </button>
+      </form>
+      {% endif %}
     </nav>
   </header>
   <main>{% block main %}{% endblock %}</main>

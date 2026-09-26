@@ -64,9 +64,20 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der Compose
       - traefik.http.services.druckarchiv.loadbalancer.server.port=8000
 ```
 
-Das Druckarchiv hat keine eigene Anmeldung. Wenn es außerhalb deines Heimnetzes
-erreichbar sein soll, schütze es mit einer Anmeldung am Proxy (z. B. Authelia oder
-Basic Auth), denn jeder mit Zugriff kann Dateien hochladen und löschen.
+Ohne weitere Einstellungen hat das Druckarchiv keine Anmeldung: Jeder, der es erreicht,
+kann Dateien hochladen und löschen. Im Heimnetz ist das meist in Ordnung. Sonst gibt es
+zwei Wege, die sich auch kombinieren lassen:
+
+- **Eigene Anmeldung:** `AUTH_USER` und `AUTH_PASSWORD` in der `.env` setzen. Der Browser
+  zeigt dann eine Anmeldeseite, die Anmeldung gilt `SESSION_DAYS` Tage (Standard 30),
+  oben rechts gibt es „Abmelden“. Nach fünf Fehlversuchen ist eine Adresse fünf Minuten
+  gesperrt. Ändert sich das Passwort, sind alle bestehenden Anmeldungen ungültig.
+  Skripte und Dashboards melden sich mit denselben Zugangsdaten per HTTP Basic Auth an.
+- **Anmeldung am Proxy** (z. B. Authelia oder Basic Auth), besonders wenn das
+  Druckarchiv aus dem Internet erreichbar ist.
+
+`/healthz` bleibt für den Docker-Healthcheck immer erreichbar, meldet ohne Anmeldung
+aber nur, dass das Druckarchiv läuft.
 
 Änderungen (Hochladen, Löschen, Einstellungen …) nimmt das Druckarchiv nur von seinen
 eigenen Seiten an. Formulare, die eine fremde Webseite im Hintergrund an das
@@ -97,6 +108,9 @@ Alle Einstellungen stehen in der `.env`.
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
 | `DEFAULT_LANGUAGE` | – | Voreingestellte Sprache: `de`, `en`, `fr`, `es`, `it` oder `nl`. Leer: Sprache des Browsers |
 | `DEFAULT_THEME` | system | Voreingestelltes Design: `system`, `light` oder `dark` |
+| `AUTH_USER`, `AUTH_PASSWORD` | – | Anmeldung einschalten (beide setzen, siehe unten) |
+| `SESSION_DAYS` | 30 | Wie lange eine Anmeldung im Browser gilt |
+| `SECRET_KEY` | – | Schlüssel für die Sitzungen; leer: wird einmalig erzeugt und im Datenordner gespeichert |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt (siehe unten) |
 
 ### Sprache und Design
@@ -298,6 +312,9 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
           format: float
           suffix: €
 ```
+
+Ist die eigene Anmeldung eingeschaltet, trage im Widget zusätzlich `username` und
+`password` ein (dieselben wie `AUTH_USER` und `AUTH_PASSWORD`).
 
 Statt der Kosten passen auch `new_files_7d` („Neu (7 Tage)“) oder `printers_ok`
 („Drucker online“). Laufen Homepage und Druckarchiv im selben Docker-Netz, trägst du bei
