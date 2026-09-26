@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.3.6
 
 - Einstellungen zweispaltig: Drucker für den Direktimport links, Stromkosten
   rechts; auf schmalen Bildschirmen untereinander.
