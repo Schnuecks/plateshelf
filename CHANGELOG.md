@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.6
 
 - 3D-Vorschau: Röhren in Schichtblöcken (je mindestens 40.000 Bahnstücke, höchstens
   etwa 32 Blöcke) mit eigenem Begrenzungsrahmen. Blöcke außerhalb des Bildes oder
