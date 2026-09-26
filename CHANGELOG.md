@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.7
 
 - Sicherheit: Änderungen werden nur noch von den eigenen Seiten angenommen (Prüfung
   von Origin bzw. Referer). Formulare fremder Webseiten, z. B. „Papierkorb leeren“,
