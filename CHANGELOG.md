@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.6.0
 
 - Optionale Anmeldung: mit `AUTH_USER` und `AUTH_PASSWORD` zeigt das Druckarchiv eine
   Anmeldeseite (alle Sprachen, hell/dunkel) und oben rechts „Abmelden“. Die Sitzung ist
