@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.8
 
 - Browsertest in der CI: Playwright öffnet alle Seiten und die 3D-Vorschau in
   Chromium, klickt Einfärbungen, Einblendungen, Wiedergabe, Bildexport und
