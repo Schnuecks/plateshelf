@@ -24,7 +24,9 @@ und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbah
 
 ## Schnellstart
 
-Voraussetzung ist Docker mit Compose.
+Voraussetzung ist Docker mit Compose. Das Image gibt es für PCs und Server (amd64),
+für 64-Bit-ARM (arm64, z. B. Raspberry Pi 4/5 mit 64-Bit-System, viele NAS) und für
+32-Bit-ARM (arm/v7, ältere Raspberry Pi). Docker wählt automatisch das passende.
 
 ```bash
 mkdir druckarchiv && cd druckarchiv
@@ -349,12 +351,16 @@ deutschen Text passen. Eine neue Sprache braucht einen Eintrag in `LANGUAGES`,
    git tag -a v0.2.0 -m "Druckarchiv 0.2.0" && git push --tags
    ```
 
-3. GitHub Actions führt die Tests aus, baut das Image und veröffentlicht es als
+3. GitHub Actions führt die Tests aus, baut das Image für amd64, arm64 und arm/v7 und veröffentlicht es als
    `0.2.0`, `0.2` und `latest`. Anschließend werden ältere Versionen entfernt, die
    letzten fünf bleiben erhalten.
 
-Pushes auf `main` ohne Tag werden getestet und probeweise gebaut, aber nicht
-veröffentlicht.
+Pull Requests und Pushes auf `main` ohne Tag werden getestet und für alle Plattformen
+probeweise gebaut, aber nicht veröffentlicht.
+
+Dependabot (`.github/dependabot.yml`) prüft wöchentlich Python-Pakete, GitHub Actions
+und das Basisimage und schlägt Aktualisierungen als Pull Request vor; bekannte
+Schwachstellen werden sofort gemeldet und automatisch als Pull Request behoben.
 
 ## Lizenz
 

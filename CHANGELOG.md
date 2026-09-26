@@ -1,5 +1,17 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Image zusätzlich für 64-Bit-ARM (arm64: Raspberry Pi 4/5, viele NAS) und
+  32-Bit-ARM (arm/v7: ältere Raspberry Pi). Auf arm/v7 läuft uvicorn ohne die
+  optionalen Beschleuniger uvloop und httptools, für die es dort keine fertigen
+  Pakete gibt.
+- Pull Requests bauen das Image für alle Plattformen probeweise mit, damit ein
+  Fehler vor dem Release auffällt.
+- Dependabot: wöchentliche Aktualisierungen für Python-Pakete, GitHub Actions und
+  das Basisimage; Schwachstellen-Warnungen und automatische Sicherheitsupdates
+  sind eingeschaltet.
+
 ## 0.5.8
 
 - Browsertest in der CI: Playwright öffnet alle Seiten und die 3D-Vorschau in

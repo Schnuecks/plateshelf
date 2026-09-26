@@ -1,10 +1,11 @@
 name: CI
 
 # Tests bei jedem Push und Pull Request: Python-Tests und ein Browsertest (Playwright).
-# Das Docker-Image wird bei Pushes auf main nur probeweise gebaut (nicht hochgeladen),
-# damit Speicher und Datenvolumen des kostenlosen Plans geschont werden.
+# Das Docker-Image wird bei Pull Requests und Pushes auf main für alle Plattformen nur
+# probeweise gebaut (nicht hochgeladen), damit Speicher und Datenvolumen des kostenlosen
+# Plans geschont werden und ein Fehler auf einer Plattform vor dem Release auffällt.
 # Hochgeladen wird es nur bei einem Versions-Tag (v1.2.3); danach bleiben die
-# letzten KEEP_VERSIONS Versionen erhalten, ältere werden gelöscht.
+# letzten fünf Releases erhalten (KEEP_VERSIONS), ältere werden gelöscht.
 
 on:
   push:
@@ -13,8 +14,11 @@ on:
   pull_request:
 
 env:
-  PLATFORMS: linux/amd64   # zum Veröffentlichen: linux/amd64,linux/arm64
-  KEEP_VERSIONS: 5
+  PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7   # PC/Server, Raspberry Pi 4/5 und NAS, ältere Raspberry Pi
+  # Paketversionen, die beim Aufräumen bleiben: pro Release 1 Index + 1 Image je Plattform
+  # (3 Plattformen = 4 Versionen), also 5 Releases = 20. Sonst würden die Plattform-Images
+  # älterer Releases gelöscht und diese Versionen ließen sich nicht mehr installieren.
+  KEEP_VERSIONS: 20
 
 jobs:
   test:
@@ -49,7 +53,6 @@ jobs:
 
   image:
     needs: [test, browser]
-    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
