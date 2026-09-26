@@ -1,5 +1,10 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Datum der vom Drucker übernommenen Dateien auf Deutsch, z. B.
+  „22. August 07:06“ statt „Aug 22 07:06“.
+
 ## 0.3.6
 
 - Einstellungen zweispaltig: Drucker für den Direktimport links, Stromkosten

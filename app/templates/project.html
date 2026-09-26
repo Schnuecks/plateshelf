@@ -73,7 +73,7 @@
               {% if f.printer %}{{ f.printer }}{% endif %}{% if f.nozzle %}, Düse {{ f.nozzle }} mm{% endif %}{% if f.layer_height %}, {{ f.layer_height }} mm Schicht{% endif %}.
               {% if f.slicer %}Gesliced mit {{ f.slicer }}.{% endif %}
             </p>
-            {% if f.origin %}<p class="file-sub">Automatisch vom Drucker {{ f.origin.printer_name }} übernommen, Datei vom {{ f.origin.remote_date }}.</p>{% endif %}
+            {% if f.origin %}<p class="file-sub">Automatisch vom Drucker {{ f.origin.printer_name }} übernommen, Datei vom {{ f.origin.remote_date|printer_date }}.</p>{% endif %}
             {% if f.error %}<p class="warn">Datei konnte nicht gelesen werden: {{ f.error }}</p>{% endif %}
             {% if not f.sliced and not f.error %}<p class="warn">Nicht gesliced, daher ohne Druckzeit und Gewicht.</p>{% endif %}
           </div>

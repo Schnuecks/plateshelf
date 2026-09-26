@@ -109,6 +109,23 @@ def strand(filaments: list[dict]) -> str:
     return f"linear-gradient(90deg, {', '.join(stops)})"
 
 
+_MONTHS = {m: (i, name) for i, (m, name) in enumerate(zip(
+    ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"),
+    ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
+     "November", "Dezember")), 1)}
+
+
+def fmt_printer_date(text) -> str:
+    """Datum aus der Dateiliste des Druckers auf Deutsch: 'Aug 22 07:06' -> '22. August 07:06'.
+
+    Ältere Dateien listet der Drucker mit Jahr statt Uhrzeit: 'Nov 29 2025' -> '29. November 2025'.
+    """
+    parts = str(text or "").split()
+    if len(parts) != 3 or parts[0][:3].lower() not in _MONTHS or not parts[1].isdigit():
+        return str(text or "")
+    return f"{int(parts[1])}. {_MONTHS[parts[0][:3].lower()][1]} {parts[2]}"
+
+
 def fmt_size(n) -> str:
     if not n:
         return "0 MB"
@@ -116,6 +133,7 @@ def fmt_size(n) -> str:
 
 
 templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand,
+                             printer_date=fmt_printer_date,
                              size=fmt_size)
 templates.env.globals["STATUSES"] = STATUSES
 templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
