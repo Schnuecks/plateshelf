@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Schnuecks
+// Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
+const I18N = (() => {
+  try { return JSON.parse(document.getElementById("i18n").textContent); } catch (e) { return {}; }
+})();
+const t = (key, vars = {}) => (I18N[key] || key).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+const LOCALE = document.documentElement.lang || "de";
+
 // Umschalten Schrägansicht / Draufsicht
 document.querySelectorAll("[data-thumbs]").forEach((fig) => {
   const img = fig.querySelector("img");
@@ -29,7 +36,7 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
   const status = form.querySelector("[data-status]");
   const submit = form.querySelector("[data-submit]");
 
-  const mb = (n) => (n / 1048576).toLocaleString("de-DE", { maximumFractionDigits: 1 }) + " MB";
+  const mb = (n) => (n / 1048576).toLocaleString(LOCALE, { maximumFractionDigits: 1 }) + " MB";
   const showFiles = () => {
     list.replaceChildren(...[...input.files].map((f) => {
       const li = document.createElement("li");
@@ -54,7 +61,7 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
       if (!ev.lengthComputable) return;
       const pct = Math.round((ev.loaded / ev.total) * 100);
       bar.value = pct;
-      status.textContent = pct < 100 ? `${pct} % übertragen` : "Wird eingelesen …";
+      status.textContent = pct < 100 ? t("{pct} % übertragen", { pct }) : t("Wird eingelesen …");
     });
     xhr.addEventListener("load", () => {
       if (xhr.responseURL && !xhr.responseURL.endsWith("/upload")) {
@@ -64,7 +71,7 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
       }
     });
     xhr.addEventListener("error", () => {
-      status.textContent = "Übertragung fehlgeschlagen. Bitte erneut versuchen.";
+      status.textContent = t("Übertragung fehlgeschlagen. Bitte erneut versuchen.");
       submit.disabled = false;
     });
     submit.disabled = true;

@@ -18,6 +18,8 @@ und Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbah
 - **Upload** per Drag & Drop und **Papierkorb** mit Wiederherstellen statt endgültigem Löschen
 - **Direktimport von Bambu-Druckern** per FTPS, auch ohne LAN-only-Modus
 - **Notizen, Tags, Status und Quelle** pro Projekt
+- **Sprachen:** Deutsch, English, Français, Español, Italiano und Nederlands
+- **Design** hell, dunkel oder wie das System
 
 ## Schnellstart
 
@@ -82,6 +84,16 @@ Alle Einstellungen stehen in der `.env`.
 | `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Drucker für den Direktimport (optional, siehe unten) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | Vom Drucker | Zielordner für importierte Drucke in der Bibliothek |
+| `DEFAULT_LANGUAGE` | – | Voreingestellte Sprache: `de`, `en`, `fr`, `es`, `it` oder `nl`. Leer: Sprache des Browsers |
+| `DEFAULT_THEME` | system | Voreingestelltes Design: `system`, `light` oder `dark` |
+
+### Sprache und Design
+
+Unter „Einstellungen“ → „Darstellung“ wählst du Sprache und Design. Beides gilt für
+den jeweiligen Browser, jeder im Haushalt kann also seine eigene Einstellung haben.
+Ohne Auswahl gelten `DEFAULT_LANGUAGE` und `DEFAULT_THEME` aus der `.env`, ohne
+`DEFAULT_LANGUAGE` die Sprache des Browsers. Zahlen, Beträge und Datumsangaben
+folgen der gewählten Sprache.
 
 ## Bibliothek und Projekte
 
@@ -226,6 +238,20 @@ python -m pytest -q                        # Tests ausführen
 python tools/make_sample.py ./library      # Beispieldateien erzeugen
 LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 ```
+
+### Übersetzungen
+
+Die deutschen Texte im Code sind zugleich die Schlüssel für die Übersetzungen in
+`app/locales/<Sprache>.json`. Nach dem Ändern oder Hinzufügen von Texten zeigt
+
+```bash
+python tools/i18n_extract.py
+```
+
+je Sprache, was fehlt oder nicht mehr gebraucht wird. Die Tests schlagen fehl,
+solange eine Übersetzung fehlt oder ihre Platzhalter (`{n}`, `{name}` …) nicht zum
+deutschen Text passen. Eine neue Sprache braucht einen Eintrag in `LANGUAGES`,
+`NUMBER_FORMAT`, `MONTHS` und `DAY_MONTH` in `app/i18n.py` sowie ihre JSON-Datei.
 
 ### Neue Version veröffentlichen
 

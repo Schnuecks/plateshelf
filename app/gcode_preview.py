@@ -21,6 +21,8 @@ import zipfile
 from array import array
 from pathlib import Path
 
+from .i18n import UserError
+
 VERSION = 2
 OFFSET_MM = 100.0
 SCALE = 100.0  # 0,01 mm
@@ -258,7 +260,7 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
             close()
 
     if not polys:
-        raise ValueError("Keine Druckbahnen im G-Code gefunden")
+        raise UserError("Keine Druckbahnen im G-Code gefunden")
 
     meta = {
         "version": VERSION,

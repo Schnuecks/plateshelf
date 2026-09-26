@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="de">
+{% set t = theme(request) %}
+<html lang="{{ lang() }}"{% if t != 'system' %} data-theme="{{ t }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,18 +20,19 @@
     </div>
     {% block back %}{% endblock %}
     <nav class="tb-right">
-      <a class="settings-link" href="/papierkorb">Papierkorb</a>
-      <a class="settings-link" href="/einstellungen">Einstellungen</a>
-      <a class="upload-link" href="/upload">Hochladen</a>
+      <a class="settings-link" href="/papierkorb">{{ _('Papierkorb') }}</a>
+      <a class="settings-link" href="/einstellungen">{{ _('Einstellungen') }}</a>
+      <a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>
     </nav>
   </header>
   <main>{% block main %}{% endblock %}</main>
   {% block footer %}
   <footer class="site-footer">
-    Druckarchiv {{ APP_VERSION }} von {{ APP_AUTHOR }}, <a href="{{ APP_REPO }}" rel="noopener">Quellcode auf GitHub</a>,
-    Lizenz <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a>
+    {{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }}, <a href="{{ APP_REPO }}" rel="noopener">{{ _('Quellcode auf GitHub') }}</a>,
+    {{ _('Lizenz') }} <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a>
   </footer>
   {% endblock %}
+  <script id="i18n" type="application/json">{{ js_texts()|tojson }}</script>
   <script src="/static/app.js?v={{ ASSET_V }}" defer></script>
 </body>
 </html>
