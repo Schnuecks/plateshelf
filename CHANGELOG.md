@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.4
 
 - 3D-Vorschau: Vollbild (Knopf und Taste F), Bild als PNG speichern (mit
   Tiefenschattierung, Dateiname aus Projekt und Platte).
