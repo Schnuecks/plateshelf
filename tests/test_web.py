@@ -36,7 +36,7 @@ def test_pages_and_upload_and_trash(client, lib, sample, tmp_path):
     r = client.post(f"/f/{fid}/delete", follow_redirects=False)
     assert r.status_code == 303
     assert not (lib / src.name).exists()
-    assert list((lib / ".papierkorb").rglob(src.name))
+    assert list((lib / ".trash").rglob(src.name))
 
 
 def test_path_traversal_is_blocked(client):

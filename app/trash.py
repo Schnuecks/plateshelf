@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Papierkorb: gelöschte Dateien liegen unter .papierkorb/<Eintrag>/<ursprünglicher Pfad>.
+"""Papierkorb: gelöschte Dateien liegen unter .trash/<Eintrag>/<ursprünglicher Pfad>.
 
 Zu jedem Eintrag merkt sich die Datenbank, was zum Wiederherstellen nötig ist:
 Projektname, Notizen, Tags, Status, Quelle und die manuelle Zuordnung der Dateien.
@@ -22,14 +22,38 @@ from . import store
 
 log = logging.getLogger("plateshelf")
 
-TRASH_DIR = ".papierkorb"
+TRASH_DIR = ".trash"
+LEGACY_TRASH_DIR = ".papierkorb"  # Name bis Version 0.7
 TRASH_DAYS = int(os.environ.get("TRASH_DAYS", "30"))
 PROJECT_FIELDS = ("group_key", "name", "notes", "tags", "source_url", "status")
 _FOLDER = re.compile(r"[\w.\- ]+")
 
 
 def trash_root() -> Path:
-    return store.LIBRARY_DIR / TRASH_DIR
+    """Papierkorb-Ordner der Bibliothek; ein alter „.papierkorb“ wird vorher übernommen."""
+    root = store.LIBRARY_DIR / TRASH_DIR
+    legacy = store.LIBRARY_DIR / LEGACY_TRASH_DIR
+    if legacy.is_dir() and not _migrate_legacy(legacy, root):
+        return legacy  # z. B. schreibgeschützt eingebunden: alten Ordner weiterverwenden
+    return root
+
+
+def _migrate_legacy(legacy: Path, root: Path) -> bool:
+    """„.papierkorb“ in „.trash“ umbenennen. Die Einträge speichern nur ihren Unterordner,
+    bleiben also gültig. Gibt es beide, werden die Unterordner zusammengeführt."""
+    try:
+        if not root.exists():
+            legacy.rename(root)
+        else:
+            for sub in legacy.iterdir():
+                if not (root / sub.name).exists():
+                    sub.rename(root / sub.name)
+            legacy.rmdir()  # schlägt fehl, falls etwas mit gleichem Namen übrig ist
+        log.info("Papierkorb-Ordner %s in %s umbenannt", LEGACY_TRASH_DIR, TRASH_DIR)
+        return True
+    except OSError as exc:
+        log.warning("Papierkorb-Ordner %s nicht umbenannt: %s", LEGACY_TRASH_DIR, exc)
+        return not legacy.is_dir()
 
 
 def _folder_path(folder: str) -> Path:

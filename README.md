@@ -97,6 +97,8 @@ PlateShelf was called *Druckarchiv* up to version 0.6. Your data carries over as
 - If your library already has a `Vom Drucker` folder from the direct import, it keeps
   being used. New installations use `From printer`.
 - Settings stored in the browser (colour mode, camera position and so on) are kept.
+- The trash folder `.papierkorb` in the library is renamed to `.trash`; deleted items can
+  still be restored.
 
 ## Usage
 
@@ -226,7 +228,7 @@ not included.
 ### Trash
 
 You delete files or entire projects on the project page. They are not removed right
-away but moved, with their original path, into the `.papierkorb/` folder inside the
+away but moved, with their original path, into the hidden `.trash/` folder inside the
 library. Right after deleting, you can take it back with “Undo”.
 
 “Trash” in the top right lists all deleted files and projects:
