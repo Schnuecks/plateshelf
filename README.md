@@ -171,12 +171,18 @@ Bambu Studio:
 - Einzelne Filamente und Linientypen lassen sich ausblenden
 - Schichtregler mit Anzeige der Höhe, auch per Pfeiltasten bedienbar
 - Wechsel zwischen den Platten eines Projekts mit den Pfeiltasten links und rechts
+- Wiedergabe: Der Druckkopf fährt die Bahnen Schicht für Schicht ab (Taste ▶ oder
+  Leertaste, Tempo 1×, 10× oder 50×). Mit dem Regler „Position in der Schicht“ lässt
+  sich jede Stelle einer Schicht von Hand ansteuern.
+- Tiefenschattierung (Ambient Occlusion): Rillen zwischen Bahnen und Schichten werden
+  im Stillstand abgedunkelt, das Modell wirkt plastischer. Sie schaltet sich nur ein,
+  wenn das Gerät schnell genug ist, und lässt sich abschalten.
 
 Der G-Code wird nach dem Einlesen einmalig im Hintergrund aufbereitet und im
 Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert das
 etwa 10 bis 20 Sekunden, danach öffnet sich die Vorschau sofort. Beim Öffnen misst der
 Viewer kurz die Leistung des Geräts und wählt beim Drehen automatisch die schönste
-Darstellung, die noch flüssig läuft. three.js ist im Image enthalten, eine
+Darstellung, die noch flüssig läuft. three.js (r186) ist im Image enthalten, eine
 Internetverbindung ist nicht nötig.
 
 ## Direktimport von Bambu-Druckern

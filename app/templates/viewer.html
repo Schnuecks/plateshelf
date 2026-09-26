@@ -52,11 +52,22 @@
       <label class="check"><input type="checkbox" id="layer-single"> {{ _('Nur diese Schicht') }}</label>
     </div>
 
+    <div class="play-ctrl">
+      <label for="layer-progress">{{ _('Position in der Schicht') }}</label>
+      <div class="play-row">
+        <button type="button" id="play" class="play-btn" aria-label="{{ _('Abspielen') }}" title="{{ _('Abspielen') }}">▶</button>
+        <input type="range" id="layer-progress" min="0" max="1000" value="1000">
+        <button type="button" id="play-speed" class="quiet play-speed" title="{{ _('Geschwindigkeit der Wiedergabe') }}">10×</button>
+      </div>
+    </div>
+
+    <label class="check"><input type="checkbox" id="ao-toggle" checked> {{ _('Tiefenschattierung') }}</label>
+
     <div class="viewer-actions">
       <button type="button" class="quiet" id="view-reset">{{ _('Ansicht zurücksetzen') }}</button>
       <button type="button" class="quiet" id="view-top">{{ _('Von oben') }}</button>
     </div>
-    <p class="hint viewer-help">{% if nav.total > 1 %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht, links und rechts die Platte.') }}{% else %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht.') }}{% endif %}</p>
+    <p class="hint viewer-help">{% if nav.total > 1 %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht, links und rechts die Platte.') }}{% else %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht.') }}{% endif %} {{ _('Leertaste startet und stoppt die Wiedergabe.') }}</p>
   </div>
     <p class="viewer-footer">{{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }},
       <a href="{{ APP_REPO }}" rel="noopener">{{ _('Quellcode') }}</a>, <a href="{{ APP_REPO }}/blob/main/LICENSE" rel="noopener license">{{ APP_LICENSE }}</a></p>

@@ -47,6 +47,9 @@ const IDLE_MS = 180;          // so lange nach der letzten Bewegung wieder volle
 const TARGET_MS = 22;         // Bildzeit, die beim Drehen noch als flüssig gilt
 const REST_MAX_MS = 400;      // länger darf ein einzelnes Standbild nicht dauern
 const POLY_END = 2000;        // Markierung im Helligkeitswert: Punkt beendet eine Bahn
+const CUT_ALL = 1e9;          // Wiedergabe aus: oberste Schicht vollständig
+const PLAY_MM_S = 150;        // Wiedergabe bei 1×: etwa übliche Druckgeschwindigkeit
+const PLAY_SPEEDS = [1, 10, 50];
 
 // Plattenwechsel mit Pfeiltasten, schon während die Vorschau noch lädt
 window.addEventListener("keydown", (e) => {
@@ -181,6 +184,7 @@ const SHARED_GLSL = /* glsl */ `
   uniform vec3 toolColors[32]; uniform vec3 featureColors[32];
   uniform uint toolMask; uniform uint featureMask;
   uniform vec3 uniColor;
+  uniform float cutPoint; // Wiedergabe: oberste Schicht nur bis zu diesem Punkt (mit Bruchteil)
   bool visibleFor(vec4 inf) {
     int f = int(inf.y); int t = int(inf.z);
     return inf.x >= minLayer && inf.x <= maxLayer
@@ -196,10 +200,12 @@ function makeUniforms() {
   const colorArr = (n) => Array.from({ length: n }, () => new THREE.Color(0x888888));
   return {
     minLayer: { value: 0 }, maxLayer: { value: 0 },
+    cutPoint: { value: CUT_ALL },
     mode: { value: 0 },
     toolColors: { value: colorArr(32) }, featureColors: { value: colorArr(32) },
     toolMask: { value: 0xffffffff >>> 0 }, featureMask: { value: 0xffffffff >>> 0 },
     halfWidth: { value: 0.21 },
+    normalPass: { value: 0 },
     uniColor: { value: new THREE.Color(DEFAULT_UNI) },
   };
 }
@@ -210,8 +216,10 @@ function makeLineMaterial(uniforms) {
     vertexShader: /* glsl */ `
       attribute vec4 info;
       ${SHARED_GLSL}
-      varying vec3 vColor;
+      varying vec3 vColor; varying float vIdx; varying float vTop;
       void main() {
+        vIdx = float(gl_VertexID); // beim indexierten Zeichnen der Punktindex
+        vTop = info.x == maxLayer ? 1.0 : 0.0;
         if (!visibleFor(info)) {
           // Außerhalb des Sichtbereichs legen: die Linie wird verworfen, bevor sie gerastert wird
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -224,8 +232,12 @@ function makeLineMaterial(uniforms) {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: /* glsl */ `
-      varying vec3 vColor;
-      void main() { gl_FragColor = vec4(vColor, 1.0); }`,
+      uniform float cutPoint;
+      varying vec3 vColor; varying float vIdx; varying float vTop;
+      void main() {
+        if (vTop > 0.5 && vIdx > cutPoint) discard;
+        gl_FragColor = vec4(vColor, 1.0);
+      }`,
   });
 }
 
@@ -243,10 +255,12 @@ function makeTubeMaterial(uniforms) {
         vec4 e = modelViewMatrix * vec4(aEnd, 1.0);
         vec3 d = e.xyz - s.xyz;
         float len = length(d);
-        if (aInfo.w >= ${POLY_END}.0 || len < 1e-5 || !visibleFor(aInfo)) {
+        float cut = aInfo.x == maxLayer ? cutPoint - float(gl_InstanceID) : 1.0;
+        if (aInfo.w >= ${POLY_END}.0 || len < 1e-5 || !visibleFor(aInfo) || cut <= 0.0) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
         }
+        if (cut < 1.0) { e.xyz = mix(s.xyz, e.xyz, cut); len *= cut; }
         d /= len;
         // Band quer zur Blickrichtung aufspannen, Enden um die halbe Breite verlängern
         vec2 corner = position.xy;
@@ -262,11 +276,13 @@ function makeTubeMaterial(uniforms) {
         gl_Position = projectionMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: /* glsl */ `
+      uniform int normalPass;
       varying vec3 vColor; varying float vSide; varying vec3 vPerp; varying vec3 vToCam;
       void main() {
         // Querschnitt einer Röhre: Normale aus der Position quer über das Band
         float c = sqrt(max(0.0, 1.0 - vSide * vSide));
         vec3 n = normalize(vPerp * vSide + vToCam * c);
+        if (normalPass == 1) { gl_FragColor = vec4(n * 0.5 + 0.5, 1.0); return; }
         vec3 L = normalize(vec3(0.35, 0.55, 0.75));
         float diff = max(dot(n, L), 0.0);
         float spec = pow(max(dot(reflect(-L, n), vToCam), 0.0), 20.0) * 0.28;
@@ -274,6 +290,96 @@ function makeTubeMaterial(uniforms) {
         float luma = dot(vColor, vec3(0.299, 0.587, 0.114));
         vec3 col = vColor * (0.38 + 0.62 * diff) + vec3(0.22 * (1.0 - luma) * diff * diff) + spec;
         gl_FragColor = vec4(col, 1.0);
+      }`,
+  });
+}
+
+// Umgebungsverdeckung aus dem Tiefenpuffer: Rillen zwischen den Schichten und
+// Ecken werden abgedunkelt. Wird als Faktor multiplikativ über das Bild gelegt.
+const FULLSCREEN_VERT = /* glsl */ `
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+const VIEWPOS_GLSL = /* glsl */ `
+  uniform sampler2D tDepth; uniform mat4 projInv;
+  vec3 viewPos(vec2 uv) {
+    vec4 v = projInv * vec4(uv * 2.0 - 1.0, texture2D(tDepth, uv).x * 2.0 - 1.0, 1.0);
+    return v.xyz / v.w;
+  }`;
+
+function makeAoMaterial(depthTexture, normalTexture) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      tDepth: { value: depthTexture }, tNormal: { value: normalTexture },
+      proj: { value: new THREE.Matrix4() }, projInv: { value: new THREE.Matrix4() },
+      radius: { value: 1.2 }, strength: { value: 1.0 }, pxScale: { value: 500 },
+    },
+    depthTest: false, depthWrite: false, toneMapped: false, blending: THREE.NoBlending,
+    vertexShader: FULLSCREEN_VERT,
+    fragmentShader: /* glsl */ `
+      ${VIEWPOS_GLSL}
+      uniform sampler2D tNormal; uniform mat4 proj;
+      uniform float radius; uniform float strength; uniform float pxScale;
+      varying vec2 vUv;
+      void main() {
+        if (texture2D(tDepth, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+        vec3 p = viewPos(vUv);
+        // Suchradius in Pixeln: zu klein gibt nur Moiré auf den feinen Rillen, dann keine Schattierung
+        float fade = smoothstep(10.0, 24.0, radius * pxScale / max(-p.z, 1e-3));
+        if (fade <= 0.0) { gl_FragColor = vec4(1.0); return; }
+        vec3 n = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
+        vec3 tg = normalize(cross(n, abs(n.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
+        vec3 bt = cross(n, tg);
+        // Pro Pixel gedrehtes Muster (Interleaved Gradient Noise); das Rauschen glättet der Weichzeichner
+        float ang = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+        float bias = 0.002 * abs(p.z);
+        float occ = 0.0;
+        for (int i = 0; i < 16; i++) {
+          float fi = float(i);
+          float r = (fi + 0.5) / 16.0;
+          float a = ang + fi * 2.39996; // goldener Winkel
+          vec3 sp = p + radius * r * (tg * cos(a) + bt * sin(a)) + n * radius * (0.15 + 0.5 * sqrt(1.0 - r * r)) * r;
+          vec4 c = proj * vec4(sp, 1.0);
+          vec2 suv = c.xy / c.w * 0.5 + 0.5;
+          if (suv.x < 0.0 || suv.y < 0.0 || suv.x > 1.0 || suv.y > 1.0) continue;
+          float sz = viewPos(suv).z;
+          float range = smoothstep(0.0, 1.0, radius / max(abs(p.z - sz), 1e-4));
+          occ += (sz >= sp.z + bias ? 1.0 : 0.0) * range;
+        }
+        float ao = mix(1.0, clamp(1.0 - strength * occ / 16.0, 0.4, 1.0), fade);
+        gl_FragColor = vec4(vec3(ao), 1.0);
+      }`,
+  });
+}
+
+// Weichzeichner mit Rücksicht auf Kanten (nur Nachbarn in ähnlicher Tiefe), legt die
+// Schattierung multiplikativ über das fertige, kantengeglättete Bild
+function makeAoBlurMaterial(depthTexture, aoTexture) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      tDepth: { value: depthTexture }, tAo: { value: aoTexture },
+      projInv: { value: new THREE.Matrix4() }, texel: { value: new THREE.Vector2() },
+    },
+    depthTest: false, depthWrite: false, toneMapped: false,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+    blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor,
+    vertexShader: FULLSCREEN_VERT,
+    fragmentShader: /* glsl */ `
+      ${VIEWPOS_GLSL}
+      uniform sampler2D tAo; uniform vec2 texel;
+      varying vec2 vUv;
+      void main() {
+        if (texture2D(tDepth, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+        float z0 = viewPos(vUv).z;
+        float sum = 0.0, wsum = 0.0;
+        for (int x = -2; x <= 2; x++) {
+          for (int y = -2; y <= 2; y++) {
+            vec2 uv = vUv + vec2(float(x), float(y)) * texel;
+            float w = 1.0 - smoothstep(0.0, 0.01 * abs(z0), abs(viewPos(uv).z - z0));
+            sum += texture2D(tAo, uv).r * w;
+            wsum += w;
+          }
+        }
+        gl_FragColor = vec4(vec3(sum / max(wsum, 1e-4)), 1.0);
       }`,
   });
 }
@@ -297,7 +403,7 @@ function start({ meta, pts, polys }) {
   const cx = (minx + maxx) / 2, cy = (miny + maxy) / 2, cz = maxz / 2;
   const size = Math.max(maxx - minx, maxy - miny, maxz, 10);
 
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 5000);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
   camera.up.set(0, 0, 1);
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -321,7 +427,7 @@ function start({ meta, pts, polys }) {
   grid.position.set(bed / 2, bed / 2, -0.01);
   scene.add(grid);
 
-  const { geo, tube } = buildGeometry(meta, pts, polys);
+  const { geo, tube, pos } = buildGeometry(meta, pts, polys);
   const uniforms = makeUniforms();
   const mat = { uniforms }; // gemeinsame Einstellungen für Linien und Röhren
   uniforms.halfWidth.value = (Number(root.dataset.nozzle) || 0.4) * 1.05 / 2;
@@ -381,19 +487,24 @@ function start({ meta, pts, polys }) {
   slider.max = nLayers - 1;
   slider.value = nLayers - 1;
   const fmt = (v) => v.toLocaleString(LOCALE, { maximumFractionDigits: 2 });
-  const applyLayers = () => {
+  const applyLayers = (keepCut = false) => {
     const v = Number(slider.value);
+    if (!keepCut) {
+      playing = false;
+      if (playBtn) { playBtn.textContent = "▶"; playBtn.setAttribute("aria-label", t("Abspielen")); playBtn.title = t("Abspielen"); }
+      setCut(null);
+    }
     const lo = single.checked ? v : 0;
     mat.uniforms.maxLayer.value = v;
     mat.uniforms.minLayer.value = lo;
     range = { lo, hi: v };
     // Nur den sichtbaren Schichtbereich an die Grafikkarte schicken
-    show(restObject());
+    show(playing ? motionObject() : restObject());
     label.textContent = t("{n} von {total} ({mm} mm)", { n: v + 1, total: nLayers, mm: fmt(meta.layers[v] || 0) });
     render();
   };
-  slider.addEventListener("input", applyLayers);
-  single.addEventListener("change", applyLayers);
+  slider.addEventListener("input", () => applyLayers());
+  single.addEventListener("change", () => applyLayers());
   window.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
     if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -401,6 +512,130 @@ function start({ meta, pts, polys }) {
       slider.value = Number(slider.value) + (e.key === "ArrowUp" ? 1 : -1);
       applyLayers();
     }
+  });
+
+  // --- Wiedergabe innerhalb der Schicht ------------------------------------------------
+  // Bahnlänge bis zu jedem Punkt; Leerfahrten zählen nicht. Damit läuft die Wiedergabe
+  // mit gleichmäßiger Geschwindigkeit in mm/s statt Punkt für Punkt.
+  const nPts = pos.length / 3;
+  const cum = new Float64Array(nPts);
+  for (let i = 0; i < polys.length; i += 5) {
+    const start = polys[i], count = polys[i + 1];
+    let acc = start > 0 ? cum[start - 1] : 0;
+    cum[start] = acc;
+    for (let j = 1; j < count; j++) {
+      const a = (start + j - 1) * 3, b = (start + j) * 3;
+      acc += Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1]);
+      cum[start + j] = acc;
+    }
+  }
+  const lp = tube.userData.layerPoint;
+  const layerLen = (l) => {
+    const a = lp[l], b = lp[l + 1] - 1;
+    return b >= a ? [cum[a], cum[b]] : [0, 0];
+  };
+  // Strecke -> Punktindex mit Bruchteil (Instanz i verbindet Punkt i und i+1)
+  const cutFor = (l, dist) => {
+    let lo = lp[l], hi = Math.max(lp[l], lp[l + 1] - 1);
+    if (dist >= cum[hi]) return hi;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= dist) lo = mid; else hi = mid; }
+    const d = cum[hi] - cum[lo];
+    return lo + (d > 0 ? (dist - cum[lo]) / d : 0);
+  };
+
+  // Düse: kleiner Kegel mit Spitze nach unten, zeigt die aktuelle Position
+  const hw = uniforms.halfWidth.value;
+  const nozzle = new THREE.Mesh(
+    new THREE.ConeGeometry(hw * 3, hw * 8, 20),
+    new THREE.MeshBasicMaterial({ color: 0xe0a64a }),
+  );
+  nozzle.rotation.x = -Math.PI / 2;
+  nozzle.visible = false;
+  scene.add(nozzle);
+
+  const progress = document.getElementById("layer-progress");
+  const playBtn = document.getElementById("play");
+  const speedBtn = document.getElementById("play-speed");
+  let playDist = null; // null: Schicht vollständig
+  let playing = false;
+  let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("druckarchiv-play-speed", 10))));
+  const setCut = (dist) => {
+    const l = Number(slider.value);
+    const [a, b] = layerLen(l);
+    if (dist === null || dist >= b) {
+      playDist = null;
+      uniforms.cutPoint.value = CUT_ALL;
+      nozzle.visible = false;
+      if (progress) progress.value = progress.max;
+      return;
+    }
+    playDist = Math.max(a, dist);
+    const c = cutFor(l, playDist);
+    uniforms.cutPoint.value = c;
+    const i = Math.floor(c), f = c - i, j = Math.min(i + 1, nPts - 1);
+    nozzle.position.set(
+      pos[i * 3] + (pos[j * 3] - pos[i * 3]) * f,
+      pos[i * 3 + 1] + (pos[j * 3 + 1] - pos[i * 3 + 1]) * f,
+      pos[i * 3 + 2] + hw * 5,
+    );
+    nozzle.visible = true;
+    if (progress) progress.value = b > a ? Math.round(((playDist - a) / (b - a)) * Number(progress.max)) : progress.max;
+  };
+  const setPlaying = (on) => {
+    playing = on;
+    if (playBtn) {
+      playBtn.textContent = on ? "❚❚" : "▶";
+      playBtn.setAttribute("aria-label", on ? t("Anhalten") : t("Abspielen"));
+      playBtn.title = playBtn.getAttribute("aria-label");
+    }
+    if (on) {
+      const l = Number(slider.value);
+      if (playDist === null) {
+        // Vom Ende aus neu starten: bei der untersten sichtbaren Schicht beginnen
+        if (l >= nLayers - 1 || single.checked) { slider.value = single.checked ? l : 0; applyLayers(true); }
+        setCut(layerLen(Number(slider.value))[0]);
+      }
+      lastTick = 0;
+      requestAnimationFrame(tick);
+    }
+    render();
+  };
+  let lastTick = 0;
+  const tick = (now) => {
+    if (!playing) return;
+    const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
+    lastTick = now;
+    let dist = (playDist ?? layerLen(Number(slider.value))[0]) + PLAY_MM_S * PLAY_SPEEDS[speedIdx] * dt;
+    let l = Number(slider.value);
+    while (dist >= layerLen(l)[1]) {
+      if (single.checked || l >= nLayers - 1) { setCut(null); setPlaying(false); return; }
+      dist = layerLen(l + 1)[0] + (dist - layerLen(l)[1]);
+      slider.value = ++l;
+      applyLayers(true);
+    }
+    setCut(dist);
+    render();
+    requestAnimationFrame(tick);
+  };
+  if (progress) {
+    progress.addEventListener("input", () => {
+      const [a, b] = layerLen(Number(slider.value));
+      setCut(a + (b - a) * (Number(progress.value) / Number(progress.max)));
+      render();
+    });
+  }
+  playBtn?.addEventListener("click", () => setPlaying(!playing));
+  const showSpeed = () => { if (speedBtn) speedBtn.textContent = `${PLAY_SPEEDS[speedIdx]}×`; };
+  speedBtn?.addEventListener("click", () => {
+    speedIdx = (speedIdx + 1) % PLAY_SPEEDS.length;
+    store.set("druckarchiv-play-speed", PLAY_SPEEDS[speedIdx]);
+    showSpeed();
+  });
+  showSpeed();
+  window.addEventListener("keydown", (e) => {
+    if (e.key !== " " || /^(INPUT|BUTTON|SELECT|TEXTAREA|SUMMARY)$/.test(e.target.tagName)) return;
+    e.preventDefault();
+    setPlaying(!playing);
   });
 
   // Legende mit Ein-/Ausblenden
@@ -478,9 +713,69 @@ function start({ meta, pts, polys }) {
     requestAnimationFrame(() => {
       pending = false;
       if (controls.update()) render(); // Dämpfung ausklingen lassen
-      renderer.render(scene, camera);
+      draw();
     });
   }
+
+  // Tiefenschattierung: nur im Stillstand, nur bei Röhren und wenn das Gerät es schafft
+  const aoToggle = document.getElementById("ao-toggle");
+  let aoWanted = store.get("druckarchiv-ao", "1") === "1";
+  if (aoToggle) {
+    aoToggle.checked = aoWanted;
+    aoToggle.addEventListener("change", () => {
+      aoWanted = aoToggle.checked;
+      store.set("druckarchiv-ao", aoWanted ? "1" : "0");
+      render();
+    });
+  }
+  const aoTarget = new THREE.WebGLRenderTarget(1, 1, { depthTexture: new THREE.DepthTexture(1, 1) });
+  const aoBuffer = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+  const aoMat = makeAoMaterial(aoTarget.depthTexture, aoTarget.texture);
+  const blurMat = makeAoBlurMaterial(aoTarget.depthTexture, aoBuffer.texture);
+  aoMat.uniforms.radius.value = hw * 6;
+  const aoQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), aoMat);
+  aoQuad.frustumCulled = false;
+  const aoScene = new THREE.Scene();
+  aoScene.add(aoQuad);
+  const aoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const bufSize = new THREE.Vector2();
+  const aoActive = () =>
+    aoWanted && !moving && !playing && tubes.visible && perf.tube !== null &&
+    perf.tube * visibleShare() * 2.2 <= REST_MAX_MS;
+  function draw() {
+    renderer.render(scene, camera);
+    if (!aoActive()) return;
+    renderer.getDrawingBufferSize(bufSize);
+    if (aoTarget.width !== bufSize.x || aoTarget.height !== bufSize.y) {
+      aoTarget.setSize(bufSize.x, bufSize.y);
+      aoBuffer.setSize(bufSize.x, bufSize.y);
+    }
+    // 1. Tiefe und Normalen der Röhren
+    const bg = scene.background;
+    grid.visible = false; nozzle.visible = false; scene.background = null;
+    uniforms.normalPass.value = 1;
+    renderer.setRenderTarget(aoTarget);
+    renderer.render(scene, camera);
+    uniforms.normalPass.value = 0;
+    grid.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
+    // 2. Schattierung in einen eigenen Puffer
+    aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
+    aoMat.uniforms.projInv.value.copy(camera.projectionMatrixInverse);
+    aoMat.uniforms.pxScale.value = camera.projectionMatrix.elements[5] * bufSize.y / 2;
+    aoQuad.material = aoMat;
+    renderer.setRenderTarget(aoBuffer);
+    renderer.render(aoScene, aoCam);
+    // 3. Weichzeichnen und über das Bild legen
+    blurMat.uniforms.projInv.value.copy(camera.projectionMatrixInverse);
+    blurMat.uniforms.texel.value.set(1 / bufSize.x, 1 / bufSize.y);
+    aoQuad.material = blurMat;
+    renderer.setRenderTarget(null);
+    const auto = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.render(aoScene, aoCam);
+    renderer.autoClear = auto;
+  }
+
   // --- Automatische Abstimmung auf die Leistung des Geräts -------------------
   // Gemessene Bildzeiten bei voller Sichtbarkeit (ms). Aus ihnen wird für jeden
   // Schichtbereich die schönste Darstellung gewählt, die noch flüssig läuft.
