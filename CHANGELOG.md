@@ -1,5 +1,13 @@
 # Änderungen
 
+## Unveröffentlicht
+
+- Browsertest in der CI: Playwright öffnet alle Seiten und die 3D-Vorschau in
+  Chromium, klickt Einfärbungen, Einblendungen, Wiedergabe, Bildexport und
+  Sprachwahl durch und schlägt bei jedem JavaScript-Fehler fehl. Ein Release wird
+  nur gebaut, wenn Python- und Browsertests grün sind.
+- Tests nutzen `httpx2` statt des veralteten `httpx` für den Testclient.
+
 ## 0.5.7
 
 - Sicherheit: Änderungen werden nur noch von den eigenen Seiten angenommen (Prüfung

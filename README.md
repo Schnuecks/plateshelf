@@ -319,6 +319,9 @@ liegt.
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 python -m pytest -q                        # Tests ausführen
+pip install -r requirements-browser.txt    # optional: Browsertest mit Playwright
+python -m playwright install chromium
+python -m pytest -q tests/test_browser.py  # Seiten und 3D-Vorschau in Chromium
 python tools/make_sample.py ./library      # Beispieldateien erzeugen
 LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 ```
