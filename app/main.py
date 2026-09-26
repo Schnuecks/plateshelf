@@ -38,7 +38,8 @@ def _app_version() -> str:
 
 APP_VERSION = _app_version()
 APP_AUTHOR = "Schnuecks"
-APP_REPO = "https://github.com/schnuecks/druckarchiv"
+APP_NAME = "PlateShelf"
+APP_REPO = "https://github.com/schnuecks/plateshelf"
 APP_LICENSE = "AGPL-3.0"
 # Beschriftungen werden beim Anzeigen übersetzt
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
@@ -56,14 +57,14 @@ async def lifespan(_app):
     yield
 
 
-app = FastAPI(title="Druckarchiv", docs_url=None, redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
     i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
     if request.method not in SAFE_METHODS and not same_origin(request):
-        logging.getLogger("druckarchiv").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
+        logging.getLogger("plateshelf").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
                                                  request.method, request.url.path,
                                                  request.headers.get("origin") or request.headers.get("referer"))
         return PlainTextResponse(_("Anfrage von einer fremden Seite abgelehnt."), status_code=403)
@@ -72,7 +73,7 @@ async def language_middleware(request: Request, call_next):
             return RedirectResponse(f"/login?next={quote(current_url(request))}", status_code=303)
         # Skripte und Dashboards: Anmeldung per HTTP Basic Auth
         return PlainTextResponse(_("Anmeldung erforderlich."), status_code=401,
-                                 headers={"WWW-Authenticate": 'Basic realm="Druckarchiv", charset="UTF-8"'})
+                                 headers={"WWW-Authenticate": f'Basic realm="{APP_NAME}", charset="UTF-8"'})
     return await call_next(request)
 
 
@@ -97,7 +98,7 @@ def _local_target(target: str) -> str:
 
 # --- Schutz vor fremden Seiten (CSRF) ----------------------------------------
 # Ohne Anmeldung (Standard) und selbst mit gültiger Sitzung könnte jede Webseite, die
-# man im selben Netz öffnet, dem Browser ein Formular an das Druckarchiv unterschieben
+# man im selben Netz öffnet, dem Browser ein Formular an PlateShelf unterschieben
 # (z. B. „Papierkorb leeren“). Browser schicken bei solchen Anfragen immer Origin oder
 # Referer mit; stimmt deren Host nicht mit dem angefragten überein, wird abgelehnt.
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -190,7 +191,7 @@ def js_texts() -> dict[str, str]:
 
 
 templates.env.globals["js_texts"] = js_texts
-templates.env.globals.update(APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
+templates.env.globals.update(APP_NAME=APP_NAME, APP_VERSION=APP_VERSION, APP_AUTHOR=APP_AUTHOR, APP_REPO=APP_REPO,
                              APP_LICENSE=APP_LICENSE)
 
 
@@ -513,7 +514,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
-        "import_dir": printer_import.IMPORT_DIR,
+        "import_dir": printer_import.import_dir(),
     }, status_code=status_code)
 
 
@@ -940,6 +941,12 @@ def api_stats():
     }
 
 
+@app.get("/about")
+def about(request: Request):
+    return templates.TemplateResponse(request, "about.html", {"license_url": f"{APP_REPO}/blob/main/LICENSE",
+                                                              "changelog_url": f"{APP_REPO}/blob/main/CHANGELOG.md"})
+
+
 @app.get("/login")
 def login_form(request: Request, next: str = "/"):
     if not auth.enabled():
@@ -981,7 +988,7 @@ def logout():
 
 @app.get("/healthz")
 def healthz(request: Request):
-    # Mit Anmeldung verrät der offene Healthcheck nur, dass das Druckarchiv läuft
+    # Mit Anmeldung verrät der offene Healthcheck nur, dass PlateShelf läuft
     if auth.enabled() and not signed_in(request):
         return {"ok": True}
     return {"ok": True, "scan": store.last_scan, "printers": printer_import.state}

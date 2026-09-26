@@ -79,7 +79,7 @@ def test_energy_costs_and_settings(client, lib, sample):
 def test_footer_shows_version(client):
     from app import main
     page = client.get("/").text
-    assert f"Druckarchiv {main.APP_VERSION} von Schnuecks" in page
+    assert f"PlateShelf {main.APP_VERSION} von Schnuecks" in page
     assert "blob/main/LICENSE" in page and "AGPL-3.0" in page
 
 
@@ -132,7 +132,7 @@ def test_printer_date_in_german():
 def test_settings_hint_shows_import_folder_as_code(client):
     """Regression: Verketten mit ~ hatte das <code> im Hinweis mit escapt."""
     page = client.get("/einstellungen").text
-    assert "<code>Vom Drucker/&lt;Name&gt;/</code>" in page
+    assert "<code>From printer/&lt;Name&gt;/</code>" in page
     assert "&lt;code&gt;" not in page
 
 
@@ -180,3 +180,12 @@ def test_foreign_sites_cannot_change_anything(client, lib, sample, monkeypatch):
     r = client.post(f"/f/{fid}/delete", headers={"Origin": "http://testserver"}, follow_redirects=False)
     assert r.status_code == 303 and not (lib / "Teil.gcode.3mf").exists()
     assert client.get("/", headers={"Origin": "https://boese.example"}).status_code == 200  # Lesen bleibt erlaubt
+
+
+def test_about_page_and_logo(client):
+    from app import main
+    page = client.get("/about").text
+    assert "Über PlateShelf" in page and main.APP_VERSION in page and "github.com/schnuecks/plateshelf" in page
+    assert 'href="/about"' in client.get("/").text  # Link im Footer
+    logo = client.get("/static/logo.svg")
+    assert logo.status_code == 200 and "<svg" in logo.text

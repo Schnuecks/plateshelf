@@ -1,4 +1,4 @@
-/* Druckarchiv: kühles Werkstattgrau, Vorschaubilder liegen auf einer dunklen
+/* PlateShelf: kühles Werkstattgrau, Vorschaubilder liegen auf einer dunklen
    „Druckplatte“, darunter ein Filamentstrang in den echten Farben des Drucks. */
 :root {
   --bg: #ECEEF0;
@@ -76,8 +76,10 @@ th.r, td.r, .r { text-align: right; }
   padding: .75rem clamp(1rem, 3vw, 2rem);
   background: var(--surface); border-bottom: 1px solid var(--line);
 }
+.brand img { display: block; border-radius: 6px; }
 .brand {
   font: 600 1.25rem/1 var(--font-cond); color: var(--ink); text-decoration: none; letter-spacing: .01em;
+  display: inline-flex; align-items: center; gap: .5rem;
 }
 .tb-left { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.5rem; flex: 1; min-width: 0; }
 /* Seiten mit Zurück-Knopf: Knopf genau in der Mitte der Kopfzeile */
@@ -412,6 +414,20 @@ button.danger-quiet:hover { color: var(--ink); }
 .lang-menu .menu button:hover { background: var(--bg); }
 .lang-menu .menu button[aria-checked="true"] { font-weight: 600; color: var(--accent); }
 .lang-menu .menu button:first-child { border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0; margin-bottom: .2rem; }
+
+/* Über PlateShelf */
+.about-page { max-width: 46rem; margin: 0 auto; }
+.about-head { display: flex; align-items: center; gap: 1.1rem; margin: .5rem 0 1.5rem; }
+.about-head img { width: 84px; height: 84px; border-radius: 18px; flex-shrink: 0; }
+.about-head h1 { font: 600 2.4rem/1 var(--font-cond); margin: 0; }
+.about-head .tagline { margin: .35rem 0 0; color: var(--muted); font-size: 1.05rem; }
+.about-page section { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1.1rem 1.3rem; margin-bottom: 1.25rem; }
+.about-page h2 { font: 600 1.15rem/1.2 var(--font-cond); margin: 0 0 .6rem; }
+.about-page p { margin: 0 0 .6rem; }
+.about-page ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .35rem; }
+.about-facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.2rem; margin: 0; }
+.about-facts dt { color: var(--muted); }
+.about-facts dd { margin: 0; }
 
 /* Anmeldung */
 .login-page { display: grid; place-items: center; min-height: 60vh; }

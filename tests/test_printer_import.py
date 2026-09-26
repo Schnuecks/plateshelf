@@ -63,7 +63,7 @@ def test_sync_keeps_every_printed_plate(lib, sample, tmp_path):
     assert pi.sync_printer(PRINTER, connect=fake)["new"] == 0  # unverändert
     fake.files["Jade_Mountains.gcode.3mf"] = (srcs[3], "Jan 20  2026")  # Drucker hat überschrieben
     assert pi.sync_printer(PRINTER, connect=fake)["updated"] == 1
-    target = lib / "Vom Drucker" / "P2S"
+    target = lib / "From printer" / "P2S"
     assert sorted(os.listdir(target)) == ["Jade_Mountains_plate_1.gcode.3mf", "Jade_Mountains_plate_3.gcode.3mf"]
     # Im Archiv gelöscht: kommt nicht zurück
     (target / "Jade_Mountains_plate_3.gcode.3mf").unlink()
@@ -171,3 +171,17 @@ def test_save_printers_from_settings(lib, monkeypatch):
     pi.save_printers([{"db_id": p["db_id"], "delete": True}])
     assert pi.db_printers() == []
 
+
+
+def test_legacy_import_folder_is_kept(lib, monkeypatch):
+    """Bestehende Installationen mit „Vom Drucker“ importieren weiter dorthin."""
+    monkeypatch.delenv("PRINTER_IMPORT_DIR", raising=False)
+    assert pi.import_dir() == "From printer"
+    (lib / "Vom Drucker").mkdir()
+    assert pi.import_dir() == "Vom Drucker"
+    monkeypatch.setenv("PRINTER_IMPORT_DIR", "Drucke")
+    assert pi.import_dir() == "Drucke"
+    # Dateien in beiden Importordnern werden über den Namen gruppiert, nicht als ein Projekt
+    from pathlib import Path
+    assert store.group_key_for(Path("Vom Drucker/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
+    assert store.group_key_for(Path("From printer/P2S/Benchy.gcode.3mf"))[1] == "Benchy"

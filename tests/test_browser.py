@@ -47,7 +47,7 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
-    """Druckarchiv mit Beispielbibliothek in einem eigenen Thread."""
+    """PlateShelf mit Beispielbibliothek in einem eigenen Thread."""
     import uvicorn
     from make_sample import make
 
@@ -58,7 +58,7 @@ def server(tmp_path_factory):
     library.mkdir()
     saved = {k: getattr(store, k) for k in ("LIBRARY_DIR", "DATA_DIR", "DB_PATH", "THUMB_DIR", "PREBUILD")}
     store.LIBRARY_DIR, store.DATA_DIR = library, data
-    store.DB_PATH, store.THUMB_DIR, store.PREBUILD = data / "druckarchiv.sqlite", data / "thumbs", False
+    store.DB_PATH, store.THUMB_DIR, store.PREBUILD = data / "plateshelf.sqlite", data / "thumbs", False
 
     # Datei mit echten Druckbahnen für die 3D-Vorschau
     model = library / "Zylinder.gcode.3mf"
@@ -114,7 +114,7 @@ def page(browser):
     context.close()
 
 
-@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/einstellungen", "/papierkorb", "/upload"])
+@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/einstellungen", "/papierkorb", "/upload", "/about"])
 def test_pages_without_errors(server, page, path):
     response = page.goto(server["url"] + path.format(**server))
     assert response.status == 200

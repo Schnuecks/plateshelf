@@ -42,7 +42,8 @@ def test_pick_language(monkeypatch):
     monkeypatch.delenv("DEFAULT_LANGUAGE", raising=False)
     assert i18n.pick_language(None, "fr-CH,fr;q=0.9,en;q=0.8") == "fr"
     assert i18n.pick_language(None, "pt-BR,en;q=0.5") == "en"
-    assert i18n.pick_language(None, "ja") == "de"
+    assert i18n.pick_language(None, "ja") == "en"  # nicht unterstützt: Englisch
+    assert i18n.pick_language(None, None) == "en"
     assert i18n.pick_language("it", "fr") == "it"  # Cookie hat Vorrang
     monkeypatch.setenv("DEFAULT_LANGUAGE", "nl")
     assert i18n.pick_language(None, "fr") == "nl"  # Vorgabe schlägt Browsersprache
@@ -105,7 +106,7 @@ def test_language_and_theme_in_pages(client, monkeypatch):
         assert r.headers["location"] == "/"
     client.cookies.clear()
     monkeypatch.setenv("DEFAULT_THEME", "light")
-    assert '<html lang="de" data-theme="light">' in client.get("/").text
+    assert '<html lang="en" data-theme="light">' in client.get("/").text  # ohne Vorgabe: Englisch
 
 
 def test_printer_errors_are_translated(client, monkeypatch):

@@ -3,7 +3,7 @@ FROM python:3.12-slim
 # Wird von GitHub Actions beim Release auf den Tag gesetzt (z. B. v0.2.0)
 ARG VERSION=dev
 
-LABEL org.opencontainers.image.title="Druckarchiv" \
+LABEL org.opencontainers.image.title="PlateShelf" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

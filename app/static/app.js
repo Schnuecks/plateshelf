@@ -93,14 +93,14 @@ document.querySelectorAll("[data-autofilter]").forEach((form) => {
   let last = search.value;
   const submitSearch = () => {
     if (search.value === last) return;
-    try { sessionStorage.setItem("druckarchiv-search-focus", "1"); } catch (e) {}
+    try { sessionStorage.setItem("plateshelf-search-focus", "1"); } catch (e) {}
     form.requestSubmit();
   };
   search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(submitSearch, 500); });
   // Nach dem Neuladen weitertippen können
   try {
-    if (sessionStorage.getItem("druckarchiv-search-focus")) {
-      sessionStorage.removeItem("druckarchiv-search-focus");
+    if (sessionStorage.getItem("plateshelf-search-focus")) {
+      sessionStorage.removeItem("plateshelf-search-focus");
       search.focus();
       const end = search.value.length;
       search.setSelectionRange(end, end);
@@ -152,7 +152,7 @@ document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
   const files = [...document.querySelectorAll("[data-file]")];
   if (plates.length < 2) return;
   let mode = "single";
-  try { mode = localStorage.getItem("druckarchiv-plate-mode") || "single"; } catch (e) {}
+  try { mode = localStorage.getItem("plateshelf-plate-mode") || localStorage.getItem("druckarchiv-plate-mode") || "single"; } catch (e) {}
   let current = plates[0];
 
   const apply = () => {
@@ -183,7 +183,7 @@ document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
   }));
   nav.querySelectorAll("[data-plate-mode]").forEach((b) => b.addEventListener("click", () => {
     mode = b.dataset.plateMode;
-    try { localStorage.setItem("druckarchiv-plate-mode", mode); } catch (e) {}
+    try { localStorage.setItem("plateshelf-plate-mode", mode); } catch (e) {}
     apply();
   }));
   window.addEventListener("hashchange", () => select(location.hash.slice(1), true));

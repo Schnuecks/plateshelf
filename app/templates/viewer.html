@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ _('3D-Vorschau') }} {{ project.name if project else '' }} – Druckarchiv{% endblock %}
+{% block title %}{{ _('3D-Vorschau') }} {{ project.name if project else '' }} – {{ APP_NAME }}{% endblock %}
 {% block body_class %}page-viewer{% endblock %}
 {% block head %}
 <script type="importmap">
-  {"imports": {"three": "/static/vendor/three.module.min.js", "druckarchiv/geometry": "/static/geometry.js?v={{ ASSET_V }}"}}
+  {"imports": {"three": "/static/vendor/three.module.min.js", "plateshelf/geometry": "/static/geometry.js?v={{ ASSET_V }}"}}
 </script>
 {% endblock %}
 {% block topbar %}
@@ -84,7 +84,7 @@
     </div>
     <p class="hint viewer-help">{% if nav.total > 1 %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht, links und rechts die Platte.') }}{% else %}{{ _('Drehen mit linker Maustaste, verschieben mit rechter, zoomen mit dem Mausrad. Pfeiltasten hoch und runter wechseln die Schicht.') }}{% endif %} {{ _('Leertaste startet und stoppt die Wiedergabe.') }} {{ _('Doppelklick oder Doppeltipp setzt die Ansicht zurück, F schaltet das Vollbild.') }}</p>
   </div>
-    <p class="viewer-footer">{{ _('Druckarchiv {version} von {author}', version=APP_VERSION, author=APP_AUTHOR) }},
+    <p class="viewer-footer">{{ _('{app} {version} von {author}', app=APP_NAME, version=APP_VERSION, author=APP_AUTHOR) }},
       <a href="{{ APP_REPO }}" target="_blank" rel="noopener">{{ _('Quellcode') }}</a>, <a href="{{ APP_REPO }}/blob/main/LICENSE" target="_blank" rel="noopener license">{{ APP_LICENSE }}</a></p>
   </aside>
 </div>

@@ -1,4 +1,24 @@
-# Änderungen
+# Changelog
+
+Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
+
+## Unreleased
+
+- **Druckarchiv is now PlateShelf.** New name in the interface, the repository
+  (`github.com/schnuecks/plateshelf`) and the image (`ghcr.io/schnuecks/plateshelf`).
+  Existing installations keep their data: `druckarchiv.sqlite` is renamed to
+  `plateshelf.sqlite` automatically, an existing `Vom Drucker` import folder keeps being
+  used, and browser settings are kept. In your `.env`, replace `DRUCKARCHIV_IMAGE` with
+  `PLATESHELF_IMAGE` (see “Upgrading from Druckarchiv” in the README).
+- New logo, also used as the browser icon.
+- New “About PlateShelf” page (link in the footer) with what PlateShelf does, version,
+  links and license.
+- English is now the default language when the browser language isn’t one of the six
+  supported ones (previously German).
+- The default folder for the direct import is now `From printer` (new installations).
+- README in English with screenshots; the German README is kept as `README.de.md`.
+  `.env.example` and `compose.yaml` are commented in English.
+- `tools/make_screenshots.py` recreates the README screenshots.
 
 ## 0.6.0
 

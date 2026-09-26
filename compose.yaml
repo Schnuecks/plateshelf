@@ -1,11 +1,11 @@
 services:
-  druckarchiv:
-    image: ${DRUCKARCHIV_IMAGE:-ghcr.io/schnuecks/druckarchiv:latest}
-    container_name: druckarchiv
+  plateshelf:
+    image: ${PLATESHELF_IMAGE:-ghcr.io/schnuecks/plateshelf:latest}
+    container_name: plateshelf
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
     env_file:
-      - path: .env       # u. a. für PRINTER_1_… (Direktimport), DEFAULT_LANGUAGE, DEFAULT_THEME
+      - path: .env       # e.g. PRINTER_1_… (direct import), DEFAULT_LANGUAGE, AUTH_USER
         required: false
     security_opt:
       - no-new-privileges:true
@@ -16,9 +16,9 @@ services:
       - PREVIEW_PREBUILD=${PREVIEW_PREBUILD:-true}
       - TRASH_DAYS=${TRASH_DAYS:-30}
       - PRINTER_SYNC_INTERVAL=${PRINTER_SYNC_INTERVAL:-600}
-      - PRINTER_IMPORT_DIR=${PRINTER_IMPORT_DIR:-Vom Drucker}
+      - PRINTER_IMPORT_DIR=${PRINTER_IMPORT_DIR:-}
     ports:
       - "${PORT:-8000}:8000"
     volumes:
-      - ${LIBRARY:-./library}:/library    # .gcode.3mf-Sammlung (für Upload und Löschen beschreibbar)
-      - ${DATA:-./data}:/data             # Datenbank, Vorschaubilder, 3D-Vorschauen
+      - ${LIBRARY:-./library}:/library    # your .gcode.3mf files (writable for upload and delete)
+      - ${DATA:-./data}:/data             # database, preview images, 3D previews

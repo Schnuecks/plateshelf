@@ -19,11 +19,12 @@ from pathlib import Path
 
 from .parser import parse_3mf
 
-log = logging.getLogger("druckarchiv")
+log = logging.getLogger("plateshelf")
 
 LIBRARY_DIR = Path(os.environ.get("LIBRARY_DIR", "/library"))
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
-DB_PATH = DATA_DIR / "druckarchiv.sqlite"
+DB_PATH = DATA_DIR / "plateshelf.sqlite"
+LEGACY_DB_NAME = "druckarchiv.sqlite"  # Name bis Version 0.6
 THUMB_DIR = DATA_DIR / "thumbs"
 
 SCHEMA = """
@@ -126,8 +127,21 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
+def _migrate_db_name() -> None:
+    """Datenbank aus der Zeit vor der Umbenennung (Druckarchiv) übernehmen."""
+    old = DB_PATH.with_name(LEGACY_DB_NAME)
+    if DB_PATH.exists() or not old.exists():
+        return
+    for suffix in ("", "-wal", "-shm"):
+        src = old.with_name(old.name + suffix)
+        if src.exists():
+            src.replace(DB_PATH.with_name(DB_PATH.name + suffix))
+    log.info("Datenbank %s in %s umbenannt", LEGACY_DB_NAME, DB_PATH.name)
+
+
 def init_db() -> None:
     global _force_next_scan
+    _migrate_db_name()
     with connect() as con:
         con.executescript(SCHEMA)
         # Ältere Datenbanken erweitern und danach alles neu einlesen
@@ -150,7 +164,7 @@ def init_db() -> None:
 _STEM_SUFFIX = re.compile(r"([_\- ]?(plate|platte)[_\- ]?\d+|[_\- ]?\(\d+\)|[_\- ]v\d+|[_\-. ]gcode|[_\-. ](3mf|stl|step|stp|obj))$", re.I)
 _MEANINGLESS = re.compile(r"\(?unsaved\)?|untitled|unbenannt|[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.I)
 # Ordner, deren Dateien über den Namen gruppiert werden statt als ein Projekt
-FLAT_DIRS = {os.environ.get("PRINTER_IMPORT_DIR", "Vom Drucker").lower()}
+FLAT_DIRS = {"from printer", "vom drucker"} | {os.environ.get("PRINTER_IMPORT_DIR", "").strip().lower()} - {""}
 
 
 def group_key_for(rel: Path) -> tuple[str, str]:
