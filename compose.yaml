@@ -4,6 +4,9 @@ services:
     container_name: druckarchiv
     restart: unless-stopped
     user: "${PUID:-1000}:${PGID:-1000}"
+    env_file:
+      - path: .env       # u. a. für PRINTER_1_NAME, PRINTER_1_IP … (Direktimport)
+        required: false
     security_opt:
       - no-new-privileges:true
     environment:
@@ -19,5 +22,3 @@ services:
     volumes:
       - ${LIBRARY:-./library}:/library    # .gcode.3mf-Sammlung (für Upload und Löschen beschreibbar)
       - ${DATA:-./data}:/data             # Datenbank, Vorschaubilder, 3D-Vorschauen
-      # Optional: Direktimport von Bambu-Druckern (siehe README)
-      # - ${PRINTERS_JSON}:/config/printers.json:ro

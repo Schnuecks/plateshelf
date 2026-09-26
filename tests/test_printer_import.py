@@ -133,3 +133,53 @@ def test_implicit_ftps_against_real_tls_server(lib, sample, tmp_path):
         assert bad["error"].startswith("Anmeldung abgelehnt")
     finally:
         server.close_all()
+
+
+def test_env_printers():
+    env = {"PRINTER_2_IP": "192.0.2.21", "PRINTER_2_SERIAL": "SER2", "PRINTER_2_CODE": "b",
+           "PRINTER_1_NAME": "P2S", "PRINTER_1_IP": "192.0.2.20", "PRINTER_1_SERIAL": "SER1", "PRINTER_1_CODE": "a",
+           "PRINTER_3_IP": "192.0.2.22", "PRINTER_3_SERIAL": "SER3",  # Zugangscode fehlt: wird übersprungen
+           "PRINTER_SYNC_INTERVAL": "600"}
+    printers = pi.env_printers(env)
+    assert [(p["name"], p["id"], p["ip"], p["code"]) for p in printers] == [
+        ("P2S", "SER1", "192.0.2.20", "a"), ("SER2", "SER2", "192.0.2.21", "b")]
+
+
+def test_save_printers_from_settings(lib, monkeypatch):
+    monkeypatch.setattr(pi, "PRINTERS_FILE", lib / "gibt-es-nicht.json")
+    pi.init()
+    pi.save_printers([{"db_id": None, "name": "P1S", "ip": "192.0.2.30", "serial": "S1", "code": "geheim"},
+                      {"db_id": None, "name": "", "ip": "", "serial": "", "code": ""}])  # leere Zeile ignoriert
+    (p,) = pi.db_printers()
+    assert (p["name"], p["ip"], p["id"], p["code"]) == ("P1S", "192.0.2.30", "S1", "geheim")
+    # Leerer Zugangscode behält den gespeicherten
+    pi.save_printers([{"db_id": p["db_id"], "name": "P1S Werkstatt", "ip": "192.0.2.31", "serial": "S1", "code": ""}])
+    (p,) = pi.db_printers()
+    assert (p["name"], p["ip"], p["code"]) == ("P1S Werkstatt", "192.0.2.31", "geheim")
+    with pytest.raises(ValueError, match="Zugangscode fehlt"):
+        pi.save_printers([{"db_id": None, "name": "Neu", "ip": "192.0.2.40", "serial": "S2", "code": ""}])
+    with pytest.raises(ValueError, match="doppelt"):
+        pi.save_printers([{"db_id": p["db_id"], "name": "A", "ip": "x", "serial": "S1", "code": ""},
+                          {"db_id": None, "name": "B", "ip": "y", "serial": "S1", "code": "c"}])
+    assert len(pi.db_printers()) == 1  # nach Fehler unverändert
+    # Umgebungsvariable hat Vorrang und blockiert dieselbe Seriennummer
+    monkeypatch.setenv("PRINTER_1_IP", "192.0.2.50")
+    monkeypatch.setenv("PRINTER_1_SERIAL", "S1")
+    monkeypatch.setenv("PRINTER_1_CODE", "env")
+    assert [(p["source"], p["ip"]) for p in pi.load_printers()] == [("env", "192.0.2.50")]
+    with pytest.raises(ValueError, match="Umgebungsvariablen"):
+        pi.save_printers([{"db_id": p["db_id"], "name": "A", "ip": "x", "serial": "S1", "code": ""}])
+    pi.save_printers([{"db_id": p["db_id"], "delete": True}])
+    assert pi.db_printers() == []
+
+
+def test_printers_json_is_imported_once(lib, tmp_path, monkeypatch):
+    f = tmp_path / "printers.json"
+    f.write_text('[{"name": "P2S", "id": "SER1", "code": "abc", "ip": "192.0.2.20"}, {"name": "kaputt"}]',
+                 encoding="utf-8")
+    monkeypatch.setattr(pi, "PRINTERS_FILE", f)
+    pi.init()
+    assert [(p["name"], p["id"], p["code"]) for p in pi.db_printers()] == [("P2S", "SER1", "abc")]
+    pi.save_printers([])  # in den Einstellungen alle entfernt
+    pi.init()  # die Datei liegt noch da, wird aber nicht erneut übernommen
+    assert pi.db_printers() == []

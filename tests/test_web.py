@@ -88,3 +88,33 @@ def test_version_formatting(monkeypatch):
     for raw, shown in [("v0.2.0", "0.2.0"), ("", "dev"), ("dev-0123456789abcdef", "dev-0123456")]:
         monkeypatch.setenv("APP_VERSION", raw)
         assert main._app_version() == shown
+
+
+def test_printer_settings_page(client, monkeypatch):
+    from app import printer_import as pi
+    monkeypatch.setattr(pi, "sync_all", lambda: None)
+    r = client.post("/einstellungen/drucker", data={
+        "db_id": [""], "name": ["P1S"], "ip": ["192.0.2.30"], "serial": ["S1"], "code": ["geheim123"]},
+        follow_redirects=False)
+    assert r.status_code == 303
+    page = client.get("/einstellungen").text
+    assert "P1S" in page and "192.0.2.30" in page and "S1" in page
+    assert "geheim123" not in page  # Zugangscode wird nie ausgegeben
+    db_id = pi.db_printers()[0]["db_id"]
+    r = client.post("/einstellungen/drucker", data={
+        "db_id": [str(db_id), ""], "name": ["P1S", "Neu"], "ip": ["192.0.2.30", "192.0.2.31"],
+        "serial": ["S1", "S2"], "code": ["", ""]})
+    assert r.status_code == 400 and "Neu: Zugangscode fehlt" in r.text and "192.0.2.31" in r.text
+    r = client.post("/einstellungen/drucker", data={
+        "db_id": [str(db_id), ""], "name": ["P1S", ""], "ip": ["192.0.2.30", ""],
+        "serial": ["S1", ""], "code": ["", ""], "delete": [str(db_id)]}, follow_redirects=False)
+    assert r.status_code == 303 and pi.db_printers() == []
+
+
+def test_env_printers_are_read_only(client, monkeypatch):
+    for k, v in {"PRINTER_1_NAME": "A1 mini", "PRINTER_1_IP": "192.0.2.60",
+                 "PRINTER_1_SERIAL": "ENV1", "PRINTER_1_CODE": "envcode9"}.items():
+        monkeypatch.setenv(k, v)
+    page = client.get("/einstellungen").text
+    assert "A1 mini" in page and "über Umgebungsvariablen eingerichtet" in page
+    assert "envcode9" not in page and 'value="ENV1"' not in page  # kein Eingabefeld
