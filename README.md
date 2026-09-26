@@ -183,6 +183,10 @@ Bambu Studio:
 - Vollbild (auch Taste F), Bild als PNG speichern, die Kameraposition wird pro Platte
   gemerkt; Zoom zum Mauszeiger bzw. zu den Fingern, Doppelklick oder Doppeltipp setzt
   die Ansicht zurück
+- Druckplatte mit Struktur, 10-mm- und 50-mm-Linien; das Modell wirft einen weichen
+  Kontaktschatten. Von unten betrachtet wird die Platte ausgeblendet, damit die erste
+  Schicht sichtbar bleibt.
+- Farben wie im Slicer: Beleuchtung im linearen Farbraum, Ausgabe in sRGB
 - Tiefenschattierung (Ambient Occlusion): Rillen zwischen Bahnen und Schichten werden
   im Stillstand abgedunkelt, das Modell wirkt plastischer. Sie schaltet sich nur ein,
   wenn das Gerät schnell genug ist, und lässt sich abschalten.
@@ -191,7 +195,8 @@ Der G-Code wird nach dem Einlesen einmalig im Hintergrund aufbereitet und im
 Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert das
 etwa 10 bis 20 Sekunden, danach öffnet sich die Vorschau sofort. Beim Öffnen misst der
 Viewer kurz die Leistung des Geräts und wählt beim Drehen automatisch die schönste
-Darstellung, die noch flüssig läuft. three.js (r186) ist im Image enthalten, eine
+Darstellung, die noch flüssig läuft. Laden und Aufbereiten der Druckbahnen laufen in
+einem Web Worker, die Seite bleibt dabei bedienbar. three.js (r186) ist im Image enthalten, eine
 Internetverbindung ist nicht nötig.
 
 ## Direktimport von Bambu-Druckern

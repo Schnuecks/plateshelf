@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Schnuecks
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
+import { POLY_END, loadPreview } from "druckarchiv/geometry";
 
 // Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
 const I18N = (() => {
@@ -51,7 +52,6 @@ const store = {
 const IDLE_MS = 180;          // so lange nach der letzten Bewegung wieder volle Qualität
 const TARGET_MS = 22;         // Bildzeit, die beim Drehen noch als flüssig gilt
 const REST_MAX_MS = 400;      // länger darf ein einzelnes Standbild nicht dauern
-const POLY_END = 2000;        // Markierung im Helligkeitswert: Punkt beendet eine Bahn
 const CUT_ALL = 1e9;          // Wiedergabe aus: oberste Schicht vollständig
 const PLAY_MM_S = 150;        // Wiedergabe bei 1×: etwa übliche Druckgeschwindigkeit
 const PLAY_SPEEDS = [1, 10, 50];
@@ -79,69 +79,40 @@ async function waitForPreview() {
   }
 }
 
-async function loadData() {
+// Laden und Aufbereiten im Web Worker; ohne Worker-Unterstützung direkt hier
+function loadData() {
   loadingText.textContent = t("Druckbahnen werden geladen");
   loadingBar.removeAttribute("value");
-  const [meta, buf] = await Promise.all([
-    fetch(`${api}/meta`).then((r) => r.json()),
-    fetch(`${api}/points`).then((r) => r.arrayBuffer()),
-  ]);
-  const nPtsVals = meta.points * 2;
-  const pts = new Uint16Array(buf, 0, nPtsVals);
-  const polyOffset = Math.ceil((nPtsVals * 2) / 4) * 4;
-  const polys = new Uint32Array(buf, polyOffset, meta.polys * 5);
-  const metOffset = polyOffset + meta.polys * 5 * 4;
-  const mets = buf.byteLength >= metOffset + meta.points * 8
-    ? new Uint16Array(buf, metOffset, meta.points * 4)
-    : new Uint16Array(meta.points * 4); // ältere Vorschau ohne Messwerte
-  const trOffset = metOffset + meta.points * 8;
-  const nTr = meta.travels || 0, nRe = meta.retracts || 0;
-  const hasExtras = buf.byteLength >= trOffset + nTr * 10 + nRe * 6;
-  const travels = hasExtras ? new Uint16Array(buf, trOffset, nTr * 5) : new Uint16Array(0);
-  const retracts = hasExtras ? new Uint16Array(buf, trOffset + nTr * 10, nRe * 3) : new Uint16Array(0);
-  return { meta, pts, polys, mets, travels, retracts };
+  const progress = (phase, value) => {
+    if (phase !== "build") return;
+    loadingText.textContent = t("Geometrie wird aufgebaut: {pct} %", { pct: Math.round(value * 100) });
+    loadingBar.value = value * 100;
+  };
+  const inline = () => loadPreview(api, progress);
+  if (typeof Worker === "undefined") return inline();
+  return new Promise((resolve, reject) => {
+    let worker;
+    try {
+      worker = new Worker(`/static/geometry-worker.js?v=${root.dataset.assets || ""}`, { type: "module" });
+    } catch (e) {
+      resolve(inline());
+      return;
+    }
+    worker.onmessage = (e) => {
+      const msg = e.data;
+      if (msg.type === "progress") progress(msg.phase, msg.value);
+      else if (msg.type === "done") { worker.terminate(); resolve(msg.data); }
+      else if (msg.type === "error") { worker.terminate(); reject(new Error(msg.message)); }
+    };
+    // Worker nicht startbar (z. B. alte Browser ohne Modul-Worker): im Hauptthread weiter
+    worker.onerror = (e) => { e.preventDefault(); worker.terminate(); resolve(inline()); };
+    worker.postMessage({ api });
+  });
 }
 
-function buildGeometry(meta, pts, polys, mets) {
-  const nPts = pts.length / 2;
-  const off = meta.offset, sc = meta.scale;
-  const pos = new Float32Array(nPts * 3);
-  const info = new Uint16Array(nPts * 4); // Schicht, Linientyp, Werkzeug, Helligkeit (+POLY_END)
-  let nSeg = 0;
-  for (let i = 0; i < polys.length; i += 5) nSeg += polys[i + 1] - 1;
-  const index = new Uint32Array(nSeg * 2);
-  const nL = meta.layers.length;
-  // Wo jede Schicht beginnt: im Linien-Index und bei den Punkten (für die Röhren)
-  const layerStart = new Uint32Array(nL + 1).fill(0xffffffff);
-  const layerPoint = new Uint32Array(nL + 1).fill(0xffffffff);
-  let k = 0;
-  const lx = 0.83, ly = 0.55; // Richtung des "Lichts" für etwas Struktur bei den Linien
-  for (let i = 0; i < polys.length; i += 5) {
-    const start = polys[i], count = polys[i + 1], layer = polys[i + 2];
-    const tool = polys[i + 3], feat = polys[i + 4];
-    const z = meta.layers[layer] || 0;
-    if (layerStart[layer] === 0xffffffff) layerStart[layer] = k;
-    if (layerPoint[layer] === 0xffffffff) layerPoint[layer] = start;
-    for (let j = 0; j < count; j++) {
-      const p = start + j;
-      const x = pts[p * 2] / sc - off, y = pts[p * 2 + 1] / sc - off;
-      pos[p * 3] = x; pos[p * 3 + 1] = y; pos[p * 3 + 2] = z;
-      const q = j < count - 1 ? p + 1 : p - 1;
-      const dx = pts[q * 2] - pts[p * 2], dy = pts[q * 2 + 1] - pts[p * 2 + 1];
-      const len = Math.hypot(dx, dy) || 1;
-      const shade = Math.round((0.68 + 0.32 * Math.abs((dx * lx + dy * ly) / len)) * 1000);
-      info[p * 4] = layer; info[p * 4 + 1] = feat; info[p * 4 + 2] = tool;
-      info[p * 4 + 3] = j < count - 1 ? shade : shade + POLY_END;
-      if (j < count - 1) { index[k++] = p; index[k++] = p + 1; }
-    }
-  }
-  const fillGaps = (arr, end) => {
-    arr[nL] = end;
-    for (let l = nL - 1; l >= 0; l--) if (arr[l] === 0xffffffff) arr[l] = arr[l + 1];
-  };
-  fillGaps(layerStart, k);
-  fillGaps(layerPoint, nPts);
-
+function buildGeometry(d) {
+  const { pos, info, mets, index, layerStart, layerPoint, nSeg } = d;
+  const nPts = pos.length / 3;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
   geo.setAttribute("info", new THREE.BufferAttribute(info, 4));
@@ -239,8 +210,8 @@ function makeUniforms() {
     normalPass: { value: 0 },
     uniColor: { value: new THREE.Color(DEFAULT_UNI) },
     metricLo: { value: new THREE.Vector4() }, metricHi: { value: new THREE.Vector4(1, 1, 1, 1) },
-    // Direkt als Ausgabefarbe, ohne Umrechnung: entspricht dem Verlauf in der Legende
-    ramp: { value: RAMP.map((h) => new THREE.Vector3(...[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255))) },
+    // Wie alle Farben linear gerechnet und bei der Ausgabe umgerechnet: entspricht der Legende
+    ramp: { value: RAMP.map((h) => new THREE.Color(h)) },
   };
 }
 
@@ -271,6 +242,7 @@ function makeLineMaterial(uniforms) {
       void main() {
         if (vTop > 0.5 && vIdx > cutPoint) discard;
         gl_FragColor = vec4(vColor, 1.0);
+        #include <colorspace_fragment>
       }`,
   });
 }
@@ -321,9 +293,10 @@ function makeTubeMaterial(uniforms) {
         float diff = max(dot(n, L), 0.0);
         float spec = pow(max(dot(reflect(-L, n), vToCam), 0.0), 20.0) * 0.28;
         // Dunkle Filamente an beleuchteten Stellen etwas aufhellen, sonst verschwinden die Schichten
-        float luma = dot(vColor, vec3(0.299, 0.587, 0.114));
-        vec3 col = vColor * (0.38 + 0.62 * diff) + vec3(0.22 * (1.0 - luma) * diff * diff) + spec;
+        float luma = dot(vColor, vec3(0.2126, 0.7152, 0.0722));
+        vec3 col = vColor * (0.22 + 0.78 * diff) + vec3(0.06 * (1.0 - luma) * diff * diff) + spec * 0.7;
         gl_FragColor = vec4(col, 1.0);
+        #include <colorspace_fragment>
       }`,
   });
 }
@@ -344,7 +317,10 @@ function makeTravelMaterial(uniforms, color) {
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 color;
-      void main() { gl_FragColor = vec4(color, 0.75); }`,
+      void main() {
+        gl_FragColor = vec4(color, 0.75);
+        #include <colorspace_fragment>
+      }`,
   });
 }
 
@@ -368,7 +344,8 @@ function makeMarkerMaterial(uniforms, color, size) {
       void main() {
         float r = length(gl_PointCoord - 0.5) * 2.0;
         if (r > 1.0) discard;
-        gl_FragColor = vec4(r > 0.7 ? vec3(0.08) : color, 1.0);
+        gl_FragColor = vec4(r > 0.7 ? vec3(0.01) : color, 1.0);
+        #include <colorspace_fragment>
       }`,
   });
 }
@@ -461,11 +438,47 @@ function makeAoBlurMaterial(depthTexture, aoTexture) {
   });
 }
 
+// Textur der Druckplatte: feine Struktur, Linien alle 10 mm, kräftiger alle 50 mm, Rand
+function makePlateCanvas(bed) {
+  const px = 8; // Pixel pro mm
+  const size = Math.min(4096, bed * px);
+  const s = size / bed;
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const base = new THREE.Color(cssVar("--bed"));
+  const hex = (col, f) => `#${col.clone().offsetHSL(0, 0, f).getHexString()}`;
+  g.fillStyle = hex(base, 0.02);
+  g.fillRect(0, 0, size, size);
+  // Struktur wie bei einer texturierten PEI-Platte: viele kleine, leicht hellere Punkte
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  g.fillStyle = hex(base, 0.06);
+  for (let i = 0; i < size * size / 90; i++) g.fillRect(rnd() * size, rnd() * size, 1.4, 1.4);
+  const line = (mm, width, color) => {
+    g.strokeStyle = color;
+    g.lineWidth = width;
+    g.beginPath();
+    for (let v = mm; v < bed; v += mm) {
+      g.moveTo(v * s, 0); g.lineTo(v * s, size);
+      g.moveTo(0, v * s); g.lineTo(size, v * s);
+    }
+    g.stroke();
+  };
+  line(10, 1.2, hex(base, 0.07));
+  line(50, 2.2, hex(base, 0.13));
+  g.strokeStyle = hex(base, 0.2);
+  g.lineWidth = 3 * s;
+  g.strokeRect(1.5 * s, 1.5 * s, size - 3 * s, size - 3 * s);
+  return c;
+}
+
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#222";
 }
 
-function start({ meta, pts, polys, mets, travels, retracts }) {
+function start(data) {
+  const { meta, polys, travels, retracts } = data;
   const canvas = document.getElementById("viewer-canvas");
   // Hohe Pixeldichte ist selbst schon glatt, Kantenglättung nur für normale Displays
   const dpr = window.devicePixelRatio || 1;
@@ -474,7 +487,7 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
   const scene = new THREE.Scene();
   const setBg = () => { scene.background = new THREE.Color(cssVar("--viewer-bg")); };
   setBg();
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setBg(); render(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setBg(); refreshPlate(); render(); });
 
   const [minx, miny, maxx, maxy, maxz] = meta.bbox;
   const cx = (minx + maxx) / 2, cy = (miny + maxy) / 2, cz = maxz / 2;
@@ -498,14 +511,29 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
     controls.update();
   };
 
-  // Druckplatte als Raster, ausgerichtet am Druckbereich
+  // Druckplatte mit strukturierter Oberfläche, 10-mm- und 50-mm-Linien und Rand.
+  // Sie wird in der Tiefenschattierung mitgerechnet: das Modell wirft einen weichen
+  // Kontaktschatten auf die Platte.
   const bed = Math.ceil(Math.max(256, maxx + 10, maxy + 10) / 10) * 10;
-  const grid = new THREE.GridHelper(bed, bed / 10, cssVar("--grid-strong"), cssVar("--grid"));
-  grid.rotation.x = Math.PI / 2;
-  grid.position.set(bed / 2, bed / 2, -0.01);
-  scene.add(grid);
+  const plateTex = new THREE.CanvasTexture(makePlateCanvas(bed));
+  plateTex.colorSpace = THREE.SRGBColorSpace;
+  plateTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const bedGroup = new THREE.Group();
+  const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bed, bed), new THREE.MeshBasicMaterial({ map: plateTex }));
+  plateMesh.position.set(bed / 2, bed / 2, -0.02);
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(bed + 6, bed + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
+  rim.position.set(bed / 2, bed / 2, -1.55);
+  bedGroup.add(rim, plateMesh);
+  scene.add(bedGroup);
+  const plateNormalMat = new THREE.MeshNormalMaterial();
+  const plateBasicMat = plateMesh.material;
+  const refreshPlate = () => {
+    plateTex.image = makePlateCanvas(bed);
+    plateTex.needsUpdate = true;
+    rim.material.color.set(cssVar("--bed"));
+  };
 
-  const { geo, tube, pos } = buildGeometry(meta, pts, polys, mets);
+  const { geo, tube, pos } = buildGeometry(data);
   const uniforms = makeUniforms();
   const mat = { uniforms }; // gemeinsame Einstellungen für Linien und Röhren
   uniforms.halfWidth.value = (Number(root.dataset.nozzle) || 0.4) * 1.05 / 2;
@@ -667,17 +695,7 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
   // Bahnlänge bis zu jedem Punkt; Leerfahrten zählen nicht. Damit läuft die Wiedergabe
   // mit gleichmäßiger Geschwindigkeit in mm/s statt Punkt für Punkt.
   const nPts = pos.length / 3;
-  const cum = new Float64Array(nPts);
-  for (let i = 0; i < polys.length; i += 5) {
-    const start = polys[i], count = polys[i + 1];
-    let acc = start > 0 ? cum[start - 1] : 0;
-    cum[start] = acc;
-    for (let j = 1; j < count; j++) {
-      const a = (start + j - 1) * 3, b = (start + j) * 3;
-      acc += Math.hypot(pos[b] - pos[a], pos[b + 1] - pos[a + 1]);
-      cum[start + j] = acc;
-    }
-  }
+  const cum = data.cum; // Bahnlänge bis zu jedem Punkt, Leerfahrten zählen nicht
   const lp = tube.userData.layerPoint;
   const layerLen = (l) => {
     const a = lp[l], b = lp[l + 1] - 1;
@@ -1001,6 +1019,8 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
     aoWanted && !moving && !playing && tubes.visible && perf.tube !== null &&
     perf.tube * visibleShare() * 2.2 <= REST_MAX_MS;
   function draw() {
+    // Von unten (z. B. um die erste Schicht anzusehen) die Platte ausblenden, sie würde alles verdecken
+    bedGroup.visible = camera.position.z > 0;
     renderer.render(scene, camera);
     if (!aoActive()) return;
     renderer.getDrawingBufferSize(bufSize);
@@ -1012,12 +1032,12 @@ function start({ meta, pts, polys, mets, travels, retracts }) {
     const bg = scene.background;
     const extrasShown = Object.values(extras).map((o) => o.visible);
     Object.values(extras).forEach((o) => { o.visible = false; });
-    grid.visible = false; nozzle.visible = false; scene.background = null;
+    plateMesh.material = plateNormalMat; rim.visible = false; nozzle.visible = false; scene.background = null;
     uniforms.normalPass.value = 1;
     renderer.setRenderTarget(aoTarget);
     renderer.render(scene, camera);
     uniforms.normalPass.value = 0;
-    grid.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
+    plateMesh.material = plateBasicMat; rim.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
     Object.values(extras).forEach((o, i) => { o.visible = extrasShown[i]; });
     // 2. Schattierung in einen eigenen Puffer
     aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
