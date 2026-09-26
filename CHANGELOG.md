@@ -1,6 +1,6 @@
 # Änderungen
 
-## Unveröffentlicht
+## 0.5.1
 
 - 3D-Vorschau: Wiedergabe des Drucks innerhalb der Schichten mit Düsenmarke,
   Regler „Position in der Schicht“, Tempo 1×/10×/50×, Leertaste zum Starten
