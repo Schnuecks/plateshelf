@@ -6,7 +6,7 @@
     python tools/i18n_extract.py --list   # alle Texte ausgeben
 
 Quellen: _("…") und ngettext("…", "…", n) in Vorlagen und Python, UserError("…")
-und fail("…") in Python sowie die Listen und Beschriftungen in app/main.py.
+und fail("…") in Python sowie die Listen und Beschriftungen in app/web.py und app/projects.py.
 """
 from __future__ import annotations
 

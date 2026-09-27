@@ -57,6 +57,47 @@ document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   input.addEventListener("change", () => input.form.requestSubmit());
 });
 
+// Laufender Druck in der Titelleiste: jede halbe Minute auffrischen
+document.querySelectorAll("[data-live-print]").forEach((pill) => {
+  const text = pill.querySelector("[data-live-text]");
+  const more = pill.querySelector("[data-live-more]");
+  const refresh = () => {
+    if (document.hidden) return;
+    fetch("/api/printing", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const items = data.items || [];
+        pill.hidden = items.length === 0;
+        if (!items.length) return;
+        text.textContent = items[0].text;
+        pill.href = items[0].url;
+        pill.title = items.map((i) => i.text).join(" | ");
+        more.hidden = items.length < 2;
+        more.textContent = "+" + (items.length - 1);
+      })
+      .catch(() => {});
+  };
+  setInterval(refresh, 30000);
+});
+
+// Diagnose kopieren (Zwischenablage, sonst Text markieren)
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  const section = button.closest("section");
+  const source = section.querySelector("[data-copy-source]");
+  const done = section.querySelector("[data-copy-done]");
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(source.value);
+    } catch {
+      source.select();
+      document.execCommand("copy");
+    }
+    done.hidden = false;
+    setTimeout(() => { done.hidden = true; }, 2500);
+  });
+});
+
 // Upload: Drag & Drop, Dateiliste, Fortschrittsbalken
 document.querySelectorAll("[data-upload]").forEach((form) => {
   const zone = form.querySelector("[data-dropzone]");

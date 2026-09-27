@@ -83,7 +83,8 @@ def _apply_project_status(con, job) -> None:
 
 def record(printer: dict, job_key: str, status: str, *, remote_name: str | None = None,
            started: float | None = None, ended: float | None = None, duration_s: float | None = None,
-           filament_mm: float | None = None, progress: float | None = None) -> None:
+           filament_mm: float | None = None, progress: float | None = None,
+           remaining_s: float | None = None) -> None:
     """Legt einen Druck an oder schreibt seinen neuen Stand fort."""
     now = time.time()
     with _lock, store.connect() as con:
@@ -93,12 +94,15 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
             return  # schon abgeschlossen, verspätete Meldung
         local = (row["local_path"] if row else None) or _resolve(con, printer["id"], remote_name)
         if row:
-            values = {"status": status, "local_path": local, "printer_name": printer["name"]}
+            values = {"status": status, "local_path": local, "printer_name": printer["name"], "updated": now}
             if remote_name:
                 values["remote_name"] = remote_name
-            for key, value in (("duration_s", duration_s), ("filament_mm", filament_mm), ("progress", progress)):
+            for key, value in (("duration_s", duration_s), ("filament_mm", filament_mm), ("progress", progress),
+                               ("remaining_s", remaining_s)):
                 if value is not None:
                     values[key] = value
+            if status in FINAL:
+                values["remaining_s"] = None
             if status in FINAL and not row["ended"]:
                 values["ended"] = ended or now
             sets = ", ".join(f"{k} = ?" for k in values)
@@ -106,10 +110,11 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
         else:
             con.execute(
                 """INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, local_path, status,
-                       started, ended, duration_s, filament_mm, progress)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       started, ended, duration_s, filament_mm, progress, remaining_s, updated)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (printer["id"], printer["name"], job_key, remote_name, local, status, started or now,
-                 (ended or now) if status in FINAL else None, duration_s, filament_mm, progress))
+                 (ended or now) if status in FINAL else None, duration_s, filament_mm, progress,
+                 None if status in FINAL else remaining_s, now))
         job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
         _apply_project_status(con, job)
@@ -140,6 +145,22 @@ def delete(job_id: int) -> None:
         if not others:
             con.execute("UPDATE projects SET status = '', updated = ? WHERE id = ? AND status = 'gedruckt'",
                         (time.time(), project[0]))
+
+
+LIVE_MAX_AGE = 30 * 60  # ohne Meldung seit 30 Minuten gilt ein Druck nicht mehr als live
+
+
+def printing_now() -> list[dict]:
+    """Laufende Drucke mit frischer Meldung, für Titelleiste, Übersicht und Dashboard."""
+    with store.connect() as con:
+        return [dict(r) for r in con.execute(
+            """SELECT j.id, j.printer_name, j.remote_name, j.progress, j.remaining_s, j.started, j.local_path,
+                      f.project_id, p.name AS project_name
+               FROM print_jobs j
+               LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
+               LEFT JOIN projects p ON p.id = f.project_id
+               WHERE j.status = 'running' AND j.hidden = 0 AND COALESCE(j.updated, j.started) > ?
+               ORDER BY j.started""", (time.time() - LIVE_MAX_AGE,))]
 
 
 def running_job(printer_id: str):
@@ -188,11 +209,31 @@ def poll_moonraker(printer: dict, source=None) -> int:
     source = source or printer_import.MoonrakerSource(printer)
     with source._get("/server/history/list?limit=50&order=desc") as resp:
         jobs = (json.load(resp).get("result") or {}).get("jobs") or []
+    live = {}
+    if any(job.get("status") == "in_progress" for job in jobs):
+        live = _moonraker_progress(source)
     for job in jobs:
+        running = job.get("status") == "in_progress"
         record(printer, str(job.get("job_id")), MOONRAKER_STATUS.get(job.get("status"), "failed"),
                remote_name=job.get("filename"), started=job.get("start_time"), ended=job.get("end_time"),
-               duration_s=job.get("print_duration"), filament_mm=job.get("filament_used"))
+               duration_s=job.get("print_duration"), filament_mm=job.get("filament_used"),
+               **(live if running else {}))
     return len(jobs)
+
+
+def _moonraker_progress(source) -> dict:
+    """Fortschritt und geschätzte Restzeit des laufenden Drucks aus Klipper."""
+    try:
+        with source._get("/printer/objects/query?virtual_sdcard&print_stats") as resp:
+            status = (json.load(resp).get("result") or {}).get("status") or {}
+    except (OSError, ValueError):
+        return {}
+    fraction = float((status.get("virtual_sdcard") or {}).get("progress") or 0)
+    printed = float((status.get("print_stats") or {}).get("print_duration") or 0)
+    out = {"progress": round(fraction * 100, 1)}
+    if fraction >= 0.02 and printed > 0:  # am Anfang ist die Hochrechnung zu ungenau
+        out["remaining_s"] = printed / fraction - printed
+    return out
 
 
 # --- Prusa (PrusaLink) ----------------------------------------------------------
@@ -217,7 +258,7 @@ def poll_prusalink(printer: dict, source=None) -> None:
     printing = job.get("time_printing")
     record(printer, str(job["id"]), status, remote_name=name, duration_s=printing,
            started=time.time() - printing if printing else None,
-           progress=job.get("progress"))
+           progress=job.get("progress"), remaining_s=job.get("time_remaining"))
 
 
 # --- Bambu Lab (MQTT) -----------------------------------------------------------
@@ -233,7 +274,7 @@ class BambuTracker:
         self.printer = printer
         self.state: dict = {}
         self.job_key: str | None = None
-        self.progress = None
+        self.progress = None  # zuletzt gespeichert: (Prozent, Restminuten)
 
     def _key(self, remote: str) -> str:
         for field in ("subtask_id", "task_id"):
@@ -253,15 +294,18 @@ class BambuTracker:
         gstate = str(self.state.get("gcode_state") or "").upper()
         remote = str(self.state.get("gcode_file") or self.state.get("subtask_name") or "").rsplit("/", 1)[-1]
         if gstate in BAMBU_ACTIVE:
+            minutes = self.state.get("mc_remaining_time")
+            remaining = minutes * 60 if isinstance(minutes, (int, float)) and minutes >= 0 else None
+            current = (self.state.get("mc_percent"), minutes)
             if self.job_key is None:
                 self.job_key = self._key(remote)
                 printer_import.request_sync()  # Datei holen, damit der Druck ihr zugeordnet werden kann
                 record(self.printer, self.job_key, "running", remote_name=remote or None,
-                       progress=self.state.get("mc_percent"))
-                self.progress = self.state.get("mc_percent")
-            elif self.state.get("mc_percent") != self.progress:
-                self.progress = self.state.get("mc_percent")
-                record(self.printer, self.job_key, "running", progress=self.progress)
+                       progress=current[0], remaining_s=remaining)
+                self.progress = current
+            elif current != self.progress:  # höchstens etwa einmal pro Minute
+                self.progress = current
+                record(self.printer, self.job_key, "running", progress=current[0], remaining_s=remaining)
         elif gstate in ("FINISH", "FAILED"):
             key = self.job_key
             if key is None and (job := running_job(self.printer["id"])):

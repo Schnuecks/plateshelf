@@ -254,7 +254,9 @@ def moonraker(tmp_path):
                 self.send_response(401)
                 self.end_headers()
                 return
-            if self.path.startswith("/server/history/list"):
+            if self.path.startswith("/printer/objects/query"):
+                body = json.dumps({"result": {"status": server_state.get("objects", {})}}).encode()
+            elif self.path.startswith("/server/history/list"):
                 jobs = server_state["history"]
                 body = json.dumps({"result": {"count": len(jobs), "jobs": jobs}}).encode()
             elif self.path == "/server/files/list?root=gcodes":

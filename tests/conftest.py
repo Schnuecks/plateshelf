@@ -12,6 +12,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 # Keine Verbindungen zu Druckern aus den Tests heraus (MQTT, Verlaufsabfragen), auch nicht
 # aus Hintergrund-Threads, die ein Test gestartet hat und die danach weiterlaufen
 os.environ["PRINT_HISTORY"] = "false"
+# Keine Hintergrund-Threads (Einlesen, Druckerabruf, Papierkorb): sie überdauern den Test und
+# griffen sonst auf die Datenbank späterer Tests zu, was selten zu Fehlern führte
+os.environ["BACKGROUND_TASKS"] = "false"
 
 
 @pytest.fixture(autouse=True)

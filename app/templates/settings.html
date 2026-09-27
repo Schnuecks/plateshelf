@@ -46,6 +46,7 @@
       <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
       <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Stromkosten') }}</a>
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
+      <a href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>{{ _('Diagnose') }}</a>
     </nav>
 
     <div class="settings-body">
@@ -158,6 +159,17 @@
           <button type="submit" data-autosubmit-button>{{ _('Druckverlauf speichern') }}</button>
         </form>
         {% endif %}
+      </section>
+
+      <section class="settings-section" id="diagnostics" data-section>
+        <h2>{{ _('Diagnose') }}</h2>
+        <p class="hint">{{ _('Hilft bei Fehlermeldungen: Kopiere den Text und füge ihn in dein Issue auf GitHub ein. Er enthält keine Zugangsdaten, IP-Adressen oder Druckernamen; schau trotzdem kurz drüber, bevor du ihn teilst.') }}</p>
+        <textarea class="diag-text" rows="16" readonly spellcheck="false" aria-label="{{ _('Diagnose') }}" data-copy-source>{{ diagnostics }}</textarea>
+        <div class="section-foot diag-actions">
+          <span class="hint" data-copy-done hidden role="status">{{ _('Kopiert.') }}</span>
+          <a href="{{ APP_REPO }}/issues/new/choose" target="_blank" rel="noopener">{{ _('Fehler auf GitHub melden') }}</a>
+          <button type="button" data-copy>{{ _('Kopieren') }}</button>
+        </div>
       </section>
     </div>
   </div>

@@ -1,0 +1,70 @@
+name: Bug report
+description: Something does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please fill in as much as you can;
+        German is fine too.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        1. Added my K1 Max under Settings → Printers
+        2. Clicked "Fetch from printers"
+        3. Expected the files from the printer, got "not reachable"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Library, projects or upload
+        - 3D preview
+        - Direct import from a printer
+        - Print history
+        - Settings, sign-in or language
+        - Dashboard widget / API
+        - Installation or update
+        - Something else
+    validations:
+      required: true
+  - type: dropdown
+    id: printer
+    attributes:
+      label: Printer type (if a printer is involved)
+      options:
+        - Not printer related
+        - Bambu Lab
+        - Prusa (PrusaLink)
+        - Klipper (Moonraker)
+        - Other
+  - type: input
+    id: model
+    attributes:
+      label: Printer model and firmware
+      placeholder: e.g. Bambu Lab P2S, firmware 01.02.00.00
+  - type: input
+    id: slicer
+    attributes:
+      label: Slicer and file type
+      placeholder: e.g. PrusaSlicer 2.8.1, .bgcode
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        In PlateShelf open Settings → Diagnostics, click "Copy" and paste the text here.
+        It contains no credentials, IP addresses or printer names.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, container logs (`docker compose logs plateshelf`) or an example file help a lot.

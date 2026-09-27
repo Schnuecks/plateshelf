@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the situation and what is missing or cumbersome today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it work?
+      description: Your idea for a solution, if you have one. Screenshots or sketches are welcome.
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup
+      placeholder: e.g. 2× Bambu Lab P1S, OrcaSlicer, Unraid

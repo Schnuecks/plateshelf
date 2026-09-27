@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     progress REAL,
     applied INTEGER NOT NULL DEFAULT 0,  -- Projektstatus schon auf „gedruckt“ gesetzt
     hidden INTEGER NOT NULL DEFAULT 0,   -- vom Nutzer aus dem Verlauf entfernt
+    remaining_s REAL,               -- Restzeit laut Drucker, solange er druckt
+    updated REAL,                   -- letzte Meldung zu diesem Druck
     UNIQUE (printer, job_key)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
@@ -175,8 +177,11 @@ def init_db() -> None:
                 con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
                 _force_next_scan = True
         # Spalten ohne Einfluss auf das Einlesen: ergänzen, ohne alles neu einzulesen
-        if "hidden" not in {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}:
-            con.execute("ALTER TABLE print_jobs ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0")  # vor 0.7.5
+        job_cols = {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}
+        for col, decl in (("hidden", "INTEGER NOT NULL DEFAULT 0"),  # vor 0.7.5
+                          ("remaining_s", "REAL"), ("updated", "REAL")):  # vor 0.7.7
+            if col not in job_cols:
+                con.execute(f"ALTER TABLE print_jobs ADD COLUMN {col} {decl}")
         for table in ("projects", "files"):
             _ensure_autoincrement(con, table)
         con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
