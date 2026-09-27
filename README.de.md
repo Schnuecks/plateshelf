@@ -402,9 +402,10 @@ weiter.
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `AUTH_USER`, `AUTH_PASSWORD` | – | Anmeldung einschalten (beide setzen) |
+| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Anmeldung mit Passwort-Hash einschalten |
+| `AUTH_PASSWORD` | – | Statt des Hashs: Passwort im Klartext |
 | `SESSION_DAYS` | 30 | Wie lange eine Anmeldung im Browser gilt |
-| `SECRET_KEY` | – | Schlüssel für die Anmeldung; leer: wird einmalig erzeugt und im Datenordner gespeichert |
+| `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge und für die Anmeldung; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
 
 ### Zugriffsschutz
@@ -413,7 +414,16 @@ Ohne weitere Einstellungen hat PlateShelf keine Anmeldung: Jeder, der es erreich
 kann Dateien hochladen und löschen. Im Heimnetz ist das meist in Ordnung. Für mehr
 Schutz gibt es zwei Wege, die sich auch kombinieren lassen.
 
-**Eigene Anmeldung:** Setze `AUTH_USER` und `AUTH_PASSWORD` in der `.env`.
+**Eigene Anmeldung:** Setze `AUTH_USER` und ein Passwort in der `.env`. Das Passwort
+legst du am besten als Hash ab statt im Klartext:
+
+```bash
+docker compose exec plateshelf python -m app.auth hash
+```
+
+Der Befehl fragt das Passwort zweimal ab und gibt eine Zeile wie
+`AUTH_PASSWORD_HASH=scrypt:15:8:1:…` aus, die neben `AUTH_USER` in die `.env` kommt.
+`AUTH_PASSWORD=…` im Klartext funktioniert weiterhin.
 
 - Der Browser zeigt dann eine Anmeldeseite. Die Anmeldung gilt `SESSION_DAYS` Tage,
   oben rechts gibt es „Abmelden“.
@@ -433,6 +443,41 @@ Maßgeblich ist die Adresse, die der Browser mitsendet; hinter einem Proxy zähl
 weitergereichte Host (`X-Forwarded-Host`). Skripte ohne Browser (z. B. `curl`) sind
 nicht betroffen. Sollen weitere Seiten Änderungen schicken dürfen, trage sie in
 `TRUSTED_ORIGINS` ein, etwa `TRUSTED_ORIGINS=https://dashboard.example.com`.
+
+### Geheimnisse
+
+PlateShelf braucht die Zugangscodes, Passwörter und API-Schlüssel deiner Drucker lesbar,
+um sich mit ihnen zu verbinden. Sie werden deshalb nicht gehasht, sondern verschlüsselt
+(AES-256-GCM) in der Datenbank gespeichert. Den Schlüssel leitet PlateShelf aus
+`SECRET_KEY` ab, und den nimmt es nur aus der Umgebung, nie aus dem Datenordner. Eine
+Kopie der Datenbank allein, etwa aus einer Sicherung, nützt also niemandem.
+
+```bash
+docker compose exec plateshelf python -m app.auth secret
+```
+
+gibt einen zufälligen `SECRET_KEY=…` aus; trag ihn in die `.env` ein und starte
+PlateShelf neu. Vorhandene Zugangsdaten werden dann automatisch verschlüsselt. Heb den
+Schlüssel gut auf: Ohne ihn lassen sich die gespeicherten Zugangsdaten nicht mehr lesen,
+und du müsstest sie neu eingeben. Ohne `SECRET_KEY` läuft PlateShelf weiter, speichert
+Zugangsdaten aber unverschlüsselt, und Anmeldungen gelten nur bis zum nächsten Neustart;
+die Einstellungsseite weist darauf hin.
+
+**Geheimnisse als Dateien (Docker-Secrets):** Jede sensible Variable lässt sich mit der
+Endung `_FILE` auch aus einer Datei lesen: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`,
+`AUTH_PASSWORD_FILE` sowie `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`.
+So stehen sie weder in der `.env` noch in `docker inspect`:
+
+```yaml
+services:
+  plateshelf:
+    environment:
+      SECRET_KEY_FILE: /run/secrets/plateshelf_key
+    secrets: [plateshelf_key]
+secrets:
+  plateshelf_key:
+    file: ./secrets/plateshelf_key.txt
+```
 
 ### Hinter einem Reverse-Proxy
 
@@ -497,7 +542,7 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
 - Statt der Kosten passen auch `new_files_7d` („Neu (7 Tage)“) oder `printers_ok`
   („Drucker online“).
 - Ist die eigene Anmeldung eingeschaltet, trage im Widget zusätzlich `username` und
-  `password` ein, also dieselben Werte wie `AUTH_USER` und `AUTH_PASSWORD`.
+  `password` ein, also denselben Benutzernamen und dasselbe Passwort wie für die Anmeldung.
 - Laufen Homepage und PlateShelf im selben Docker-Netz, nimm bei `url` die interne
   Adresse, z. B. `http://plateshelf:8000/api/stats`. Das funktioniert auch, wenn das
   PlateShelf nach außen hinter einer Anmeldung am Proxy liegt.
