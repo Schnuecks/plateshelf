@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import auth, gcode_file, gcode_preview, i18n, printer_import, store, trash
+from . import auth, gcode_file, gcode_preview, i18n, print_history, printer_import, store, trash
 from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
@@ -53,6 +53,7 @@ async def lifespan(_app):
         threading.Thread(target=store.prebuild_loop, daemon=True).start()
     printer_import.init()
     threading.Thread(target=printer_import.sync_loop, daemon=True).start()
+    threading.Thread(target=print_history.loop, daemon=True).start()
     threading.Thread(target=trash.purge_loop, daemon=True).start()
     yield
 
@@ -183,7 +184,14 @@ def fmt_size(n) -> str:
     return fmt_num(n / 1024 / 1024, 1, "MB") if n >= 100 * 1024 else fmt_num(n / 1024, 0, "KB")
 
 
+def fmt_datetime(ts) -> str:
+    return f"{fmt_date(ts)} {time.strftime('%H:%M', time.localtime(ts))}" if ts else "–"
+
+
+JOB_STATUSES = {"running": "Läuft", "completed": "Fertig", "cancelled": "Abgebrochen", "failed": "Fehlgeschlagen"}
+templates.env.globals["JOB_STATUSES"] = JOB_STATUSES
 templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money, date=fmt_date, strand=strand,
+                             datetime=fmt_datetime,
                              printer_date=fmt_printer_date,
                              size=fmt_size)
 templates.env.globals["STATUSES"] = STATUSES
@@ -318,6 +326,9 @@ def load_projects(con) -> list[dict]:
             extras.append(x)
         p["extra_plates"] = extras
 
+    printed = {r[0]: r[1] for r in con.execute(
+        "SELECT local_path, COUNT(*) FROM print_jobs WHERE status = 'completed' AND local_path IS NOT NULL "
+        "GROUP BY local_path")}
     out = []
     for p in projects.values():
         if not p["files"]:
@@ -338,6 +349,7 @@ def load_projects(con) -> list[dict]:
         p["cover"] = f"/thumb/{cover['file_id']}/plate/{cover['idx']}?v={cover['v']}" if cover else None
         p["plates_total"] = len(plates) + len(p["extra_plates"])
         p["tag_list"] = [t.strip() for t in p["tags"].split(",") if t.strip()]
+        p["prints"] = sum(printed.get(f["path"], 0) for f in p["files"])
         out.append(p)
     return out
 
@@ -418,9 +430,21 @@ def project(request: Request, pid: int):
                           "_sort": (source, pl["idx"], natural_key(f["path"]))})
     strip.sort(key=lambda x: x["_sort"])
     others = sorted((o for o in projects.values() if o["id"] != pid), key=lambda o: o["name"].lower())
+    jobs = print_history.jobs_for([f["path"] for f in file_rows.values()])
+    names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
+    for j in jobs:
+        j["file_name"] = names.get(j["local_path"], "")
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
-        "writable": _library_writable(), "strip": strip,
+        "writable": _library_writable(), "strip": strip, "jobs": jobs,
+    })
+
+
+@app.get("/history")
+def history(request: Request):
+    return templates.TemplateResponse(request, "history.html", {
+        "jobs": print_history.recent(), "enabled": print_history.enabled(),
+        "printers": printer_import.load_printers(),
     })
 
 
@@ -953,7 +977,11 @@ def api_stats():
     Druckerstatus. Zahlen bleiben unformatiert, das Dashboard formatiert selbst.
     """
     week_ago = time.time() - 7 * 86400
+    month_ago = time.time() - 30 * 86400
     with store.connect() as con:
+        jobs = con.execute(
+            """SELECT SUM(status = 'completed' AND started >= ?), SUM(status IN ('cancelled', 'failed') AND started >= ?),
+                      SUM(status = 'running'), MAX(ended) FROM print_jobs""", (month_ago, month_ago)).fetchone()
         projects = load_projects(con)
         files = con.execute("SELECT COUNT(*), MAX(added), SUM(added >= ?) FROM files WHERE missing = 0",
                             (week_ago,)).fetchone()
@@ -979,6 +1007,10 @@ def api_stats():
         "last_printer_sync": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(printer_import.state["last_run"]))
         if printer_import.state["last_run"] else None,
         "trash_items": trash_items,
+        "prints_30d": jobs[0] or 0,
+        "prints_failed_30d": jobs[1] or 0,
+        "printing_now": jobs[2] or 0,
+        "last_print_end": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(jobs[3])) if jobs[3] else None,
         "version": APP_VERSION,
     }
 

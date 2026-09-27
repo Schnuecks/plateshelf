@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Druckverlauf') }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
+
+{% block main %}
+<section class="history-page">
+  <h1>{{ _('Druckverlauf') }}</h1>
+  <p class="hint">
+    {{ _('{app} schreibt mit, was deine Drucker drucken: Bambu-Drucker melden jeden Druck sofort, Klipper-Drucker liefern ihren eigenen Verlauf, Prusa-Drucker werden jede Minute abgefragt. Jeder Druck wird der vom Drucker geholten Datei und damit ihrem Projekt zugeordnet.', app=APP_NAME) }}
+    {{ _('Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.') }}
+  </p>
+  {% if not enabled %}
+  <p class="flash flash-warn" role="status">{{ _('Der Druckverlauf ist ausgeschaltet ({env}).', env='PRINT_HISTORY=false') }}</p>
+  {% elif not printers %}
+  <p class="flash" role="status">{{ _('Richte unter „Einstellungen“ einen Drucker für den Direktimport ein, dann erscheinen hier seine Drucke.') }}</p>
+  {% endif %}
+
+  {% if jobs %}
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th scope="col">{{ _('Start') }}</th>
+        <th scope="col">{{ _('Projekt') }}</th>
+        <th scope="col">{{ _('Drucker') }}</th>
+        <th scope="col" class="r">{{ _('Dauer') }}</th>
+        <th scope="col">{{ _('Status') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for j in jobs %}
+      <tr>
+        <td class="nowrap">{{ j.started|datetime }}</td>
+        <td>{% if j.project_id %}<a href="/p/{{ j.project_id }}">{{ j.project_name }}</a>{% else %}{{ (j.remote_name or '–').split('/')[-1] }}{% endif %}</td>
+        <td>{{ j.printer_name }}</td>
+        <td class="r nowrap">{% if j.ended and j.started %}{{ (j.duration_s or (j.ended - j.started))|duration }}{% else %}–{% endif %}</td>
+        <td><span class="job-status job-{{ j.status }}">{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <h2>{{ _('Noch keine Drucke') }}</h2>
+    <p>{{ _('Sobald ein eingerichteter Drucker etwas druckt, erscheint es hier.') }}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

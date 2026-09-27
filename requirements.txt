@@ -5,3 +5,4 @@ uvicorn>=0.30; platform_machine == "armv7l"
 jinja2>=3.1.6
 python-multipart>=0.0.32
 heatshrink2>=0.14,<1
+paho-mqtt>=2.1,<3

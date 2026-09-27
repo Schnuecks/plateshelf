@@ -19,7 +19,7 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Bedienung](#bedienung): Bibliothek und Projekte, Hochladen, Direktimport von
-  Druckern, 3D-Vorschau, Kosten, Papierkorb, Sprache und Design
+  Druckern, Druckverlauf, 3D-Vorschau, Kosten, Papierkorb, Sprache und Design
 - [Betrieb](#betrieb): Einstellungen, Zugriffsschutz, Reverse-Proxy, Dashboard-Widget,
   Daten und Sicherung
 - [Entwicklung](#entwicklung)
@@ -40,6 +40,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Direktimport von Druckern:** Bambu Lab per FTPS (auch ohne LAN-only-Modus), Prusa
   über PrusaLink (MK4, MK3.9, XL, Mini, Core One) und Klipper-Drucker über Moonraker,
   etwa Creality K1/K2, Sovol SV08, Qidi oder Voron
+- **Druckverlauf:** wann welche Datei auf welchem Drucker gedruckt wurde und ob der Druck
+  durchlief
 - **Kosten** aus Material und Strom
 - **Sechs Sprachen** (Deutsch, English, Français, Español, Italiano, Nederlands) und
   **Design** hell, dunkel oder wie das System
@@ -222,6 +224,26 @@ eingetragen, hat die `.env` Vorrang.
   abgefragt. Nur ein falscher Zugangscode, ein falsches Passwort oder ein falscher
   API-Schlüssel erscheint in der Übersicht als Warnung.
 
+### Druckverlauf
+
+Für die Drucker aus dem Direktimport schreibt PlateShelf jeden Druck mit: Start, Ende,
+Dauer, Drucker und Ausgang (fertig, abgebrochen, fehlgeschlagen). „Verlauf“ in der
+Titelleiste zeigt alle Drucke, die Projektseite die Drucke ihrer Dateien, die Übersicht,
+wie oft ein Projekt gedruckt wurde.
+
+- **Bambu Lab:** PlateShelf hält eine MQTT-Verbindung zum Drucker (Port 8883, derselbe
+  Zugangscode) und erfährt so sofort von jedem Druck.
+- **Klipper:** Moonraker führt selbst einen Verlauf, den PlateShelf jede Minute abruft.
+- **Prusa:** PrusaLink kennt nur den aktuellen Druck; PlateShelf fragt ihn jede Minute ab
+  und schreibt ihn mit.
+
+Ein Druck wird der vom Drucker geholten Datei zugeordnet und damit ihrem Projekt. Liegt
+die Datei noch nicht in der Bibliothek, holt PlateShelf sie sofort und ordnet den Druck
+danach zu. Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.
+
+Mit `PRINT_HISTORY=false` lässt sich der Verlauf abschalten, etwa wenn ein Bambu-Drucker
+keine zusätzliche MQTT-Verbindung bekommen soll.
+
 ### 3D-Vorschau
 
 Eine geslicte Datei enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
@@ -348,6 +370,8 @@ weiter.
 | `PRINTER_<n>_API_KEY` | – | Moonraker-API-Schlüssel, nur wenn nötig (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | From printer | Zielordner für importierte Drucke in der Bibliothek |
+| `PRINT_HISTORY` | true | Druckverlauf der eingerichteten Drucker mitschreiben |
+| `PRINT_HISTORY_INTERVAL` | 60 | Sekunden zwischen zwei Abfragen von Klipper- und Prusa-Druckern |
 
 **Oberfläche**
 
@@ -417,6 +441,8 @@ Unter `/api/stats` liefert PlateShelf seine Kennzahlen als JSON:
 | `cost_eur`, `energy_kwh` | Kosten (Material und Strom) und Stromverbrauch |
 | `new_files_7d`, `last_added` | Neue Dateien der letzten 7 Tage, Zeitpunkt der neuesten |
 | `printers_ok`, `printers_total`, `last_printer_sync` | Erreichbare und eingerichtete Drucker, letzter Abruf |
+| `prints_30d`, `prints_failed_30d` | Fertige und abgebrochene oder fehlgeschlagene Drucke der letzten 30 Tage |
+| `printing_now`, `last_print_end` | Gerade laufende Drucke, Ende des letzten Drucks |
 | `trash_items`, `version` | Einträge im Papierkorb, Version von PlateShelf |
 
 Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customapi` in der

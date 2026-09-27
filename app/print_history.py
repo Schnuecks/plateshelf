@@ -1,0 +1,316 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Schnuecks
+"""Druckverlauf: wann welche Datei auf welchem Drucker gedruckt wurde und wie es ausging.
+
+Quellen je Druckertyp:
+  Bambu Lab   dauerhafte MQTT-Verbindung zum Drucker (Port 8883, Benutzer "bblp",
+              Zugangscode). Der Drucker meldet seinen Zustand; aus den Wechseln
+              zwischen RUNNING, FINISH und FAILED entstehen die Einträge.
+  Klipper     Moonraker führt selbst einen Verlauf (/server/history/list).
+  Prusa       PrusaLink kennt nur den aktuellen Druck (/api/v1/job); er wird
+              regelmäßig abgefragt und hier mitgeschrieben.
+
+Ein Druck wird über den Dateinamen auf dem Drucker der importierten Datei
+zugeordnet (Tabelle printer_files) und damit ihrem Projekt.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+import ssl
+import threading
+import time
+import uuid
+
+from . import printer_import, store
+
+log = logging.getLogger("plateshelf.history")
+
+FINAL = ("completed", "cancelled", "failed")
+_lock = threading.Lock()
+
+
+def enabled() -> bool:
+    return os.environ.get("PRINT_HISTORY", "true").lower() not in ("0", "false", "no", "off")
+
+
+def interval() -> int:
+    return max(15, int(os.environ.get("PRINT_HISTORY_INTERVAL", "60")))
+
+
+# --- Speichern ----------------------------------------------------------------
+
+def _resolve(con, printer_id: str, remote_name: str | None) -> str | None:
+    """Lokale Datei zu einem Dateinamen auf dem Drucker (auch nur der letzte Teil des Pfads)."""
+    if not remote_name:
+        return None
+    row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND remote_name = ?",
+                      (printer_id, remote_name)).fetchone()
+    if not row:
+        base = remote_name.rsplit("/", 1)[-1]
+        row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND (remote_name = ? OR "
+                          "remote_name LIKE ?) ORDER BY imported DESC", (printer_id, base, "%/" + base)).fetchone()
+    return row["local_path"] if row and row["local_path"] else None
+
+
+def _apply_project_status(con, job) -> None:
+    """Ein fertiger Druck setzt ein Projekt ohne Status auf „gedruckt“, einmal pro Druck."""
+    if job["status"] != "completed" or not job["local_path"] or job["applied"]:
+        return
+    con.execute("""UPDATE projects SET status = 'gedruckt', updated = ? WHERE status = '' AND id =
+                   (SELECT project_id FROM files WHERE path = ? AND missing = 0)""", (time.time(), job["local_path"]))
+    con.execute("UPDATE print_jobs SET applied = 1 WHERE id = ?", (job["id"],))
+
+
+def record(printer: dict, job_key: str, status: str, *, remote_name: str | None = None,
+           started: float | None = None, ended: float | None = None, duration_s: float | None = None,
+           filament_mm: float | None = None, progress: float | None = None) -> None:
+    """Legt einen Druck an oder schreibt seinen neuen Stand fort."""
+    now = time.time()
+    with _lock, store.connect() as con:
+        row = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
+                          (printer["id"], job_key)).fetchone()
+        if row and row["status"] in FINAL and status == "running":
+            return  # schon abgeschlossen, verspätete Meldung
+        local = (row["local_path"] if row else None) or _resolve(con, printer["id"], remote_name)
+        if row:
+            values = {"status": status, "local_path": local, "printer_name": printer["name"]}
+            if remote_name:
+                values["remote_name"] = remote_name
+            for key, value in (("duration_s", duration_s), ("filament_mm", filament_mm), ("progress", progress)):
+                if value is not None:
+                    values[key] = value
+            if status in FINAL and not row["ended"]:
+                values["ended"] = ended or now
+            sets = ", ".join(f"{k} = ?" for k in values)
+            con.execute(f"UPDATE print_jobs SET {sets} WHERE id = ?", (*values.values(), row["id"]))
+        else:
+            con.execute(
+                """INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, local_path, status,
+                       started, ended, duration_s, filament_mm, progress)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (printer["id"], printer["name"], job_key, remote_name, local, status, started or now,
+                 (ended or now) if status in FINAL else None, duration_s, filament_mm, progress))
+        job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
+                          (printer["id"], job_key)).fetchone()
+        _apply_project_status(con, job)
+
+
+def running_job(printer_id: str):
+    with store.connect() as con:
+        return con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' "
+                           "ORDER BY started DESC", (printer_id,)).fetchone()
+
+
+def link_pending() -> None:
+    """Drucke ohne Datei nachträglich zuordnen, sobald der Import sie geholt hat."""
+    with _lock, store.connect() as con:
+        for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NULL AND remote_name IS NOT NULL "
+                               "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
+            if local := _resolve(con, job["printer"], job["remote_name"]):
+                con.execute("UPDATE print_jobs SET local_path = ? WHERE id = ?", (local, job["id"]))
+                _apply_project_status(con, {**dict(job), "local_path": local})
+
+
+# --- Abfragen ----------------------------------------------------------------
+
+def jobs_for(paths: list[str]) -> list[dict]:
+    if not paths:
+        return []
+    with store.connect() as con:
+        marks = ",".join("?" * len(paths))
+        return [dict(r) for r in con.execute(
+            f"SELECT * FROM print_jobs WHERE local_path IN ({marks}) ORDER BY started DESC", paths)]
+
+
+def recent(limit: int = 200) -> list[dict]:
+    with store.connect() as con:
+        return [dict(r) for r in con.execute(
+            """SELECT j.*, f.project_id, p.name AS project_name FROM print_jobs j
+               LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
+               LEFT JOIN projects p ON p.id = f.project_id
+               ORDER BY j.started DESC LIMIT ?""", (limit,))]
+
+
+# --- Klipper (Moonraker) --------------------------------------------------------
+
+MOONRAKER_STATUS = {"completed": "completed", "cancelled": "cancelled", "in_progress": "running"}
+
+
+def poll_moonraker(printer: dict, source=None) -> int:
+    """Übernimmt die letzten Einträge aus dem Verlauf von Moonraker."""
+    source = source or printer_import.MoonrakerSource(printer)
+    with source._get("/server/history/list?limit=50&order=desc") as resp:
+        jobs = (json.load(resp).get("result") or {}).get("jobs") or []
+    for job in jobs:
+        record(printer, str(job.get("job_id")), MOONRAKER_STATUS.get(job.get("status"), "failed"),
+               remote_name=job.get("filename"), started=job.get("start_time"), ended=job.get("end_time"),
+               duration_s=job.get("print_duration"), filament_mm=job.get("filament_used"))
+    return len(jobs)
+
+
+# --- Prusa (PrusaLink) ----------------------------------------------------------
+
+PRUSALINK_STATUS = {"PRINTING": "running", "PAUSED": "running", "FINISHED": "completed",
+                    "STOPPED": "cancelled", "ERROR": "failed"}
+
+
+def poll_prusalink(printer: dict, source=None) -> None:
+    """Aktuellen Druck abfragen; ohne Druck antwortet PrusaLink mit 204 und leerem Inhalt."""
+    source = source or printer_import.PrusaLinkSource(printer)
+    with source._get("/api/v1/job") as resp:
+        body = resp.read()
+    if not body.strip():
+        return
+    job = json.loads(body)
+    status = PRUSALINK_STATUS.get(str(job.get("state") or "").upper())
+    if not status or job.get("id") is None:
+        return
+    file = job.get("file") or {}
+    name = file.get("display_name") or file.get("name")
+    printing = job.get("time_printing")
+    record(printer, str(job["id"]), status, remote_name=name, duration_s=printing,
+           started=time.time() - printing if printing else None,
+           progress=job.get("progress"))
+
+
+# --- Bambu Lab (MQTT) -----------------------------------------------------------
+
+BAMBU_ACTIVE = ("PREPARE", "RUNNING", "PAUSE", "SLICING")
+BAMBU_CANCELLED = (0, 50348044)  # 0300400C: vom Nutzer abgebrochen
+
+
+class BambuTracker:
+    """Wertet die Zustandsmeldungen eines Bambu-Druckers aus (P1/A1 schicken nur Änderungen)."""
+
+    def __init__(self, printer: dict):
+        self.printer = printer
+        self.state: dict = {}
+        self.job_key: str | None = None
+        self.progress = None
+
+    def _key(self, remote: str) -> str:
+        for field in ("subtask_id", "task_id"):
+            value = str(self.state.get(field) or "")
+            if value and value != "0":
+                return f"{field}:{value}"
+        job = running_job(self.printer["id"])
+        if job and job["remote_name"] == remote:
+            return job["job_key"]  # nach einem Neustart von PlateShelf weiterführen
+        return f"{remote}@{int(time.time())}"
+
+    def update(self, message: dict) -> None:
+        report = message.get("print")
+        if not isinstance(report, dict):
+            return
+        self.state.update(report)
+        gstate = str(self.state.get("gcode_state") or "").upper()
+        remote = str(self.state.get("gcode_file") or self.state.get("subtask_name") or "").rsplit("/", 1)[-1]
+        if gstate in BAMBU_ACTIVE:
+            if self.job_key is None:
+                self.job_key = self._key(remote)
+                printer_import.request_sync()  # Datei holen, damit der Druck ihr zugeordnet werden kann
+                record(self.printer, self.job_key, "running", remote_name=remote or None,
+                       progress=self.state.get("mc_percent"))
+                self.progress = self.state.get("mc_percent")
+            elif self.state.get("mc_percent") != self.progress:
+                self.progress = self.state.get("mc_percent")
+                record(self.printer, self.job_key, "running", progress=self.progress)
+        elif gstate in ("FINISH", "FAILED"):
+            key = self.job_key
+            if key is None and (job := running_job(self.printer["id"])):
+                key = job["job_key"]  # Druck lief, während PlateShelf aus war
+            if key is None:
+                return
+            if gstate == "FINISH":
+                status = "completed"
+            else:
+                status = "cancelled" if int(self.state.get("print_error") or 0) in BAMBU_CANCELLED else "failed"
+            record(self.printer, key, status, progress=self.state.get("mc_percent"))
+            self.job_key = None
+        elif gstate == "IDLE":
+            self.job_key = None
+
+
+class BambuWatcher:
+    """MQTT-Verbindung zu einem Bambu-Drucker; baut sich bei Abbrüchen selbst wieder auf."""
+
+    def __init__(self, printer: dict):
+        import paho.mqtt.client as mqtt
+        self.printer = printer
+        self.tracker = BambuTracker(printer)
+        serial = printer["id"]
+        self.topic = f"device/{serial}/report"
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"plateshelf-{uuid.uuid4().hex[:8]}")
+        self.client.username_pw_set("bblp", printer["code"])
+        self.client.tls_set(cert_reqs=ssl.CERT_NONE)  # selbstsigniertes Zertifikat des Druckers
+        self.client.tls_insecure_set(True)
+        self.client.reconnect_delay_set(5, 300)
+        self.client.on_connect = self._on_connect
+        self.client.on_message = self._on_message
+
+    def _on_connect(self, client, _userdata, _flags, reason, _props=None):
+        if reason.is_failure:
+            log.info("%s: MQTT-Verbindung abgelehnt (%s)", self.printer["name"], reason)
+            return
+        client.subscribe(self.topic)
+        # Vollständigen Zustand anfordern, danach kommen nur Änderungen
+        client.publish(f"device/{self.printer['id']}/request",
+                       json.dumps({"pushing": {"sequence_id": "0", "command": "pushall"}}))
+
+    def _on_message(self, _client, _userdata, msg):
+        try:
+            self.tracker.update(json.loads(msg.payload))
+        except Exception:  # noqa: BLE001
+            log.exception("%s: Meldung nicht auswertbar", self.printer["name"])
+
+    def start(self) -> None:
+        self.client.connect_async(self.printer["ip"], 8883, keepalive=60)
+        self.client.loop_start()
+
+    def stop(self) -> None:
+        self.client.disconnect()
+        self.client.loop_stop()
+
+
+_watchers: dict[str, tuple[tuple, BambuWatcher]] = {}
+
+
+def refresh_watchers(printers: list[dict]) -> None:
+    """MQTT-Verbindungen an die eingerichteten Bambu-Drucker anpassen."""
+    wanted = {p["id"]: p for p in printers if p.get("kind", "bambu") == "bambu"} if enabled() else {}
+    for pid in list(_watchers):
+        config, watcher = _watchers[pid]
+        p = wanted.get(pid)
+        if not p or (p["ip"], p["code"], p["name"]) != config:
+            watcher.stop()
+            del _watchers[pid]
+    for pid, p in wanted.items():
+        if pid not in _watchers:
+            watcher = BambuWatcher(p)
+            watcher.start()
+            _watchers[pid] = ((p["ip"], p["code"], p["name"]), watcher)
+
+
+def poll_once() -> None:
+    printers = printer_import.load_printers()
+    refresh_watchers(printers)
+    for p in printers:
+        try:
+            if p["kind"] == "moonraker":
+                poll_moonraker(p)
+            elif p["kind"] == "prusalink":
+                poll_prusalink(p)
+        except Exception as exc:  # noqa: BLE001  (nicht erreichbar: der Import meldet das schon)
+            log.debug("%s: Verlauf nicht abrufbar: %s", p["name"], exc)
+
+
+def loop() -> None:
+    while True:
+        if enabled():
+            try:
+                poll_once()
+            except Exception:  # noqa: BLE001
+                log.exception("Druckverlauf fehlgeschlagen")
+        time.sleep(interval())

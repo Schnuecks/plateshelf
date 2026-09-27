@@ -18,7 +18,7 @@ print settings and a 3D preview of the actual toolpaths.
 - [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Usage](#usage): library and projects, uploading, direct import from printers,
-  3D preview, costs, trash, language and theme
+  print history, 3D preview, costs, trash, language and theme
 - [Running PlateShelf](#running-plateshelf): settings, access control, reverse proxy,
   dashboard widget, data and backups
 - [Development](#development)
@@ -39,6 +39,7 @@ print settings and a 3D preview of the actual toolpaths.
 - **Direct import from printers:** Bambu Lab via FTPS (even without LAN-only mode),
   Prusa via PrusaLink (MK4, MK3.9, XL, Mini, Core One) and Klipper printers via
   Moonraker, e.g. Creality K1/K2, Sovol SV08, Qidi or Voron
+- **Print history:** when each file was printed on which printer and whether it finished
 - **Costs** from material and electricity
 - **Six languages** (English, Deutsch, Français, Español, Italiano, Nederlands) and a
   **light, dark or system theme**
@@ -209,6 +210,26 @@ read-only in the settings. If a printer is set in both places, the `.env` wins.
 - If a printer is switched off or in standby, it is simply queried again next time. Only
   a wrong access code, password or API key shows up as a warning in the overview.
 
+### Print history
+
+For printers set up for the direct import, PlateShelf records every print: start, end,
+duration, printer and outcome (finished, cancelled, failed). “History” in the top bar
+lists all prints; the project page shows the prints of its files, and the overview shows
+how often a project was printed.
+
+- **Bambu Lab:** PlateShelf keeps an MQTT connection to the printer (port 8883, same
+  access code) and learns about each print right away.
+- **Klipper:** Moonraker keeps its own history, which PlateShelf reads every minute.
+- **Prusa:** PrusaLink only knows the current print; PlateShelf queries it every minute
+  and records it.
+
+A print is matched to the file fetched from the printer, and thus to its project. If the
+file is not in the library yet, PlateShelf fetches it right away and links the print
+afterwards. A finished print sets a project without status to “Printed”.
+
+The history can be switched off with `PRINT_HISTORY=false`, e.g. if a Bambu printer
+should not get an additional MQTT connection.
+
 ### 3D preview
 
 A sliced file no longer contains a 3D model but the finished G-code. The 3D preview
@@ -330,6 +351,8 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `PRINTER_<n>_API_KEY` | – | Moonraker API key, only if required (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
+| `PRINT_HISTORY` | true | Record the print history of the configured printers |
+| `PRINT_HISTORY_INTERVAL` | 60 | Seconds between two queries of Klipper and Prusa printers |
 
 **Interface**
 
@@ -398,6 +421,8 @@ At `/api/stats`, PlateShelf provides its key figures as JSON:
 | `cost_eur`, `energy_kwh` | Costs (material and electricity) and energy use |
 | `new_files_7d`, `last_added` | New files in the last 7 days, time of the newest |
 | `printers_ok`, `printers_total`, `last_printer_sync` | Reachable and configured printers, last query |
+| `prints_30d`, `prints_failed_30d` | Finished and cancelled or failed prints in the last 30 days |
+| `printing_now`, `last_print_end` | Prints running right now, end of the last print |
 | `trash_items`, `version` | Items in the trash, PlateShelf version |
 
 For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your

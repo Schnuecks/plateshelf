@@ -564,6 +564,8 @@ def sync_all() -> None:
         _lock.release()
     if changed:
         store.scan()  # neue Dateien sofort einlesen, danach startet die 3D-Vorberechnung
+    from . import print_history
+    print_history.link_pending()  # Drucke den eben geholten Dateien zuordnen
 
 
 def request_sync() -> None:
