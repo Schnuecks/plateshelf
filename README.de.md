@@ -241,8 +241,15 @@ Ein Druck wird der vom Drucker geholten Datei zugeordnet und damit ihrem Projekt
 die Datei noch nicht in der Bibliothek, holt PlateShelf sie sofort und ordnet den Druck
 danach zu. Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.
 
-Mit `PRINT_HISTORY=false` lässt sich der Verlauf abschalten, etwa wenn ein Bambu-Drucker
-keine zusätzliche MQTT-Verbindung bekommen soll.
+Testdrucke und Ähnliches entfernst du mit „×“ aus dem Verlauf, auf der Verlaufsseite
+oder der Projektseite. Sie zählen dann nicht mehr mit; hatte so ein Druck das Projekt
+auf „Gedruckt“ gesetzt und bleibt kein anderer fertiger Druck übrig, wird der Status
+zurückgesetzt.
+
+Abschalten lässt sich der Verlauf unter „Einstellungen“ → „Druckverlauf“, etwa wenn ein
+Bambu-Drucker keine zusätzliche MQTT-Verbindung bekommen soll. `PRINT_HISTORY=true` oder
+`false` in der `.env` legt die Einstellung fest; der Schalter in der Oberfläche
+entfällt dann.
 
 ### 3D-Vorschau
 
@@ -370,7 +377,7 @@ weiter.
 | `PRINTER_<n>_API_KEY` | – | Moonraker-API-Schlüssel, nur wenn nötig (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | From printer | Zielordner für importierte Drucke in der Bibliothek |
-| `PRINT_HISTORY` | true | Druckverlauf der eingerichteten Drucker mitschreiben |
+| `PRINT_HISTORY` | – | `true` oder `false` legt den Druckverlauf fest; ohne Angabe gilt der Schalter in den Einstellungen (Standard an) |
 | `PRINT_HISTORY_INTERVAL` | 60 | Sekunden zwischen zwei Abfragen von Klipper- und Prusa-Druckern |
 
 **Oberfläche**

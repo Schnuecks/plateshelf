@@ -187,3 +187,93 @@ def test_pages_and_stats(ready, monkeypatch):
         assert f'href="/p/{pid}"' in history and history.count("job-status") == 3
         stats = client.get("/api/stats").json()
         assert (stats["prints_30d"], stats["prints_failed_30d"], stats["printing_now"]) == (1, 1, 1)
+
+
+def test_delete_resets_status_only_without_other_prints(ready, monkeypatch):
+    imported(ready, BAMBU, "G.gcode.3mf", "From printer/P2S/G.gcode.3mf")
+    ph.record(BAMBU, "a", "completed", remote_name="G.gcode.3mf")
+    ph.record(BAMBU, "b", "completed", remote_name="G.gcode.3mf")
+    ids = [j["id"] for j in jobs()]
+    ph.delete(ids[0])
+    assert project_status("From printer/P2S/G.gcode.3mf") == "gedruckt"  # zweiter Druck zählt noch
+    ph.delete(ids[1])
+    assert project_status("From printer/P2S/G.gcode.3mf") == ""
+    assert ph.recent() == [] and ph.jobs_for(["From printer/P2S/G.gcode.3mf"]) == []
+    with pytest.raises(KeyError):
+        ph.delete(999)
+
+
+def test_delete_keeps_own_status(ready):
+    imported(ready, BAMBU, "H.gcode.3mf", "From printer/P2S/H.gcode.3mf")
+    ph.record(BAMBU, "a", "completed", remote_name="H.gcode.3mf")
+    with store.connect() as con:
+        con.execute("UPDATE projects SET status = 'fehlgeschlagen'")  # später von Hand geändert
+    ph.delete(jobs()[0]["id"])
+    assert project_status("From printer/P2S/H.gcode.3mf") == "fehlgeschlagen"
+
+
+def test_deleted_job_does_not_come_back(ready, moonraker):
+    printer = {"name": "SV08", "id": "moonraker:x", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
+    moonraker["state"]["history"] = [{"job_id": "0001", "filename": "test.gcode", "status": "completed",
+                                      "start_time": time.time() - 600, "end_time": time.time(),
+                                      "print_duration": 500, "filament_used": 10.0}]
+    ph.poll_moonraker(printer)
+    ph.delete(jobs()[0]["id"])
+    ph.poll_moonraker(printer)
+    assert len(jobs()) == 1 and ph.recent() == []
+
+
+def test_delete_from_pages(ready, monkeypatch):
+    imported(ready, BAMBU, "K.gcode.3mf", "From printer/P2S/K.gcode.3mf")
+    ph.record(BAMBU, "a", "completed", remote_name="K.gcode.3mf")
+    ph.record(BAMBU, "b", "failed", remote_name="K.gcode.3mf")
+    from app import main
+    monkeypatch.setenv("SCAN_INTERVAL", "3600")
+    with TestClient(main.app) as client:
+        with store.connect() as con:
+            pid = con.execute("SELECT project_id FROM files").fetchone()[0]
+        a, b = (j["id"] for j in jobs())
+        r = client.post(f"/history/{a}/delete", data={"next": f"/p/{pid}"}, follow_redirects=False)
+        assert r.headers["location"] == f"/p/{pid}?job_deleted=1#history"
+        assert "Druck aus dem Verlauf entfernt." in client.get(r.headers["location"]).text
+        r = client.post(f"/history/{b}/delete", data={"next": "https://example.com/"}, follow_redirects=False)
+        assert r.headers["location"] == "/?job_deleted=1"  # nur Ziele dieser Seite
+        assert client.post("/history/999/delete").status_code == 404
+        assert "× gedruckt" not in client.get("/").text and project_status("From printer/P2S/K.gcode.3mf") == ""
+
+
+def test_setting_and_env(ready, monkeypatch):
+    from app import main
+    monkeypatch.delenv("PRINT_HISTORY")
+    monkeypatch.setenv("SCAN_INTERVAL", "3600")
+    assert ph.enabled()  # Standard: an
+    with TestClient(main.app) as client:
+        assert 'href="/history"' in client.get("/").text
+        r = client.post("/settings/history", data={}, follow_redirects=False)
+        assert r.headers["location"] == "/settings?history=1#history"
+        assert not ph.enabled()
+        assert 'href="/history"' not in client.get("/").text
+        client.post("/settings/history", data={"enabled": "1"})
+        assert ph.enabled()
+        page = client.get("/settings").text
+        assert 'name="enabled" value="1" checked' in page
+        # Umgebungsvariable hat Vorrang, der Schalter verschwindet
+        monkeypatch.setenv("PRINT_HISTORY", "false")
+        assert not ph.enabled()
+        page = client.get("/settings").text
+        assert "<code>PRINT_HISTORY</code> festgelegt: ausgeschaltet" in page and 'name="enabled"' not in page
+        client.post("/settings/history", data={"enabled": "1"})
+        monkeypatch.delenv("PRINT_HISTORY")
+        assert ph.enabled()  # Einstellung blieb unverändert (an)
+
+
+def test_disabled_closes_watchers(ready, monkeypatch):
+    stopped = []
+
+    class FakeWatcher:
+        def stop(self):
+            stopped.append(1)
+
+    monkeypatch.setitem(ph._watchers, "SER1", (("x", "x", "P2S"), FakeWatcher()))
+    ph.refresh_watchers([BAMBU])  # PRINT_HISTORY=false in den Tests: ausgeschaltet
+    assert stopped == [1] and ph._watchers == {}

@@ -107,6 +107,20 @@
 
     <button type="submit">{{ _('Stromkosten speichern') }}</button>
   </form>
+
+  <form method="post" action="/settings/history" class="settings-form" id="history">
+    <section>
+      <h2>{{ _('Druckverlauf') }}</h2>
+      <p class="hint">{{ _('Schreibt mit, was die Drucker aus dem Direktimport drucken, und ordnet jeden Druck seinem Projekt zu. Bambu-Drucker bekommen dafür eine dauerhafte MQTT-Verbindung, Klipper- und Prusa-Drucker werden jede Minute abgefragt.') }}</p>
+      {% if request.query_params.get('history') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+      {% if history_env is not none %}
+      <p class="hint">{{ _('Über die Umgebungsvariable {env} festgelegt: {state}.', env='<code>PRINT_HISTORY</code>', state=_('eingeschaltet') if history_env else _('ausgeschaltet'))|safe }}</p>
+      {% else %}
+      <label class="check"><input type="checkbox" name="enabled" value="1" {{ 'checked' if history_on }}> {{ _('Druckverlauf mitschreiben') }}</label>
+      {% endif %}
+    </section>
+    {% if history_env is none %}<button type="submit">{{ _('Druckverlauf speichern') }}</button>{% endif %}
+  </form>
   </div>
 </section>
 {% endblock %}
