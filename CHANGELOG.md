@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.3
 
 - **Binary G-code** (`.bgcode`) from PrusaSlicer, the default for Prusa MK4, XL, Mini and
   Core One: print time, filament, colours, costs, printer, settings, object names and the
