@@ -1,0 +1,51 @@
+name: Printer or slicer support
+description: A printer, firmware or slicer file that PlateShelf does not read or import correctly
+labels: ["printer support"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PlateShelf reads `.gcode.3mf`, `.gcode` and `.bgcode` and imports from Bambu Lab, PrusaLink
+        and Moonraker (Klipper). If a file shows wrong values or a printer cannot be connected,
+        this form collects what is needed to add support.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is it about?
+      options:
+        - A file shows wrong or missing values (time, filament, preview image)
+        - The 3D preview of a file is wrong or empty
+        - A printer cannot be connected or does not import files
+        - The print history does not record prints
+        - Support for a new printer type or slicer
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer model and firmware
+      placeholder: e.g. Creality K1 Max, firmware 1.3.5.8 with Moonraker 0.9
+  - type: input
+    id: slicer
+    attributes:
+      label: Slicer and version
+      placeholder: e.g. OrcaSlicer 2.2.0
+  - type: textarea
+    id: details
+    attributes:
+      label: What do you see, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: Example file
+      description: |
+        A small sliced file helps most (a calibration cube is enough). Zip it and drag it here.
+        For `.gcode`, the first and last 200 lines are often enough.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: In PlateShelf open Settings → Diagnostics, click "Copy" and paste the text here.
+      render: text
