@@ -7,6 +7,9 @@ GitHub instead: on the repository page open **Security → Report a vulnerabilit
 get an answer within a few days, and a fix is released as soon as possible, independent of
 the normal release plan.
 
+If that option is not shown, contact the maintainer [@Schnuecks](https://github.com/Schnuecks)
+through GitHub and ask for a private channel, without describing the problem publicly.
+
 Helpful details: the PlateShelf version (shown in the footer), how PlateShelf is exposed
 (home network only, reverse proxy, sign-in on or off) and the steps to reproduce.
 
