@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.7
 
 - **Running prints live:** the top bar shows printer, project, progress and remaining time
   of a running print (refreshed every 30 seconds), the project card shows “Printing 45 %”.
