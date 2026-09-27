@@ -3,19 +3,20 @@
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
 {% macro printer_status(st) %}
-{% if st %}<p class="printer-status {{ 'is-error' if st.error else 'is-ok' }}">{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind == 'moonraker' %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}</p>{% endif %}
+{% if st %}<p class="printer-status {{ 'is-error' if st.error else 'is-ok' }}">{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind in ('moonraker', 'prusalink') %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}</p>{% endif %}
 {% endmacro %}
 
 {% macro printer_fields(pr) %}
         <label>{{ _('Typ') }}
           <select name="kind" data-printer-kind>
-            <option value="bambu" {{ 'selected' if pr.kind != 'moonraker' }}>Bambu Lab</option>
+            <option value="bambu" {{ 'selected' if pr.kind not in ('moonraker', 'prusalink') }}>Bambu Lab</option>
             <option value="moonraker" {{ 'selected' if pr.kind == 'moonraker' }}>Klipper (Moonraker)</option>
+            <option value="prusalink" {{ 'selected' if pr.kind == 'prusalink' }}>Prusa (PrusaLink)</option>
           </select></label>
         <label>{{ _('Name') }} <input type="text" name="name" value="{{ pr.name or '' }}" placeholder="{{ _('z. B. P1S Werkstatt') }}"></label>
         <label>{{ _('IP-Adresse') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" placeholder="192.168.1.20"></label>
         <label data-kind-only="bambu">{{ _('Seriennummer') }} <input type="text" name="serial" value="{{ pr.serial or '' }}" autocomplete="off" spellcheck="false"></label>
-        <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span>
+        <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span>
           <input type="password" name="code" value="" autocomplete="new-password"
                placeholder="{{ '••••••••' if pr.db_id else '' }}" {% if pr.db_id %}title="{{ _('Gespeichert. Leer lassen, um ihn zu behalten.') }}"{% endif %}></label>
 {% endmacro %}
@@ -33,6 +34,7 @@
         {{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>
       <p class="hint"><strong>Bambu Lab:</strong> {{ _('per FTPS von der SD-Karte. IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}</p>
       <p class="hint"><strong>Klipper (Moonraker):</strong> {{ _('G-Code-Dateien vom Drucker, zum Beispiel bei Creality K1 und K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ohne Portangabe gilt Port {port}. Einen API-Schlüssel brauchst du nur, wenn Moonraker {app} nicht als vertrauenswürdig kennt.', port='<code>7125</code>', app=APP_NAME)|safe }}</p>
+      <p class="hint"><strong>Prusa (PrusaLink):</strong> {{ _('G-Code-Dateien vom USB-Stick oder internen Speicher, bei MK4, MK3.9, XL, Mini und Core One. Das Passwort findest du am Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist {user}.', user='<code>maker</code>')|safe }}</p>
       {% if request.query_params.get('printers') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
       {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
 
@@ -43,7 +45,7 @@
           <strong>{{ pr.name }}</strong>
           <span class="hint">{{ _('über Umgebungsvariablen eingerichtet, änderbar nur in der {env}', env='<code>.env</code>')|safe }}</span>
         </div>
-        <p class="printer-meta">{% if pr.kind == 'moonraker' %}{{ _('{url}, Klipper (Moonraker)', url=pr.url) }}{% else %}{{ _('{ip}, Seriennummer {serial}', ip=pr.ip, serial=pr.serial) }}{% endif %}</p>
+        <p class="printer-meta">{% if pr.kind == 'moonraker' %}{{ _('{url}, Klipper (Moonraker)', url=pr.url) }}{% elif pr.kind == 'prusalink' %}{{ _('{url}, PrusaLink', url=pr.url) }}{% else %}{{ _('{ip}, Seriennummer {serial}', ip=pr.ip, serial=pr.serial) }}{% endif %}</p>
         {{ printer_status(pr.status) }}
       </div>
       {% else %}
@@ -66,7 +68,8 @@
         </fieldset>
       </details>
       <p class="hint">{{ _('Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.', env='<code>.env</code>', vars='<code>PRINTER_1_NAME</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_SERIAL</code>, <code>PRINTER_1_CODE</code>', more='<code>PRINTER_2_…</code>')|safe }}
-        {{ _('Für Klipper-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=moonraker</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}</p>
+        {{ _('Für Klipper-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=moonraker</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}
+        {{ _('Für Prusa-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=prusalink</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_PASSWORD</code>')|safe }}</p>
     </section>
     <button type="submit">{{ _('Drucker speichern') }}</button>
   </form>

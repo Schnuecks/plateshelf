@@ -5,8 +5,9 @@
 [English](README.md) · **Deutsch**
 
 PlateShelf ist ein selbstgehostetes Archiv für deine 3D-Drucke. Es liest
-`.gcode.3mf`-Dateien aus Bambu Studio und OrcaSlicer sowie einfache `.gcode`-Dateien aus
-PrusaSlicer, OrcaSlicer, Cura und ähnlichen Slicern aus und zeigt sie so übersichtlich an, wie du es aus dem
+`.gcode.3mf`-Dateien aus Bambu Studio und OrcaSlicer, `.gcode`-Dateien aus PrusaSlicer,
+OrcaSlicer, Cura und ähnlichen Slicern sowie binäre `.bgcode`-Dateien aus PrusaSlicer aus
+und zeigt sie so übersichtlich an, wie du es aus dem
 Slicer kennst: Platten mit Vorschaubildern, Druckzeit, Gewicht, Filamente mit Farbe und
 Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 
@@ -36,8 +37,9 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Automatische Projekte** aus Ordnern oder Dateinamen, zusätzlich manuell zuordenbar
 - **Notizen, Tags, Status und Quelle** pro Projekt
 - **Hochladen** per Drag & Drop und **Papierkorb** mit Wiederherstellen
-- **Direktimport von Druckern:** Bambu Lab per FTPS (auch ohne LAN-only-Modus) und
-  Klipper-Drucker über Moonraker, etwa Creality K1/K2, Sovol SV08, Qidi oder Voron
+- **Direktimport von Druckern:** Bambu Lab per FTPS (auch ohne LAN-only-Modus), Prusa
+  über PrusaLink (MK4, MK3.9, XL, Mini, Core One) und Klipper-Drucker über Moonraker,
+  etwa Creality K1/K2, Sovol SV08, Qidi oder Voron
 - **Kosten** aus Material und Strom
 - **Sechs Sprachen** (Deutsch, English, Français, Español, Italiano, Nederlands) und
   **Design** hell, dunkel oder wie das System
@@ -72,7 +74,7 @@ docker compose up -d
 ```
 
 Danach ist PlateShelf unter `http://<server>:8000` erreichbar. Lege deine
-`.gcode.3mf`- oder `.gcode`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
+`.gcode.3mf`-, `.gcode`- oder `.bgcode`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
 Minuten, sofort über „Bibliothek neu einlesen“ in der Übersicht.
 
 Die Ordner `library` und `data` müssen für den Benutzer beschreibbar sein, unter dem
@@ -121,7 +123,9 @@ und Filamentverbrauch:
   Filamentverbrauch, Farben, Kosten, Drucker und die wichtigsten Einstellungen aus den
   Kommentaren, die der Slicer in die Datei schreibt, dazu das eingebettete
   Vorschaubild. Cura speichert nur die Filamentlänge; das Gewicht wird dann für PLA mit
-  1,75 mm geschätzt. Binärer G-Code (`.bgcode`) wird noch nicht unterstützt.
+  1,75 mm geschätzt.
+- **`.bgcode`** (binärer G-Code) aus PrusaSlicer, Standard bei Prusa MK4, XL, Mini und
+  Core One. Er enthält dieselben Angaben in kompakter Form, samt Vorschaubildern.
 
 So entstehen Projekte:
 
@@ -152,6 +156,8 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
 
 - **Bambu Lab** per FTPS von der SD-Karte, mit dem Zugangscode des Druckers. Der
   LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
+- **Prusa-Drucker** über PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf holt
+  die `.bgcode`- und `.gcode`-Dateien vom USB-Stick oder internen Speicher.
 - **Klipper-Drucker** über [Moonraker](https://moonraker.readthedocs.io), die
   Schnittstelle hinter Mainsail und Fluidd. Dazu gehören etwa Creality K1 und K2,
   Sovol SV08, Qidi, Elegoo Neptune 4 und Voron. PlateShelf holt die `.gcode`-Dateien
@@ -162,6 +168,9 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
 
 - *Bambu Lab:* Name, IP-Adresse, Seriennummer und Zugangscode. Die Angaben findest du
   am Drucker in den Netzwerkeinstellungen.
+- *Prusa (PrusaLink):* Name, IP-Adresse und das PrusaLink-Passwort. Du findest es am
+  Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist `maker`.
+  Ältere Firmware nutzt stattdessen einen API-Schlüssel: Trag ihn als Passwort ein.
 - *Klipper (Moonraker):* Name und Adresse des Druckers. Ohne Portangabe nutzt
   PlateShelf den Moonraker-Standardport 7125; du kannst auch eine vollständige Adresse
   wie `http://192.0.2.21:7125` eintragen. Einen API-Schlüssel brauchst du nur, wenn
@@ -184,10 +193,14 @@ PRINTER_2_TYPE=moonraker
 PRINTER_2_NAME=K1
 PRINTER_2_IP=192.0.2.21
 PRINTER_2_API_KEY=<optional>
+PRINTER_3_TYPE=prusalink
+PRINTER_3_NAME=MK4S
+PRINTER_3_IP=192.0.2.22
+PRINTER_3_PASSWORD=<PrusaLink-Passwort>
 # …
 ```
 
-`PRINTER_<n>_TYPE` ist `bambu` (Standard) oder `moonraker`. So eingerichtete Drucker
+`PRINTER_<n>_TYPE` ist `bambu` (Standard), `prusalink` oder `moonraker`. So eingerichtete Drucker
 erscheinen in den Einstellungen schreibgeschützt. Ist ein Drucker an beiden Stellen
 eingetragen, hat die `.env` Vorrang.
 
@@ -200,14 +213,14 @@ eingetragen, hat die `.env` Vorrang.
 - Der Drucker speichert ein Projekt immer unter demselben Namen und überschreibt es,
   wenn eine andere Platte gedruckt wird. PlateShelf legt deshalb jede gedruckte
   Platte als eigene Datei ab (`…_plate_2.gcode.3mf`), so geht nichts verloren.
-  Bei Klipper-Druckern bleibt der Dateiname erhalten; eine geänderte Datei ersetzt die
-  bisherige Kopie.
+  Bei Prusa- und Klipper-Druckern bleibt der Dateiname erhalten; eine geänderte Datei
+  ersetzt die bisherige Kopie.
 - Jede Datei wird nur einmal geholt. Was du im Archiv löschst, wird nicht erneut
   importiert.
 - Die Dateien auf dem Drucker werden nur gelesen, nie verändert oder gelöscht.
 - Ist ein Drucker ausgeschaltet oder im Standby, wird er beim nächsten Durchlauf erneut
-  abgefragt. Nur ein falscher Zugangscode oder API-Schlüssel erscheint in der Übersicht
-  als Warnung.
+  abgefragt. Nur ein falscher Zugangscode, ein falsches Passwort oder ein falscher
+  API-Schlüssel erscheint in der Übersicht als Warnung.
 
 ### 3D-Vorschau
 
@@ -312,7 +325,7 @@ weiter.
 | `PUID`, `PGID` | 1000 | Benutzer und Gruppe, unter denen der Container läuft |
 | `TZ` | Europe/Berlin | Zeitzone |
 | `PORT` | 8000 | Port auf dem Host |
-| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`- und `.gcode`-Dateien |
+| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-, `.gcode`- und `.bgcode`-Dateien |
 | `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
 | `LOG_LEVEL` | INFO | Ausführlichkeit der Protokolle (`docker compose logs`): `DEBUG`, `INFO` oder `WARNING` |
 
@@ -330,7 +343,9 @@ weiter.
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Bambu-Drucker für den Direktimport (optional) |
-| `PRINTER_<n>_TYPE`, `_API_KEY` | `bambu`, – | `moonraker` für Klipper-Drucker, mit optionalem API-Schlüssel |
+| `PRINTER_<n>_TYPE` | `bambu` | `prusalink` für Prusa, `moonraker` für Klipper-Drucker |
+| `PRINTER_<n>_PASSWORD` | – | PrusaLink-Passwort (Prusa) |
+| `PRINTER_<n>_API_KEY` | – | Moonraker-API-Schlüssel, nur wenn nötig (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | From printer | Zielordner für importierte Drucke in der Bibliothek |
 

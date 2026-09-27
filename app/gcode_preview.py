@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Wandelt den G-Code einer Platte (aus einer .gcode.3mf oder einer .gcode-Datei) in eine kompakte Vorschau für den 3D-Viewer.
+"""Wandelt den G-Code einer Platte (aus .gcode.3mf, .gcode oder .bgcode) in eine kompakte Vorschau für den 3D-Viewer.
 
 Ausgabe pro Platte (im Cache unter DATA_DIR/preview/):
   <fid>_<plate>.json   Schichthöhen, Filamente, Linientypen, Wertebereiche
@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import gzip
 import io
+import itertools
 import json
 import math
+import re
 import threading
 import zipfile
 from array import array
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import gcode_file
+from . import bgcode, gcode_file
 from .i18n import UserError
 
 VERSION = 4
@@ -82,6 +84,12 @@ FEATURES = {
     "PRIME-TOWER": "Reinigungsturm",
 }
 OTHER = "Sonstiges"
+# Dieselben Namen ohne Leerzeichen und Groß-/Kleinschreibung, falls ein Kodierer sie verändert
+_FEATURES_LOOSE = {k.replace(" ", "").lower(): v for k, v in FEATURES.items()}
+# Wörter eines G-Code-Befehls ohne Leerzeichen, wie MeatPack sie speichert: "G1X10Y5E.4"
+_WORD = re.compile(r"[A-Z][^A-Z\s]*")
+_MWORD = re.compile(r"([A-Z])\s*(-?\d*\.?\d+)")
+LAYER_MARKS = ("; CHANGE_LAYER", ";LAYER_CHANGE", ";LAYER:")
 
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
@@ -105,6 +113,12 @@ def _params(parts):
             except ValueError:
                 pass
     return out
+
+
+def _mparams(line: str) -> dict[str, float]:
+    """Werte eines M-Befehls, mit oder ohne Leerzeichen ("M106 S255", "M106S255")."""
+    words = _MWORD.findall(line.partition(";")[0])
+    return {k: float(v) for k, v in words[1:]}
 
 
 def _diameters(z: zipfile.ZipFile) -> dict[int, float]:
@@ -149,21 +163,29 @@ def _ranges(mets: array) -> dict:
 
 @contextmanager
 def _open_gcode(path: Path, plate: int):
-    """G-Code als Bytestrom: (Strom, Größe, Filamentdurchmesser je Werkzeug)."""
+    """G-Code zeilenweise: (Zeilen, Größe, Filamentdurchmesser je Werkzeug, Fortschritt 0..1)."""
+    if bgcode.is_bgcode(path.name):
+        done = [0.0]
+        lines = bgcode.gcode_lines(path, progress=lambda v: done.__setitem__(0, v))
+        yield lines, path.stat().st_size, gcode_file.diameters(path), lambda: done[0]
+        return
     if gcode_file.is_gcode(path.name):
+        size = path.stat().st_size or 1
         with open(path, "rb") as raw:
-            yield raw, path.stat().st_size, gcode_file.diameters(path)
+            yield (io.TextIOWrapper(raw, encoding="utf-8", errors="replace"), size, gcode_file.diameters(path),
+                   lambda: raw.tell() / size)
         return
     with zipfile.ZipFile(path) as z:
         name = f"Metadata/plate_{plate}.gcode"
+        size = z.getinfo(name).file_size or 1
         with z.open(name) as raw:
-            yield raw, z.getinfo(name).file_size, _diameters(z)
+            yield (io.TextIOWrapper(raw, encoding="utf-8", errors="replace"), size, _diameters(z),
+                   lambda: raw.tell() / size)
 
 
 def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = None) -> dict:
     progress = progress if progress is not None else {}
-    with _open_gcode(Path(src_path), plate) as (raw, total, diameters):
-        total = total or 1
+    with _open_gcode(Path(src_path), plate) as (lines, total, diameters, position):
         tol = _tolerance(total)
         tol2 = tol * tol
 
@@ -190,6 +212,10 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
         feat = -1
         layer = -1
         layer_used = False  # Extrusion in der aktuellen Schicht, sonst ist ein Schichtwechsel doppelt
+        # Ohne Schichtmarken (etwa MeatPack ohne Kommentare) zählt jede neue Druckhöhe als Schicht
+        head = list(itertools.islice(lines, 50_000))
+        markers = any(line.startswith(LAYER_MARKS) for line in head)
+        lines = itertools.chain(head, lines)
         z_known = False     # Schichthöhe aus einem Kommentar statt aus der Z-Bewegung
         cur_start = -1  # Punktindex der aktuellen Bahn, -1 = keine offen
         # Letzte zwei Punkte der offenen Bahn (für Vereinfachung), in mm
@@ -199,7 +225,7 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
         maxx = maxy = -1e9
 
         def feature_id(label: str) -> int:
-            label = FEATURES.get(label, OTHER)
+            label = FEATURES.get(label) or _FEATURES_LOOSE.get(label.replace(" ", "").lower(), OTHER)
             if label not in feature_idx:
                 feature_idx[label] = len(feature_names)
                 feature_names.append(label)
@@ -254,8 +280,9 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
             if ny < miny: miny = ny
             if ny > maxy: maxy = ny
 
-        text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
-        for n_line, line in enumerate(text):
+        for n_line, line in enumerate(lines):
+            if n_line % 200_000 == 0:
+                progress["value"] = min(0.99, position())
             if not line:
                 continue
             c0 = line[0]
@@ -264,7 +291,7 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                 if line.startswith(("; FEATURE:", ";TYPE:")):
                     close()
                     feat = feature_id(line.partition(":")[2].strip())
-                elif line.startswith(("; CHANGE_LAYER", ";LAYER_CHANGE", ";LAYER:")):
+                elif line.startswith(LAYER_MARKS):
                     close()
                     if layer < 0 or layer_used:  # Orca schreibt zwei Marken je Wechsel
                         layer += 1
@@ -281,6 +308,8 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                 if ";" in line:
                     line = line.partition(";")[0]
                 parts = line.split()
+                if len(parts[0]) > 3:  # ohne Leerzeichen gespeichert
+                    parts = _WORD.findall(line)
                 code = parts[0]
                 if code in ("G1", "G0", "G2", "G3"):
                     p = {}
@@ -313,6 +342,12 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                         retracted = False
                     if layer >= 0 and moved and (de <= 0 or code == "G0"):
                         travels.extend((q(x), q(y), q(nx), q(ny), min(layer, 65535)))
+                    if not markers and de > 0 and moved and code != "G0" and (
+                            layer < 0 or zpos > layer_z[layer] + 1e-6):
+                        close()  # G-Code ohne Schichtmarken: neue Höhe, neue Schicht
+                        layer += 1
+                        layer_z.append(zpos)
+                        layer_used, z_known = False, True
                     if layer >= 0 and de > 0 and moved and code != "G0":
                         if not layer_used:
                             layer_used = True
@@ -355,12 +390,12 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                 continue
             if c0 == "M":
                 if line.startswith(("M106", "M107")):
-                    mp = _params(line.partition(";")[0].split()[1:])
+                    mp = _mparams(line)
                     # Bauteillüfter: ohne P, P0 oder P1 (Bambu); P2/P3 sind Zusatz- und Kammerlüfter
                     if mp.get("P", 1) in (0, 1):
                         fan = 0 if line.startswith("M107") else round(max(0.0, min(255.0, mp.get("S", 255))) / 2.55)
                 elif line.startswith(("M104", "M109")):
-                    mp = _params(line.partition(";")[0].split()[1:])
+                    mp = _mparams(line)
                     if "S" in mp and mp["S"] > 0:
                         temp = round(mp["S"])
                 elif line.startswith("M620 S"):
@@ -384,8 +419,6 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                     close()
                     tool = t
                     tools_used.add(t)
-            if n_line % 200_000 == 0:
-                progress["value"] = min(0.99, raw.tell() / total) if hasattr(raw, "tell") else 0
         close()
 
     if not polys:

@@ -322,3 +322,125 @@ def test_moonraker_unreachable(lib):
     printer = {"name": "K1", "id": "moonraker:z", "code": "", "ip": f"127.0.0.1:{_free_port()}", "kind": "moonraker"}
     res = pi.sync_printer(printer)
     assert not res["ok"] and "nicht erreichbar" in res["error"]
+
+
+# --- Prusa (PrusaLink) ---------------------------------------------------------
+
+def test_env_prusalink_printer():
+    env = {"PRINTER_1_TYPE": "prusalink", "PRINTER_1_NAME": "MK4S", "PRINTER_1_IP": "192.0.2.22",
+           "PRINTER_1_PASSWORD": "geheim",
+           "PRINTER_2_TYPE": "prusalink", "PRINTER_2_IP": "192.0.2.23"}  # Passwort fehlt: übersprungen
+    (p,) = pi.env_printers(env)
+    assert (p["name"], p["id"], p["kind"], p["code"]) == ("MK4S", "prusalink:http://192.0.2.22", "prusalink", "geheim")
+
+
+def test_save_prusalink_printer(lib):
+    pi.init()
+    with pytest.raises(ValueError, match="Passwort fehlt"):
+        pi.save_printers([{"db_id": None, "kind": "prusalink", "name": "XL", "ip": "192.0.2.70", "code": ""}])
+    pi.save_printers([{"db_id": None, "kind": "prusalink", "name": "XL", "ip": "192.0.2.70", "code": "pw"}])
+    (p,) = pi.db_printers()
+    assert (p["kind"], p["id"], p["code"]) == ("prusalink", "prusalink:http://192.0.2.70", "pw")
+
+
+@pytest.fixture
+def prusalink():
+    """HTTP-Server im Stil von PrusaLink, mit Digest-Anmeldung (Benutzer maker)."""
+    import hashlib
+    import json
+    import re
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    realm, nonce = "Printer API", "abc123"
+    st = {"password": "geheim", "files": {}, "requests": []}  # Pfad auf dem Stick -> (Inhalt, Zeit)
+
+    def md5(text):
+        return hashlib.md5(text.encode()).hexdigest()
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def _authorized(self):
+            auth = self.headers.get("Authorization", "")
+            if not auth.startswith("Digest "):
+                return False
+            f = dict(re.findall(r'(\w+)="?([^",]*)"?', auth[7:]))
+            ha1 = md5(f"maker:{realm}:{st['password']}")
+            ha2 = md5(f"GET:{f.get('uri')}")
+            expected = md5(f"{ha1}:{nonce}:{f.get('nc')}:{f.get('cnonce')}:{f.get('qop')}:{ha2}")
+            return f.get("username") == "maker" and f.get("response") == expected
+
+        def _send(self, code, body=b"", ctype="application/json"):
+            self.send_response(code)
+            if code == 401:
+                self.send_header("WWW-Authenticate", f'Digest realm="{realm}", nonce="{nonce}", qop="auth"')
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self):
+            st["requests"].append(self.path)
+            if not self._authorized():
+                return self._send(401)
+            if self.path == "/api/v1/storage":
+                return self._send(200, json.dumps({"storage_list": [
+                    {"type": "USB", "path": "/usb", "available": True},
+                    {"type": "LOCAL", "path": "/local", "available": False}]}).encode())
+            if self.path.startswith("/api/v1/files/usb"):
+                sub = self.path[len("/api/v1/files/usb"):].strip("/")
+                children, folders = [], set()
+                for path, (content, ts) in st["files"].items():
+                    folder, _, name = path.rpartition("/")
+                    if folder == sub:
+                        short = name.upper()[:6] + "~1." + name.rsplit(".", 1)[1].upper()[:3]
+                        children.append({"name": short, "display_name": name, "type": "PRINT_FILE",
+                                         "size": len(content), "m_timestamp": ts,
+                                         "refs": {"download": f"/usb/{(sub + '/') if sub else ''}{short}"}})
+                    elif folder.startswith(sub) and folder != sub:
+                        folders.add(folder[len(sub):].strip("/").split("/")[0])
+                children += [{"name": f, "display_name": f, "type": "FOLDER"} for f in sorted(folders)]
+                children.append({"name": "SYSTEM~1", "display_name": ".system", "type": "FOLDER"})
+                return self._send(200, json.dumps({"type": "FOLDER", "children": children}).encode())
+            if self.path.startswith("/usb/"):
+                for path, (content, _ts) in st["files"].items():
+                    folder, _, name = path.rpartition("/")
+                    short = name.upper()[:6] + "~1." + name.rsplit(".", 1)[1].upper()[:3]
+                    if self.path == f"/usb/{(folder + '/') if folder else ''}{short}":
+                        return self._send(200, content, "application/octet-stream")
+            return self._send(404)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield {"address": f"127.0.0.1:{server.server_address[1]}", "state": st}
+    server.shutdown()
+
+
+def test_prusalink_sync(lib, prusalink, tmp_path):
+    from test_bgcode import make_bgcode
+    from test_gcode_file import PRUSA_BODY
+    data = make_bgcode(tmp_path / "x.bgcode", PRUSA_BODY).read_bytes()
+    prusalink["state"]["files"].update({
+        "Clip_0.2mm_PETG_MK4S_38m.bgcode": (data, 1_700_000_000),
+        "Kunden/Halter_PLA.gcode": (b"G1 X1 Y1 E1\n", 1_700_000_100),
+        "Kunden/firmware.bbf": (b"x", 1_700_000_100),
+    })
+    printer = {"name": "MK4S", "id": "prusalink:x", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
+    pi.init()
+    res = pi.sync_printer(printer)
+    assert res["ok"] and res["new"] == 2 and res["files"] == 2, res
+    target = lib / "From printer" / "MK4S"
+    assert sorted(os.listdir(target)) == ["Clip_0.2mm_PETG_MK4S_38m.bgcode", "Kunden_Halter_PLA.gcode"]
+    assert (target / "Clip_0.2mm_PETG_MK4S_38m.bgcode").read_bytes() == data
+    assert pi.sync_printer(printer)["new"] == 0
+    store.scan(wait=True)
+    with store.connect() as con:
+        row = con.execute("SELECT printer FROM files WHERE path LIKE '%.bgcode'").fetchone()
+    assert row["printer"] == "Original Prusa MK4S"
+
+
+def test_prusalink_wrong_password(lib, prusalink):
+    printer = {"name": "MK4S", "id": "prusalink:y", "code": "falsch", "ip": prusalink["address"], "kind": "prusalink"}
+    res = pi.sync_printer(printer)
+    assert res["auth_failed"] and res["error"].startswith("Anmeldung abgelehnt, Passwort prüfen")

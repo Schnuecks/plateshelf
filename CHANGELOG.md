@@ -2,6 +2,20 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Binary G-code** (`.bgcode`) from PrusaSlicer, the default for Prusa MK4, XL, Mini and
+  Core One: print time, filament, colours, costs, printer, settings, object names and the
+  preview image are read from the metadata blocks; the 3D preview unpacks the G-code
+  (Heatshrink and MeatPack). Uploading accepts `.bgcode`.
+- **Direct import from Prusa printers via PrusaLink** (MK4, MK3.9, XL, Mini, Core One):
+  choose “Prusa (PrusaLink)” in the settings and enter the PrusaLink password, or use
+  `PRINTER_<n>_TYPE=prusalink` with `PRINTER_<n>_IP` and `PRINTER_<n>_PASSWORD`. Files are
+  fetched from the USB drive and internal storage, including subfolders.
+- 3D preview: G-code without layer comments now gets its layers from the print height,
+  and progress while preparing a preview is reported more evenly.
+- New dependency `heatshrink2` (ISC license) for unpacking `.bgcode`.
+
 ## 0.7.2
 
 - **Plain G-code files** (`.gcode`) from PrusaSlicer, SuperSlicer, OrcaSlicer, Cura,
