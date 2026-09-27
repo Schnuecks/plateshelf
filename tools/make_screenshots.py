@@ -6,7 +6,8 @@
     python tools/make_screenshots.py
 
 Baut eine Beispielbibliothek mit englischen Namen, startet PlateShelf auf Englisch im
-dunklen Design und fotografiert Übersicht, Projektseite, 3D-Vorschau und „About“.
+dunklen Design und fotografiert Übersicht, Projektseite, 3D-Vorschau, Druckverlauf,
+Einstellungen und „About“. Drucker und Drucke sind nachgestellt, es wird nichts abgefragt.
 """
 from __future__ import annotations
 
@@ -103,12 +104,47 @@ def build_library(lib: Path) -> None:
             z.writestr(n, d)
 
 
+def add_printers_and_prints() -> None:
+    """Drei Drucker mit letztem Abruf und ein paar Drucke, einer davon läuft gerade."""
+    from app import print_history as ph, printer_import as pi, store
+    pi.init()
+    now = time.time()
+    printers = [
+        {"name": "P2S", "id": "01P00A000000001", "ip": "192.0.2.20", "code": "x", "kind": "bambu"},
+        {"name": "MK4S", "id": "prusalink:http://192.0.2.21", "ip": "192.0.2.21", "code": "x", "kind": "prusalink"},
+        {"name": "Voron 2.4", "id": "moonraker:http://192.0.2.22:7125", "ip": "192.0.2.22", "code": "",
+         "kind": "moonraker"},
+    ]
+    with store.connect() as con:
+        for p in printers:
+            con.execute("INSERT INTO printers (name, serial, ip, code, kind) VALUES (?, ?, ?, ?, ?)",
+                        (p["name"], p["id"], p["ip"], p["code"], p["kind"]))
+        for p, remote in ((printers[0], "Benchy_plate_1.gcode.3mf"), (printers[0], "Planter.gcode.3mf"),
+                          (printers[1], "Cable_clips.gcode.3mf"), (printers[2], "Wall mount/Mount_left.gcode.3mf")):
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                        "imported) VALUES (?, ?, 1, 'Sep 20 10:00', ?, ?, ?)", (p["id"], remote, remote, p["name"], now))
+    for p, files in ((printers[0], 14), (printers[1], 6), (printers[2], 9)):
+        pi.state["printers"][p["id"]] = {"name": p["name"], "kind": p["kind"], "ok": True, "files": files,
+                                         "error": None, "error_msg": None, "error_args": {}, "at": now - 240}
+    day = 86400
+    for p, key, remote, status, start, minutes in (
+            (printers[0], "a", "Benchy_plate_1.gcode.3mf", "completed", now - 5 * day, 49),
+            (printers[1], "b", "Cable_clips.gcode.3mf", "completed", now - 4 * day, 26),
+            (printers[2], "c", "Wall mount/Mount_left.gcode.3mf", "cancelled", now - 3 * day, 18),
+            (printers[2], "d", "Wall mount/Mount_left.gcode.3mf", "completed", now - 2 * day, 123),
+            (printers[0], "e", "Benchy_plate_1.gcode.3mf", "completed", now - day, 50)):
+        ph.record(p, key, status, remote_name=remote, started=start, ended=start + minutes * 60)
+    ph.record(printers[0], "live", "running", remote_name="Planter.gcode.3mf", started=now - 7000,
+              progress=62, remaining_s=72 * 60)
+
+
 def main() -> None:
     from playwright.sync_api import sync_playwright
     import uvicorn
 
     tmp = Path(tempfile.mkdtemp(prefix="plateshelf-shots-"))
-    os.environ.update(DEFAULT_LANGUAGE="en", DEFAULT_THEME="dark", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false")
+    os.environ.update(DEFAULT_LANGUAGE="en", DEFAULT_THEME="dark", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false",
+                      BACKGROUND_TASKS="false", PRINT_HISTORY="true")
     from app import main as app_main, store
     store.LIBRARY_DIR, store.DATA_DIR = tmp / "library", tmp / "data"
     store.DB_PATH, store.THUMB_DIR, store.PREBUILD = tmp / "data" / "plateshelf.sqlite", tmp / "data" / "thumbs", False
@@ -121,6 +157,7 @@ def main() -> None:
         con.execute("UPDATE projects SET status = 'gedruckt', tags = 'boat, calibration', notes = ? WHERE id = ?",
                     ("Printed with 0.2 mm layers. Hull came out perfect.", benchy))
         con.execute("UPDATE projects SET status = 'gedruckt', tags = 'garden' WHERE id = ?", (pid,))
+    add_printers_and_prints()
 
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -153,6 +190,14 @@ def main() -> None:
         page.wait_for_selector("#viewer-loading", state="hidden", timeout=120_000)
         page.wait_for_timeout(1500)  # Tiefenschattierung im Stillstand abwarten
         page.screenshot(path=OUT / "preview.png")
+
+        page.goto(url + "/history")
+        page.wait_for_load_state("networkidle")
+        page.screenshot(path=OUT / "history.png")
+
+        page.goto(url + "/settings")
+        page.wait_for_load_state("networkidle")
+        page.screenshot(path=OUT / "settings.png")
 
         page.goto(url + "/about")
         page.wait_for_load_state("networkidle")

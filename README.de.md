@@ -54,6 +54,10 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 |---|---|
 | ![Projektseite](docs/screenshots/project.png) | ![3D-Vorschau, eingefärbt nach Linientyp](docs/screenshots/preview.png) |
 
+| Druckverlauf | Einstellungen |
+|---|---|
+| ![Druckverlauf mit laufendem Druck](docs/screenshots/history.png) | ![Einstellungen mit Druckern dreier Typen](docs/screenshots/settings.png) |
+
 Die Screenshots zeigen die englische Oberfläche; die Sprache lässt sich oben rechts umstellen.
 
 ## Installation
@@ -229,7 +233,14 @@ eingetragen, hat die `.env` Vorrang.
 Für die Drucker aus dem Direktimport schreibt PlateShelf jeden Druck mit: Start, Ende,
 Dauer, Drucker und Ausgang (fertig, abgebrochen, fehlgeschlagen). „Verlauf“ in der
 Titelleiste zeigt alle Drucke, die Projektseite die Drucke ihrer Dateien, die Übersicht,
-wie oft ein Projekt gedruckt wurde.
+wie oft ein Projekt gedruckt wurde. Die Übersicht lässt sich nach „Zuletzt gedruckt“ oder
+„Am häufigsten gedruckt“ sortieren und nach „Schon gedruckt“ oder „Noch nie gedruckt“
+filtern.
+
+Ein laufender Druck erscheint in der Titelleiste mit Drucker, Projekt, Fortschritt und
+Restzeit sowie auf der Karte des Projekts in der Übersicht; die Titelleiste frischt sich
+alle 30 Sekunden auf. Bambu und Prusa melden die Restzeit selbst, bei Klipper wird sie aus
+dem bisherigen Fortschritt geschätzt.
 
 - **Bambu Lab:** PlateShelf hält eine MQTT-Verbindung zum Drucker (Port 8883, derselbe
   Zugangscode) und erfährt so sofort von jedem Druck.
@@ -450,6 +461,7 @@ Unter `/api/stats` liefert PlateShelf seine Kennzahlen als JSON:
 | `printers_ok`, `printers_total`, `last_printer_sync` | Erreichbare und eingerichtete Drucker, letzter Abruf |
 | `prints_30d`, `prints_failed_30d` | Fertige und abgebrochene oder fehlgeschlagene Drucke der letzten 30 Tage |
 | `printing_now`, `last_print_end` | Gerade laufende Drucke, Ende des letzten Drucks |
+| `printing_name`, `printing_printer`, `printing_progress`, `printing_remaining_min` | Der laufende Druck: Projekt, Drucker, Fortschritt in %, Restminuten |
 | `trash_items`, `version` | Einträge im Papierkorb, Version von PlateShelf |
 
 Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customapi` in der
@@ -538,6 +550,15 @@ eine Übersetzung fehlt oder ihre Platzhalter (`{n}`, `{name}` …) nicht zum de
 Text passen. Eine neue Sprache braucht einen Eintrag in `LANGUAGES`, `NUMBER_FORMAT`,
 `MONTHS` und `DAY_MONTH` in `app/i18n.py` sowie eine eigene JSON-Datei.
 
+### Probleme melden
+
+Fehler und Ideen sind als Issue auf GitHub willkommen; die Formulare fragen die Angaben ab,
+die meist gebraucht werden. Bei Fehlern öffnest du in PlateShelf „Einstellungen“ →
+„Diagnose“, klickst auf „Kopieren“ und fügst den Text ins Issue ein. Er enthält Version,
+Plattform, Zahlen zur Bibliothek, die Druckertypen mit ihrem letzten Ergebnis, welche
+Einstellungen gesetzt sind und die letzten Warnungen, aber keine Zugangsdaten,
+IP-Adressen, Hostnamen oder Druckernamen.
+
 ### Tests, Builds und Releases
 
 - Jeder Pull Request und jeder Push auf `main` durchläuft die Python-Tests und den
@@ -573,7 +594,7 @@ Gibst du eine veränderte Fassung weiter oder bietest sie anderen über ein Netz
 Nutzung an, musst du ihnen den Quellcode deiner Fassung unter derselben Lizenz
 zugänglich machen. Der Link „Quellcode auf GitHub“ im Footer erfüllt das für diese
 Fassung; bei einer eigenen Fassung passe ihn auf deinen Quellcode an (`APP_REPO` in
-`app/main.py`).
+`app/web.py`).
 
 Das Programm wird ohne jede Gewährleistung bereitgestellt. Einzelheiten stehen in der
 [Lizenz](LICENSE).

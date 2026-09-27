@@ -2,6 +2,24 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Running prints live:** the top bar shows printer, project, progress and remaining time
+  of a running print (refreshed every 30 seconds), the project card shows “Printing 45 %”.
+  Remaining time comes from Bambu and PrusaLink; for Klipper it is estimated from the
+  progress. `/api/stats` has `printing_name`, `printing_printer`, `printing_progress` and
+  `printing_remaining_min` for dashboards.
+- **Overview by print history:** sort by “Recently printed” or “Most printed”, filter by
+  “Printed before” or “Never printed”.
+- **Diagnostics** under “Settings”: a text to copy into a GitHub issue with version,
+  platform, library figures, printer types and their last result, which settings are set
+  and the latest warnings, without credentials, IP addresses or printer names.
+- **Issue forms on GitHub** for bug reports and feature requests.
+- README screenshots now include the print history and the settings page.
+- Internal: `app/main.py` is split into `web.py`, `projects.py` and `routes_*.py`. The tests
+  no longer start background threads; lingering threads from earlier tests occasionally
+  accessed the database of a later test and made the suite fail at random.
+
 ## 0.7.6
 
 - **New settings page:** the sections (printers, electricity costs, print history) are

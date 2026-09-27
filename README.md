@@ -52,6 +52,10 @@ print settings and a 3D preview of the actual toolpaths.
 |---|---|
 | ![Project page](docs/screenshots/project.png) | ![3D preview coloured by line type](docs/screenshots/preview.png) |
 
+| Print history | Settings |
+|---|---|
+| ![Print history with a running print](docs/screenshots/history.png) | ![Settings with printers of three types](docs/screenshots/settings.png) |
+
 ## Installation
 
 ### Requirements
@@ -215,7 +219,13 @@ read-only in the settings. If a printer is set in both places, the `.env` wins.
 For printers set up for the direct import, PlateShelf records every print: start, end,
 duration, printer and outcome (finished, cancelled, failed). “History” in the top bar
 lists all prints; the project page shows the prints of its files, and the overview shows
-how often a project was printed.
+how often a project was printed. The overview can be sorted by “Recently printed” or
+“Most printed” and filtered by “Printed before” or “Never printed”.
+
+A running print appears in the top bar with printer, project, progress and remaining
+time, and on the project's card in the overview; the top bar refreshes every 30 seconds.
+Bambu and Prusa report the remaining time themselves, for Klipper it is estimated from the
+progress so far.
 
 - **Bambu Lab:** PlateShelf keeps an MQTT connection to the printer (port 8883, same
   access code) and learns about each print right away.
@@ -428,6 +438,7 @@ At `/api/stats`, PlateShelf provides its key figures as JSON:
 | `printers_ok`, `printers_total`, `last_printer_sync` | Reachable and configured printers, last query |
 | `prints_30d`, `prints_failed_30d` | Finished and cancelled or failed prints in the last 30 days |
 | `printing_now`, `last_print_end` | Prints running right now, end of the last print |
+| `printing_name`, `printing_printer`, `printing_progress`, `printing_remaining_min` | The running print: project, printer, progress in %, remaining minutes |
 | `trash_items`, `version` | Items in the trash, PlateShelf version |
 
 For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
@@ -515,6 +526,14 @@ translation is missing or its placeholders (`{n}`, `{name}` …) don’t match t
 text. A new language needs an entry in `LANGUAGES`, `NUMBER_FORMAT`, `MONTHS` and
 `DAY_MONTH` in `app/i18n.py` plus its own JSON file.
 
+### Reporting problems
+
+Bug reports and ideas are welcome as GitHub issues; the forms ask for the details that
+are usually needed. For bugs, open “Settings” → “Diagnostics” in PlateShelf, click “Copy”
+and paste the text into the issue. It lists version, platform, library figures, printer
+types with their last result, which settings are set and the latest warnings, without
+credentials, IP addresses, host names or printer names.
+
 ### Tests, builds and releases
 
 - Every pull request and every push to `main` runs the Python tests and the browser
@@ -549,7 +568,7 @@ may use, modify and share it.
 If you distribute a modified version or offer it to others over a network, you must make
 the source code of your version available to them under the same license. The “Source
 code on GitHub” link in the footer does that for this version; for your own version,
-point it to your source code (`APP_REPO` in `app/main.py`).
+point it to your source code (`APP_REPO` in `app/web.py`).
 
 The program is provided without any warranty. See the [license](LICENSE) for details.
 

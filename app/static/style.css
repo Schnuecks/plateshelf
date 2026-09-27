@@ -549,6 +549,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .live-more { color: var(--muted); }
 @keyframes live-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+@media (max-width: 1100px) { .live-print { max-width: 14rem; } }
 @media (max-width: 760px) { .live-print { max-width: 60vw; } }
 .bed-live { position: absolute; left: .5rem; top: .5rem; background: var(--accent); color: var(--accent-ink);
   font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 3px; }
