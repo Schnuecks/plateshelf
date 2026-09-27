@@ -3,3 +3,6 @@ contact_links:
   - name: Documentation
     url: https://github.com/schnuecks/plateshelf#readme
     about: Installation, settings and printer setup are described in the README.
+  - name: Security problem
+    url: https://github.com/schnuecks/plateshelf/security/advisories/new
+    about: Please report vulnerabilities privately, not as a public issue.
