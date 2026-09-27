@@ -198,8 +198,13 @@ def test_printer_type_switches_fields(server, page):
     row.locator("[name=kind]").select_option("moonraker")
     assert not row.locator("[name=serial]").is_visible()
     assert row.get_by_text("API-Schlüssel (optional)").is_visible()
+    row.locator("[name=kind]").select_option("prusalink")
+    assert not row.locator("[name=serial]").is_visible()
+    assert row.get_by_text("Passwort", exact=True).is_visible()
+    assert not row.get_by_text("API-Schlüssel (optional)").is_visible()
     row.locator("[name=kind]").select_option("bambu")
     assert row.locator("[name=serial]").is_visible()
+    assert not row.get_by_text("Passwort", exact=True).is_visible()
     assert page.errors == []
 
 

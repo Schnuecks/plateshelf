@@ -1,25 +1,28 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Liest einfache G-Code-Dateien (.gcode) aus PrusaSlicer, OrcaSlicer, Cura und Co.
+"""Liest G-Code-Dateien (.gcode, .bgcode) aus PrusaSlicer, OrcaSlicer, Cura und Co.
 
 Die Slicer schreiben ihre Angaben als Kommentare in die Datei:
   Anfang    Vorschaubilder (Base64), bei Orca und Cura auch Druckzeit und Schichten
   Ende      Druckzeit, Filamentverbrauch und alle Einstellungen als "; key = value"
 Gelesen werden nur Anfang und Ende, damit auch große Dateien schnell gehen.
-Eine G-Code-Datei ergibt eine Platte mit der Nummer 1.
+Binärer G-Code (.bgcode) hat dieselben Angaben in eigenen Metadaten-Blöcken,
+siehe bgcode.py. Eine G-Code-Datei ergibt eine Platte mit der Nummer 1.
 """
 from __future__ import annotations
 
 import base64
+import json
 import math
 import re
 import struct
 import zlib
 from pathlib import Path
 
+from . import bgcode
 from .parser import Filament, ParsedFile, Plate, _norm_color, _to_float, parse_duration
 
-EXTENSIONS = (".gcode",)
+EXTENSIONS = (".gcode", ".bgcode")
 HEAD_BYTES = 1024 * 1024
 TAIL_BYTES = 512 * 1024
 DEFAULT_DENSITY = 1.24   # g/cm³ (PLA), falls der Slicer nur die Länge angibt
@@ -69,9 +72,18 @@ def head_and_tail(path: Path) -> tuple[str, str]:
     return head.decode("utf-8", "replace"), tail.decode("utf-8", "replace")
 
 
+def _texts(path: Path) -> tuple[str, str, bytes | None]:
+    """(Anfang, Ende, Vorschaubild); bei .bgcode die Metadaten in Kommentarform."""
+    if bgcode.is_bgcode(path.name):
+        meta = bgcode.read_meta(path)
+        return meta.as_comments(), "", _best([(kind, w * h, data) for kind, w, h, data in meta.thumbnails])
+    head, tail = head_and_tail(path)
+    return head, tail, thumbnail(head)
+
+
 def diameters(path: Path) -> dict[int, float]:
     """Filamentdurchmesser je Werkzeug, für die Volumenstrom-Berechnung der Vorschau."""
-    head, tail = head_and_tail(path)
+    head, tail, _thumb = _texts(path)
     values = read_config(head + "\n" + tail).get("filament_diameter") or []
     out = {}
     for i, v in enumerate(values):
@@ -139,9 +151,19 @@ def qoi_to_png(data: bytes) -> bytes | None:
     return _png(width, height, bytes(out))
 
 
+def _best(candidates) -> bytes | None:
+    """Größtes brauchbares Bild aus (Format, Fläche, Daten); QOI wird zu PNG."""
+    for kind, _area, data in sorted(candidates, key=lambda c: -c[1]):
+        if kind == "QOI":
+            data = qoi_to_png(data)
+        if data and (data.startswith(b"\x89PNG") or data.startswith(b"\xff\xd8")):
+            return data
+    return None
+
+
 def thumbnail(text: str) -> bytes | None:
     """Größtes eingebettetes Vorschaubild als PNG oder JPEG."""
-    best, best_area = None, 0
+    candidates = []
     lines = iter(text.splitlines())
     for line in lines:
         m = _THUMB_BEGIN.match(line)
@@ -154,17 +176,11 @@ def thumbnail(text: str) -> bytes | None:
             if _THUMB_END.match(inner):
                 break
             chunks.append(inner.lstrip("; ").strip())
-        if area <= best_area:
-            continue
         try:
-            data = base64.b64decode("".join(chunks), validate=False)
+            candidates.append((kind, area, base64.b64decode("".join(chunks), validate=False)))
         except ValueError:
             continue
-        if kind == "QOI":
-            data = qoi_to_png(data)
-        if data and (data.startswith(b"\x89PNG") or data.startswith(b"\xff\xd8")):
-            best, best_area = data, area
-    return best
+    return _best(candidates)
 
 
 # --- Auslesen -----------------------------------------------------------------
@@ -204,7 +220,7 @@ def _count_layers(path: Path) -> tuple[int | None, float | None]:
 
 def parse_gcode(path: str | Path) -> ParsedFile:
     path = Path(path)
-    head, tail = head_and_tail(path)
+    head, tail, thumb = _texts(path)
     text = head + "\n" + tail
     config = read_config(text)
     result = ParsedFile(sliced=True, settings=config)
@@ -231,7 +247,8 @@ def parse_gcode(path: str | Path) -> ParsedFile:
 
     layers = _first_match(r"total layer number:\s*(\d+)", head) or _first_match(r"^;LAYER_COUNT:(\d+)", head)
     plate.layers = int(layers) if layers else None
-    max_z = _first_match(r"max_z_height:\s*([\d.]+)", head) or _first_match(r"^;MAXZ:([\d.]+)", head)
+    max_z = (_first_match(r"max_z_height:\s*([\d.]+)", head) or _first_match(r"^;MAXZ:([\d.]+)", head)
+             or _first_match(r"^; max_layer_z = ([\d.]+)", text))
     plate.max_z = _to_float(max_z)
     if plate.layers is None and ";LAYER_CHANGE" in head:
         plate.layers, last_z = _count_layers(path)
@@ -271,7 +288,13 @@ def parse_gcode(path: str | Path) -> ParsedFile:
     for name in _OBJECT.findall(head):
         name = re.sub(r"(\.(stl|3mf|obj|step))?_id_\d+_copy_\d+$", "", name, flags=re.I)
         objects.append(name.replace("_", " ").strip() or name)
+    if not objects and (info := _first_match(r"^; objects_info = (\{.*\})$", text)):
+        try:  # PrusaSlicer: {"objects":[{"name":"Benchy.stl","polygon":[…]}]}
+            objects = [re.sub(r"\.(stl|3mf|obj|step)$", "", o["name"], flags=re.I)
+                       for o in json.loads(info).get("objects", []) if o.get("name")]
+        except (ValueError, AttributeError, TypeError):
+            objects = []
     plate.objects = objects
-    plate.thumb = thumbnail(head)
+    plate.thumb = thumb
     result.plates = [plate]
     return result

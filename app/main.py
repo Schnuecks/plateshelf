@@ -522,7 +522,7 @@ def _printer_rows() -> list[dict]:
         status = printer_import.state["printers"].get(p["id"])
         rows.append({"db_id": p.get("db_id"), "kind": p["kind"], "name": p["name"], "ip": p["ip"],
                      "serial": p["id"] if p["kind"] == "bambu" else "",
-                     "url": printer_import.moonraker_url(p["ip"]) if p["kind"] == "moonraker" else "",
+                     "url": printer_import.printer_url(p["kind"], p["ip"]) if p["kind"] != "bambu" else "",
                      "source": p["source"], "status": status})
     return rows
 
@@ -664,7 +664,7 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
     """Speichert eine Datei. Rückgabe: (relativer Pfad, Fehlermeldung)."""
     name = _clean_name(upload.filename)
     if not store.is_library_file(name):
-        return None, _("{name}: keine .3mf- oder .gcode-Datei", name=upload.filename or _("Datei"))
+        return None, _("{name}: keine .3mf-, .gcode- oder .bgcode-Datei", name=upload.filename or _("Datei"))
     tmp = folder / f".upload-{uuid.uuid4().hex}.part"
     limit = MAX_UPLOAD_MB * 1024 * 1024
     written = 0
@@ -675,7 +675,11 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
                 if written > limit:
                     raise i18n.UserError("größer als {mb} MB", mb=MAX_UPLOAD_MB)
                 out.write(chunk)
-        if gcode_file.is_gcode(name):
+        if name.lower().endswith(".bgcode"):
+            with open(tmp, "rb") as fh:
+                if fh.read(4) != b"GCDE":
+                    raise i18n.UserError("keine gültige G-Code-Datei")
+        elif gcode_file.is_gcode(name):
             with open(tmp, "rb") as fh:
                 head = fh.read(256 * 1024)
             if b"\0" in head or not re.search(rb"^G[0-3][ \t]", head, re.M):

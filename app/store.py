@@ -160,7 +160,7 @@ def init_db() -> None:
         con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
 
 
-LIBRARY_EXTENSIONS = (".3mf", ".gcode")
+LIBRARY_EXTENSIONS = (".3mf", ".gcode", ".bgcode")
 
 
 def is_library_file(name: str) -> bool:
@@ -189,7 +189,7 @@ def group_key_for(rel: Path) -> tuple[str, str]:
         folder = rel.parent
         return f"dir:{folder.as_posix().lower()}", folder.name
     stem = rel.name
-    for ext in (".gcode.3mf", "_gcode.3mf", "-gcode.3mf", ".3mf", ".gcode"):
+    for ext in (".gcode.3mf", "_gcode.3mf", "-gcode.3mf", ".3mf", ".bgcode", ".gcode"):
         if stem.lower().endswith(ext):
             stem = stem[: -len(ext)]
             break
@@ -385,7 +385,7 @@ def unique_path(folder: Path, name: str) -> Path:
     target = folder / name
     if not target.exists():
         return target
-    ext = next((e for e in (".gcode.3mf", ".3mf", ".gcode") if name.lower().endswith(e)), Path(name).suffix)
+    ext = next((e for e in (".gcode.3mf", ".3mf", ".bgcode", ".gcode") if name.lower().endswith(e)), Path(name).suffix)
     stem, ext = name[:len(name) - len(ext)], name[len(name) - len(ext):]
     n = 2
     while (folder / f"{stem} ({n}){ext}").exists():

@@ -230,9 +230,21 @@ def test_upload_gcode(client, lib):
     r = client.post("/upload", files=[("files", ("kaputt.gcode", b"\x00\x01binary", "text/plain"))])
     assert r.status_code == 400 and "keine gültige G-Code-Datei" in r.text
     r = client.post("/upload", files=[("files", ("bild.png", b"x", "image/png"))])
-    assert "keine .3mf- oder .gcode-Datei" in r.text
+    assert "keine .3mf-, .gcode- oder .bgcode-Datei" in r.text
     with store.connect() as con:
         fid = con.execute("SELECT id FROM files").fetchone()[0]
     r = client.get(f"/thumb/{fid}/plate/1")
     assert r.status_code == 200 and r.headers["content-type"] == "image/png"
     assert client.get(f"/api/preview/{fid}/1").status_code == 200
+
+
+def test_prusalink_printer_in_settings(client, monkeypatch):
+    from app import printer_import as pi
+    monkeypatch.setattr(pi, "sync_all", lambda: None)
+    r = client.post("/settings/printers", data={
+        "db_id": [""], "kind": ["prusalink"], "name": ["MK4S"], "ip": ["192.0.2.80"], "serial": [""],
+        "code": ["pw"]}, follow_redirects=False)
+    assert r.status_code == 303
+    page = client.get("/settings").text
+    assert '<option value="prusalink" selected>' in page and 'value="pw"' not in page
+    assert pi.db_printers()[0]["id"] == "prusalink:http://192.0.2.80"

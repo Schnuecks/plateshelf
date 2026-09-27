@@ -5,8 +5,8 @@
 **English** · [Deutsch](README.de.md)
 
 PlateShelf is a self-hosted archive for your 3D prints. It reads sliced `.gcode.3mf`
-files from Bambu Studio and OrcaSlicer as well as plain `.gcode` files from PrusaSlicer,
-OrcaSlicer, Cura and similar slicers, and presents them as clearly as you know from your slicer:
+files from Bambu Studio and OrcaSlicer, `.gcode` files from PrusaSlicer, OrcaSlicer, Cura
+and similar slicers and binary `.bgcode` files from PrusaSlicer, and presents them as clearly as you know from your slicer:
 plates with preview images, print time, weight, filaments with colour and cost, the key
 print settings and a 3D preview of the actual toolpaths.
 
@@ -36,8 +36,9 @@ print settings and a 3D preview of the actual toolpaths.
 - **Automatic projects** from folders or file names, with manual reassignment
 - **Notes, tags, status and source** per project
 - **Upload** by drag & drop and a **trash** with restore
-- **Direct import from printers:** Bambu Lab via FTPS (even without LAN-only mode) and
-  Klipper printers via Moonraker, e.g. Creality K1/K2, Sovol SV08, Qidi or Voron
+- **Direct import from printers:** Bambu Lab via FTPS (even without LAN-only mode),
+  Prusa via PrusaLink (MK4, MK3.9, XL, Mini, Core One) and Klipper printers via
+  Moonraker, e.g. Creality K1/K2, Sovol SV08, Qidi or Voron
 - **Costs** from material and electricity
 - **Six languages** (English, Deutsch, Français, Español, Italiano, Nederlands) and a
   **light, dark or system theme**
@@ -69,7 +70,7 @@ mkdir -p library data
 docker compose up -d
 ```
 
-PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf` or `.gcode` files into
+PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf`, `.gcode` or `.bgcode` files into
 the `library` folder. They show up within two minutes, or immediately via “Rescan
 library” in the overview.
 
@@ -115,8 +116,10 @@ usage:
   slicers. One file is one plate. PlateShelf reads print time, filament usage, colours,
   costs, the printer and the key settings from the comments the slicer writes into the
   file, as well as the embedded preview image. Cura only stores the filament length; the
-  weight is then estimated for PLA with 1.75 mm. Binary G-code (`.bgcode`) is not
-  supported yet.
+  weight is then estimated for PLA with 1.75 mm.
+- **`.bgcode`** (binary G-code) from PrusaSlicer, the default for Prusa MK4, XL, Mini and
+  Core One. It contains the same information in compact form, including the preview
+  images.
 
 This is how projects are formed:
 
@@ -145,6 +148,8 @@ PlateShelf can fetch sliced prints from your printers itself:
 
 - **Bambu Lab** printers via FTPS from the SD card, using the printer’s access code.
   LAN-only mode is not required as long as the firmware allows file access.
+- **Prusa printers** via PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf fetches
+  the `.bgcode` and `.gcode` files from the USB drive or internal storage.
 - **Klipper printers** via [Moonraker](https://moonraker.readthedocs.io), the interface
   behind Mainsail and Fluidd. This covers for example Creality K1 and K2, Sovol SV08,
   Qidi, Elegoo Neptune 4 and Voron. PlateShelf fetches the `.gcode` files from the
@@ -155,6 +160,9 @@ import” and pick the type:
 
 - *Bambu Lab:* name, IP address, serial number and access code. You find these in the
   network settings on the printer.
+- *Prusa (PrusaLink):* name, IP address and the PrusaLink password. You find it on the
+  printer under Settings → Network → PrusaLink; the user name is `maker`. Older firmware
+  that uses an API key instead: enter the key as password.
 - *Klipper (Moonraker):* name and address of the printer. Without a port, PlateShelf
   uses Moonraker’s default port 7125; you can also enter a full address such as
   `http://192.0.2.21:7125`. An API key is only needed if Moonraker does not list the
@@ -176,10 +184,14 @@ PRINTER_2_TYPE=moonraker
 PRINTER_2_NAME=K1
 PRINTER_2_IP=192.0.2.21
 PRINTER_2_API_KEY=<optional>
+PRINTER_3_TYPE=prusalink
+PRINTER_3_NAME=MK4S
+PRINTER_3_IP=192.0.2.22
+PRINTER_3_PASSWORD=<PrusaLink password>
 # …
 ```
 
-`PRINTER_<n>_TYPE` is `bambu` (default) or `moonraker`. Printers set up this way appear
+`PRINTER_<n>_TYPE` is `bambu` (default), `prusalink` or `moonraker`. Printers set up this way appear
 read-only in the settings. If a printer is set in both places, the `.env` wins.
 
 **How it works:**
@@ -190,12 +202,12 @@ read-only in the settings. If a printer is set in both places, the `.env` wins.
   into projects by name.
 - The printer always saves a project under the same name and overwrites it when a
   different plate is printed. PlateShelf therefore stores each printed plate as a file
-  of its own (`…_plate_2.gcode.3mf`), so nothing gets lost. Klipper printers keep
-  their file names; a changed file replaces the previous copy.
+  of its own (`…_plate_2.gcode.3mf`), so nothing gets lost. Prusa and Klipper printers
+  keep their file names; a changed file replaces the previous copy.
 - Each file is fetched only once. What you delete in the archive is not imported again.
 - Files on the printer are only read, never changed or deleted.
 - If a printer is switched off or in standby, it is simply queried again next time. Only
-  a wrong access code or API key shows up as a warning in the overview.
+  a wrong access code, password or API key shows up as a warning in the overview.
 
 ### 3D preview
 
@@ -295,7 +307,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `PUID`, `PGID` | 1000 | User and group the container runs as |
 | `TZ` | Europe/Berlin | Time zone |
 | `PORT` | 8000 | Port on the host |
-| `LIBRARY` | `./library` | Folder with the `.gcode.3mf` and `.gcode` files |
+| `LIBRARY` | `./library` | Folder with the `.gcode.3mf`, `.gcode` and `.bgcode` files |
 | `DATA` | `./data` | Folder for database, preview images and 3D previews |
 | `LOG_LEVEL` | INFO | Log verbosity (`docker compose logs`): `DEBUG`, `INFO` or `WARNING` |
 
@@ -313,7 +325,9 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | Variable | Default | Meaning |
 |---|---|---|
 | `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Bambu printers for the direct import (optional) |
-| `PRINTER_<n>_TYPE`, `_API_KEY` | `bambu`, – | `moonraker` for Klipper printers, with optional API key |
+| `PRINTER_<n>_TYPE` | `bambu` | `prusalink` for Prusa, `moonraker` for Klipper printers |
+| `PRINTER_<n>_PASSWORD` | – | PrusaLink password (Prusa) |
+| `PRINTER_<n>_API_KEY` | – | Moonraker API key, only if required (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
 

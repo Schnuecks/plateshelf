@@ -10,10 +10,14 @@ Klipper (Moonraker): per HTTP aus dem G-Code-Ordner des Druckers, etwa bei
 Creality K1/K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ein API-Schlüssel
 ist nur nötig, wenn Moonraker die Adresse von PlateShelf nicht als vertrauenswürdig kennt.
 
+Prusa (PrusaLink): per HTTP vom USB-Stick oder internen Speicher, bei MK4, MK3.9,
+XL, Mini und Core One. Anmeldung mit Benutzer "maker" und dem PrusaLink-Passwort.
+
 Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
 Umgebungsvariablen vorgegeben:
     PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
     PRINTER_2_TYPE=moonraker  PRINTER_2_NAME=K1  PRINTER_2_IP=192.0.2.21  PRINTER_2_API_KEY=<optional>
+    PRINTER_3_TYPE=prusalink  PRINTER_3_NAME=MK4S  PRINTER_3_IP=192.0.2.22  PRINTER_3_PASSWORD=<Passwort>
 """
 from __future__ import annotations
 
@@ -125,29 +129,34 @@ class ImplicitFTPS(ftplib.FTP_TLS):
         return conn, size
 
 
-_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY)")
-KINDS = ("bambu", "moonraker")
+_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY|PASSWORD)")
+KINDS = ("bambu", "moonraker", "prusalink")
 MOONRAKER_PORT = 7125
 
 
-def moonraker_url(address: str) -> str:
+def moonraker_url(address: str, default_port: int | None = MOONRAKER_PORT) -> str:
     """'192.0.2.21' -> 'http://192.0.2.21:7125'; eigene Ports und https bleiben erhalten."""
     address = address.strip().rstrip("/")
     if not re.match(r"^https?://", address, re.I):
         address = "http://" + address
     parts = urllib.parse.urlsplit(address)
-    if parts.port is None and parts.hostname and not parts.path:
-        address = f"{parts.scheme}://{parts.netloc}:{MOONRAKER_PORT}"
+    if default_port and parts.port is None and parts.hostname and not parts.path:
+        address = f"{parts.scheme}://{parts.netloc}:{default_port}"
     return address
 
 
+def printer_url(kind: str, ip: str) -> str:
+    """Adresse der HTTP-Schnittstelle: Moonraker auf Port 7125, PrusaLink auf dem Webport."""
+    return moonraker_url(ip, MOONRAKER_PORT if kind == "moonraker" else None)
+
+
 def printer_id(kind: str, ip: str, serial: str) -> str:
-    """Eindeutige Kennung: Seriennummer bei Bambu, Adresse bei Moonraker."""
-    return f"moonraker:{moonraker_url(ip)}" if kind == "moonraker" else serial
+    """Eindeutige Kennung: Seriennummer bei Bambu, sonst Art und Adresse."""
+    return serial if kind == "bambu" else f"{kind}:{printer_url(kind, ip)}"
 
 
 def env_printers(environ=None) -> list[dict]:
-    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY, sortiert nach <n>."""
+    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY/_PASSWORD, sortiert nach <n>."""
     environ = os.environ if environ is None else environ
     found: dict[int, dict] = {}
     for key, value in environ.items():
@@ -160,13 +169,13 @@ def env_printers(environ=None) -> list[dict]:
         if kind not in KINDS:
             log.warning("PRINTER_%d_TYPE=%s unbekannt, möglich sind %s", n, kind, ", ".join(KINDS))
             continue
-        needed = ("ip", "serial", "code") if kind == "bambu" else ("ip",)
+        needed = {"bambu": ("ip", "serial", "code"), "moonraker": ("ip",), "prusalink": ("ip", "password")}[kind]
         missing = [k for k in needed if not p.get(k)]
         if missing:
             log.warning("PRINTER_%d unvollständig, es fehlt %s", n, ", ".join(f"PRINTER_{n}_{k.upper()}" for k in missing))
             continue
         pid = printer_id(kind, p["ip"], p.get("serial", ""))
-        code = p.get("code", "") if kind == "bambu" else p.get("api_key", "")
+        code = p.get({"bambu": "code", "moonraker": "api_key", "prusalink": "password"}[kind], "")
         printers.append({"name": p.get("name") or p.get("serial") or p["ip"], "id": pid, "code": code,
                          "ip": p["ip"], "kind": kind, "source": "env"})
     return printers
@@ -190,7 +199,8 @@ def save_printers(rows: list[dict]) -> None:
     """Speichert die Drucker aus den Einstellungen.
 
     rows: {"db_id": int|None, "kind", "name", "ip", "serial", "code", "delete": bool}.
-    Bei Moonraker ist "code" der optionale API-Schlüssel und die Seriennummer entfällt.
+    Bei Moonraker ist "code" der optionale API-Schlüssel, bei PrusaLink das Passwort;
+    die Seriennummer braucht nur Bambu.
     Leerer Zugangscode bei einem vorhandenen Drucker behält den gespeicherten.
     Wirft UserError mit einer übersetzbaren Meldung, dann wird nichts gespeichert.
     """
@@ -207,21 +217,24 @@ def save_printers(rows: list[dict]) -> None:
             label = name or serial or ip
             if not code and old and old["kind"] == kind:
                 code = old["code"]
-            needed = (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)) if kind == "bambu" \
-                else (("IP-Adresse", ip),)
+            needed = {
+                "bambu": (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)),
+                "moonraker": (("IP-Adresse", ip),),
+                "prusalink": (("IP-Adresse", ip), ("Passwort", code)),
+            }[kind]
             for field, value in needed:
                 if not value:
                     raise UserError("{label}: {field} fehlt", label=label, field=field) if label else \
                         UserError("Neuer Drucker: {field} fehlt", field=field)
             pid = printer_id(kind, ip, serial)
             if pid in seen:
-                if kind == "moonraker":
-                    raise UserError("Adresse {address} ist doppelt eingetragen", address=moonraker_url(ip))
+                if kind != "bambu":
+                    raise UserError("Adresse {address} ist doppelt eingetragen", address=printer_url(kind, ip))
                 raise UserError("Seriennummer {serial} ist doppelt eingetragen", serial=serial)
             if pid in env_ids:
-                if kind == "moonraker":
+                if kind != "bambu":
                     raise UserError("{label}: Adresse {address} ist schon über Umgebungsvariablen eingerichtet",
-                                    label=label, address=moonraker_url(ip))
+                                    label=label, address=printer_url(kind, ip))
                 raise UserError("{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet",
                                 label=label, serial=serial)
             seen.add(pid)
@@ -365,8 +378,71 @@ class MoonrakerSource:
         pass
 
 
-def _connect_moonraker(printer: dict) -> MoonrakerSource:
-    return MoonrakerSource(printer)
+class PrusaLinkSource:
+    """Dateiliste und Download über PrusaLink (Prusa MK4, MK3.9, XL, Mini, Core One).
+
+    Anmeldung per HTTP-Digest mit Benutzer "maker" und dem Passwort aus den
+    Netzwerkeinstellungen des Druckers. Ältere Firmware nutzt stattdessen einen
+    API-Schlüssel; das Passwortfeld wird deshalb auch als X-Api-Key mitgeschickt.
+    """
+
+    USER = "maker"
+    MAX_DEPTH = 4
+
+    def __init__(self, printer: dict, opener=None):
+        self.base = printer_url("prusalink", printer["ip"])
+        self.secret = printer.get("code") or ""
+        if opener is None:
+            passwords = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+            passwords.add_password(None, self.base, self.USER, self.secret)
+            opener = urllib.request.build_opener(urllib.request.HTTPDigestAuthHandler(passwords))
+        self.opener = opener
+        self.downloads: dict[str, str] = {}
+
+    def _get(self, path: str):
+        request = urllib.request.Request(urllib.parse.urljoin(self.base + "/", path.lstrip("/")),
+                                         headers={"X-Api-Key": self.secret, "Accept": "application/json"})
+        return self.opener.open(request, timeout=TIMEOUT)
+
+    def _json(self, path: str) -> dict:
+        with self._get(path) as resp:
+            return json.load(resp)
+
+    def list(self) -> list[dict]:
+        out: list[dict] = []
+        for storage in self._json("/api/v1/storage").get("storage_list") or []:
+            if storage.get("available") and storage.get("path"):
+                self._walk(storage["path"].strip("/"), "", "", out, 0)
+        return out
+
+    def _walk(self, storage: str, sub: str, shown: str, out: list, depth: int) -> None:
+        folder = self._json("/api/v1/files/" + urllib.parse.quote(f"{storage}/{sub}".rstrip("/")))
+        for item in folder.get("children") or []:
+            name = str(item.get("name") or "")
+            display = str(item.get("display_name") or name)
+            if not name or name.startswith("."):
+                continue
+            if item.get("type") == "FOLDER":
+                if depth < self.MAX_DEPTH:
+                    self._walk(storage, f"{sub}/{name}".strip("/"), f"{shown}{display}/", out, depth + 1)
+                continue
+            download = (item.get("refs") or {}).get("download")
+            if not is_gcode(display) or not download:
+                continue
+            self.downloads[shown + display] = download
+            out.append({"name": shown + display, "size": int(item.get("size") or 0),
+                        "date": _remote_date(float(item.get("m_timestamp") or 0))})
+
+    def fetch(self, name: str, fh) -> None:
+        with self._get(self.downloads[name]) as resp:
+            while block := resp.read(256 * 1024):
+                fh.write(block)
+
+    def close(self) -> None:
+        pass
+
+
+SOURCES = {"moonraker": MoonrakerSource, "prusalink": PrusaLinkSource}
 
 
 def sync_printer(printer: dict, connect=None) -> dict:
@@ -382,6 +458,8 @@ def sync_printer(printer: dict, connect=None) -> dict:
     def auth_failed(exc) -> None:
         if kind == "moonraker":
             fail("Anmeldung abgelehnt, API-Schlüssel prüfen ({detail})", detail=exc)
+        elif kind == "prusalink":
+            fail("Anmeldung abgelehnt, Passwort prüfen ({detail})", detail=exc)
         else:
             fail("Anmeldung abgelehnt, Zugangscode prüfen ({detail})", detail=exc)
         result["auth_failed"] = True
@@ -390,7 +468,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
         fail("nicht erreichbar, ausgeschaltet oder im Standby? ({detail})", detail=exc.__class__.__name__)
 
     target_dir = store.LIBRARY_DIR / import_dir() / _local_name(printer["name"])
-    connect = connect or (_connect_moonraker if kind == "moonraker" else _connect)
+    connect = connect or SOURCES.get(kind, _connect)
     try:
         source = connect(printer)
         if not hasattr(source, "list"):
