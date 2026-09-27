@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.5
 
 - Prints can be removed from the print history (“×” on the history and project page),
   e.g. test prints. They no longer count and are not re-added by Moonraker or PrusaLink.
