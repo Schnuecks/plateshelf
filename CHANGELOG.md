@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.6
 
 - **New settings page:** the sections (printers, electricity costs, print history) are
   listed on the left and shown one at a time; on phones they become a row of buttons at
