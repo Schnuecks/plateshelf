@@ -10,7 +10,7 @@ from app import auth, store
 def client(lib, monkeypatch):
     from app import main
     monkeypatch.setenv("SCAN_INTERVAL", "3600")
-    monkeypatch.setattr(auth, "_secret", None)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
     monkeypatch.setattr(auth, "_failures", {})
     with TestClient(main.app) as c:
         yield c

@@ -17,7 +17,7 @@ import re
 
 import time
 
-from . import auth, i18n, print_history, printer_import, store
+from . import auth, crypto, i18n, print_history, printer_import, store
 
 LOG_LINES = 30
 _log: collections.deque = collections.deque(maxlen=LOG_LINES)
@@ -25,7 +25,8 @@ _IPV4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 _URL = re.compile(r"\b(https?://)[^\s/:]+")
 ENV_NAMES = ("TZ", "LOG_LEVEL", "SCAN_INTERVAL", "MAX_UPLOAD_MB", "PREVIEW_PREBUILD", "TRASH_DAYS",
              "PRINTER_SYNC_INTERVAL", "PRINTER_IMPORT_DIR", "PRINT_HISTORY", "PRINT_HISTORY_INTERVAL",
-             "DEFAULT_LANGUAGE", "DEFAULT_THEME", "TRUSTED_ORIGINS", "AUTH_USER", "SESSION_DAYS")
+             "DEFAULT_LANGUAGE", "DEFAULT_THEME", "TRUSTED_ORIGINS", "AUTH_USER", "AUTH_PASSWORD",
+             "AUTH_PASSWORD_HASH", "SESSION_DAYS", "SECRET_KEY")
 
 
 def mask(text: str) -> str:
@@ -62,7 +63,10 @@ def report(version: str) -> str:
              f"Language {i18n.current()}, sign-in {_yes(auth.enabled())}, "
              f"print history {_yes(print_history.enabled())}"
              f"{' (set via env)' if print_history.env_setting() is not None else ''}",
-             f"Library writable: {_yes(os.access(store.LIBRARY_DIR, os.W_OK))}"]
+             f"Library writable: {_yes(os.access(store.LIBRARY_DIR, os.W_OK))}",
+             f"SECRET_KEY {'set' if crypto.secret_key() else 'missing'}"
+             f"{' (short)' if crypto.status()['short'] else ''}, "
+             f"printer secrets stored in plain text: {printer_import.stored_plaintext()}"]
 
     with store.connect() as con:
         kinds = collections.Counter()
@@ -91,7 +95,7 @@ def report(version: str) -> str:
             result = f"ok, {st.get('files', 0)} files"
         lines.append(f"  {i}. {p.get('kind', 'bambu')} ({p['source']}): {result}")
 
-    env = [n for n in ENV_NAMES if os.environ.get(n)]
+    env = [n for n in ENV_NAMES if os.environ.get(n)] + [f"{n}_FILE" for n in ENV_NAMES if os.environ.get(f"{n}_FILE")]
     numbered = len({k.split("_")[1] for k in os.environ if re.fullmatch(r"PRINTER_\d+_\w+", k)})
     if numbered:
         env.append(f"PRINTER_<n>_* ({numbered})")

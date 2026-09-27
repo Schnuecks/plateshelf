@@ -17,7 +17,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
+from . import auth, crypto, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
     routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, current_url, is_public, signed_in
@@ -33,6 +33,7 @@ diagnostics.install()  # letzte Warnungen für die Diagnose in den Einstellungen
 @asynccontextmanager
 async def lifespan(_app):
     store.init_db()
+    crypto.remove_legacy_key_file(store.DATA_DIR)
     printer_import.init()
     if os.environ.get("BACKGROUND_TASKS", "true").lower() in ("0", "false", "no", "off"):
         # Nur für Tests: einmal einlesen, aber keine Threads, die über den Test hinaus weiterlaufen

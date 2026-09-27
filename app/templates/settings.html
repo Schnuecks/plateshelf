@@ -40,6 +40,13 @@
 {% block main %}
 <section class="settings-page">
   <h1>{{ _('Einstellungen') }}</h1>
+  {% if not key.set and (import_printers or auth_on) %}
+  <p class="flash flash-warn settings-key" role="alert">
+    {{ _('Es ist kein {key} gesetzt. Zugangsdaten der Drucker werden deshalb unverschlüsselt gespeichert, und Anmeldungen gelten nur bis zum nächsten Neustart. Lege in der {env} einen {key} an, zum Beispiel mit {cmd}, und starte {app} neu; vorhandene Zugangsdaten werden dann automatisch verschlüsselt.', key='<code>SECRET_KEY</code>', env='<code>.env</code>', cmd='<code>docker compose exec plateshelf python -m app.auth secret</code>', app=APP_NAME)|safe }}
+  </p>
+  {% elif key.short %}
+  <p class="flash flash-warn settings-key" role="alert">{{ _('Der {key} ist kürzer als {n} Zeichen. Ein längerer zufälliger Schlüssel ist sicherer.', key='<code>SECRET_KEY</code>', n=32)|safe }}</p>
+  {% endif %}
 
   <div class="settings-layout" data-settings>
     <nav class="settings-nav" aria-label="{{ _('Bereiche') }}">
@@ -54,6 +61,7 @@
         <h2>{{ _('Drucker für den Direktimport') }}</h2>
         <p class="hint">{{ _('{app} holt geslicte Drucke direkt vom Drucker, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', app=APP_NAME, minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}</p>
         {% if request.query_params.get('printers') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
+        {% if key.set and not plaintext_codes %}<p class="hint key-ok">{{ _('Zugangscodes, Passwörter und API-Schlüssel werden verschlüsselt gespeichert.') }}</p>{% endif %}
         {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
 
         <form method="post" action="/settings/printers" class="printer-form">
