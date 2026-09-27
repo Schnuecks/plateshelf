@@ -32,11 +32,17 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime
 @asynccontextmanager
 async def lifespan(_app):
     store.init_db()
+    printer_import.init()
+    if os.environ.get("BACKGROUND_TASKS", "true").lower() in ("0", "false", "no", "off"):
+        # Nur für Tests: einmal einlesen, aber keine Threads, die über den Test hinaus weiterlaufen
+        # und später auf die Datenbank eines anderen Tests zugreifen
+        store.scan(wait=True)
+        yield
+        return
     interval = int(os.environ.get("SCAN_INTERVAL", "120"))
     threading.Thread(target=store.scan_loop, args=(interval,), daemon=True).start()
     if store.PREBUILD:
         threading.Thread(target=store.prebuild_loop, daemon=True).start()
-    printer_import.init()
     threading.Thread(target=printer_import.sync_loop, daemon=True).start()
     threading.Thread(target=print_history.loop, daemon=True).start()
     threading.Thread(target=trash.purge_loop, daemon=True).start()
