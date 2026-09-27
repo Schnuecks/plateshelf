@@ -3,7 +3,15 @@
 """Einstellungen: Drucker, Stromkosten, Druckverlauf sowie Sprache und Design."""
 from __future__ import annotations
 
+import os
+import sqlite3
+import tempfile
+import time
+from pathlib import Path
+
 from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse
 
@@ -51,6 +59,29 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "diagnostics": diagnostics.report(APP_VERSION),
         "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
     }, status_code=status_code)
+
+
+@router.get("/settings/backup")
+def backup_download():
+    """Sicherung der Datenbank als eine Datei, konsistent auch während PlateShelf schreibt.
+
+    Enthält Projekte, Notizen, Tags, Status, Einstellungen, Drucker (Zugangsdaten
+    verschlüsselt, sofern SECRET_KEY gesetzt ist) und den Druckverlauf. Vorschaubilder
+    und 3D-Vorschauen fehlen bewusst; sie entstehen nach dem Zurückspielen neu.
+    """
+    fd, name = tempfile.mkstemp(suffix=".sqlite", prefix="plateshelf-backup-")
+    os.close(fd)
+    target = Path(name)
+    src = store.connect()
+    dst = sqlite3.connect(target)
+    try:
+        src.backup(dst)
+        dst.execute("PRAGMA journal_mode = DELETE")  # eine einzelne Datei, ohne -wal
+    finally:
+        dst.close()
+        src.close()
+    return FileResponse(target, filename=f"plateshelf-backup-{time.strftime('%Y-%m-%d')}.sqlite",
+                        media_type="application/vnd.sqlite3", background=BackgroundTask(target.unlink))
 
 
 @router.post("/settings/history")

@@ -12,22 +12,24 @@ import time
 import uuid
 import zipfile
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 
-from . import gcode_file, i18n, print_history, printer_import, store, trash
+from . import gcode_file, i18n, print_history, printer_import, statistics, store, trash
 from .i18n import gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
 from .web import STATUSES, _local_target, templates
 
 router = APIRouter()
+PAGE = 60  # Projekte pro Schritt in der Übersicht; große Bibliotheken bleiben so schnell
 
 
 @router.get("/")
 def index(request: Request, q: str = "", material: str = "", printer: str = "", status: str = "", tag: str = "",
-          sort: str = "neu", printed: str = ""):
+          sort: str = "neu", printed: str = "", limit: int = PAGE):
     with store.connect() as con:
         projects = load_projects(con)
     all_materials = sorted({m for p in projects for m in p["materials"]})
@@ -61,8 +63,11 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         "time_s": sum(p["time_s"] for p in shown),
         "weight_g": sum(p["weight_g"] for p in shown),
     }
+    limit = max(PAGE, limit)
+    more = dict(request.query_params, limit=str(limit + PAGE)) if len(shown) > limit else None
     return templates.TemplateResponse(request, "index.html", {
-        "projects": shown, "totals": totals, "q": q, "material": material, "printer": printer,
+        "projects": shown[:limit], "hidden_count": max(0, len(shown) - limit),
+        "more_url": "/?" + urlencode(more) if more else None, "totals": totals, "q": q, "material": material, "printer": printer,
         "status": status, "tag": tag, "sort": sort, "printed": printed, "all_materials": all_materials,
         "all_printers": all_printers, "all_tags": all_tags, "scan": store.last_scan,
         "psync": printer_import.state,
@@ -118,6 +123,11 @@ def history(request: Request):
         "jobs": print_history.recent(), "enabled": print_history.enabled(),
         "printers": printer_import.load_printers(),
     })
+
+
+@router.get("/statistics")
+def statistics_page(request: Request):
+    return templates.TemplateResponse(request, "statistics.html", {"st": statistics.compute()})
 
 
 @router.post("/history/{job_id}/delete")

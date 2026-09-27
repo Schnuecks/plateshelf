@@ -376,3 +376,53 @@ def test_diagnostics(ready, monkeypatch, caplog):
     with TestClient(main.app) as client:
         page = client.get("/settings").text
         assert 'id="diagnostics"' in page and "PlateShelf" in page and "/issues/new/choose" in page
+
+
+# --- Statistik und Übersicht in Schritten (0.7.9) --------------------------------
+
+def test_statistics(ready, sample, monkeypatch):
+    from app import statistics
+    sample(ready / "Rot.gcode.3mf", [{"idx": 1, "sec": 3600, "layers": 2, "fil": [(1, "#FF0000FF", 20.0)]}],
+           types=("PETG",), costs=("20",))
+    with store.connect() as con:
+        con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                    "imported) VALUES ('SER1', 'Rot.gcode.3mf', 1, 'x', 'Rot.gcode.3mf', 'P2S', 0)")
+    store.scan(wait=True)
+    now = time.time()
+    ph.record(BAMBU, "a", "completed", remote_name="Rot.gcode.3mf", started=now - 7200, ended=now - 3600,
+              duration_s=3600)
+    ph.record(BAMBU, "b", "failed", remote_name="Rot.gcode.3mf", started=now - 600, ended=now - 300)
+    ph.record(BAMBU, "c", "completed", remote_name="Rot.gcode.3mf", started=now - 400 * 86400,
+              ended=now - 400 * 86400 + 60)  # älter als zwölf Monate: zählt nicht
+    st = statistics.compute(now)
+    assert len(st["months"]) == 12 and st["months"][-1]["completed"] == 1 and st["months"][-1]["failed"] == 1
+    assert st["totals"]["completed"] == 1 and st["totals"]["hours"] == pytest.approx(1.0)
+    assert st["materials"] == [{"name": "PETG", "grams": pytest.approx(20.0)}]
+    # 20 g × 20 €/kg + 1 h × 100 W × 0,35 €/kWh
+    assert st["totals"]["cost"] == pytest.approx(0.4 + 0.035)
+    (printer,) = st["printers"]
+    assert (printer["name"], printer["completed"], printer["failed"], printer["rate"]) == ("P2S", 1, 1, 50)
+    from app import main
+    with TestClient(main.app) as client:
+        page = client.get("/statistics").text
+        assert "Drucke pro Monat" in page and "PETG" in page and "50 %" in page
+        assert 'href="/statistics"' in client.get("/history").text
+
+
+def test_statistics_empty(ready):
+    from app import main
+    with TestClient(main.app) as client:
+        assert "Noch keine Drucke" in client.get("/statistics").text
+
+
+def test_overview_in_steps(ready, sample):
+    for i in range(65):
+        sample(ready / f"Teil_{i:02d}.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    store.scan(wait=True)
+    from app import main
+    with TestClient(main.app) as client:
+        page = client.get("/?sort=name").text
+        assert page.count('class="card"') == 60 and "Weitere 5 Projekte anzeigen" in page
+        assert "limit=120" in page and "sort=name" in page
+        page = client.get("/?sort=name&limit=120").text
+        assert page.count('class="card"') == 65 and "anzeigen</a>" not in page

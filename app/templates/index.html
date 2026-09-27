@@ -109,6 +109,10 @@
   </li>
   {% endfor %}
 </ul>
+{% if more_url %}
+<p class="more-projects"><a class="button" href="{{ more_url }}">{{ ngettext('{n} weiteres Projekt anzeigen', 'Weitere {n} Projekte anzeigen', [hidden_count, 60]|min) }}</a>
+  <span class="hint">{{ _('{n} von {total} angezeigt', n=projects|length, total=totals.count) }}</span></p>
+{% endif %}
 {% else %}
 <div class="empty">
   {% if q or material or printer or status or tag %}

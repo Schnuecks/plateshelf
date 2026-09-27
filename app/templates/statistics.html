@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Statistik') }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
+
+{% macro month_table(rows, caption) %}
+<details class="chart-table">
+  <summary>{{ _('Als Tabelle') }}</summary>
+  <table>
+    <caption class="visually-hidden">{{ caption }}</caption>
+    <thead><tr><th scope="col">{{ _('Monat') }}</th><th scope="col" class="r">{{ _('Fertig') }}</th><th scope="col" class="r">{{ _('Abgebrochen oder fehlgeschlagen') }}</th><th scope="col" class="r">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('Kosten') }}</th></tr></thead>
+    <tbody>
+    {% for m in rows %}
+      <tr><td>{{ m|month_label(True) }}</td><td class="r">{{ m.completed }}</td><td class="r">{{ m.failed }}</td><td class="r">{{ m.filament_g|num(0, 'g') }}</td><td class="r">{{ m.cost|money }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endmacro %}
+
+{% block main %}
+<section class="history-page stats-page">
+  <h1>{{ _('Druckverlauf') }}</h1>
+  <nav class="page-tabs" aria-label="{{ _('Druckverlauf') }}">
+    <a href="/history">{{ _('Drucke') }}</a>
+    <a href="/statistics" aria-current="page">{{ _('Statistik') }}</a>
+  </nav>
+  <p class="hint">{{ _('Die letzten zwölf Monate. Filament und Kosten zählen nur fertige Drucke, jeweils mit den Angaben aus der gedruckten Datei; der Strom ergibt sich aus der tatsächlichen Druckdauer.') }}</p>
+
+  {% if not st.totals.completed and not st.totals.failed %}
+  <div class="empty">
+    <h2>{{ _('Noch keine Drucke') }}</h2>
+    <p>{{ _('Sobald ein eingerichteter Drucker etwas druckt, erscheint es hier.') }}</p>
+  </div>
+  {% else %}
+  <dl class="stat-tiles">
+    <div><dt>{{ _('Fertige Drucke') }}</dt><dd>{{ st.totals.completed }}</dd>
+      {% if st.totals.completed + st.totals.failed %}<dd class="stat-sub">{{ _('{pct} % erfolgreich', pct=(st.totals.completed / (st.totals.completed + st.totals.failed) * 100)|num(0)) }}</dd>{% endif %}</div>
+    <div><dt>{{ _('Druckzeit') }}</dt><dd>{{ (st.totals.hours * 3600)|duration }}</dd></div>
+    <div><dt>{{ _('Filament') }}</dt><dd>{{ (st.totals.filament_g / 1000)|num(2, 'kg') }}</dd></div>
+    <div><dt>{{ _('Kosten') }}</dt><dd>{{ st.totals.cost|money if st.totals.has_cost else '–' }}</dd></div>
+  </dl>
+
+  <section class="chart-card">
+    <h2>{{ _('Drucke pro Monat') }}</h2>
+    <ul class="chart-legend">
+      <li><span class="swatch swatch-ok" aria-hidden="true"></span>{{ _('Fertig') }}</li>
+      <li><span class="swatch swatch-bad" aria-hidden="true"></span>{{ _('Abgebrochen oder fehlgeschlagen') }}</li>
+    </ul>
+    <div class="column-chart" role="img" aria-label="{{ _('Drucke pro Monat') }}">
+      <span class="chart-max">{{ st.max_prints }}</span>
+      {% for m in st.months %}
+      {% set total = m.completed + m.failed %}
+      <div class="column" tabindex="0" title="{{ m|month_label(True) }}: {{ _('{done} fertig, {bad} abgebrochen oder fehlgeschlagen', done=m.completed, bad=m.failed) }}">
+        <div class="bar-stack" style="height: {{ (total / st.max_prints * 100) if st.max_prints else 0 }}%">
+          {% if m.failed %}<span class="seg seg-bad" style="flex-grow: {{ m.failed }}"></span>{% endif %}
+          {% if m.completed %}<span class="seg seg-ok" style="flex-grow: {{ m.completed }}"></span>{% endif %}
+        </div>
+        <span class="column-label">{{ m|month_label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {{ month_table(st.months, _('Drucke pro Monat')) }}
+  </section>
+
+  <div class="chart-row">
+    <section class="chart-card">
+      <h2>{{ _('Kosten pro Monat') }}</h2>
+      <div class="column-chart column-chart-small" role="img" aria-label="{{ _('Kosten pro Monat') }}">
+        <span class="chart-max">{{ st.max_cost|money }}</span>
+        {% for m in st.months %}
+        <div class="column" tabindex="0" title="{{ m|month_label(True) }}: {{ m.cost|money }}">
+          <div class="bar-stack" style="height: {{ (m.cost / st.max_cost * 100) if st.max_cost else 0 }}%">
+            {% if m.cost %}<span class="seg seg-ok" style="flex-grow: 1"></span>{% endif %}
+          </div>
+          <span class="column-label">{{ m|month_label(False, False) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="chart-card">
+      <h2>{{ _('Filament nach Material') }}</h2>
+      {% if st.materials %}
+      <ul class="bar-list">
+        {% for m in st.materials %}
+        {% set label = m.name if m.name != '?' else _('Unbekannt') %}
+        <li title="{{ label }}: {{ m.grams|num(0, 'g') }}">
+          <span class="bar-name">{{ label }}</span>
+          <span class="bar-track"><span class="bar-fill" style="width: {{ m.grams / st.max_material * 100 }}%"></span></span>
+          <span class="bar-value">{{ (m.grams / 1000)|num(2, 'kg') if m.grams >= 1000 else m.grams|num(0, 'g') }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="hint">{{ _('Noch keine fertigen Drucke mit zugeordneter Datei.') }}</p>{% endif %}
+    </section>
+  </div>
+
+  <section class="chart-card">
+    <h2>{{ _('Erfolgsquote je Drucker') }}</h2>
+    <table class="history-table rate-table">
+      <thead><tr><th scope="col">{{ _('Drucker') }}</th><th scope="col" class="r">{{ _('Fertig') }}</th><th scope="col" class="r">{{ _('Abgebrochen oder fehlgeschlagen') }}</th><th scope="col">{{ _('Erfolgsquote') }}</th></tr></thead>
+      <tbody>
+      {% for p in st.printers %}
+        <tr>
+          <td>{{ p.name }}</td><td class="r">{{ p.completed }}</td><td class="r">{{ p.failed }}</td>
+          <td><span class="rate"><span class="bar-track"><span class="bar-fill" style="width: {{ p.rate }}%"></span></span>{{ p.rate|num(0) }} %</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

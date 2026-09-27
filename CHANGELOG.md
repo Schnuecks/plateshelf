@@ -2,6 +2,20 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Faster with large libraries:** the prepared project data is kept until the database
+  changes, and the overview shows 60 projects at a time with a “Show more” button. With
+  2000 files the overview went from 1.2 s to 0.05 s, the project page from 0.8 s to
+  0.06 s and `/api/stats` from 0.8 s to 0.02 s. `tools/load_test.py` measures this.
+- **Statistics:** new tab on the history page with the last twelve months: finished
+  prints, print time, filament and costs, prints and costs per month, filament by
+  material and the success rate per printer.
+- **Backup:** “Settings” → “Backup” downloads the database as a single file, with
+  instructions for restoring. After a restore, preview images are rebuilt automatically.
+- **Database schema version:** the database now carries a version number; all tables are
+  defined in one place, and older databases are brought up to date once on start.
+
 ## 0.7.8
 
 - **Printer credentials are stored encrypted** (AES-256-GCM) in the database, with a key

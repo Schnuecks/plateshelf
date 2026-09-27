@@ -134,6 +134,16 @@ def add_printers_and_prints() -> None:
             (printers[2], "d", "Wall mount/Mount_left.gcode.3mf", "completed", now - 2 * day, 123),
             (printers[0], "e", "Benchy_plate_1.gcode.3mf", "completed", now - day, 50)):
         ph.record(p, key, status, remote_name=remote, started=start, ended=start + minutes * 60)
+    # Ältere Drucke über das Jahr verteilt, für die Statistik
+    import random
+    rng = random.Random(11)
+    remotes = ["Benchy_plate_1.gcode.3mf", "Planter.gcode.3mf", "Cable_clips.gcode.3mf", "Wall mount/Mount_left.gcode.3mf"]
+    for i in range(46):
+        p = printers[i % 3]
+        start = now - (6 + rng.uniform(0, 330)) * day
+        status = rng.choices(("completed", "cancelled", "failed"), (84, 10, 6))[0]
+        ph.record(p, f"old{i}", status, remote_name=remotes[i % 4] if p is printers[0] else remotes[2 + i % 2],
+                  started=start, ended=start + rng.uniform(20, 180) * 60)
     ph.record(printers[0], "live", "running", remote_name="Planter.gcode.3mf", started=now - 7000,
               progress=62, remaining_s=72 * 60)
 
@@ -144,7 +154,7 @@ def main() -> None:
 
     tmp = Path(tempfile.mkdtemp(prefix="plateshelf-shots-"))
     os.environ.update(DEFAULT_LANGUAGE="en", DEFAULT_THEME="dark", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false",
-                      BACKGROUND_TASKS="false", PRINT_HISTORY="true")
+                      BACKGROUND_TASKS="false", PRINT_HISTORY="true", SECRET_KEY="screenshot-" + "x" * 40)
     from app import main as app_main, store
     store.LIBRARY_DIR, store.DATA_DIR = tmp / "library", tmp / "data"
     store.DB_PATH, store.THUMB_DIR, store.PREBUILD = tmp / "data" / "plateshelf.sqlite", tmp / "data" / "thumbs", False
@@ -194,6 +204,10 @@ def main() -> None:
         page.goto(url + "/history")
         page.wait_for_load_state("networkidle")
         page.screenshot(path=OUT / "history.png")
+
+        page.goto(url + "/statistics")
+        page.wait_for_load_state("networkidle")
+        page.screenshot(path=OUT / "statistics.png")
 
         page.goto(url + "/settings")
         page.wait_for_load_state("networkidle")
