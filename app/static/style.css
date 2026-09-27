@@ -366,39 +366,94 @@ button.danger-quiet:hover { color: var(--ink); }
 .cost-line { margin: .5rem 0 0; font-size: .85rem; color: var(--muted); }
 .cost-line a { margin-left: .35rem; }
 
-/* Einstellungen */
-.settings-page { max-width: 78rem; }
-.settings-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.5rem; align-items: start; }
-@media (max-width: 960px) { .settings-columns { grid-template-columns: minmax(0, 1fr); } }
+/* Einstellungen: Bereiche links, Inhalt rechts */
+.settings-page { max-width: 64rem; }
 .settings-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
-.settings-form { display: grid; gap: 1.5rem; }
-.settings-form section { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 1.1rem 1.25rem; display: grid; gap: .8rem; }
-.settings-form h2 { font: 600 1.1rem/1.2 var(--font-cond); margin: 0; }
-.settings-form label { display: grid; gap: .3rem; font-weight: 500; }
-.settings-form .hint { margin: 0; }
-.settings-form button { justify-self: start; }
+.settings-layout { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 2rem; align-items: start; }
+.settings-nav { position: sticky; top: 5rem; display: grid; gap: .15rem; }
+.settings-nav a { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem; border-radius: 4px;
+  color: var(--muted); text-decoration: none; font-weight: 500; }
+.settings-nav a:hover { color: var(--ink); background: var(--surface); }
+.settings-nav a[aria-current="page"] { color: var(--ink); background: var(--surface); box-shadow: inset 3px 0 0 var(--accent); }
+.settings-nav svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; }
+.settings-body { display: grid; gap: 1.5rem; }
+.settings-section { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1.4rem 1.5rem;
+  display: grid; gap: 1rem; scroll-margin-top: 5rem; }
+.settings-section h2 { font: 600 1.35rem/1.2 var(--font-cond); margin: 0; }
+.settings-section h3 { font: 600 1.05rem/1.2 var(--font-cond); margin: .5rem 0 0; }
+.settings-section > .hint, .settings-section form > .hint { margin: 0; max-width: 46rem; }
+.settings-section .flash { margin: 0; }
+.settings-section form { display: grid; gap: 1rem; }
+.settings-section label { display: grid; gap: .3rem; font-weight: 500; }
+.section-foot { display: flex; justify-content: flex-end; padding-top: .25rem; }
+@media (max-width: 760px) {
+  .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+  .settings-nav { position: static; display: flex; gap: .4rem; overflow-x: auto; }
+  .settings-nav a { white-space: nowrap; border: 1px solid var(--line); }
+  .settings-nav svg { display: none; }
+  .settings-nav a[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--accent); }
+  .settings-section { padding: 1.1rem 1rem; }
+}
+
+/* Drucker als Liste, Felder erst beim Bearbeiten */
+.printer-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; }
+.printer-list > li + li { border-top: 1px solid var(--line); }
+.printer-item, .printer-new, .settings-help { border: 0; padding: 0; }
+.printer-item > summary { list-style: none; cursor: pointer; }
+.printer-item > summary::-webkit-details-marker { display: none; }
+.printer-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  gap: .15rem .75rem; padding: .75rem .9rem; }
+.printer-item > summary:hover { background: var(--bg); }
+.printer-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--line); }
+.printer-dot.is-ok { background: var(--accent); }
+.printer-dot.is-error { background: var(--warn); }
+.printer-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; min-width: 0; }
+.printer-name { font-weight: 600; }
+.printer-kind { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 3px; background: var(--bg); color: var(--muted); }
+.printer-addr { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+.printer-status { grid-column: 2 / -1; grid-row: 2; font-size: .82rem; color: var(--muted); margin: 0; }
+.printer-status.is-error { color: var(--warn); }
+.printer-edit { font-size: .85rem; color: var(--accent); font-weight: 500; }
+.printer-item[open] .printer-edit { color: var(--muted); }
+.printer-env { grid-column: 2 / -1; font-size: .8rem; color: var(--muted); }
+.printer-row { border: 0; border-top: 1px dashed var(--line); margin: 0; padding: .9rem .9rem 1rem;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem 1rem; align-items: end; }
+.printer-row .printer-help { grid-column: 1 / -1; margin: 0; font-size: .82rem; }
+.printer-row .check { display: flex; align-items: center; gap: .45rem; font-weight: 400; }
+.printer-row .check input { width: auto; margin: 0; }
+.printer-empty { margin: 0; color: var(--muted); }
+.printer-new > summary { cursor: pointer; font-weight: 500; color: var(--accent); list-style: none; display: inline-flex;
+  gap: .4rem; align-items: center; padding: .35rem .1rem; }
+.printer-new > summary::-webkit-details-marker { display: none; }
+.printer-new[open] > summary { color: var(--ink); }
+.printer-new > .printer-row { border: 1px solid var(--line); border-radius: 6px; margin-top: .4rem; }
+[data-kind="bambu"] [data-kind-only]:not([data-kind-only~="bambu"]),
+[data-kind="moonraker"] [data-kind-only]:not([data-kind-only~="moonraker"]),
+[data-kind="prusalink"] [data-kind-only]:not([data-kind-only~="prusalink"]) { display: none; }
+.settings-help > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.settings-help .hint { margin: .5rem 0 0; font-size: .85rem; }
+
+/* Stromkosten */
+.field-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; align-items: start; }
+.field-pair .hint { font-weight: 400; font-size: .8rem; }
 .printer-watts { border-collapse: collapse; width: 100%; }
 .printer-watts th { text-align: left; font-weight: 500; color: var(--muted); font-size: .85rem; border-bottom: 1px solid var(--line); padding: .3rem 0; }
 .printer-watts th.r { text-align: right; }
 .printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
 .printer-watts input { width: 6rem; text-align: right; }
 
-/* Drucker für den Direktimport */
-#printers, #power { scroll-margin-top: 5rem; }
-.printer-row { border: 1px solid var(--line); border-radius: 4px; padding: .8rem .9rem; margin: 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .6rem .9rem; align-items: end; }
-.printer-row.is-env { display: block; }
-.printer-row .check { display: flex; align-items: center; gap: .45rem; align-self: center; font-weight: 400; }
-.printer-row .check input { width: auto; margin: 0; }
-.printer-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .75rem; }
-.printer-meta { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
-.printer-status { grid-column: 1 / -1; margin: .2rem 0 0; font-size: .85rem; }
-.printer-status.is-ok { color: var(--muted); }
-.printer-status.is-error { color: var(--warn); }
-[data-kind="bambu"] [data-kind-only]:not([data-kind-only~="bambu"]),
-[data-kind="moonraker"] [data-kind-only]:not([data-kind-only~="moonraker"]),
-[data-kind="prusalink"] [data-kind-only]:not([data-kind-only~="prusalink"]) { display: none; }
-.printer-new summary { cursor: pointer; font-weight: 500; margin-bottom: .6rem; }
+/* Schalter */
+.toggle-form { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.settings-section .switch { display: inline-flex; align-items: center; gap: .7rem; font-weight: 500; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch-track { width: 2.4rem; height: 1.35rem; border-radius: 1rem; background: var(--line); position: relative; flex: none;
+  transition: background .15s; }
+.switch-track::after { content: ""; position: absolute; top: .18rem; left: .18rem; width: 1rem; height: 1rem; border-radius: 50%;
+  background: var(--accent-ink); transition: transform .15s; }
+.switch input:checked + .switch-track { background: var(--accent); }
+.switch input:checked + .switch-track::after { transform: translateX(1.05rem); }
+.switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Sprache und Design in der Titelleiste */
@@ -476,9 +531,6 @@ button.danger-quiet:hover { color: var(--ink); }
 .icon-quiet { background: none; border: 0; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0 .25rem;
   cursor: pointer; }
 .icon-quiet:hover, .icon-quiet:focus-visible { color: var(--warn); }
-#history { scroll-margin-top: 5rem; }
-.settings-form .check { display: flex; align-items: center; gap: .5rem; font-weight: 400; }
-.settings-form .check input { width: auto; margin: 0; }
 .card-meta .prints { font-size: .8rem; color: var(--muted); margin-left: .5rem; }
 
 .trash-page { max-width: 52rem; }
