@@ -4,8 +4,9 @@
 
 **English** · [Deutsch](README.de.md)
 
-PlateShelf is a self-hosted archive for your 3D prints from Bambu Studio. It reads
-sliced `.gcode.3mf` files and presents them as clearly as you know from your slicer:
+PlateShelf is a self-hosted archive for your 3D prints. It reads sliced `.gcode.3mf`
+files from Bambu Studio and OrcaSlicer as well as plain `.gcode` files from PrusaSlicer,
+OrcaSlicer, Cura and similar slicers, and presents them as clearly as you know from your slicer:
 plates with preview images, print time, weight, filaments with colour and cost, the key
 print settings and a 3D preview of the actual toolpaths.
 
@@ -16,7 +17,7 @@ print settings and a 3D preview of the actual toolpaths.
 - [Features](#features)
 - [Screenshots](#screenshots)
 - [Installation](#installation)
-- [Usage](#usage): library and projects, uploading, direct import from Bambu printers,
+- [Usage](#usage): library and projects, uploading, direct import from printers,
   3D preview, costs, trash, language and theme
 - [Running PlateShelf](#running-plateshelf): settings, access control, reverse proxy,
   dashboard widget, data and backups
@@ -35,7 +36,8 @@ print settings and a 3D preview of the actual toolpaths.
 - **Automatic projects** from folders or file names, with manual reassignment
 - **Notes, tags, status and source** per project
 - **Upload** by drag & drop and a **trash** with restore
-- **Direct import from Bambu printers** via FTPS, even without LAN-only mode
+- **Direct import from printers:** Bambu Lab via FTPS (even without LAN-only mode) and
+  Klipper printers via Moonraker, e.g. Creality K1/K2, Sovol SV08, Qidi or Voron
 - **Costs** from material and electricity
 - **Six languages** (English, Deutsch, Français, Español, Italiano, Nederlands) and a
   **light, dark or system theme**
@@ -67,7 +69,7 @@ mkdir -p library data
 docker compose up -d
 ```
 
-PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf` files into
+PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf` or `.gcode` files into
 the `library` folder. They show up within two minutes, or immediately via “Rescan
 library” in the overview.
 
@@ -104,9 +106,17 @@ PlateShelf was called *Druckarchiv* up to version 0.6. Your data carries over as
 
 ### Library and projects
 
-**Sliced files** (`.gcode.3mf`) work best. Create them in Bambu Studio via “Export →
-Export plate sliced file” or “Export all sliced file”. Only these files contain print
-time, weight and filament usage.
+**Sliced files** work best, because only they contain print time, weight and filament
+usage:
+
+- **`.gcode.3mf`** from Bambu Studio or OrcaSlicer, via “Export → Export plate sliced
+  file” or “Export all sliced file”. One file can contain several plates.
+- **`.gcode`** from PrusaSlicer, SuperSlicer, OrcaSlicer, Cura, Creality Print and other
+  slicers. One file is one plate. PlateShelf reads print time, filament usage, colours,
+  costs, the printer and the key settings from the comments the slicer writes into the
+  file, as well as the embedded preview image. Cura only stores the filament length; the
+  weight is then estimated for PLA with 1.75 mm. Binary G-code (`.bgcode`) is not
+  supported yet.
 
 This is how projects are formed:
 
@@ -129,17 +139,31 @@ Use “Upload” in the top right to upload one or more files by drag & drop, op
 straight into a project folder. Existing files are never overwritten: identical files
 are skipped, and files with the same name but different content get “(2)” appended.
 
-### Direct import from Bambu printers
+### Direct import from printers
 
-PlateShelf can fetch sliced prints from the SD card of your Bambu printers itself. It
-connects via FTPS using the printer’s access code. LAN-only mode is not required as long
-as the firmware allows file access.
+PlateShelf can fetch sliced prints from your printers itself:
+
+- **Bambu Lab** printers via FTPS from the SD card, using the printer’s access code.
+  LAN-only mode is not required as long as the firmware allows file access.
+- **Klipper printers** via [Moonraker](https://moonraker.readthedocs.io), the interface
+  behind Mainsail and Fluidd. This covers for example Creality K1 and K2, Sovol SV08,
+  Qidi, Elegoo Neptune 4 and Voron. PlateShelf fetches the `.gcode` files from the
+  printer’s G-code folder.
 
 **Set up in the interface:** Add your printers under “Settings” → “Printers for direct
-import”: name, IP address, serial number and access code. You find these in the network
-settings on the printer. The access code is stored but never shown again; leave the
-field empty when editing to keep it. After saving, the printers are queried right away
-and the result is shown next to each printer.
+import” and pick the type:
+
+- *Bambu Lab:* name, IP address, serial number and access code. You find these in the
+  network settings on the printer.
+- *Klipper (Moonraker):* name and address of the printer. Without a port, PlateShelf
+  uses Moonraker’s default port 7125; you can also enter a full address such as
+  `http://192.0.2.21:7125`. An API key is only needed if Moonraker does not list the
+  PlateShelf host under `trusted_clients`. You find the key in Mainsail or Fluidd, or
+  via `http://<printer>:7125/access/api_key` from a trusted device.
+
+Access codes and API keys are stored but never shown again; leave the field empty when
+editing to keep them. After saving, the printers are queried right away and the result
+is shown next to each printer.
 
 **Set up via `.env`:** Alternatively, define the printers numbered from 1:
 
@@ -148,31 +172,36 @@ PRINTER_1_NAME=P2S
 PRINTER_1_IP=192.0.2.20
 PRINTER_1_SERIAL=<serial number>
 PRINTER_1_CODE=<access code>
-PRINTER_2_NAME=A1 mini
+PRINTER_2_TYPE=moonraker
+PRINTER_2_NAME=K1
+PRINTER_2_IP=192.0.2.21
+PRINTER_2_API_KEY=<optional>
 # …
 ```
 
-Printers set up this way appear read-only in the settings. If a serial number is set in
-both places, the `.env` wins.
+`PRINTER_<n>_TYPE` is `bambu` (default) or `moonraker`. Printers set up this way appear
+read-only in the settings. If a printer is set in both places, the `.env` wins.
 
 **How it works:**
 
 - Every `PRINTER_SYNC_INTERVAL` seconds (default 600), or immediately via “Fetch from
-  printers” in the overview, PlateShelf lists the files on the SD card.
+  printers” in the overview, PlateShelf lists the files on the printer.
 - New prints are stored under `From printer/<printer name>/` in the library and grouped
   into projects by name.
 - The printer always saves a project under the same name and overwrites it when a
   different plate is printed. PlateShelf therefore stores each printed plate as a file
-  of its own (`…_plate_2.gcode.3mf`), so nothing gets lost.
+  of its own (`…_plate_2.gcode.3mf`), so nothing gets lost. Klipper printers keep
+  their file names; a changed file replaces the previous copy.
 - Each file is fetched only once. What you delete in the archive is not imported again.
 - Files on the printer are only read, never changed or deleted.
 - If a printer is switched off or in standby, it is simply queried again next time. Only
-  a wrong access code shows up as a warning in the overview.
+  a wrong access code or API key shows up as a warning in the overview.
 
 ### 3D preview
 
-A `.gcode.3mf` no longer contains a 3D model but the finished G-code. The 3D preview
-therefore shows the actual toolpaths, similar to Bambu Studio.
+A sliced file no longer contains a 3D model but the finished G-code. The 3D preview
+therefore shows the actual toolpaths, similar to your slicer. Line types are recognised
+for Bambu Studio, OrcaSlicer, PrusaSlicer and Cura.
 
 **Colouring**
 
@@ -215,8 +244,9 @@ display that still runs smoothly. No internet connection is required.
 
 The costs shown consist of material and electricity:
 
-- **Material:** usage per filament times the price from the filament profile in Bambu
-  Studio (“Price” field). If no price is set there, this part is missing.
+- **Material:** usage per filament times the price from the filament profile in the
+  slicer (e.g. “Price” in Bambu Studio, “Cost” in PrusaSlicer). If no price is set
+  there, this part is missing. Cura does not store a price.
 - **Electricity:** print time times the printer’s average power times the electricity
   price. You set price and power under “Settings”, per printer if you like. Defaults are
   €0.35 per kWh and 100 watts.
@@ -265,7 +295,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `PUID`, `PGID` | 1000 | User and group the container runs as |
 | `TZ` | Europe/Berlin | Time zone |
 | `PORT` | 8000 | Port on the host |
-| `LIBRARY` | `./library` | Folder with the `.gcode.3mf` files |
+| `LIBRARY` | `./library` | Folder with the `.gcode.3mf` and `.gcode` files |
 | `DATA` | `./data` | Folder for database, preview images and 3D previews |
 | `LOG_LEVEL` | INFO | Log verbosity (`docker compose logs`): `DEBUG`, `INFO` or `WARNING` |
 
@@ -282,7 +312,8 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Printers for the direct import (optional) |
+| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Bambu printers for the direct import (optional) |
+| `PRINTER_<n>_TYPE`, `_API_KEY` | `bambu`, – | `moonraker` for Klipper printers, with optional API key |
 | `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
 

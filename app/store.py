@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Schnuecks
 """SQLite-Speicher und Ordner-Scanner.
 
-Die 3MF-Dateien bleiben unangetastet in der Bibliothek. In der Datenbank
+Die 3MF- und G-Code-Dateien bleiben unangetastet in der Bibliothek. In der Datenbank
 landen nur ausgelesene Metadaten, Vorschaubilder und deine eigenen Notizen.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
+from .gcode_file import is_gcode, parse_gcode
 from .parser import parse_3mf
 
 log = logging.getLogger("plateshelf")
@@ -159,6 +160,17 @@ def init_db() -> None:
         con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
 
 
+LIBRARY_EXTENSIONS = (".3mf", ".gcode")
+
+
+def is_library_file(name: str) -> bool:
+    return name.lower().endswith(LIBRARY_EXTENSIONS) and not name.startswith(".")
+
+
+def parse_file(path: Path):
+    return parse_gcode(path) if is_gcode(path.name) else parse_3mf(path)
+
+
 # --- Gruppierung ------------------------------------------------------------
 
 _STEM_SUFFIX = re.compile(r"([_\- ]?(plate|platte)[_\- ]?\d+|[_\- ]?\(\d+\)|[_\- ]v\d+|[_\-. ]gcode|[_\-. ](3mf|stl|step|stp|obj))$", re.I)
@@ -177,7 +189,7 @@ def group_key_for(rel: Path) -> tuple[str, str]:
         folder = rel.parent
         return f"dir:{folder.as_posix().lower()}", folder.name
     stem = rel.name
-    for ext in (".gcode.3mf", "_gcode.3mf", "-gcode.3mf", ".3mf"):
+    for ext in (".gcode.3mf", "_gcode.3mf", "-gcode.3mf", ".3mf", ".gcode"):
         if stem.lower().endswith(ext):
             stem = stem[: -len(ext)]
             break
@@ -206,7 +218,7 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
     rel_s = rel.as_posix()
     existing = con.execute("SELECT id, project_id, pinned FROM files WHERE path = ?", (rel_s,)).fetchone()
     try:
-        parsed = parse_3mf(abs_path)
+        parsed = parse_file(abs_path)
         error = None
     except Exception as exc:  # defekte oder fremde Datei
         log.warning("Kann %s nicht lesen: %s", rel_s, exc)
@@ -294,7 +306,7 @@ def scan(force: bool = False, wait: bool = False) -> dict:
             for root, dirs, files in os.walk(LIBRARY_DIR):
                 dirs[:] = [d for d in dirs if not d.startswith((".", "@"))]  # @eaDir etc. vom NAS
                 for fn in files:
-                    if not fn.lower().endswith(".3mf") or fn.startswith("."):
+                    if not is_library_file(fn):
                         continue
                     abs_path = Path(root) / fn
                     rel = abs_path.relative_to(LIBRARY_DIR)
@@ -373,7 +385,8 @@ def unique_path(folder: Path, name: str) -> Path:
     target = folder / name
     if not target.exists():
         return target
-    stem, ext = (name[:-10], name[-10:]) if name.lower().endswith(".gcode.3mf") else (name[:-4], name[-4:])
+    ext = next((e for e in (".gcode.3mf", ".3mf", ".gcode") if name.lower().endswith(e)), Path(name).suffix)
+    stem, ext = name[:len(name) - len(ext)], name[len(name) - len(ext):]
     n = 2
     while (folder / f"{stem} ({n}){ext}").exists():
         n += 1

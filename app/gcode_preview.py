@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Wandelt den G-Code einer Platte in eine kompakte Vorschau für den 3D-Viewer.
+"""Wandelt den G-Code einer Platte (aus einer .gcode.3mf oder einer .gcode-Datei) in eine kompakte Vorschau für den 3D-Viewer.
 
 Ausgabe pro Platte (im Cache unter DATA_DIR/preview/):
   <fid>_<plate>.json   Schichthöhen, Filamente, Linientypen, Wertebereiche
@@ -24,8 +24,10 @@ import math
 import threading
 import zipfile
 from array import array
+from contextlib import contextmanager
 from pathlib import Path
 
+from . import gcode_file
 from .i18n import UserError
 
 VERSION = 4
@@ -53,6 +55,31 @@ FEATURES = {
     "Brim": "Brim",
     "Skirt": "Skirt",
     "Ironing": "Glätten",
+    # PrusaSlicer, SuperSlicer und OrcaSlicer bei Druckern anderer Hersteller
+    "External perimeter": "Außenwand",
+    "Perimeter": "Innenwand",
+    "Overhang perimeter": "Überhangwand",
+    "Internal infill": "Infill",
+    "Solid infill": "Massives Infill",
+    "Top solid infill": "Oberfläche",
+    "Bottom solid infill": "Unterseite",
+    "Bridge infill": "Brücke",
+    "Internal bridge infill": "Brücke",
+    "Gap fill": "Lückenfüllung",
+    "Skirt/Brim": "Brim",
+    "Support material": "Stützen",
+    "Support material interface": "Stützen-Kontakt",
+    "Wipe tower": "Reinigungsturm",
+    "Internal Bridge": "Brücke",
+    # Cura
+    "WALL-OUTER": "Außenwand",
+    "WALL-INNER": "Innenwand",
+    "FILL": "Infill",
+    "SKIN": "Oberfläche",
+    "SUPPORT": "Stützen",
+    "SUPPORT-INTERFACE": "Stützen-Kontakt",
+    "SKIRT": "Brim",
+    "PRIME-TOWER": "Reinigungsturm",
 }
 OTHER = "Sonstiges"
 
@@ -120,13 +147,23 @@ def _ranges(mets: array) -> dict:
     return out
 
 
-def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = None) -> dict:
+@contextmanager
+def _open_gcode(path: Path, plate: int):
+    """G-Code als Bytestrom: (Strom, Größe, Filamentdurchmesser je Werkzeug)."""
+    if gcode_file.is_gcode(path.name):
+        with open(path, "rb") as raw:
+            yield raw, path.stat().st_size, gcode_file.diameters(path)
+        return
+    with zipfile.ZipFile(path) as z:
+        name = f"Metadata/plate_{plate}.gcode"
+        with z.open(name) as raw:
+            yield raw, z.getinfo(name).file_size, _diameters(z)
+
+
+def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = None) -> dict:
     progress = progress if progress is not None else {}
-    name = f"Metadata/plate_{plate}.gcode"
-    with zipfile.ZipFile(zip_path) as z:
-        diameters = _diameters(z)
-        info = z.getinfo(name)
-        total = info.file_size or 1
+    with _open_gcode(Path(src_path), plate) as (raw, total, diameters):
+        total = total or 1
         tol = _tolerance(total)
         tol2 = tol * tol
 
@@ -152,6 +189,8 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
         met = (0, 0, 0, 0)  # Messwerte des aktuellen Bahnstücks (gespeicherte Form)
         feat = -1
         layer = -1
+        layer_used = False  # Extrusion in der aktuellen Schicht, sonst ist ein Schichtwechsel doppelt
+        z_known = False     # Schichthöhe aus einem Kommentar statt aus der Z-Bewegung
         cur_start = -1  # Punktindex der aktuellen Bahn, -1 = keine offen
         # Letzte zwei Punkte der offenen Bahn (für Vereinfachung), in mm
         ax = ay = bx = by = 0.0
@@ -215,129 +254,139 @@ def convert(zip_path: Path, plate: int, out_base: Path, progress: dict | None = 
             if ny < miny: miny = ny
             if ny > maxy: maxy = ny
 
-        with z.open(name) as raw:
-            text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
-            for n_line, line in enumerate(text):
-                if not line:
-                    continue
-                c0 = line[0]
-                if c0 == ";":
-                    if line.startswith("; FEATURE:"):
-                        close()
-                        feat = feature_id(line[10:].strip())
-                    elif line.startswith("; CHANGE_LAYER"):
-                        close()
+        text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
+        for n_line, line in enumerate(text):
+            if not line:
+                continue
+            c0 = line[0]
+            if c0 == ";":
+                # Bambu/Orca: "; FEATURE:", Prusa/Orca/Cura: ";TYPE:"
+                if line.startswith(("; FEATURE:", ";TYPE:")):
+                    close()
+                    feat = feature_id(line.partition(":")[2].strip())
+                elif line.startswith(("; CHANGE_LAYER", ";LAYER_CHANGE", ";LAYER:")):
+                    close()
+                    if layer < 0 or layer_used:  # Orca schreibt zwei Marken je Wechsel
                         layer += 1
                         layer_z.append(zpos)
-                    elif line.startswith("; Z_HEIGHT:") and layer >= 0:
+                        layer_used = z_known = False
+                elif line.startswith(("; Z_HEIGHT:", ";Z:")) and layer >= 0:
+                    try:
+                        layer_z[layer] = float(line.partition(":")[2].strip().replace(",", "."))
+                        z_known = True
+                    except ValueError:
+                        pass
+                continue
+            if c0 == "G":
+                if ";" in line:
+                    line = line.partition(";")[0]
+                parts = line.split()
+                code = parts[0]
+                if code in ("G1", "G0", "G2", "G3"):
+                    p = {}
+                    for tok in parts[1:]:
                         try:
-                            layer_z[layer] = float(line[11:].strip().replace(",", "."))
+                            p[tok[0]] = float(tok[1:])
                         except ValueError:
                             pass
-                    continue
-                if c0 == "G":
-                    if ";" in line:
-                        line = line.partition(";")[0]
-                    parts = line.split()
-                    code = parts[0]
-                    if code in ("G1", "G0", "G2", "G3"):
-                        p = {}
-                        for tok in parts[1:]:
-                            try:
-                                p[tok[0]] = float(tok[1:])
-                            except ValueError:
-                                pass
-                        nx = p.get("X", 0.0 if rel_xyz else x)
-                        ny = p.get("Y", 0.0 if rel_xyz else y)
-                        if rel_xyz:
-                            nx, ny = x + nx, y + ny
-                            if "Z" in p:
-                                zpos += p["Z"]
-                        elif "Z" in p:
-                            zpos = p["Z"]
-                        de = 0.0
-                        if "E" in p:
-                            if rel_e:
-                                de = p["E"]
-                            else:
-                                de, e_abs = p["E"] - e_abs, p["E"]
-                        if "F" in p:
-                            feed = p["F"]
-                        moved = nx != x or ny != y
-                        if layer >= 0 and de < 0 and not retracted:
-                            retracts.extend((q(x), q(y), min(layer, 65535)))
-                            retracted = True
-                        elif de > 0:
-                            retracted = False
-                        if layer >= 0 and moved and (de <= 0 or code == "G0"):
-                            travels.extend((q(x), q(y), q(nx), q(ny), min(layer, 65535)))
-                        if layer >= 0 and de > 0 and moved and code != "G0":
-                            met = _metrics(feed, de, x, y, nx, ny, p, code, fan, temp,
-                                           diameters.get(tool, DEFAULT_DIAMETER))
-                            if code == "G1":
-                                extrude_to(nx, ny)
-                            else:
-                                # Bogen in Geradenstücke zerlegen
-                                cx, cy = x + p.get("I", 0.0), y + p.get("J", 0.0)
-                                r = math.hypot(x - cx, y - cy)
-                                a0 = math.atan2(y - cy, x - cx)
-                                a1 = math.atan2(ny - cy, nx - cx)
-                                if code == "G2":  # im Uhrzeigersinn
-                                    if a1 >= a0:
-                                        a1 -= 2 * math.pi
-                                elif a1 <= a0:
-                                    a1 += 2 * math.pi
-                                seg = max(2, min(64, int(abs(a1 - a0) * max(r, 0.1) / 0.3) + 1))
-                                for i in range(1, seg):
-                                    a = a0 + (a1 - a0) * i / seg
-                                    extrude_to(cx + r * math.cos(a), cy + r * math.sin(a))
-                                extrude_to(nx, ny)
-                        elif moved or "Z" in p:
-                            close()
-                        x, y = nx, ny
-                    elif code == "G90":
-                        rel_xyz = False
-                    elif code == "G91":
-                        rel_xyz = True
-                    elif code == "G92":
-                        p = _params(parts[1:])
-                        if "E" in p:
-                            e_abs = p["E"]
-                    continue
-                if c0 == "M":
-                    if line.startswith(("M106", "M107")):
-                        mp = _params(line.partition(";")[0].split()[1:])
-                        # Bauteillüfter: ohne P, P0 oder P1 (Bambu); P2/P3 sind Zusatz- und Kammerlüfter
-                        if mp.get("P", 1) in (0, 1):
-                            fan = 0 if line.startswith("M107") else round(max(0.0, min(255.0, mp.get("S", 255))) / 2.55)
-                    elif line.startswith(("M104", "M109")):
-                        mp = _params(line.partition(";")[0].split()[1:])
-                        if "S" in mp and mp["S"] > 0:
-                            temp = round(mp["S"])
-                    elif line.startswith("M620 S"):
-                        # Bambu wählt das AMS-Filament mit "M620 S<n>A"
-                        num = line[6:].split("A", 1)[0].strip()
-                        if num.isdigit() and int(num) < 32:
-                            close()
-                            tool = int(num)
-                            tools_used.add(tool)
-                    elif line.startswith("M83"):
-                        rel_e = True
-                    elif line.startswith("M82"):
-                        rel_e = False
-                    continue
-                if c0 == "T":
-                    try:
-                        t = int(line[1:].split()[0])
-                    except (ValueError, IndexError):
-                        continue
-                    if t < 32:
+                    nx = p.get("X", 0.0 if rel_xyz else x)
+                    ny = p.get("Y", 0.0 if rel_xyz else y)
+                    if rel_xyz:
+                        nx, ny = x + nx, y + ny
+                        if "Z" in p:
+                            zpos += p["Z"]
+                    elif "Z" in p:
+                        zpos = p["Z"]
+                    de = 0.0
+                    if "E" in p:
+                        if rel_e:
+                            de = p["E"]
+                        else:
+                            de, e_abs = p["E"] - e_abs, p["E"]
+                    if "F" in p:
+                        feed = p["F"]
+                    moved = nx != x or ny != y
+                    if layer >= 0 and de < 0 and not retracted:
+                        retracts.extend((q(x), q(y), min(layer, 65535)))
+                        retracted = True
+                    elif de > 0:
+                        retracted = False
+                    if layer >= 0 and moved and (de <= 0 or code == "G0"):
+                        travels.extend((q(x), q(y), q(nx), q(ny), min(layer, 65535)))
+                    if layer >= 0 and de > 0 and moved and code != "G0":
+                        if not layer_used:
+                            layer_used = True
+                            if not z_known:  # Cura: Höhe erst mit der ersten Bewegung
+                                layer_z[layer] = zpos
+                        met = _metrics(feed, de, x, y, nx, ny, p, code, fan, temp,
+                                       diameters.get(tool, DEFAULT_DIAMETER))
+                        if code == "G1":
+                            extrude_to(nx, ny)
+                        else:
+                            # Bogen in Geradenstücke zerlegen
+                            cx, cy = x + p.get("I", 0.0), y + p.get("J", 0.0)
+                            r = math.hypot(x - cx, y - cy)
+                            a0 = math.atan2(y - cy, x - cx)
+                            a1 = math.atan2(ny - cy, nx - cx)
+                            if code == "G2":  # im Uhrzeigersinn
+                                if a1 >= a0:
+                                    a1 -= 2 * math.pi
+                            elif a1 <= a0:
+                                a1 += 2 * math.pi
+                            seg = max(2, min(64, int(abs(a1 - a0) * max(r, 0.1) / 0.3) + 1))
+                            for i in range(1, seg):
+                                a = a0 + (a1 - a0) * i / seg
+                                extrude_to(cx + r * math.cos(a), cy + r * math.sin(a))
+                            extrude_to(nx, ny)
+                    elif moved or "Z" in p:
                         close()
-                        tool = t
-                        tools_used.add(t)
-                if n_line % 200_000 == 0:
-                    progress["value"] = min(0.99, raw.tell() / total) if hasattr(raw, "tell") else 0
-            close()
+                    x, y = nx, ny
+                elif code == "G90":
+                    rel_xyz = False
+                elif code == "G91":
+                    rel_xyz = True
+                elif code == "G10" and layer >= 0 and not retracted:  # Firmware-Rückzug
+                    retracts.extend((q(x), q(y), min(layer, 65535)))
+                    retracted = True
+                elif code == "G92":
+                    p = _params(parts[1:])
+                    if "E" in p:
+                        e_abs = p["E"]
+                continue
+            if c0 == "M":
+                if line.startswith(("M106", "M107")):
+                    mp = _params(line.partition(";")[0].split()[1:])
+                    # Bauteillüfter: ohne P, P0 oder P1 (Bambu); P2/P3 sind Zusatz- und Kammerlüfter
+                    if mp.get("P", 1) in (0, 1):
+                        fan = 0 if line.startswith("M107") else round(max(0.0, min(255.0, mp.get("S", 255))) / 2.55)
+                elif line.startswith(("M104", "M109")):
+                    mp = _params(line.partition(";")[0].split()[1:])
+                    if "S" in mp and mp["S"] > 0:
+                        temp = round(mp["S"])
+                elif line.startswith("M620 S"):
+                    # Bambu wählt das AMS-Filament mit "M620 S<n>A"
+                    num = line[6:].split("A", 1)[0].strip()
+                    if num.isdigit() and int(num) < 32:
+                        close()
+                        tool = int(num)
+                        tools_used.add(tool)
+                elif line.startswith("M83"):
+                    rel_e = True
+                elif line.startswith("M82"):
+                    rel_e = False
+                continue
+            if c0 == "T":
+                try:
+                    t = int(line[1:].split()[0])
+                except (ValueError, IndexError):
+                    continue
+                if t < 32:
+                    close()
+                    tool = t
+                    tools_used.add(t)
+            if n_line % 200_000 == 0:
+                progress["value"] = min(0.99, raw.tell() / total) if hasattr(raw, "tell") else 0
+        close()
 
     if not polys:
         raise UserError("Keine Druckbahnen im G-Code gefunden")
@@ -386,9 +435,9 @@ def _is_current(out_base: Path) -> bool:
         return False
 
 
-def _run_job(key, job, zip_path, plate, out_base):
+def _run_job(key, job, src_path, plate, out_base):
     try:
-        convert(zip_path, plate, out_base, job)
+        convert(src_path, plate, out_base, job)
         job["state"] = "ready"
     except Exception as exc:  # noqa: BLE001
         job.update(state="error", error=str(exc))
@@ -398,7 +447,7 @@ def _run_job(key, job, zip_path, plate, out_base):
                 _jobs.pop(key, None)
 
 
-def status(zip_path: Path, plate: int, out_base: Path, background: bool = True) -> dict:
+def status(src_path: Path, plate: int, out_base: Path, background: bool = True) -> dict:
     """Liefert den Stand und startet die Aufbereitung bei Bedarf.
 
     background=False blockiert, bis die Vorschau fertig ist (für die Vorberechnung).
@@ -413,11 +462,11 @@ def status(zip_path: Path, plate: int, out_base: Path, background: bool = True) 
             job = {"state": "building", "value": 0.0}
             _jobs[key] = job
             if background:
-                threading.Thread(target=_run_job, args=(key, job, zip_path, plate, out_base), daemon=True).start()
+                threading.Thread(target=_run_job, args=(key, job, src_path, plate, out_base), daemon=True).start()
             else:
                 run_here = True
     if run_here:
-        _run_job(key, job, zip_path, plate, out_base)
+        _run_job(key, job, src_path, plate, out_base)
     return {"state": job["state"], "progress": round(job.get("value", 0), 3), "error": job.get("error")}
 
 

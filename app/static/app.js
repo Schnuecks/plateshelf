@@ -27,6 +27,11 @@ document.querySelectorAll("[data-new-toggle]").forEach((sel) => {
   sync();
 });
 
+// Drucker: Felder passend zum Typ zeigen (Seriennummer und Zugangscode nur bei Bambu)
+document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
+  sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
+});
+
 // Upload: Drag & Drop, Dateiliste, Fortschrittsbalken
 document.querySelectorAll("[data-upload]").forEach((form) => {
   const zone = form.querySelector("[data-dropzone]");

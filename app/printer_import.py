@@ -1,17 +1,24 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Holt geslicte Drucke per FTPS direkt von der SD-Karte der Bambu-Drucker.
+"""Holt geslicte Drucke direkt von den Druckern.
 
-Funktioniert auch ohne LAN-only-Modus, solange der Drucker den Dateizugriff mit
-dem Zugangscode erlaubt (Port 990, Benutzer "bblp", implizites TLS).
+Bambu Lab: per FTPS von der SD-Karte. Funktioniert auch ohne LAN-only-Modus,
+solange der Drucker den Dateizugriff mit dem Zugangscode erlaubt (Port 990,
+Benutzer "bblp", implizites TLS).
+
+Klipper (Moonraker): per HTTP aus dem G-Code-Ordner des Druckers, etwa bei
+Creality K1/K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ein API-Schlüssel
+ist nur nötig, wenn Moonraker die Adresse von PlateShelf nicht als vertrauenswürdig kennt.
 
 Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
 Umgebungsvariablen vorgegeben:
     PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
+    PRINTER_2_TYPE=moonraker  PRINTER_2_NAME=K1  PRINTER_2_IP=192.0.2.21  PRINTER_2_API_KEY=<optional>
 """
 from __future__ import annotations
 
 import ftplib
+import json
 import logging
 import os
 import re
@@ -19,9 +26,13 @@ import socket
 import ssl
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from . import store
+from .gcode_file import is_gcode
 from .i18n import UserError
 from .parser import parse_3mf
 
@@ -66,7 +77,8 @@ CREATE TABLE IF NOT EXISTS printers (
     name TEXT NOT NULL,
     serial TEXT UNIQUE NOT NULL,
     ip TEXT NOT NULL,
-    code TEXT NOT NULL
+    code TEXT NOT NULL,            -- Zugangscode (Bambu) oder API-Schlüssel (Moonraker)
+    kind TEXT NOT NULL DEFAULT 'bambu'
 );
 CREATE TABLE IF NOT EXISTS printer_files (
     printer TEXT NOT NULL,
@@ -113,11 +125,29 @@ class ImplicitFTPS(ftplib.FTP_TLS):
         return conn, size
 
 
-_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE)")
+_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY)")
+KINDS = ("bambu", "moonraker")
+MOONRAKER_PORT = 7125
+
+
+def moonraker_url(address: str) -> str:
+    """'192.0.2.21' -> 'http://192.0.2.21:7125'; eigene Ports und https bleiben erhalten."""
+    address = address.strip().rstrip("/")
+    if not re.match(r"^https?://", address, re.I):
+        address = "http://" + address
+    parts = urllib.parse.urlsplit(address)
+    if parts.port is None and parts.hostname and not parts.path:
+        address = f"{parts.scheme}://{parts.netloc}:{MOONRAKER_PORT}"
+    return address
+
+
+def printer_id(kind: str, ip: str, serial: str) -> str:
+    """Eindeutige Kennung: Seriennummer bei Bambu, Adresse bei Moonraker."""
+    return f"moonraker:{moonraker_url(ip)}" if kind == "moonraker" else serial
 
 
 def env_printers(environ=None) -> list[dict]:
-    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE, sortiert nach <n>."""
+    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY, sortiert nach <n>."""
     environ = os.environ if environ is None else environ
     found: dict[int, dict] = {}
     for key, value in environ.items():
@@ -126,19 +156,27 @@ def env_printers(environ=None) -> list[dict]:
     printers = []
     for n in sorted(found):
         p = found[n]
-        missing = [k for k in ("ip", "serial", "code") if not p.get(k)]
+        kind = (p.get("type") or "bambu").lower()
+        if kind not in KINDS:
+            log.warning("PRINTER_%d_TYPE=%s unbekannt, möglich sind %s", n, kind, ", ".join(KINDS))
+            continue
+        needed = ("ip", "serial", "code") if kind == "bambu" else ("ip",)
+        missing = [k for k in needed if not p.get(k)]
         if missing:
             log.warning("PRINTER_%d unvollständig, es fehlt %s", n, ", ".join(f"PRINTER_{n}_{k.upper()}" for k in missing))
             continue
-        printers.append({"name": p.get("name") or p["serial"], "id": p["serial"], "code": p["code"],
-                         "ip": p["ip"], "source": "env"})
+        pid = printer_id(kind, p["ip"], p.get("serial", ""))
+        code = p.get("code", "") if kind == "bambu" else p.get("api_key", "")
+        printers.append({"name": p.get("name") or p.get("serial") or p["ip"], "id": pid, "code": code,
+                         "ip": p["ip"], "kind": kind, "source": "env"})
     return printers
 
 
 def db_printers() -> list[dict]:
     with store.connect() as con:
-        return [{"name": r["name"], "id": r["serial"], "code": r["code"], "ip": r["ip"], "source": "db",
-                 "db_id": r["id"]} for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id")]
+        return [{"name": r["name"], "id": r["serial"], "code": r["code"], "ip": r["ip"], "kind": r["kind"],
+                 "source": "db", "db_id": r["id"]}
+                for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id")]
 
 
 def load_printers() -> list[dict]:
@@ -151,44 +189,56 @@ def load_printers() -> list[dict]:
 def save_printers(rows: list[dict]) -> None:
     """Speichert die Drucker aus den Einstellungen.
 
-    rows: {"db_id": int|None, "name", "ip", "serial", "code", "delete": bool}.
+    rows: {"db_id": int|None, "kind", "name", "ip", "serial", "code", "delete": bool}.
+    Bei Moonraker ist "code" der optionale API-Schlüssel und die Seriennummer entfällt.
     Leerer Zugangscode bei einem vorhandenen Drucker behält den gespeicherten.
     Wirft UserError mit einer übersetzbaren Meldung, dann wird nichts gespeichert.
     """
     with store.connect() as con:
         existing = {r["id"]: dict(r) for r in con.execute("SELECT * FROM printers")}
         keep, seen = [], set()
-        env_serials = {p["id"] for p in env_printers()}
+        env_ids = {p["id"] for p in env_printers()}
         for row in rows:
             name, ip, serial, code = (str(row.get(k) or "").strip() for k in ("name", "ip", "serial", "code"))
+            kind = row.get("kind") if row.get("kind") in KINDS else "bambu"
             old = existing.get(row.get("db_id")) if row.get("db_id") else None
             if row.get("delete") or (not old and not any((name, ip, serial, code))):
                 continue
             label = name or serial or ip
-            code = code or (old["code"] if old else "")
-            for field, value in (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)):
+            if not code and old and old["kind"] == kind:
+                code = old["code"]
+            needed = (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)) if kind == "bambu" \
+                else (("IP-Adresse", ip),)
+            for field, value in needed:
                 if not value:
-                    raise UserError("{label}: {field} fehlt", label=label, field=field) if label else                         UserError("Neuer Drucker: {field} fehlt", field=field)
-            if serial in seen:
+                    raise UserError("{label}: {field} fehlt", label=label, field=field) if label else \
+                        UserError("Neuer Drucker: {field} fehlt", field=field)
+            pid = printer_id(kind, ip, serial)
+            if pid in seen:
+                if kind == "moonraker":
+                    raise UserError("Adresse {address} ist doppelt eingetragen", address=moonraker_url(ip))
                 raise UserError("Seriennummer {serial} ist doppelt eingetragen", serial=serial)
-            if serial in env_serials:
+            if pid in env_ids:
+                if kind == "moonraker":
+                    raise UserError("{label}: Adresse {address} ist schon über Umgebungsvariablen eingerichtet",
+                                    label=label, address=moonraker_url(ip))
                 raise UserError("{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet",
                                 label=label, serial=serial)
-            seen.add(serial)
-            keep.append((old["id"] if old else None, name or serial, serial, ip, code))
+            seen.add(pid)
+            keep.append((old["id"] if old else None, name or serial or ip, pid, ip, code, kind))
         kept_ids = {k[0] for k in keep if k[0]}
         for pid in set(existing) - kept_ids:
             con.execute("DELETE FROM printers WHERE id = ?", (pid,))
         # Erst alle Seriennummern freigeben, damit Tauschen zwischen Zeilen klappt
         for pid in kept_ids:
             con.execute("UPDATE printers SET serial = '~' || id WHERE id = ?", (pid,))
-        for pid, name, serial, ip, code in keep:
+        for pid, name, serial, ip, code, kind in keep:
             if pid:
-                con.execute("UPDATE printers SET name = ?, serial = ?, ip = ?, code = ? WHERE id = ?",
-                            (name, serial, ip, code, pid))
+                con.execute("UPDATE printers SET name = ?, serial = ?, ip = ?, code = ?, kind = ? WHERE id = ?",
+                            (name, serial, ip, code, kind, pid))
             else:
-                con.execute("INSERT INTO printers (name, serial, ip, code) VALUES (?, ?, ?, ?)",
-                            (name, serial, ip, code))
+                con.execute("INSERT INTO printers (name, serial, ip, code, kind) VALUES (?, ?, ?, ?, ?)",
+                            (name, serial, ip, code, kind))
     current = {p["id"] for p in load_printers()}
     for serial in set(state["printers"]) - current:
         state["printers"].pop(serial, None)  # Meldungen gelöschter Drucker nicht mehr zeigen
@@ -199,6 +249,8 @@ def save_printers(rows: list[dict]) -> None:
 def init() -> None:
     with store.connect() as con:
         con.executescript(SCHEMA)
+        if "kind" not in {r["name"] for r in con.execute("PRAGMA table_info(printers)")}:
+            con.execute("ALTER TABLE printers ADD COLUMN kind TEXT NOT NULL DEFAULT 'bambu'")  # vor 0.7.2
     state["enabled"] = bool(load_printers())
 
 
@@ -227,6 +279,8 @@ def _plate_file_name(remote: str, downloaded: Path) -> str:
     jede gedruckte Platte als eigene Datei erhalten.
     """
     base = _local_name(remote)
+    if is_gcode(base):
+        return base  # einfacher G-Code hat nur eine Platte
     try:
         parsed = parse_3mf(downloaded)
     except Exception:  # noqa: BLE001
@@ -247,28 +301,121 @@ def _connect(printer: dict) -> ImplicitFTPS:
     return ftp
 
 
-def sync_printer(printer: dict, connect=_connect) -> dict:
+class FtpSource:
+    """Dateiliste und Download über FTPS (Bambu Lab)."""
+
+    def __init__(self, ftp):
+        self.ftp = ftp
+
+    def list(self) -> list[dict]:
+        lines: list[str] = []
+        self.ftp.retrlines("LIST /", lines.append)
+        return parse_listing(lines)
+
+    def fetch(self, name: str, fh) -> None:
+        self.ftp.retrbinary(f"RETR /{name}", fh.write, blocksize=256 * 1024)
+
+    def close(self) -> None:
+        try:
+            self.ftp.quit()
+        except Exception:  # noqa: BLE001
+            self.ftp.close()
+
+
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _remote_date(ts: float) -> str:
+    """Zeitstempel im Format der Bambu-Dateiliste ('Aug 22 07:06', ältere Jahre 'Nov 29 2025')."""
+    t, now = time.localtime(ts), time.localtime()
+    rest = f"{t.tm_hour:02d}:{t.tm_min:02d}" if t.tm_year == now.tm_year else str(t.tm_year)
+    return f"{_MONTHS[t.tm_mon - 1]} {t.tm_mday:02d} {rest}"
+
+
+class MoonrakerSource:
+    """Dateiliste und Download über die HTTP-Schnittstelle von Moonraker (Klipper)."""
+
+    def __init__(self, printer: dict, opener=urllib.request.urlopen):
+        self.base = moonraker_url(printer["ip"])
+        self.key = printer.get("code") or ""
+        self.opener = opener
+
+    def _get(self, path: str):
+        headers = {"X-Api-Key": self.key} if self.key else {}
+        return self.opener(urllib.request.Request(self.base + path, headers=headers), timeout=TIMEOUT)
+
+    def list(self) -> list[dict]:
+        with self._get("/server/files/list?root=gcodes") as resp:
+            data = json.load(resp)
+        out = []
+        for f in data.get("result") or []:
+            path = str(f.get("path") or "")
+            if not is_gcode(path) or any(part.startswith(".") for part in path.split("/")):
+                continue
+            out.append({"name": path, "size": int(f.get("size") or 0),
+                        "date": _remote_date(float(f.get("modified") or 0))})
+        return out
+
+    def fetch(self, name: str, fh) -> None:
+        with self._get("/server/files/gcodes/" + urllib.parse.quote(name)) as resp:
+            while block := resp.read(256 * 1024):
+                fh.write(block)
+
+    def close(self) -> None:
+        pass
+
+
+def _connect_moonraker(printer: dict) -> MoonrakerSource:
+    return MoonrakerSource(printer)
+
+
+def sync_printer(printer: dict, connect=None) -> dict:
     """Holt neue oder geänderte Dateien eines Druckers. Liefert eine kurze Bilanz."""
-    result = {"name": printer["name"], "ok": False, "new": 0, "updated": 0, "error": None, "files": 0,
-              "error_msg": None, "error_args": {}, "auth_failed": False}
+    kind = printer.get("kind", "bambu")
+    result = {"name": printer["name"], "kind": kind, "ok": False, "new": 0, "updated": 0, "error": None,
+              "files": 0, "error_msg": None, "error_args": {}, "auth_failed": False}
 
     def fail(msg: str, **kwargs) -> None:
         # error: deutscher Text für Log und Tests, error_msg/error_args zum Übersetzen
         result.update(error=msg.format(**kwargs), error_msg=msg, error_args=kwargs)
-    target_dir = store.LIBRARY_DIR / import_dir() / _local_name(printer["name"])
-    try:
-        ftp = connect(printer)
-    except ftplib.error_perm as exc:
-        fail("Anmeldung abgelehnt, Zugangscode prüfen ({detail})", detail=exc)
+
+    def auth_failed(exc) -> None:
+        if kind == "moonraker":
+            fail("Anmeldung abgelehnt, API-Schlüssel prüfen ({detail})", detail=exc)
+        else:
+            fail("Anmeldung abgelehnt, Zugangscode prüfen ({detail})", detail=exc)
         result["auth_failed"] = True
+
+    def unreachable(exc) -> None:
+        fail("nicht erreichbar, ausgeschaltet oder im Standby? ({detail})", detail=exc.__class__.__name__)
+
+    target_dir = store.LIBRARY_DIR / import_dir() / _local_name(printer["name"])
+    connect = connect or (_connect_moonraker if kind == "moonraker" else _connect)
+    try:
+        source = connect(printer)
+        if not hasattr(source, "list"):
+            source = FtpSource(source)
+    except ftplib.error_perm as exc:
+        auth_failed(exc)
         return result
     except (OSError, ftplib.Error, socket.timeout) as exc:
-        fail("nicht erreichbar, ausgeschaltet oder im Standby? ({detail})", detail=exc.__class__.__name__)
+        unreachable(exc)
         return result
     try:
-        lines: list[str] = []
-        ftp.retrlines("LIST /", lines.append)
-        remote = parse_listing(lines)
+        try:
+            remote = source.list()
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                auth_failed(exc)
+            else:
+                fail("Fehler beim Abrufen ({detail})", detail=f"HTTP {exc.code}")
+            return result
+        except urllib.error.URLError as exc:
+            unreachable(exc.reason if isinstance(exc.reason, Exception) else exc)
+            return result
+        except ValueError as exc:  # keine Moonraker-Antwort, etwa falscher Port
+            fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
+            return result
         result["files"] = len(remote)
         with store.connect() as con:
             known = {r["remote_name"]: r for r in con.execute(
@@ -281,7 +428,7 @@ def sync_printer(printer: dict, connect=_connect) -> dict:
             tmp = target_dir / f".{_local_name(f['name'])}.part"
             try:
                 with open(tmp, "wb") as fh:
-                    ftp.retrbinary(f"RETR /{f['name']}", fh.write, blocksize=256 * 1024)
+                    source.fetch(f["name"], fh)
                 if tmp.stat().st_size != f["size"]:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")
                 final = target_dir / _plate_file_name(f["name"], tmp)
@@ -313,10 +460,7 @@ def sync_printer(printer: dict, connect=_connect) -> dict:
     except (OSError, ftplib.Error, socket.timeout) as exc:
         fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
     finally:
-        try:
-            ftp.quit()
-        except Exception:  # noqa: BLE001
-            ftp.close()
+        source.close()
     return result
 
 
