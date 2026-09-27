@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.4
 
 - **Print history:** PlateShelf records every print of the printers set up for the direct
   import, with start, end, duration and outcome (finished, cancelled, failed). Bambu
