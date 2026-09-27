@@ -395,6 +395,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-status { grid-column: 1 / -1; margin: .2rem 0 0; font-size: .85rem; }
 .printer-status.is-ok { color: var(--muted); }
 .printer-status.is-error { color: var(--warn); }
+[data-kind="bambu"] [data-kind-only="moonraker"], [data-kind="moonraker"] [data-kind-only="bambu"] { display: none; }
 .printer-new summary { cursor: pointer; font-weight: 500; margin-bottom: .6rem; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 

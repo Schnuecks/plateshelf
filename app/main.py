@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import auth, gcode_preview, i18n, printer_import, store, trash
+from . import auth, gcode_file, gcode_preview, i18n, printer_import, store, trash
 from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
@@ -444,6 +444,17 @@ SETTING_LABELS = [
     ("outer_wall_speed", "Außenwand", "mm/s"),
     ("seam_position", "Naht"),
     ("ironing_type", "Glätten"),
+    # PrusaSlicer und SuperSlicer nennen einige Einstellungen anders
+    ("first_layer_height", "Erste Schicht", "mm"),
+    ("perimeters", "Wände"),
+    ("top_solid_layers", "Deckschichten oben"),
+    ("bottom_solid_layers", "Deckschichten unten"),
+    ("fill_density", "Infill"),
+    ("fill_pattern", "Infill-Muster"),
+    ("support_material", "Stützen"),
+    ("temperature", "Düsentemperatur", "°C"),
+    ("bed_temperature", "Betttemperatur", "°C"),
+    ("external_perimeter_speed", "Außenwand", "mm/s"),
 ]
 BOOL_WORDS = {"0": "aus", "1": "an", "false": "aus", "true": "an"}
 
@@ -509,7 +520,9 @@ def _printer_rows() -> list[dict]:
     rows = []
     for p in printer_import.load_printers():
         status = printer_import.state["printers"].get(p["id"])
-        rows.append({"db_id": p.get("db_id"), "name": p["name"], "ip": p["ip"], "serial": p["id"],
+        rows.append({"db_id": p.get("db_id"), "kind": p["kind"], "name": p["name"], "ip": p["ip"],
+                     "serial": p["id"] if p["kind"] == "bambu" else "",
+                     "url": printer_import.moonraker_url(p["ip"]) if p["kind"] == "moonraker" else "",
                      "source": p["source"], "status": status})
     return rows
 
@@ -574,12 +587,13 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
 @app.post("/settings/printers")
 async def printers_save(request: Request):
     form = await request.form()
-    ids, deletes = form.getlist("db_id"), set(form.getlist("delete"))
+    ids, deletes, kinds = form.getlist("db_id"), set(form.getlist("delete")), form.getlist("kind")
     rows = []
     for i, (name, ip, serial, code) in enumerate(zip(form.getlist("name"), form.getlist("ip"),
                                                       form.getlist("serial"), form.getlist("code"))):
         db_id = int(ids[i]) if i < len(ids) and ids[i].isdigit() else None
-        rows.append({"db_id": db_id, "name": name, "ip": ip, "serial": serial, "code": code,
+        kind = kinds[i] if i < len(kinds) and kinds[i] in printer_import.KINDS else "bambu"
+        rows.append({"db_id": db_id, "kind": kind, "name": name, "ip": ip, "serial": serial, "code": code,
                      "delete": str(db_id) in deletes if db_id else False})
     try:
         await run_in_threadpool(printer_import.save_printers, rows)
@@ -649,8 +663,8 @@ def _library_folders() -> list[str]:
 def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | None]:
     """Speichert eine Datei. Rückgabe: (relativer Pfad, Fehlermeldung)."""
     name = _clean_name(upload.filename)
-    if not name.lower().endswith(".3mf"):
-        return None, _("{name}: keine .3mf-Datei", name=upload.filename or _("Datei"))
+    if not store.is_library_file(name):
+        return None, _("{name}: keine .3mf- oder .gcode-Datei", name=upload.filename or _("Datei"))
     tmp = folder / f".upload-{uuid.uuid4().hex}.part"
     limit = MAX_UPLOAD_MB * 1024 * 1024
     written = 0
@@ -661,11 +675,17 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
                 if written > limit:
                     raise i18n.UserError("größer als {mb} MB", mb=MAX_UPLOAD_MB)
                 out.write(chunk)
-        if not zipfile.is_zipfile(tmp):
+        if gcode_file.is_gcode(name):
+            with open(tmp, "rb") as fh:
+                head = fh.read(256 * 1024)
+            if b"\0" in head or not re.search(rb"^G[0-3][ \t]", head, re.M):
+                raise i18n.UserError("keine gültige G-Code-Datei")
+        elif not zipfile.is_zipfile(tmp):
             raise i18n.UserError("keine gültige 3MF-Datei")
-        with zipfile.ZipFile(tmp) as z:
-            if not any(n.startswith(("Metadata/", "3D/")) for n in z.namelist()):
-                raise i18n.UserError("keine gültige 3MF-Datei")
+        else:
+            with zipfile.ZipFile(tmp) as z:
+                if not any(n.startswith(("Metadata/", "3D/")) for n in z.namelist()):
+                    raise i18n.UserError("keine gültige 3MF-Datei")
         existing = folder / name
         if existing.exists() and filecmp.cmp(tmp, existing, shallow=False):
             raise i18n.UserError("ist bereits unverändert in der Bibliothek")
@@ -825,7 +845,9 @@ def thumb(fid: int, kind: str, idx: int):
     path = store.THUMB_DIR / str(fid) / f"{kind}_{idx}.png"
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "max-age=2592000"})
+    with open(path, "rb") as fh:  # Vorschaubilder aus G-Code können auch JPEG sein
+        jpeg = fh.read(2) == b"\xff\xd8"
+    return FileResponse(path, media_type="image/jpeg" if jpeg else "image/png", headers={"Cache-Control": "max-age=2592000"})
 
 
 @app.get("/photo/{fid}/{name}")

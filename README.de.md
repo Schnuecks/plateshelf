@@ -4,8 +4,9 @@
 
 [English](README.md) · **Deutsch**
 
-PlateShelf ist ein selbstgehostetes Archiv für deine 3D-Drucke aus Bambu Studio.
-Es liest `.gcode.3mf`-Dateien aus und zeigt sie so übersichtlich an, wie du es aus dem
+PlateShelf ist ein selbstgehostetes Archiv für deine 3D-Drucke. Es liest
+`.gcode.3mf`-Dateien aus Bambu Studio und OrcaSlicer sowie einfache `.gcode`-Dateien aus
+PrusaSlicer, OrcaSlicer, Cura und ähnlichen Slicern aus und zeigt sie so übersichtlich an, wie du es aus dem
 Slicer kennst: Platten mit Vorschaubildern, Druckzeit, Gewicht, Filamente mit Farbe und
 Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 
@@ -17,7 +18,7 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - [Screenshots](#screenshots)
 - [Installation](#installation)
 - [Bedienung](#bedienung): Bibliothek und Projekte, Hochladen, Direktimport von
-  Bambu-Druckern, 3D-Vorschau, Kosten, Papierkorb, Sprache und Design
+  Druckern, 3D-Vorschau, Kosten, Papierkorb, Sprache und Design
 - [Betrieb](#betrieb): Einstellungen, Zugriffsschutz, Reverse-Proxy, Dashboard-Widget,
   Daten und Sicherung
 - [Entwicklung](#entwicklung)
@@ -35,7 +36,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Automatische Projekte** aus Ordnern oder Dateinamen, zusätzlich manuell zuordenbar
 - **Notizen, Tags, Status und Quelle** pro Projekt
 - **Hochladen** per Drag & Drop und **Papierkorb** mit Wiederherstellen
-- **Direktimport von Bambu-Druckern** per FTPS, auch ohne LAN-only-Modus
+- **Direktimport von Druckern:** Bambu Lab per FTPS (auch ohne LAN-only-Modus) und
+  Klipper-Drucker über Moonraker, etwa Creality K1/K2, Sovol SV08, Qidi oder Voron
 - **Kosten** aus Material und Strom
 - **Sechs Sprachen** (Deutsch, English, Français, Español, Italiano, Nederlands) und
   **Design** hell, dunkel oder wie das System
@@ -70,7 +72,7 @@ docker compose up -d
 ```
 
 Danach ist PlateShelf unter `http://<server>:8000` erreichbar. Lege deine
-`.gcode.3mf`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
+`.gcode.3mf`- oder `.gcode`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
 Minuten, sofort über „Bibliothek neu einlesen“ in der Übersicht.
 
 Die Ordner `library` und `data` müssen für den Benutzer beschreibbar sein, unter dem
@@ -108,10 +110,18 @@ Bis Version 0.6 hieß PlateShelf *Druckarchiv*. Deine Daten bleiben erhalten:
 
 ### Bibliothek und Projekte
 
-Am besten eignen sich **geslicte Dateien** (`.gcode.3mf`). Du erzeugst sie in Bambu
-Studio über „Exportieren → Geslicte Plattendatei exportieren“ bzw. „Alle geslicten
-Dateien exportieren“. Nur diese Dateien enthalten Druckzeit, Gewicht und
-Filamentverbrauch.
+Am besten eignen sich **geslicte Dateien**, denn nur sie enthalten Druckzeit, Gewicht
+und Filamentverbrauch:
+
+- **`.gcode.3mf`** aus Bambu Studio oder OrcaSlicer, über „Exportieren → Geslicte
+  Plattendatei exportieren“ bzw. „Alle geslicten Dateien exportieren“. Eine Datei kann
+  mehrere Platten enthalten.
+- **`.gcode`** aus PrusaSlicer, SuperSlicer, OrcaSlicer, Cura, Creality Print und
+  anderen Slicern. Eine Datei ist eine Platte. PlateShelf liest Druckzeit,
+  Filamentverbrauch, Farben, Kosten, Drucker und die wichtigsten Einstellungen aus den
+  Kommentaren, die der Slicer in die Datei schreibt, dazu das eingebettete
+  Vorschaubild. Cura speichert nur die Filamentlänge; das Gewicht wird dann für PLA mit
+  1,75 mm geschätzt. Binärer G-Code (`.bgcode`) wird noch nicht unterstützt.
 
 So entstehen Projekte:
 
@@ -136,18 +146,32 @@ auf Wunsch direkt in einen Projektordner. Vorhandene Dateien werden nie übersch
 Identische Dateien werden übersprungen, bei gleichem Namen mit anderem Inhalt wird
 „(2)“ angehängt.
 
-### Direktimport von Bambu-Druckern
+### Direktimport von Druckern
 
-PlateShelf kann geslicte Drucke selbst von der SD-Karte deiner Bambu-Drucker holen.
-Der Zugriff erfolgt per FTPS mit dem Zugangscode des Druckers. Der LAN-only-Modus ist
-dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
+PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
+
+- **Bambu Lab** per FTPS von der SD-Karte, mit dem Zugangscode des Druckers. Der
+  LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
+- **Klipper-Drucker** über [Moonraker](https://moonraker.readthedocs.io), die
+  Schnittstelle hinter Mainsail und Fluidd. Dazu gehören etwa Creality K1 und K2,
+  Sovol SV08, Qidi, Elegoo Neptune 4 und Voron. PlateShelf holt die `.gcode`-Dateien
+  aus dem G-Code-Ordner des Druckers.
 
 **Einrichten in der Oberfläche:** Trage deine Drucker unter „Einstellungen“ →
-„Drucker für den Direktimport“ ein: Name, IP-Adresse, Seriennummer und Zugangscode. Die
-Angaben findest du am Drucker in den Netzwerkeinstellungen. Der Zugangscode wird
-gespeichert, aber nie wieder angezeigt; lässt du das Feld beim Ändern leer, bleibt er
-erhalten. Nach dem Speichern werden die Drucker sofort abgefragt, das Ergebnis steht
-bei jedem Drucker.
+„Drucker für den Direktimport“ ein und wähle den Typ:
+
+- *Bambu Lab:* Name, IP-Adresse, Seriennummer und Zugangscode. Die Angaben findest du
+  am Drucker in den Netzwerkeinstellungen.
+- *Klipper (Moonraker):* Name und Adresse des Druckers. Ohne Portangabe nutzt
+  PlateShelf den Moonraker-Standardport 7125; du kannst auch eine vollständige Adresse
+  wie `http://192.0.2.21:7125` eintragen. Einen API-Schlüssel brauchst du nur, wenn
+  Moonraker den PlateShelf-Rechner nicht unter `trusted_clients` führt. Den Schlüssel
+  findest du in Mainsail oder Fluidd oder von einem vertrauenswürdigen Gerät aus unter
+  `http://<drucker>:7125/access/api_key`.
+
+Zugangscodes und API-Schlüssel werden gespeichert, aber nie wieder angezeigt; lässt du
+das Feld beim Ändern leer, bleiben sie erhalten. Nach dem Speichern werden die Drucker
+sofort abgefragt, das Ergebnis steht bei jedem Drucker.
 
 **Einrichten über die `.env`:** Alternativ gibst du die Drucker durchnummeriert ab 1 vor:
 
@@ -156,32 +180,40 @@ PRINTER_1_NAME=P2S
 PRINTER_1_IP=192.0.2.20
 PRINTER_1_SERIAL=<Seriennummer>
 PRINTER_1_CODE=<Zugangscode>
-PRINTER_2_NAME=A1 mini
+PRINTER_2_TYPE=moonraker
+PRINTER_2_NAME=K1
+PRINTER_2_IP=192.0.2.21
+PRINTER_2_API_KEY=<optional>
 # …
 ```
 
-So eingerichtete Drucker erscheinen in den Einstellungen schreibgeschützt. Bei gleicher
-Seriennummer hat die `.env` Vorrang.
+`PRINTER_<n>_TYPE` ist `bambu` (Standard) oder `moonraker`. So eingerichtete Drucker
+erscheinen in den Einstellungen schreibgeschützt. Ist ein Drucker an beiden Stellen
+eingetragen, hat die `.env` Vorrang.
 
 **Ablauf:**
 
 - Alle `PRINTER_SYNC_INTERVAL` Sekunden (Standard 600) oder sofort über „Von Druckern
-  holen“ in der Übersicht fragt PlateShelf die Dateien auf der SD-Karte ab.
+  holen“ in der Übersicht fragt PlateShelf die Dateien auf dem Drucker ab.
 - Neue Drucke landen unter `From printer/<Druckername>/` in der Bibliothek und werden
   über ihren Namen zu Projekten zusammengefasst.
 - Der Drucker speichert ein Projekt immer unter demselben Namen und überschreibt es,
   wenn eine andere Platte gedruckt wird. PlateShelf legt deshalb jede gedruckte
   Platte als eigene Datei ab (`…_plate_2.gcode.3mf`), so geht nichts verloren.
+  Bei Klipper-Druckern bleibt der Dateiname erhalten; eine geänderte Datei ersetzt die
+  bisherige Kopie.
 - Jede Datei wird nur einmal geholt. Was du im Archiv löschst, wird nicht erneut
   importiert.
 - Die Dateien auf dem Drucker werden nur gelesen, nie verändert oder gelöscht.
 - Ist ein Drucker ausgeschaltet oder im Standby, wird er beim nächsten Durchlauf erneut
-  abgefragt. Nur ein falscher Zugangscode erscheint in der Übersicht als Warnung.
+  abgefragt. Nur ein falscher Zugangscode oder API-Schlüssel erscheint in der Übersicht
+  als Warnung.
 
 ### 3D-Vorschau
 
-Eine `.gcode.3mf` enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
-3D-Vorschau zeigt deshalb die tatsächlichen Druckbahnen, ähnlich wie Bambu Studio.
+Eine geslicte Datei enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
+3D-Vorschau zeigt deshalb die tatsächlichen Druckbahnen, ähnlich wie dein Slicer.
+Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
 
 **Einfärbung**
 
@@ -226,8 +258,9 @@ Darstellung, die noch flüssig läuft. Eine Internetverbindung ist nicht nötig.
 
 Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
 
-- **Material:** Verbrauch pro Filament mal dem Preis aus dem Filamentprofil in Bambu
-  Studio (Feld „Preis“). Ist dort nichts eingetragen, fehlt dieser Anteil.
+- **Material:** Verbrauch pro Filament mal dem Preis aus dem Filamentprofil im Slicer
+  (etwa „Preis“ in Bambu Studio, „Kosten“ in PrusaSlicer). Ist dort nichts eingetragen,
+  fehlt dieser Anteil. Cura speichert keinen Preis.
 - **Strom:** Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis.
   Strompreis und Leistung stellst du unter „Einstellungen“ ein, auf Wunsch für jeden
   Drucker einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.
@@ -279,7 +312,7 @@ weiter.
 | `PUID`, `PGID` | 1000 | Benutzer und Gruppe, unter denen der Container läuft |
 | `TZ` | Europe/Berlin | Zeitzone |
 | `PORT` | 8000 | Port auf dem Host |
-| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-Dateien |
+| `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`- und `.gcode`-Dateien |
 | `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
 | `LOG_LEVEL` | INFO | Ausführlichkeit der Protokolle (`docker compose logs`): `DEBUG`, `INFO` oder `WARNING` |
 
@@ -296,7 +329,8 @@ weiter.
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Drucker für den Direktimport (optional) |
+| `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Bambu-Drucker für den Direktimport (optional) |
+| `PRINTER_<n>_TYPE`, `_API_KEY` | `bambu`, – | `moonraker` für Klipper-Drucker, mit optionalem API-Schlüssel |
 | `PRINTER_SYNC_INTERVAL` | 600 | Sekunden zwischen zwei Abfragen der Drucker |
 | `PRINTER_IMPORT_DIR` | From printer | Zielordner für importierte Drucke in der Bibliothek |
 

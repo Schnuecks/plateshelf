@@ -2,6 +2,19 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Plain G-code files** (`.gcode`) from PrusaSlicer, SuperSlicer, OrcaSlicer, Cura,
+  Creality Print and similar slicers. PlateShelf reads print time, layers, filament usage,
+  colours, costs, printer and key settings from the slicer comments, shows the embedded
+  preview image (including Prusa’s QOI thumbnails) and builds the 3D preview with line
+  types for PrusaSlicer, OrcaSlicer and Cura. They can be uploaded like `.gcode.3mf`
+  files.
+- **Direct import from Klipper printers via Moonraker**, e.g. Creality K1/K2, Sovol SV08,
+  Qidi, Elegoo Neptune 4 or Voron. Choose the printer type in the settings, or use
+  `PRINTER_<n>_TYPE=moonraker` with `PRINTER_<n>_IP` and an optional
+  `PRINTER_<n>_API_KEY` in the `.env`. Existing Bambu printers keep working unchanged.
+
 ## 0.7.1
 
 - The trash folder inside the library is now called `.trash` (previously `.papierkorb`),

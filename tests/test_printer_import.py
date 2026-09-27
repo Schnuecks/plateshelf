@@ -185,3 +185,140 @@ def test_legacy_import_folder_is_kept(lib, monkeypatch):
     from pathlib import Path
     assert store.group_key_for(Path("Vom Drucker/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
     assert store.group_key_for(Path("From printer/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
+
+
+# --- Klipper (Moonraker) -------------------------------------------------------
+
+def test_moonraker_url():
+    assert pi.moonraker_url("192.0.2.21") == "http://192.0.2.21:7125"
+    assert pi.moonraker_url("k1.local:4408/") == "http://k1.local:4408"
+    assert pi.moonraker_url("https://drucker.example") == "https://drucker.example:7125"
+    assert pi.moonraker_url("http://192.0.2.21/moonraker") == "http://192.0.2.21/moonraker"
+
+
+def test_env_moonraker_printer():
+    env = {"PRINTER_1_TYPE": "moonraker", "PRINTER_1_NAME": "K1", "PRINTER_1_IP": "192.0.2.21",
+           "PRINTER_2_TYPE": "moonraker", "PRINTER_2_IP": "192.0.2.22", "PRINTER_2_API_KEY": "abc",
+           "PRINTER_3_TYPE": "octoprint", "PRINTER_3_IP": "192.0.2.23"}  # unbekannt: übersprungen
+    printers = pi.env_printers(env)
+    assert [(p["name"], p["id"], p["kind"], p["code"]) for p in printers] == [
+        ("K1", "moonraker:http://192.0.2.21:7125", "moonraker", ""),
+        ("192.0.2.22", "moonraker:http://192.0.2.22:7125", "moonraker", "abc")]
+
+
+def test_save_moonraker_printer(lib):
+    pi.init()
+    pi.save_printers([{"db_id": None, "kind": "moonraker", "name": "SV08", "ip": "192.0.2.60", "serial": "",
+                       "code": ""}])
+    (p,) = pi.db_printers()
+    assert (p["kind"], p["id"], p["code"]) == ("moonraker", "moonraker:http://192.0.2.60:7125", "")
+    pi.save_printers([{"db_id": p["db_id"], "kind": "moonraker", "name": "SV08", "ip": "192.0.2.60", "code": "key"}])
+    assert pi.db_printers()[0]["code"] == "key"
+    # Wechsel auf Bambu: der API-Schlüssel wird nicht zum Zugangscode
+    with pytest.raises(ValueError, match="Seriennummer fehlt"):
+        pi.save_printers([{"db_id": p["db_id"], "kind": "bambu", "name": "SV08", "ip": "192.0.2.60", "code": ""}])
+    with pytest.raises(ValueError, match="Zugangscode fehlt"):
+        pi.save_printers([{"db_id": p["db_id"], "kind": "bambu", "name": "SV08", "ip": "192.0.2.60",
+                           "serial": "S9", "code": ""}])
+    with pytest.raises(ValueError, match="doppelt"):
+        pi.save_printers([{"db_id": p["db_id"], "kind": "moonraker", "name": "A", "ip": "192.0.2.60"},
+                          {"db_id": None, "kind": "moonraker", "name": "B", "ip": "http://192.0.2.60:7125"}])
+
+
+def test_old_printer_table_gets_kind(lib):
+    with store.connect() as con:
+        con.execute("CREATE TABLE printers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
+                    "serial TEXT UNIQUE NOT NULL, ip TEXT NOT NULL, code TEXT NOT NULL)")
+        con.execute("INSERT INTO printers (name, serial, ip, code) VALUES ('P1S', 'S1', 'x', 'c')")
+    pi.init()
+    assert pi.db_printers()[0]["kind"] == "bambu"
+
+
+@pytest.fixture
+def moonraker(tmp_path):
+    """Kleiner HTTP-Server mit den beiden Moonraker-Aufrufen, die PlateShelf nutzt."""
+    import json
+    import urllib.parse
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    files = {}  # Pfad -> (Inhalt, Änderungszeit)
+    server_state = {"key": "", "requests": []}
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            server_state["requests"].append(self.path)
+            if server_state["key"] and self.headers.get("X-Api-Key") != server_state["key"]:
+                self.send_response(401)
+                self.end_headers()
+                return
+            if self.path == "/server/files/list?root=gcodes":
+                body = json.dumps({"result": [{"path": p, "modified": m, "size": len(c), "permissions": "rw"}
+                                              for p, (c, m) in files.items()]}).encode()
+            elif self.path.startswith("/server/files/gcodes/"):
+                name = urllib.parse.unquote(self.path[len("/server/files/gcodes/"):])
+                if name not in files:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                body = files[name][0]
+            else:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield {"address": f"127.0.0.1:{server.server_address[1]}", "files": files, "state": server_state}
+    server.shutdown()
+
+
+def test_moonraker_sync(lib, moonraker):
+    from test_gcode_file import prusa_gcode
+    import time as _time
+    now = _time.time()
+    moonraker["files"].update({
+        "Benchy_PLA_1h2m.gcode": (prusa_gcode().encode(), now - 60),
+        "Ordner/Clip mit Umlaut ä.gcode": (b"G1 X1 Y1 E1\n", now - 30),
+        ".thumbs/Benchy-300x300.png": (b"png", now),
+        "notiz.txt": (b"x", now),
+    })
+    printer = {"name": "SV08", "id": "moonraker:x", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
+    pi.init()
+    res = pi.sync_printer(printer)
+    assert res["ok"] and res["new"] == 2 and res["files"] == 2, res
+    target = lib / "From printer" / "SV08"
+    assert sorted(os.listdir(target)) == ["Benchy_PLA_1h2m.gcode", "Ordner_Clip mit Umlaut ä.gcode"]
+    assert (target / "Benchy_PLA_1h2m.gcode").read_bytes() == prusa_gcode().encode()
+    assert pi.sync_printer(printer)["new"] == 0  # unverändert
+    moonraker["files"]["Benchy_PLA_1h2m.gcode"] = (prusa_gcode().encode() + b"; neu\n", now + 120)
+    assert pi.sync_printer(printer)["updated"] == 1
+    origin = pi.origin_for(["From printer/SV08/Benchy_PLA_1h2m.gcode"])
+    assert origin["From printer/SV08/Benchy_PLA_1h2m.gcode"]["printer_name"] == "SV08"
+    store.scan(wait=True)
+    with store.connect() as con:
+        row = con.execute("SELECT printer FROM files WHERE path LIKE '%Benchy%'").fetchone()
+    assert row["printer"] == "Original Prusa MK4S"
+
+
+def test_moonraker_api_key(lib, moonraker):
+    moonraker["state"]["key"] = "geheim"
+    moonraker["files"]["a.gcode"] = (b"G1 X1 E1\n", 1_700_000_000)
+    printer = {"name": "K1", "id": "moonraker:y", "code": "falsch", "ip": moonraker["address"], "kind": "moonraker"}
+    pi.init()
+    bad = pi.sync_printer(printer)
+    assert bad["auth_failed"] and bad["error"].startswith("Anmeldung abgelehnt, API-Schlüssel")
+    good = pi.sync_printer({**printer, "code": "geheim"})
+    assert good["ok"] and good["new"] == 1
+
+
+def test_moonraker_unreachable(lib):
+    printer = {"name": "K1", "id": "moonraker:z", "code": "", "ip": f"127.0.0.1:{_free_port()}", "kind": "moonraker"}
+    res = pi.sync_printer(printer)
+    assert not res["ok"] and "nicht erreichbar" in res["error"]

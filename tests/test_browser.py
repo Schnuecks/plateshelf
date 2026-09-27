@@ -70,6 +70,8 @@ def server(tmp_path_factory):
         for n, d in items.items():
             z.writestr(n, d)
     make(library / "Clips.gcode.3mf", [{"idx": 1, "sec": 600, "layers": 5, "fil": [(1, "#F2C94CFF", 3.0)]}])
+    from test_gcode_file import prusa_gcode
+    (library / "Benchy_MK4S.gcode").write_text(prusa_gcode())  # einfacher G-Code aus PrusaSlicer
 
     from app import main
     store.init_db()
@@ -86,7 +88,8 @@ def server(tmp_path_factory):
     with store.connect() as con:
         fid = con.execute("SELECT id FROM files WHERE path = 'Zylinder.gcode.3mf'").fetchone()[0]
         pid = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()[0]
-    yield {"url": f"http://127.0.0.1:{port}", "fid": fid, "pid": pid}
+        gcode_fid = con.execute("SELECT id FROM files WHERE path = 'Benchy_MK4S.gcode'").fetchone()[0]
+    yield {"url": f"http://127.0.0.1:{port}", "fid": fid, "pid": pid, "gcode_fid": gcode_fid}
     srv.should_exit = True
     thread.join(timeout=10)
     for k, v in saved.items():
@@ -175,6 +178,28 @@ def test_viewer_loads_and_all_controls_work(server, page):
     assert download.value.suggested_filename.endswith(".png")
 
     page.wait_for_timeout(500)  # verzögerte Fehler (z. B. im Zeichenaufruf) mitnehmen
+    assert page.errors == []
+
+
+def test_viewer_for_plain_gcode(server, page):
+    page.goto(f"{server['url']}/view/{server['gcode_fid']}/1")
+    page.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
+    assert "2 von 2" in page.locator("#layer-label").inner_text()
+    page.locator('[data-mode="feature"]').click()
+    assert "Außenwand" in page.locator("#viewer-panel").inner_text()
+    assert page.errors == []
+
+
+def test_printer_type_switches_fields(server, page):
+    page.goto(server["url"] + "/settings")
+    row = page.locator(".printer-new [data-printer]")
+    page.locator(".printer-new").evaluate("d => { d.open = true; }")  # ohne Drucker schon offen
+    assert row.locator("[name=serial]").is_visible()
+    row.locator("[name=kind]").select_option("moonraker")
+    assert not row.locator("[name=serial]").is_visible()
+    assert row.get_by_text("API-Schlüssel (optional)").is_visible()
+    row.locator("[name=kind]").select_option("bambu")
+    assert row.locator("[name=serial]").is_visible()
     assert page.errors == []
 
 

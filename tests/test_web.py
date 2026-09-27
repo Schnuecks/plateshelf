@@ -202,3 +202,37 @@ def test_old_german_urls_redirect(client):
     assert (r.status_code, r.headers["location"]) == (308, "/trash/7/restore")
     r = client.post("/einstellungen", data={"strompreis": "0,40", "leistung_standard": "100"})
     assert r.status_code == 200 and r.url.path == "/settings"
+
+
+def test_moonraker_printer_in_settings(client, monkeypatch):
+    from app import printer_import as pi
+    monkeypatch.setattr(pi, "sync_all", lambda: None)
+    r = client.post("/settings/printers", data={
+        "db_id": [""], "kind": ["moonraker"], "name": ["SV08"], "ip": ["192.0.2.60"], "serial": [""],
+        "code": [""]}, follow_redirects=False)
+    assert r.status_code == 303
+    (p,) = pi.db_printers()
+    assert (p["kind"], p["id"]) == ("moonraker", "moonraker:http://192.0.2.60:7125")
+    page = client.get("/settings").text
+    assert 'data-kind="moonraker"' in page and '<option value="moonraker" selected>' in page
+    # Ohne Typ (ältere Formulare) bleibt es Bambu mit Pflichtfeldern
+    r = client.post("/settings/printers", data={
+        "db_id": [str(p["db_id"]), ""], "kind": ["moonraker"], "name": ["SV08", "X1C"], "ip": ["192.0.2.60", "192.0.2.61"],
+        "serial": ["", ""], "code": ["", ""]})
+    assert r.status_code == 400 and "X1C: Seriennummer fehlt" in r.text
+
+
+def test_upload_gcode(client, lib):
+    from test_gcode_file import prusa_gcode
+    r = client.post("/upload", files=[("files", ("Benchy.gcode", prusa_gcode().encode(), "text/plain"))],
+                    follow_redirects=False)
+    assert r.status_code == 303 and (lib / "Benchy.gcode").exists()
+    r = client.post("/upload", files=[("files", ("kaputt.gcode", b"\x00\x01binary", "text/plain"))])
+    assert r.status_code == 400 and "keine gültige G-Code-Datei" in r.text
+    r = client.post("/upload", files=[("files", ("bild.png", b"x", "image/png"))])
+    assert "keine .3mf- oder .gcode-Datei" in r.text
+    with store.connect() as con:
+        fid = con.execute("SELECT id FROM files").fetchone()[0]
+    r = client.get(f"/thumb/{fid}/plate/1")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert client.get(f"/api/preview/{fid}/1").status_code == 200
