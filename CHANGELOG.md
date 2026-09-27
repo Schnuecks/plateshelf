@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.8
 
 - **Printer credentials are stored encrypted** (AES-256-GCM) in the database, with a key
   derived from `SECRET_KEY`. Existing credentials are encrypted automatically on the first
