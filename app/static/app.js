@@ -32,6 +32,31 @@ document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
   sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
 });
 
+// Einstellungen: immer nur einen Bereich zeigen, gewählt über den Anker (#printers, #power, #history)
+document.querySelectorAll("[data-settings]").forEach((root) => {
+  const sections = [...root.querySelectorAll("[data-section]")];
+  const links = [...root.querySelectorAll(".settings-nav a")];
+  const show = () => {
+    const target = sections.find((s) => "#" + s.id === location.hash) || sections[0];
+    sections.forEach((s) => { s.hidden = s !== target; });
+    links.forEach((a) => a.setAttribute("aria-current", a.hash === "#" + target.id ? "page" : "false"));
+  };
+  links.forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    history.replaceState(null, "", location.pathname + location.search + a.hash);
+    show();
+  }));
+  window.addEventListener("hashchange", show);
+  show();
+});
+
+// Schalter speichern sofort, der Knopf ist nur für Browser ohne JavaScript
+document.querySelectorAll("[data-autosubmit]").forEach((input) => {
+  const button = input.form.querySelector("[data-autosubmit-button]");
+  if (button) button.hidden = true;
+  input.addEventListener("change", () => input.form.requestSubmit());
+});
+
 // Upload: Drag & Drop, Dateiliste, Fortschrittsbalken
 document.querySelectorAll("[data-upload]").forEach((form) => {
   const zone = form.querySelector("[data-dropzone]");

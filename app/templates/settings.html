@@ -2,125 +2,164 @@
 {% block title %}{{ _('Einstellungen') }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
-{% macro printer_status(st) %}
-{% if st %}<p class="printer-status {{ 'is-error' if st.error else 'is-ok' }}">{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind in ('moonraker', 'prusalink') %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}</p>{% endif %}
+{% set KIND_LABELS = {'bambu': 'Bambu Lab', 'moonraker': 'Klipper', 'prusalink': 'Prusa'} %}
+
+{% macro status_text(st) -%}
+{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind in ('moonraker', 'prusalink') %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}
+{%- endmacro %}
+
+{% macro printer_line(pr) %}
+          <span class="printer-dot {{ 'is-error' if pr.status and pr.status.error else ('is-ok' if pr.status else 'is-unknown') }}" aria-hidden="true"></span>
+          <span class="printer-main">
+            <strong class="printer-name">{{ pr.name or _('Drucker') }}</strong>
+            <span class="printer-kind">{{ KIND_LABELS.get(pr.kind or 'bambu', 'Bambu Lab') }}</span>
+            <span class="printer-addr">{{ pr.url or pr.ip }}</span>
+          </span>
+          {% if pr.status %}<span class="printer-status {{ 'is-error' if pr.status.error else 'is-ok' }}">{{ status_text(pr.status) }}</span>{% endif %}
 {% endmacro %}
 
 {% macro printer_fields(pr) %}
-        <label>{{ _('Typ') }}
-          <select name="kind" data-printer-kind>
-            <option value="bambu" {{ 'selected' if pr.kind not in ('moonraker', 'prusalink') }}>Bambu Lab</option>
-            <option value="moonraker" {{ 'selected' if pr.kind == 'moonraker' }}>Klipper (Moonraker)</option>
-            <option value="prusalink" {{ 'selected' if pr.kind == 'prusalink' }}>Prusa (PrusaLink)</option>
-          </select></label>
-        <label>{{ _('Name') }} <input type="text" name="name" value="{{ pr.name or '' }}" placeholder="{{ _('z. B. P1S Werkstatt') }}"></label>
-        <label>{{ _('IP-Adresse') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" placeholder="192.168.1.20"></label>
-        <label data-kind-only="bambu">{{ _('Seriennummer') }} <input type="text" name="serial" value="{{ pr.serial or '' }}" autocomplete="off" spellcheck="false"></label>
-        <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span>
-          <input type="password" name="code" value="" autocomplete="new-password"
-               placeholder="{{ '••••••••' if pr.db_id else '' }}" {% if pr.db_id %}title="{{ _('Gespeichert. Leer lassen, um ihn zu behalten.') }}"{% endif %}></label>
+          <label>{{ _('Typ') }}
+            <select name="kind" data-printer-kind>
+              <option value="bambu" {{ 'selected' if pr.kind not in ('moonraker', 'prusalink') }}>Bambu Lab</option>
+              <option value="moonraker" {{ 'selected' if pr.kind == 'moonraker' }}>Klipper (Moonraker)</option>
+              <option value="prusalink" {{ 'selected' if pr.kind == 'prusalink' }}>Prusa (PrusaLink)</option>
+            </select></label>
+          <label>{{ _('Name') }} <input type="text" name="name" value="{{ pr.name or '' }}" placeholder="{{ _('z. B. P1S Werkstatt') }}"></label>
+          <label>{{ _('IP-Adresse') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" placeholder="192.168.1.20"></label>
+          <label data-kind-only="bambu">{{ _('Seriennummer') }} <input type="text" name="serial" value="{{ pr.serial or '' }}" autocomplete="off" spellcheck="false"></label>
+          <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span>
+            <input type="password" name="code" value="" autocomplete="new-password"
+                 placeholder="{{ '••••••••' if pr.db_id else '' }}" {% if pr.db_id %}title="{{ _('Gespeichert. Leer lassen, um ihn zu behalten.') }}"{% endif %}></label>
+          <p class="hint printer-help" data-kind-only="bambu">{{ _('per FTPS von der SD-Karte. IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}</p>
+          <p class="hint printer-help" data-kind-only="moonraker">{{ _('G-Code-Dateien vom Drucker, zum Beispiel bei Creality K1 und K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ohne Portangabe gilt Port {port}. Einen API-Schlüssel brauchst du nur, wenn Moonraker {app} nicht als vertrauenswürdig kennt.', port='<code>7125</code>', app=APP_NAME)|safe }}</p>
+          <p class="hint printer-help" data-kind-only="prusalink">{{ _('G-Code-Dateien vom USB-Stick oder internen Speicher, bei MK4, MK3.9, XL, Mini und Core One. Das Passwort findest du am Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist {user}.', user='<code>maker</code>')|safe }}</p>
+          {% if pr.db_id %}<p class="hint printer-help">{{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>{% endif %}
 {% endmacro %}
 
 {% block main %}
 <section class="settings-page">
   <h1>{{ _('Einstellungen') }}</h1>
-  {% if request.query_params.get('saved') %}<p class="flash" role="status">{{ _('Gespeichert. Die Kosten aller Projekte sind aktualisiert.') }}</p>{% endif %}
 
-  <div class="settings-columns">
-  <form method="post" action="/settings/printers" class="settings-form" id="printers">
-    <section>
-      <h2>{{ _('Drucker für den Direktimport') }}</h2>
-      <p class="hint">{{ _('{app} holt geslicte Drucke direkt vom Drucker, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', app=APP_NAME, minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}
-        {{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>
-      <p class="hint"><strong>Bambu Lab:</strong> {{ _('per FTPS von der SD-Karte. IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}</p>
-      <p class="hint"><strong>Klipper (Moonraker):</strong> {{ _('G-Code-Dateien vom Drucker, zum Beispiel bei Creality K1 und K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ohne Portangabe gilt Port {port}. Einen API-Schlüssel brauchst du nur, wenn Moonraker {app} nicht als vertrauenswürdig kennt.', port='<code>7125</code>', app=APP_NAME)|safe }}</p>
-      <p class="hint"><strong>Prusa (PrusaLink):</strong> {{ _('G-Code-Dateien vom USB-Stick oder internen Speicher, bei MK4, MK3.9, XL, Mini und Core One. Das Passwort findest du am Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist {user}.', user='<code>maker</code>')|safe }}</p>
-      {% if request.query_params.get('printers') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
-      {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
+  <div class="settings-layout" data-settings>
+    <nav class="settings-nav" aria-label="{{ _('Bereiche') }}">
+      <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
+      <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Stromkosten') }}</a>
+      <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
+    </nav>
 
-      {% for pr in import_printers %}
-      {% if pr.source == 'env' %}
-      <div class="printer-row is-env">
-        <div class="printer-title">
-          <strong>{{ pr.name }}</strong>
-          <span class="hint">{{ _('über Umgebungsvariablen eingerichtet, änderbar nur in der {env}', env='<code>.env</code>')|safe }}</span>
-        </div>
-        <p class="printer-meta">{% if pr.kind == 'moonraker' %}{{ _('{url}, Klipper (Moonraker)', url=pr.url) }}{% elif pr.kind == 'prusalink' %}{{ _('{url}, PrusaLink', url=pr.url) }}{% else %}{{ _('{ip}, Seriennummer {serial}', ip=pr.ip, serial=pr.serial) }}{% endif %}</p>
-        {{ printer_status(pr.status) }}
-      </div>
-      {% else %}
-      <fieldset class="printer-row" data-printer data-kind="{{ pr.kind or 'bambu' }}">
-        <legend class="visually-hidden">{{ pr.name or _('Drucker') }}</legend>
-        <input type="hidden" name="db_id" value="{{ pr.db_id or '' }}">
+    <div class="settings-body">
+      <section class="settings-section" id="printers" data-section>
+        <h2>{{ _('Drucker für den Direktimport') }}</h2>
+        <p class="hint">{{ _('{app} holt geslicte Drucke direkt vom Drucker, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', app=APP_NAME, minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}</p>
+        {% if request.query_params.get('printers') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
+        {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
+
+        <form method="post" action="/settings/printers" class="printer-form">
+          {% if import_printers %}
+          <ul class="printer-list">
+            {% for pr in import_printers %}
+            <li>
+              {% if pr.source == 'env' %}
+              <div class="printer-item is-env">
+                <div class="printer-summary">
+{{ printer_line(pr) }}
+                  <span class="printer-env">{{ _('über Umgebungsvariablen eingerichtet, änderbar nur in der {env}', env='<code>.env</code>')|safe }}</span>
+                </div>
+              </div>
+              {% else %}
+              <details class="printer-item" {% if printer_error %}open{% endif %}>
+                <summary class="printer-summary">
+{{ printer_line(pr) }}
+                  <span class="printer-edit">{{ _('Bearbeiten') }}</span>
+                </summary>
+                <fieldset class="printer-row" data-printer data-kind="{{ pr.kind or 'bambu' }}">
+                  <legend class="visually-hidden">{{ pr.name or _('Drucker') }}</legend>
+                  <input type="hidden" name="db_id" value="{{ pr.db_id or '' }}">
 {{ printer_fields(pr) }}
-        {% if pr.db_id %}<label class="check"><input type="checkbox" name="delete" value="{{ pr.db_id }}"> {{ _('Entfernen') }}</label>{% endif %}
-        {{ printer_status(pr.status) }}
-      </fieldset>
-      {% endif %}
-      {% endfor %}
+                  {% if pr.db_id %}<label class="check"><input type="checkbox" name="delete" value="{{ pr.db_id }}"> {{ _('Entfernen') }}</label>{% endif %}
+                </fieldset>
+              </details>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="printer-empty">{{ _('Noch kein Drucker eingerichtet.') }}</p>
+          {% endif %}
 
-      <details class="printer-new" {% if not import_printers %}open{% endif %}>
-        <summary>{{ _('Drucker hinzufügen') }}</summary>
-        <fieldset class="printer-row" data-printer data-kind="bambu">
-          <legend class="visually-hidden">{{ _('Neuer Drucker') }}</legend>
-          <input type="hidden" name="db_id" value="">
+          <details class="printer-new" {% if not import_printers %}open{% endif %}>
+            <summary><span aria-hidden="true">+</span> {{ _('Drucker hinzufügen') }}</summary>
+            <fieldset class="printer-row" data-printer data-kind="bambu">
+              <legend class="visually-hidden">{{ _('Neuer Drucker') }}</legend>
+              <input type="hidden" name="db_id" value="">
 {{ printer_fields({}) }}
-        </fieldset>
-      </details>
-      <p class="hint">{{ _('Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.', env='<code>.env</code>', vars='<code>PRINTER_1_NAME</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_SERIAL</code>, <code>PRINTER_1_CODE</code>', more='<code>PRINTER_2_…</code>')|safe }}
-        {{ _('Für Klipper-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=moonraker</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}
-        {{ _('Für Prusa-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=prusalink</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_PASSWORD</code>')|safe }}</p>
-    </section>
-    <button type="submit">{{ _('Drucker speichern') }}</button>
-  </form>
+            </fieldset>
+          </details>
+          <div class="section-foot"><button type="submit">{{ _('Drucker speichern') }}</button></div>
+        </form>
 
-  <form method="post" action="/settings" class="settings-form" id="power">
-    <section>
-      <h2>{{ _('Stromkosten') }}</h2>
-      <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen weiterhin aus den Filamentprofilen in Bambu Studio.') }}</p>
-      <label>{{ _('Strompreis in € pro kWh') }}
-        <input type="text" inputmode="decimal" name="strompreis" value="{{ s.strompreis|num(2) }}" required>
-      </label>
-      <label>{{ _('Standardleistung in Watt') }} <span class="hint">{{ _('für Drucker ohne eigenen Wert') }}</span>
-        <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
-      </label>
-    </section>
+        <details class="settings-help">
+          <summary>{{ _('Drucker über die .env einrichten') }}</summary>
+          <p class="hint">{{ _('Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.', env='<code>.env</code>', vars='<code>PRINTER_1_NAME</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_SERIAL</code>, <code>PRINTER_1_CODE</code>', more='<code>PRINTER_2_…</code>')|safe }}
+            {{ _('Für Klipper-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=moonraker</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}
+            {{ _('Für Prusa-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=prusalink</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_PASSWORD</code>')|safe }}</p>
+        </details>
+      </section>
 
-    {% if printers %}
-    <section>
-      <h2>{{ _('Leistung pro Drucker') }}</h2>
-      <p class="hint">{{ _('Durchschnitt über einen ganzen Druck, nicht die Spitzenleistung beim Aufheizen. Am genauesten misst du ihn mit einer Steckdose mit Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden. Leer lassen, um die Standardleistung zu verwenden.') }}</p>
-      <table class="printer-watts">
-        <thead><tr><th scope="col">{{ _('Drucker') }}</th><th scope="col" class="r">{{ _('Watt') }}</th></tr></thead>
-        <tbody>
-        {% for pr in printers %}
-          <tr>
-            <td>{{ pr.name }}</td>
-            <td class="r"><input type="text" inputmode="numeric" name="leistung:{{ pr.name }}"
-                   value="{{ pr.watts|num(0) if pr.watts is not none else '' }}" placeholder="{{ s.leistung_standard|num(0) }}" aria-label="{{ _('Leistung {printer} in Watt', printer=pr.name) }}"></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endif %}
+      <section class="settings-section" id="power" data-section>
+        <h2>{{ _('Stromkosten') }}</h2>
+        <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen aus den Filamentprofilen im Slicer.') }}</p>
+        {% if request.query_params.get('saved') %}<p class="flash" role="status">{{ _('Gespeichert. Die Kosten aller Projekte sind aktualisiert.') }}</p>{% endif %}
+        <form method="post" action="/settings" class="power-form">
+          <div class="field-pair">
+            <label>{{ _('Strompreis in € pro kWh') }}
+              <input type="text" inputmode="decimal" name="strompreis" value="{{ s.strompreis|num(2) }}" required>
+            </label>
+            <label>{{ _('Standardleistung in Watt') }}
+              <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
+              <span class="hint">{{ _('für Drucker ohne eigenen Wert') }}</span>
+            </label>
+          </div>
 
-    <button type="submit">{{ _('Stromkosten speichern') }}</button>
-  </form>
+          {% if printers %}
+          <h3>{{ _('Leistung pro Drucker') }}</h3>
+          <p class="hint">{{ _('Durchschnitt über einen ganzen Druck, nicht die Spitzenleistung beim Aufheizen. Am genauesten misst du ihn mit einer Steckdose mit Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden. Leer lassen, um die Standardleistung zu verwenden.') }}</p>
+          <table class="printer-watts">
+            <thead><tr><th scope="col">{{ _('Drucker') }}</th><th scope="col" class="r">{{ _('Watt') }}</th></tr></thead>
+            <tbody>
+            {% for pr in printers %}
+              <tr>
+                <td>{{ pr.name }}</td>
+                <td class="r"><input type="text" inputmode="numeric" name="leistung:{{ pr.name }}"
+                       value="{{ pr.watts|num(0) if pr.watts is not none else '' }}" placeholder="{{ s.leistung_standard|num(0) }}" aria-label="{{ _('Leistung {printer} in Watt', printer=pr.name) }}"></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+          <div class="section-foot"><button type="submit">{{ _('Stromkosten speichern') }}</button></div>
+        </form>
+      </section>
 
-  <form method="post" action="/settings/history" class="settings-form" id="history">
-    <section>
-      <h2>{{ _('Druckverlauf') }}</h2>
-      <p class="hint">{{ _('Schreibt mit, was die Drucker aus dem Direktimport drucken, und ordnet jeden Druck seinem Projekt zu. Bambu-Drucker bekommen dafür eine dauerhafte MQTT-Verbindung, Klipper- und Prusa-Drucker werden jede Minute abgefragt.') }}</p>
-      {% if request.query_params.get('history') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
-      {% if history_env is not none %}
-      <p class="hint">{{ _('Über die Umgebungsvariable {env} festgelegt: {state}.', env='<code>PRINT_HISTORY</code>', state=_('eingeschaltet') if history_env else _('ausgeschaltet'))|safe }}</p>
-      {% else %}
-      <label class="check"><input type="checkbox" name="enabled" value="1" {{ 'checked' if history_on }}> {{ _('Druckverlauf mitschreiben') }}</label>
-      {% endif %}
-    </section>
-    {% if history_env is none %}<button type="submit">{{ _('Druckverlauf speichern') }}</button>{% endif %}
-  </form>
+      <section class="settings-section" id="history" data-section>
+        <h2>{{ _('Druckverlauf') }}</h2>
+        <p class="hint">{{ _('Schreibt mit, was die Drucker aus dem Direktimport drucken, und ordnet jeden Druck seinem Projekt zu. Bambu-Drucker bekommen dafür eine dauerhafte MQTT-Verbindung, Klipper- und Prusa-Drucker werden jede Minute abgefragt.') }}</p>
+        {% if request.query_params.get('history') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        {% if history_env is not none %}
+        <p class="hint">{{ _('Über die Umgebungsvariable {env} festgelegt: {state}.', env='<code>PRINT_HISTORY</code>', state=_('eingeschaltet') if history_env else _('ausgeschaltet'))|safe }}</p>
+        {% else %}
+        <form method="post" action="/settings/history" class="toggle-form">
+          <label class="switch">
+            <input type="checkbox" name="enabled" value="1" {{ 'checked' if history_on }} data-autosubmit>
+            <span class="switch-track" aria-hidden="true"></span>
+            {{ _('Druckverlauf mitschreiben') }}
+          </label>
+          <button type="submit" data-autosubmit-button>{{ _('Druckverlauf speichern') }}</button>
+        </form>
+        {% endif %}
+      </section>
+    </div>
   </div>
 </section>
 {% endblock %}

@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **New settings page:** the sections (printers, electricity costs, print history) are
+  listed on the left and shown one at a time; on phones they become a row of buttons at
+  the top. Printers appear as a compact list with status, type and address; the fields
+  only open with “Edit” or “Add printer”, together with the hints for the chosen type.
+  The `.env` examples moved into a collapsible note.
+- The print history is a switch that saves right away.
+
 ## 0.7.5
 
 - Prints can be removed from the print history (“×” on the history and project page),

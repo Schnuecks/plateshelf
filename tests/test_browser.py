@@ -208,6 +208,25 @@ def test_printer_type_switches_fields(server, page):
     assert page.errors == []
 
 
+def test_settings_sections(server, page, monkeypatch):
+    """Einstellungen: ein Bereich zur Zeit, Wechsel über die Seitennavigation, Schalter speichert sofort."""
+    monkeypatch.delenv("PRINT_HISTORY", raising=False)
+    page.goto(server["url"] + "/settings")
+    assert page.locator("#printers").is_visible() and not page.locator("#power").is_visible()
+    page.locator('.settings-nav a[href="#power"]').click()
+    assert page.locator("#power").is_visible() and not page.locator("#printers").is_visible()
+    assert page.locator('.settings-nav a[href="#power"]').get_attribute("aria-current") == "page"
+    page.locator('.settings-nav a[href="#history"]').click()
+    assert not page.locator("[data-autosubmit-button]").is_visible()
+    page.locator(".switch").click()  # ausschalten, speichert ohne Knopf
+    page.wait_for_url("**/settings?history=1#history")
+    assert page.locator("#history").is_visible() and not page.locator("[data-autosubmit]").is_checked()
+    page.locator(".switch").click()
+    page.wait_for_load_state("load")
+    assert page.locator("[data-autosubmit]").is_checked()
+    assert page.errors == []
+
+
 def test_language_and_theme_from_topbar(server, page):
     page.goto(server["url"] + "/")
     page.locator(".lang-menu summary").click()
