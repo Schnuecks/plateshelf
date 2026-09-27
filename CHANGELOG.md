@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.2
 
 - **Plain G-code files** (`.gcode`) from PrusaSlicer, SuperSlicer, OrcaSlicer, Cura,
   Creality Print and similar slicers. PlateShelf reads print time, layers, filament usage,
