@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.9
 
 - **Faster with large libraries:** the prepared project data is kept until the database
   changes, and the overview shows 60 projects at a time with a “Show more” button. With
