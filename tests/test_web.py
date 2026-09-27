@@ -235,3 +235,23 @@ def test_prusalink_printer_in_settings(client, monkeypatch):
     page = client.get("/settings").text
     assert '<option value="prusalink" selected>' in page and 'value="pw"' not in page
     assert pi.db_printers()[0]["id"] == "prusalink:http://192.0.2.80"
+
+
+def test_backup_download(client, lib, sample, tmp_path):
+    import sqlite3
+    sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    store.scan(wait=True)
+    with store.connect() as con:
+        con.execute("UPDATE projects SET notes = 'Wichtige Notiz'")
+    r = client.get("/settings/backup")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/vnd.sqlite3"
+    assert 'filename="plateshelf-backup-' in r.headers["content-disposition"]
+    copy = tmp_path / "backup.sqlite"
+    copy.write_bytes(r.content)
+    con = sqlite3.connect(copy)
+    try:
+        assert con.execute("SELECT notes FROM projects").fetchone()[0] == "Wichtige Notiz"
+        assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION
+    finally:
+        con.close()
+    assert "#backup" in client.get("/settings").text

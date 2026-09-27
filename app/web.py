@@ -130,6 +130,18 @@ templates.env.globals.update(APP_NAME=APP_NAME, APP_VERSION=APP_VERSION, APP_AUT
                              APP_LICENSE=APP_LICENSE)
 
 
+def month_label(month: dict, with_year: bool = False, january_year: bool = True) -> str:
+    """Kurzer Monatsname für Diagramme, im Januar (oder auf Wunsch immer) mit Jahr."""
+    name = i18n.MONTHS[i18n.current()][month["month"] - 1]
+    short = name if len(name) <= 4 else name[:3]
+    if with_year:
+        return f"{name} {month['year']}"
+    return f"{short} {month['year']}" if january_year and month["month"] == 1 else short
+
+
+templates.env.filters["month_label"] = month_label
+
+
 def live_text(job: dict) -> str:
     """„P2S: Benchy · 45 % · noch 32 min“ für einen laufenden Druck."""
     name = job.get("project_name") or (job.get("remote_name") or "").rsplit("/", 1)[-1]

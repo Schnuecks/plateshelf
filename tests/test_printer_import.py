@@ -222,7 +222,9 @@ def test_save_moonraker_printer(lib):
 
 
 def test_old_printer_table_gets_kind(lib):
-    with store.connect() as con:
+    with store.connect() as con:  # Datenbank aus 0.7.1: ohne Spalte kind, ohne Versionsnummer
+        con.execute("DROP TABLE printers")
+        con.execute("PRAGMA user_version = 0")
         con.execute("CREATE TABLE printers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
                     "serial TEXT UNIQUE NOT NULL, ip TEXT NOT NULL, code TEXT NOT NULL)")
         con.execute("INSERT INTO printers (name, serial, ip, code) VALUES ('P1S', 'S1', 'x', 'c')")

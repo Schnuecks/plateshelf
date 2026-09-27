@@ -53,6 +53,7 @@
       <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
       <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Stromkosten') }}</a>
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
+      <a href="#backup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4-4 4 4 4-4M5 19h14"/></svg>{{ _('Sicherung') }}</a>
       <a href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>{{ _('Diagnose') }}</a>
     </nav>
 
@@ -167,6 +168,18 @@
           <button type="submit" data-autosubmit-button>{{ _('Druckverlauf speichern') }}</button>
         </form>
         {% endif %}
+      </section>
+
+      <section class="settings-section" id="backup" data-section>
+        <h2>{{ _('Sicherung') }}</h2>
+        <p class="hint">{{ _('Die Sicherung enthält alles, was nicht in deinen Dateien steht: Projekte mit Notizen, Tags und Status, Zuordnungen, Einstellungen, Drucker und den Druckverlauf. Die Druckdateien selbst sicherst du wie gewohnt mit dem Bibliotheksordner. Vorschaubilder und 3D-Vorschauen entstehen nach dem Zurückspielen von selbst neu.') }}</p>
+        <div class="section-foot"><a class="button" href="/settings/backup" download>{{ _('Sicherung herunterladen') }}</a></div>
+        <h3>{{ _('Zurückspielen') }}</h3>
+        <ol class="hint backup-steps">
+          <li>{{ _('{app} stoppen, zum Beispiel mit {cmd}.', app=APP_NAME, cmd='<code>docker compose down</code>')|safe }}</li>
+          <li>{{ _('Die Sicherung als {file} in den Datenordner legen und dort {extra} löschen, falls vorhanden.', file='<code>plateshelf.sqlite</code>', extra='<code>plateshelf.sqlite-wal</code>, <code>plateshelf.sqlite-shm</code>')|safe }}</li>
+          <li>{{ _('{app} starten. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', app=APP_NAME, key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</li>
+        </ol>
       </section>
 
       <section class="settings-section" id="diagnostics" data-section>

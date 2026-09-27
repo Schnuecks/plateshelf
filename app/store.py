@@ -101,12 +101,49 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     UNIQUE (printer, job_key)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
+-- Direktimport, siehe printer_import.py
+CREATE TABLE IF NOT EXISTS printer_imports (
+    local_path TEXT PRIMARY KEY,
+    printer_name TEXT,
+    remote_name TEXT,
+    remote_date TEXT
+);
+CREATE TABLE IF NOT EXISTS printers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    serial TEXT UNIQUE NOT NULL,
+    ip TEXT NOT NULL,
+    code TEXT NOT NULL,            -- Zugangscode (Bambu) oder API-Schlüssel (Moonraker)
+    kind TEXT NOT NULL DEFAULT 'bambu'
+);
+CREATE TABLE IF NOT EXISTS printer_files (
+    printer TEXT NOT NULL,
+    remote_name TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    remote_date TEXT NOT NULL,
+    local_path TEXT,
+    printer_name TEXT,
+    imported REAL NOT NULL,
+    PRIMARY KEY (printer, remote_name)
+);
 CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_plates_file ON plates(file_id);
 """
 
 _scan_lock = threading.Lock()
 last_scan: dict = {"finished": None, "added": 0, "updated": 0, "errors": 0, "running": False}
+
+
+def db_signature() -> tuple:
+    """Ändert sich mit jedem Schreibzugriff (Datenbank und WAL-Datei), billig abzufragen."""
+    sig = [str(DB_PATH)]
+    for path in (DB_PATH, DB_PATH.with_name(DB_PATH.name + "-wal")):
+        try:
+            st = path.stat()
+            sig += [st.st_mtime_ns, st.st_size]
+        except OSError:
+            sig += [0, 0]
+    return tuple(sig)
 
 
 def connect() -> sqlite3.Connection:
@@ -148,29 +185,53 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
+SCHEMA_VERSION = 1  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+# Beispiel für später: MIGRATIONS = {2: lambda con: con.execute("ALTER TABLE files ADD COLUMN …")}
+MIGRATIONS: dict = {}
+
+
+def _upgrade_before_versioning(con: sqlite3.Connection) -> None:
+    """Datenbanken aus 0.7.x (noch ohne Versionsnummer) auf Schema-Version 1 bringen.
+
+    SCHEMA hat vorher alle fehlenden Tabellen angelegt; hier kommen die Spalten dazu,
+    die in 0.2 bis 0.7 nachträglich eingeführt wurden.
+    """
+    global _force_next_scan
+    added = {
+        "plates": [("sliced", "INTEGER NOT NULL DEFAULT 1", True)],
+        "files": [("model_json", "TEXT", True)],
+        "printers": [("kind", "TEXT NOT NULL DEFAULT 'bambu'", False)],
+        "print_jobs": [("hidden", "INTEGER NOT NULL DEFAULT 0", False), ("remaining_s", "REAL", False),
+                       ("updated", "REAL", False)],
+    }
+    for table, cols in added.items():
+        have = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
+        for col, decl, rescan in cols:
+            if col not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                _force_next_scan |= rescan  # neue Angaben aus den Dateien: alles neu einlesen
+    for table in ("projects", "files"):
+        _ensure_autoincrement(con, table)
+
+
 def init_db() -> None:
+    """Datenbank anlegen oder auf den aktuellen Stand bringen (PRAGMA user_version)."""
     global _force_next_scan
     with connect() as con:
+        version = con.execute("PRAGMA user_version").fetchone()[0]
+        existed = con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'projects'").fetchone()
         con.executescript(SCHEMA)
-        # Ältere Datenbanken erweitern und danach alles neu einlesen
-        migrations = [
-            ("plates", "sliced", "INTEGER NOT NULL DEFAULT 1"),
-            ("files", "model_json", "TEXT"),
-        ]
-        for table, col, decl in migrations:
-            cols = {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
-            if col not in cols:
-                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-                _force_next_scan = True
-        # Spalten ohne Einfluss auf das Einlesen: ergänzen, ohne alles neu einzulesen
-        job_cols = {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}
-        for col, decl in (("hidden", "INTEGER NOT NULL DEFAULT 0"),  # vor 0.7.5
-                          ("remaining_s", "REAL"), ("updated", "REAL")):  # vor 0.7.7
-            if col not in job_cols:
-                con.execute(f"ALTER TABLE print_jobs ADD COLUMN {col} {decl}")
-        for table in ("projects", "files"):
-            _ensure_autoincrement(con, table)
-        con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
+        if existed and version == 0:
+            _upgrade_before_versioning(con)
+            con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
+            version = 1
+        for step in sorted(v for v in MIGRATIONS if v > version):
+            MIGRATIONS[step](con)
+            log.info("Datenbank auf Schema-Version %d aktualisiert", step)
+        con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        # Nach dem Wiederherstellen einer Sicherung fehlen die Vorschaubilder: neu einlesen
+        if not THUMB_DIR.exists() and con.execute("SELECT 1 FROM files LIMIT 1").fetchone():
+            _force_next_scan = True
 
 
 LIBRARY_EXTENSIONS = (".3mf", ".gcode", ".bgcode")

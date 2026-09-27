@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+import time
 
 from . import print_history, store
 from .i18n import gettext as _
@@ -59,7 +61,31 @@ def _total(material, energy):
     return sum(parts) if parts else None
 
 
+CACHE_SECONDS = 60  # höchstens so lange, auch wenn sich scheinbar nichts geändert hat
+_cache: dict = {"sig": None, "at": 0.0, "projects": []}
+_cache_lock = threading.Lock()
+
+
 def load_projects(con) -> list[dict]:
+    """Alle Projekte mit Dateien, Platten, Kosten und Druckverlauf.
+
+    Die Aufbereitung wird zwischengespeichert, bis sich die Datenbank ändert: Bei
+    großen Bibliotheken spart das bei jedem Seitenaufruf die meiste Zeit. Laufende
+    Drucke kommen immer frisch dazu. Die Projekte nur lesen, nicht verändern.
+    """
+    sig = store.db_signature()
+    with _cache_lock:
+        fresh = _cache["sig"] == sig and time.monotonic() - _cache["at"] < CACHE_SECONDS
+        if not fresh:
+            _cache.update(projects=_build(con), sig=sig, at=time.monotonic())
+        cached = _cache["projects"]
+    live = {}
+    for job in print_history.printing_now():
+        live.setdefault(job["project_id"], job)
+    return [{**p, "printing": live.get(p["id"])} if p["id"] in live else p for p in cached]
+
+
+def _build(con) -> list[dict]:
     settings = store.get_settings(con)
     projects = {r["id"]: {**dict(r), "files": [], "plates": [], "extra_plates": []}
                 for r in con.execute("SELECT * FROM projects")}
@@ -103,9 +129,6 @@ def load_projects(con) -> list[dict]:
     printed = {r[0]: (r[1], r[2]) for r in con.execute(
         "SELECT local_path, COUNT(*), MAX(COALESCE(ended, started)) FROM print_jobs WHERE status = 'completed' "
         "AND local_path IS NOT NULL AND hidden = 0 GROUP BY local_path")}
-    live = {}
-    for job in print_history.printing_now():
-        live.setdefault(job["project_id"], job)
     out = []
     for p in projects.values():
         if not p["files"]:
@@ -129,7 +152,7 @@ def load_projects(con) -> list[dict]:
         prints = [printed[f["path"]] for f in p["files"] if f["path"] in printed]
         p["prints"] = sum(n for n, _last in prints)
         p["last_printed"] = max((last or 0 for _n, last in prints), default=0)
-        p["printing"] = live.get(p["id"])
+        p["printing"] = None
         out.append(p)
     return out
 

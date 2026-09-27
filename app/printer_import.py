@@ -63,33 +63,6 @@ state: dict = {"enabled": False, "running": False, "last_run": None, "printers":
 _lock = threading.Lock()
 _wakeup = threading.Event()
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS printer_imports (
-    local_path TEXT PRIMARY KEY,
-    printer_name TEXT,
-    remote_name TEXT,
-    remote_date TEXT
-);
-CREATE TABLE IF NOT EXISTS printers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    serial TEXT UNIQUE NOT NULL,
-    ip TEXT NOT NULL,
-    code TEXT NOT NULL,            -- Zugangscode (Bambu) oder API-Schlüssel (Moonraker)
-    kind TEXT NOT NULL DEFAULT 'bambu'
-);
-CREATE TABLE IF NOT EXISTS printer_files (
-    printer TEXT NOT NULL,
-    remote_name TEXT NOT NULL,
-    size INTEGER NOT NULL,
-    remote_date TEXT NOT NULL,
-    local_path TEXT,
-    printer_name TEXT,
-    imported REAL NOT NULL,
-    PRIMARY KEY (printer, remote_name)
-);
-"""
-
 
 class ImplicitFTPS(ftplib.FTP_TLS):
     """FTP über implizites TLS (Port 990), wie es Bambu-Drucker verwenden.
@@ -275,10 +248,9 @@ def save_printers(rows: list[dict]) -> None:
 
 
 def init() -> None:
+    """Tabellen liegen im gemeinsamen Schema (store.SCHEMA); hier nur Zugangsdaten verschlüsseln."""
+    store.init_db()
     with store.connect() as con:
-        con.executescript(SCHEMA)
-        if "kind" not in {r["name"] for r in con.execute("PRAGMA table_info(printers)")}:
-            con.execute("ALTER TABLE printers ADD COLUMN kind TEXT NOT NULL DEFAULT 'bambu'")  # vor 0.7.2
         if crypto.secret_key():  # Klartext aus älteren Versionen oder ohne SECRET_KEY gespeichert
             plain = [(r["id"], r["code"]) for r in con.execute("SELECT id, code FROM printers")
                      if r["code"] and not crypto.is_encrypted(r["code"])]

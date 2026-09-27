@@ -5,6 +5,10 @@
 {% block main %}
 <section class="history-page">
   <h1>{{ _('Druckverlauf') }}</h1>
+  <nav class="page-tabs" aria-label="{{ _('Druckverlauf') }}">
+    <a href="/history" aria-current="page">{{ _('Drucke') }}</a>
+    <a href="/statistics">{{ _('Statistik') }}</a>
+  </nav>
   {% if request.query_params.get('job_deleted') %}<p class="flash" role="status">{{ _('Druck aus dem Verlauf entfernt.') }}</p>{% endif %}
   <p class="hint">
     {{ _('{app} schreibt mit, was deine Drucker drucken: Bambu-Drucker melden jeden Druck sofort, Klipper-Drucker liefern ihren eigenen Verlauf, Prusa-Drucker werden jede Minute abgefragt. Jeder Druck wird der vom Drucker geholten Datei und damit ihrem Projekt zugeordnet.', app=APP_NAME) }}

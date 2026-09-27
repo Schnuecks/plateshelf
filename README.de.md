@@ -54,9 +54,13 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 |---|---|
 | ![Projektseite](docs/screenshots/project.png) | ![3D-Vorschau, eingefärbt nach Linientyp](docs/screenshots/preview.png) |
 
-| Druckverlauf | Einstellungen |
+| Druckverlauf | Statistik |
 |---|---|
-| ![Druckverlauf mit laufendem Druck](docs/screenshots/history.png) | ![Einstellungen mit Druckern dreier Typen](docs/screenshots/settings.png) |
+| ![Druckverlauf mit laufendem Druck](docs/screenshots/history.png) | ![Statistik der letzten zwölf Monate](docs/screenshots/statistics.png) |
+
+| Einstellungen |
+|---|
+| ![Einstellungen mit Druckern dreier Typen](docs/screenshots/settings.png) |
 
 Die Screenshots zeigen die englische Oberfläche; die Sprache lässt sich oben rechts umstellen.
 
@@ -246,6 +250,11 @@ Abschalten lässt sich der Verlauf unter „Einstellungen“ → „Druckverlauf
 Bambu-Drucker keine zusätzliche MQTT-Verbindung bekommen soll. `PRINT_HISTORY=true` oder
 `false` in der `.env` legt die Einstellung fest; der Schalter in der Oberfläche
 entfällt dann.
+
+**Statistik:** Der Reiter „Statistik“ auf der Verlaufsseite zeigt die letzten zwölf
+Monate: fertige Drucke, Druckzeit, Filament und Kosten, Drucke pro Monat (fertig sowie
+abgebrochen oder fehlgeschlagen), Kosten pro Monat, Filament nach Material und die
+Erfolgsquote je Drucker. Filament und Kosten zählen nur fertige Drucke.
 
 ### 3D-Vorschau
 
@@ -537,8 +546,17 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
 - Die Dateien in der Bibliothek werden nie verändert, nur beim Löschen in den
   Papierkorb verschoben.
 - Datenbank (SQLite), Vorschaubilder, 3D-Vorschauen und deine Notizen liegen im
-  Datenordner. Für eine Sicherung genügt dieser Ordner; die 3D-Vorschauen darin werden
-  bei Bedarf neu erzeugt.
+  Datenordner.
+- **Sicherung:** „Einstellungen“ → „Sicherung“ lädt die Datenbank als eine Datei herunter,
+  auch während PlateShelf läuft in sich stimmig. Sie enthält Projekte mit Notizen, Tags
+  und Status, Zuordnungen, Einstellungen, Drucker und den Druckverlauf. Den
+  Bibliotheksordner mit den Druckdateien sicherst du wie gewohnt. Heb auch den
+  `SECRET_KEY` gut auf, denn nur mit ihm lassen sich die Zugangsdaten der Drucker lesen.
+- **Zurückspielen oder umziehen:** PlateShelf stoppen, die Sicherung als
+  `plateshelf.sqlite` in den Datenordner legen (`plateshelf.sqlite-wal` und `-shm` dort
+  löschen, falls vorhanden) und wieder starten, mit demselben `SECRET_KEY` in der
+  `.env`. Vorschaubilder und 3D-Vorschauen entstehen automatisch neu.
+- Die Datenbank hat eine Schema-Version und wird beim Start automatisch aktualisiert.
 - Neue und geänderte Dateien werden regelmäßig erkannt, auch auf Netzwerkfreigaben
   (SMB/NFS). Den Datenordner solltest du dagegen lokal ablegen, weil SQLite auf
   Netzwerkfreigaben unzuverlässig ist.
@@ -556,6 +574,8 @@ LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 ```
 
 `python tools/make_screenshots.py` erzeugt die Screenshots in diesem README neu.
+`python tools/load_test.py 2000` legt eine Bibliothek mit 2000 Dateien an und misst
+Einlesen und die wichtigsten Seiten.
 
 Zusätzlich gibt es einen Browsertest, der alle Seiten und die 3D-Vorschau in Chromium
 öffnet und bei jedem JavaScript-Fehler fehlschlägt:

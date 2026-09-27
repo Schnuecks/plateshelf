@@ -52,9 +52,13 @@ print settings and a 3D preview of the actual toolpaths.
 |---|---|
 | ![Project page](docs/screenshots/project.png) | ![3D preview coloured by line type](docs/screenshots/preview.png) |
 
-| Print history | Settings |
+| Print history | Statistics |
 |---|---|
-| ![Print history with a running print](docs/screenshots/history.png) | ![Settings with printers of three types](docs/screenshots/settings.png) |
+| ![Print history with a running print](docs/screenshots/history.png) | ![Statistics of the last twelve months](docs/screenshots/statistics.png) |
+
+| Settings |
+|---|
+| ![Settings with printers of three types](docs/screenshots/settings.png) |
 
 ## Installation
 
@@ -229,6 +233,11 @@ or the project page. They no longer count, and if such a print had set the proje
 The history can be switched off under “Settings” → “Print history”, e.g. if a Bambu
 printer should not get an additional MQTT connection. `PRINT_HISTORY=true` or `false` in
 the `.env` fixes the setting; the switch in the interface is then hidden.
+
+**Statistics:** the “Statistics” tab on the history page shows the last twelve months:
+finished prints, print time, filament and costs, prints per month (finished and cancelled
+or failed), costs per month, filament by material and the success rate per printer.
+Filament and costs only count finished prints.
 
 ### 3D preview
 
@@ -512,9 +521,17 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
 
 - Files in the library are never modified, only moved to the trash when you delete them.
 - The database (SQLite), preview images, 3D previews and your notes are stored in the
-  data folder. Backing up this folder is enough; the 3D previews in it are rebuilt when
-  needed. Keep `SECRET_KEY` somewhere safe as well, because the printer credentials in
-  the database can only be read with it.
+  data folder.
+- **Backup:** “Settings” → “Backup” downloads the database as a single file, consistent
+  even while PlateShelf is running. It contains projects with notes, tags and status,
+  assignments, settings, printers and the print history. Back up the library folder with
+  the print files as usual. Keep `SECRET_KEY` somewhere safe as well, because the printer
+  credentials in the backup can only be read with it.
+- **Restore or move:** stop PlateShelf, put the backup into the data folder as
+  `plateshelf.sqlite` (delete `plateshelf.sqlite-wal` and `-shm` if present) and start it
+  again, with the same `SECRET_KEY` in the `.env`. Preview images and 3D previews are
+  rebuilt automatically.
+- The database has a schema version and is upgraded automatically on start.
 - New and changed files are detected regularly, also on network shares (SMB/NFS). Keep
   the data folder on a local disk, though, because SQLite is unreliable on network
   shares.
@@ -541,6 +558,8 @@ python -m pytest -q tests/test_browser.py
 ```
 
 `python tools/make_screenshots.py` recreates the screenshots in this README.
+`python tools/load_test.py 2000` builds a library with 2000 files and times reading and
+the main pages.
 
 ### Translations
 
