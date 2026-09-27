@@ -7,9 +7,9 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse
 
-from . import i18n, print_history, printer_import, store
+from . import diagnostics, i18n, print_history, printer_import, store
 from .i18n import gettext as _
-from .web import ONE_YEAR, templates
+from .web import APP_VERSION, ONE_YEAR, templates
 
 router = APIRouter()
 
@@ -44,6 +44,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
+        "diagnostics": diagnostics.report(APP_VERSION),
     }, status_code=status_code)
 
 

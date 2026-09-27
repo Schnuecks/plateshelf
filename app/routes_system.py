@@ -8,12 +8,18 @@ import time
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
-from . import auth, printer_import, store
+from . import auth, print_history, printer_import, store
 from .i18n import gettext as _, ngettext
 from .projects import load_projects
-from .web import APP_REPO, APP_VERSION, _local_target, signed_in, templates
+from .web import live_prints, APP_REPO, APP_VERSION, _local_target, signed_in, templates
 
 router = APIRouter()
+
+
+@router.get("/api/printing")
+def api_printing():
+    """Laufende Drucke als fertiger Text, für die Anzeige in der Titelleiste."""
+    return {"items": live_prints() if print_history.enabled() else []}
 
 
 @router.get("/api/stats")
@@ -23,6 +29,7 @@ def api_stats():
     Dieselben Summen wie auf der Startseite, dazu Kosten, neue Dateien und
     Druckerstatus. Zahlen bleiben unformatiert, das Dashboard formatiert selbst.
     """
+    live = print_history.printing_now()
     week_ago = time.time() - 7 * 86400
     month_ago = time.time() - 30 * 86400
     with store.connect() as con:
@@ -59,6 +66,10 @@ def api_stats():
         "prints_failed_30d": jobs[1] or 0,
         "printing_now": jobs[2] or 0,
         "last_print_end": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(jobs[3])) if jobs[3] else None,
+        "printing_name": live[0]["project_name"] or (live[0]["remote_name"] or "").rsplit("/", 1)[-1] if live else None,
+        "printing_printer": live[0]["printer_name"] if live else None,
+        "printing_progress": round(live[0]["progress"]) if live and live[0]["progress"] is not None else None,
+        "printing_remaining_min": round(live[0]["remaining_s"] / 60) if live and live[0]["remaining_s"] else None,
         "version": APP_VERSION,
     }
 

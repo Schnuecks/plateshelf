@@ -130,6 +130,26 @@ templates.env.globals.update(APP_NAME=APP_NAME, APP_VERSION=APP_VERSION, APP_AUT
                              APP_LICENSE=APP_LICENSE)
 
 
+def live_text(job: dict) -> str:
+    """„P2S: Benchy · 45 % · noch 32 min“ für einen laufenden Druck."""
+    name = job.get("project_name") or (job.get("remote_name") or "").rsplit("/", 1)[-1]
+    parts = [_("{printer}: {name}", printer=job["printer_name"], name=name) if name else job["printer_name"]]
+    if job.get("progress") is not None:
+        parts.append(f"{fmt_num(job['progress'], 0)} %")
+    if job.get("remaining_s"):
+        parts.append(_("noch {time}", time=fmt_duration(job["remaining_s"])))
+    return " · ".join(parts)
+
+
+def live_prints() -> list[dict]:
+    """Laufende Drucke für die Titelleiste: Text und Ziel des Links."""
+    return [{"text": live_text(j), "url": f"/p/{j['project_id']}#history" if j.get("project_id") else "/history",
+             "progress": j.get("progress")} for j in print_history.printing_now()]
+
+
+templates.env.globals["live_prints"] = live_prints
+
+
 def _asset_version() -> str:
     """Prüfsumme über CSS/JS: ändert sich bei jedem Update, damit Browser neu laden."""
     import hashlib

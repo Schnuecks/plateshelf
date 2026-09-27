@@ -443,6 +443,11 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-watts td { padding: .35rem 0; border-bottom: 1px solid var(--line); }
 .printer-watts input { width: 6rem; text-align: right; }
 
+/* Diagnose */
+.diag-text { width: 100%; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical;
+  white-space: pre; overflow-x: auto; }
+.diag-actions { align-items: center; gap: 1rem; flex-wrap: wrap; }
+
 /* Schalter */
 .toggle-form { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 .settings-section .switch { display: inline-flex; align-items: center; gap: .7rem; font-weight: 500; cursor: pointer; }
@@ -532,6 +537,21 @@ button.danger-quiet:hover { color: var(--ink); }
   cursor: pointer; }
 .icon-quiet:hover, .icon-quiet:focus-visible { color: var(--warn); }
 .card-meta .prints { font-size: .8rem; color: var(--muted); margin-left: .5rem; }
+
+/* Laufender Druck: Titelleiste und Karte */
+.live-print { display: inline-flex; align-items: center; gap: .45rem; max-width: 22rem; padding: .25rem .7rem;
+  border: 1px solid var(--line); border-radius: 999px; color: var(--ink); text-decoration: none; font-size: .85rem;
+  white-space: nowrap; }
+.live-print [data-live-text] { overflow: hidden; text-overflow: ellipsis; }
+.live-print:hover { border-color: var(--accent); }
+.live-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); flex: none;
+  animation: live-pulse 2s ease-in-out infinite; }
+.live-more { color: var(--muted); }
+@keyframes live-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+@media (max-width: 760px) { .live-print { max-width: 60vw; } }
+.bed-live { position: absolute; left: .5rem; top: .5rem; background: var(--accent); color: var(--accent-ink);
+  font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 3px; }
 
 .trash-page { max-width: 52rem; }
 .trash-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1.5rem; }

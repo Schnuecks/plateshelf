@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import re
 
-from . import store
+from . import print_history, store
 from .i18n import gettext as _
 
 def plate_source(model_json: str | None) -> str:
@@ -100,9 +100,12 @@ def load_projects(con) -> list[dict]:
             extras.append(x)
         p["extra_plates"] = extras
 
-    printed = {r[0]: r[1] for r in con.execute(
-        "SELECT local_path, COUNT(*) FROM print_jobs WHERE status = 'completed' AND local_path IS NOT NULL "
-        "AND hidden = 0 GROUP BY local_path")}
+    printed = {r[0]: (r[1], r[2]) for r in con.execute(
+        "SELECT local_path, COUNT(*), MAX(COALESCE(ended, started)) FROM print_jobs WHERE status = 'completed' "
+        "AND local_path IS NOT NULL AND hidden = 0 GROUP BY local_path")}
+    live = {}
+    for job in print_history.printing_now():
+        live.setdefault(job["project_id"], job)
     out = []
     for p in projects.values():
         if not p["files"]:
@@ -123,7 +126,10 @@ def load_projects(con) -> list[dict]:
         p["cover"] = f"/thumb/{cover['file_id']}/plate/{cover['idx']}?v={cover['v']}" if cover else None
         p["plates_total"] = len(plates) + len(p["extra_plates"])
         p["tag_list"] = [t.strip() for t in p["tags"].split(",") if t.strip()]
-        p["prints"] = sum(printed.get(f["path"], 0) for f in p["files"])
+        prints = [printed[f["path"]] for f in p["files"] if f["path"] in printed]
+        p["prints"] = sum(n for n, _last in prints)
+        p["last_printed"] = max((last or 0 for _n, last in prints), default=0)
+        p["printing"] = live.get(p["id"])
         out.append(p)
     return out
 

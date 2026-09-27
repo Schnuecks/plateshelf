@@ -277,3 +277,102 @@ def test_disabled_closes_watchers(ready, monkeypatch):
     monkeypatch.setitem(ph._watchers, "SER1", (("x", "x", "P2S"), FakeWatcher()))
     ph.refresh_watchers([BAMBU])  # PRINT_HISTORY=false in den Tests: ausgeschaltet
     assert stopped == [1] and ph._watchers == {}
+
+
+# --- Laufende Drucke, Sortierung, Diagnose (0.7.7) ------------------------------
+
+def test_remaining_time_from_all_printers(ready, moonraker, prusalink):
+    t = ph.BambuTracker(BAMBU)
+    t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "A.gcode.3mf", "task_id": "1",
+                        "mc_percent": 10, "mc_remaining_time": 95}})
+    t.update({"print": {"mc_remaining_time": 94}})  # nur die Restzeit ändert sich
+    assert jobs()[-1]["remaining_s"] == 94 * 60
+    t.update({"print": {"gcode_state": "FINISH"}})
+    assert jobs()[-1]["remaining_s"] is None  # fertig: keine Restzeit mehr
+
+    sv08 = {"name": "SV08", "id": "moonraker:x", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
+    moonraker["state"]["history"] = [{"job_id": "0009", "filename": "b.gcode", "status": "in_progress",
+                                      "start_time": time.time() - 600, "end_time": None, "print_duration": 500,
+                                      "filament_used": 1.0}]
+    moonraker["state"]["objects"] = {"virtual_sdcard": {"progress": 0.25}, "print_stats": {"print_duration": 500}}
+    ph.poll_moonraker(sv08)
+    job = {j["job_key"]: j for j in jobs()}["0009"]
+    assert job["progress"] == 25.0 and job["remaining_s"] == 1500
+
+    mk4 = {"name": "MK4S", "id": "prusalink:x", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
+    prusalink["state"]["job"] = {"id": 7, "state": "PRINTING", "progress": 40.0, "time_printing": 400,
+                                 "time_remaining": 600, "file": {"display_name": "c.bgcode"}}
+    ph.poll_prusalink(mk4)
+    assert {j["job_key"]: j for j in jobs()}["7"]["remaining_s"] == 600
+
+
+def test_printing_now_and_pages(ready, monkeypatch):
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    imported(ready, BAMBU, "Live.gcode.3mf", "From printer/P2S/Live.gcode.3mf")
+    ph.record(BAMBU, "live", "running", remote_name="Live.gcode.3mf", progress=45, remaining_s=32 * 60)
+    ph.record(BAMBU, "old", "running", remote_name="Weg.gcode.3mf", progress=5)
+    with store.connect() as con:  # seit einer Stunde keine Meldung: nicht mehr live
+        con.execute("UPDATE print_jobs SET updated = ?, started = ? WHERE job_key = 'old'",
+                    (time.time() - 3600, time.time() - 3600))
+    (job,) = ph.printing_now()
+    assert job["project_name"] == "Live" and job["progress"] == 45
+    from app import main
+    with TestClient(main.app) as client:
+        items = client.get("/api/printing").json()["items"]
+        assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "url": f"/p/{job['project_id']}#history",
+                          "progress": 45}]
+        page = client.get("/").text
+        assert "P2S: Live · 45 % · noch 32 min" in page and 'class="bed-live">Druckt 45 %' in page
+        stats = client.get("/api/stats").json()
+        assert (stats["printing_name"], stats["printing_printer"], stats["printing_progress"],
+                stats["printing_remaining_min"]) == ("Live", "P2S", 45, 32)
+        monkeypatch.setenv("PRINT_HISTORY", "false")
+        assert client.get("/api/printing").json() == {"items": []}
+        assert "data-live-print" not in client.get("/").text
+
+
+def test_sort_and_filter_by_prints(ready, sample, monkeypatch):
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    for name in ("Oft", "Einmal", "Nie"):
+        sample(ready / f"{name}.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+        with store.connect() as con:
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                        "imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', 0)", (f"{name}.gcode.3mf", f"{name}.gcode.3mf"))
+    store.scan(wait=True)
+    now = time.time()
+    ph.record(BAMBU, "o1", "completed", remote_name="Oft.gcode.3mf", started=now - 9000, ended=now - 8000)
+    ph.record(BAMBU, "o2", "completed", remote_name="Oft.gcode.3mf", started=now - 7000, ended=now - 6000)
+    ph.record(BAMBU, "e1", "completed", remote_name="Einmal.gcode.3mf", started=now - 500, ended=now - 100)
+    from app import main
+    with TestClient(main.app) as client:
+        def order(query):
+            """Projektnamen in der Reihenfolge, in der die Übersicht sie zeigt."""
+            page = client.get("/?" + query).text
+            shown = [(page.index(f"<h2>{n}</h2>"), n) for n in ("Oft", "Einmal", "Nie") if f"<h2>{n}</h2>" in page]
+            return [n for _, n in sorted(shown)]
+        assert order("sort=gedruckt") == ["Einmal", "Oft", "Nie"]
+        assert order("sort=haeufig") == ["Oft", "Einmal", "Nie"]
+        assert order("printed=nein") == ["Nie"]
+        assert sorted(order("printed=ja")) == ["Einmal", "Oft"]
+
+
+def test_diagnostics(ready, monkeypatch, caplog):
+    from app import diagnostics
+    monkeypatch.setenv("PRINTER_1_NAME", "Werkstatt Keller")
+    monkeypatch.setenv("PRINTER_1_IP", "192.168.178.44")
+    monkeypatch.setenv("PRINTER_1_SERIAL", "01P00A123456789")
+    monkeypatch.setenv("PRINTER_1_CODE", "geheim99")
+    monkeypatch.setenv("SCAN_INTERVAL", "300")
+    diagnostics.install()
+    import logging
+    logging.getLogger("plateshelf.printers").warning("SV08: http://192.168.178.50:7125 nicht erreichbar")
+    text = diagnostics.report("9.9.9")
+    assert text.startswith("PlateShelf 9.9.9") and "bambu (env): not queried yet" in text
+    assert "SCAN_INTERVAL" in text and "PRINTER_<n>_* (1)" in text
+    assert "http://<host>:7125 nicht erreichbar" in text
+    for secret in ("Werkstatt Keller", "192.168.178", "01P00A123456789", "geheim99", "300"):
+        assert secret not in text, secret
+    from app import main
+    with TestClient(main.app) as client:
+        page = client.get("/settings").text
+        assert 'id="diagnostics"' in page and "PlateShelf" in page and "/issues/new/choose" in page

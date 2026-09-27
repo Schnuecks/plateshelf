@@ -17,11 +17,22 @@
     {% for key, label in STATUSES.items() if key %}<option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ _(label) }}</option>{% endfor %}
     <option value="ohne" {% if status == 'ohne' %}selected{% endif %}>{{ _('Ohne Status') }}</option>
   </select>
+  {% if history_enabled() or printed %}
+  <select name="printed" aria-label="{{ _('Druckverlauf') }}">
+    <option value="">{{ _('Gedruckt oder nicht') }}</option>
+    <option value="ja" {% if printed == 'ja' %}selected{% endif %}>{{ _('Schon gedruckt') }}</option>
+    <option value="nein" {% if printed == 'nein' %}selected{% endif %}>{{ _('Noch nie gedruckt') }}</option>
+  </select>
+  {% endif %}
   <select name="sort" aria-label="{{ _('Sortierung') }}">
     <option value="neu" {% if sort == 'neu' %}selected{% endif %}>{{ _('Neueste zuerst') }}</option>
     <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ _('Name') }}</option>
     <option value="dauer" {% if sort == 'dauer' %}selected{% endif %}>{{ _('Längste Druckzeit') }}</option>
     <option value="gewicht" {% if sort == 'gewicht' %}selected{% endif %}>{{ _('Meistes Filament') }}</option>
+    {% if history_enabled() or sort in ('gedruckt', 'haeufig') %}
+    <option value="gedruckt" {% if sort == 'gedruckt' %}selected{% endif %}>{{ _('Zuletzt gedruckt') }}</option>
+    <option value="haeufig" {% if sort == 'haeufig' %}selected{% endif %}>{{ _('Am häufigsten gedruckt') }}</option>
+    {% endif %}
   </select>
   {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
   <button type="submit" data-filter-button>{{ _('Filtern') }}</button>
@@ -78,6 +89,7 @@
       <div class="bed">
         {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy">{% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
         {% if p.plates|length > 1 %}<span class="bed-count">{{ _('{n} Platten', n=p.plates|length) }}</span>{% endif %}
+        {% if p.printing %}<span class="bed-live">{{ _('Druckt') }}{% if p.printing.progress is not none %} {{ p.printing.progress|num(0) }} %{% endif %}</span>{% endif %}
       </div>
       <div class="strand" style="background: {{ p.filaments|strand }}"></div>
       <div class="card-body">

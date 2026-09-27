@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.get("/")
 def index(request: Request, q: str = "", material: str = "", printer: str = "", status: str = "", tag: str = "",
-          sort: str = "neu"):
+          sort: str = "neu", printed: str = ""):
     with store.connect() as con:
         projects = load_projects(con)
     all_materials = sorted({m for p in projects for m in p["materials"]})
@@ -43,6 +43,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
                 return False
         return ((not material or material in p["materials"]) and (not printer or printer in p["printers"])
                 and (status == "" or p["status"] == ("" if status == "ohne" else status))
+                and (printed != "ja" or p["prints"] > 0) and (printed != "nein" or p["prints"] == 0)
                 and (not tag or tag in p["tag_list"]))
 
     shown = [p for p in projects if match(p)]
@@ -51,6 +52,8 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         "name": (lambda p: p["name"].lower()),
         "dauer": (lambda p: -p["time_s"]),
         "gewicht": (lambda p: -p["weight_g"]),
+        "gedruckt": (lambda p: (-p["last_printed"], -p["latest"])),  # nie gedruckte ans Ende
+        "haeufig": (lambda p: (-p["prints"], -p["last_printed"])),
     }
     shown.sort(key=keys.get(sort, keys["neu"]))
     totals = {
@@ -60,7 +63,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
     }
     return templates.TemplateResponse(request, "index.html", {
         "projects": shown, "totals": totals, "q": q, "material": material, "printer": printer,
-        "status": status, "tag": tag, "sort": sort, "all_materials": all_materials,
+        "status": status, "tag": tag, "sort": sort, "printed": printed, "all_materials": all_materials,
         "all_printers": all_printers, "all_tags": all_tags, "scan": store.last_scan,
         "psync": printer_import.state,
     })

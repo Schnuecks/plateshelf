@@ -17,7 +17,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
+from . import auth, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
     routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, current_url, is_public, signed_in
@@ -27,6 +27,7 @@ from .projects import BOOL_WORDS, SETTING_LABELS, load_projects  # noqa: F401
 from .web import APP_VERSION, JOB_STATUSES, JS_TEXTS, STATUSES, THEME_LABELS, _app_version  # noqa: F401
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
+diagnostics.install()  # letzte Warnungen für die Diagnose in den Einstellungen
 
 
 @asynccontextmanager
