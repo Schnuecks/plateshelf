@@ -1,13 +1,3 @@
-# Zwei Stufen: Pakete ohne fertiges Wheel (z. B. cffi für cryptography auf 32-Bit-ARM)
-# werden in der ersten Stufe gebaut; das eigentliche Image enthält keinen Compiler.
-FROM python:3.12-slim AS wheels
-WORKDIR /build
-COPY requirements.txt .
-RUN pip wheel --no-cache-dir --only-binary=:all: -r requirements.txt -w /wheels \
-    || (apt-get update \
-        && apt-get install -y --no-install-recommends gcc libc6-dev libffi-dev \
-        && pip wheel --no-cache-dir -r requirements.txt -w /wheels)
-
 FROM python:3.12-slim
 
 # Wird von GitHub Actions beim Release auf den Tag gesetzt (z. B. v0.2.0)
@@ -25,8 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 COPY requirements.txt .
-RUN --mount=type=bind,from=wheels,source=/wheels,target=/wheels \
-    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
 EXPOSE 8000

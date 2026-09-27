@@ -43,19 +43,13 @@ from .parser import parse_3mf
 log = logging.getLogger("plateshelf.printers")
 
 SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
-LEGACY_IMPORT_DIR = "Vom Drucker"  # Standard bis Version 0.6
 
 
 def import_dir() -> str:
-    """Zielordner für importierte Drucke.
+    """Zielordner für importierte Drucke: PRINTER_IMPORT_DIR, sonst „From printer“."""
+    return os.environ.get("PRINTER_IMPORT_DIR", "").strip() or "From printer"
 
-    PRINTER_IMPORT_DIR, sonst „From printer“. Gibt es aus älteren Versionen schon den
-    Ordner „Vom Drucker“, wird er weiter benutzt, damit nichts auseinanderfällt.
-    """
-    env = os.environ.get("PRINTER_IMPORT_DIR", "").strip()
-    if env:
-        return env
-    return LEGACY_IMPORT_DIR if (store.LIBRARY_DIR / LEGACY_IMPORT_DIR).is_dir() else "From printer"
+
 TIMEOUT = 15
 
 # Zeile aus einem Unix-artigen LIST: Rechte, Links, Besitzer, Gruppe, Größe, Datum, Name

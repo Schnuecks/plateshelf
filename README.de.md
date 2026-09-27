@@ -65,9 +65,8 @@ Die Screenshots zeigen die englische Oberfläche; die Sprache lässt sich oben r
 ### Voraussetzungen
 
 Du brauchst Docker mit Docker Compose 2.24 oder neuer. Das Image gibt es für PCs und
-Server (amd64), für 64-Bit-ARM (arm64, z. B. Raspberry Pi 4/5 mit 64-Bit-System und
-viele NAS) und für 32-Bit-ARM (arm/v7, ältere Raspberry Pi). Docker wählt automatisch
-das passende.
+Server (amd64) und für 64-Bit-ARM (arm64, z. B. Raspberry Pi 4/5 mit 64-Bit-System und
+viele NAS). Docker wählt automatisch das passende.
 
 ### Schnellstart
 
@@ -97,22 +96,8 @@ Die Datenbank wird beim Start bei Bedarf automatisch auf den neuen Stand gebrach
 Wenn sich das Format der 3D-Vorschau ändert, werden die Vorschauen danach einmal im
 Hintergrund neu erzeugt. Was sich in einer Version geändert hat, steht im
 [CHANGELOG](CHANGELOG.md).
-
-### Umstieg vom Druckarchiv
-
-Bis Version 0.6 hieß PlateShelf *Druckarchiv*. Deine Daten bleiben erhalten:
-
-- Ersetze in der `.env` `DRUCKARCHIV_IMAGE` durch
-  `PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:latest`, oder lade `compose.yaml` und
-  `.env.example` wie im Schnellstart neu und übernimm deine Werte.
-- Die Datenbank `druckarchiv.sqlite` im Datenordner wird beim ersten Start automatisch
-  in `plateshelf.sqlite` umbenannt.
-- Gibt es in der Bibliothek schon den Ordner `Vom Drucker` aus dem Direktimport, wird
-  er weiter benutzt. Neue Installationen verwenden `From printer`.
-- Im Browser gespeicherte Einstellungen (Einfärbung, Kameraposition usw.) bleiben
-  erhalten.
-- Der Papierkorb-Ordner `.papierkorb` in der Bibliothek wird in `.trash` umbenannt;
-  gelöschte Einträge lassen sich weiter wiederherstellen.
+Kommst du von einer Version vor 0.7 (auch unter dem alten Namen *Druckarchiv*), aktualisiere
+zuerst auf 0.7.7 und starte diese einmal.
 
 ## Bedienung
 
@@ -607,7 +592,7 @@ IP-Adressen, Hostnamen oder Druckernamen.
 ### Tests, Builds und Releases
 
 - Jeder Pull Request und jeder Push auf `main` durchläuft die Python-Tests und den
-  Browsertest und baut das Image probeweise für amd64, arm64 und arm/v7. Veröffentlicht
+  Browsertest und baut das Image probeweise für amd64 und arm64. Veröffentlicht
   wird dabei nichts.
 - Ein Release entsteht durch einen Versions-Tag:
 

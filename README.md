@@ -61,9 +61,8 @@ print settings and a 3D preview of the actual toolpaths.
 ### Requirements
 
 You need Docker with Docker Compose 2.24 or newer. Images are available for PCs and
-servers (amd64), 64-bit ARM (arm64, e.g. Raspberry Pi 4/5 with a 64-bit OS and many NAS
-devices) and 32-bit ARM (arm/v7, older Raspberry Pi). Docker picks the right one
-automatically.
+servers (amd64) and 64-bit ARM (arm64, e.g. Raspberry Pi 4/5 with a 64-bit OS and many NAS
+devices). Docker picks the right one automatically.
 
 ### Quick start
 
@@ -91,22 +90,8 @@ docker compose pull && docker compose up -d
 
 The database is upgraded automatically on startup if needed. If the format of the 3D
 preview changes, the previews are rebuilt once in the background. What changed in each
-version is listed in the [CHANGELOG](CHANGELOG.md).
-
-### Upgrading from Druckarchiv
-
-PlateShelf was called *Druckarchiv* up to version 0.6. Your data carries over as is:
-
-- In your `.env`, replace `DRUCKARCHIV_IMAGE` with
-  `PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:latest`, or download the new
-  `compose.yaml` and `.env.example` as in the quick start and copy your values over.
-- The database `druckarchiv.sqlite` in the data folder is renamed to
-  `plateshelf.sqlite` automatically on first start.
-- If your library already has a `Vom Drucker` folder from the direct import, it keeps
-  being used. New installations use `From printer`.
-- Settings stored in the browser (colour mode, camera position and so on) are kept.
-- The trash folder `.papierkorb` in the library is renamed to `.trash`; deleted items can
-  still be restored.
+version is listed in the [CHANGELOG](CHANGELOG.md). Coming from a version before 0.7
+(including the old name *Druckarchiv*), update to 0.7.7 first and start it once.
 
 ## Usage
 
@@ -582,7 +567,7 @@ credentials, IP addresses, host names or printer names.
 ### Tests, builds and releases
 
 - Every pull request and every push to `main` runs the Python tests and the browser
-  test and builds the image for amd64, arm64 and arm/v7 as a trial. Nothing is
+  test and builds the image for amd64 and arm64 as a trial. Nothing is
   published.
 - A release is created by a version tag:
 

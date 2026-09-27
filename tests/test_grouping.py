@@ -12,8 +12,8 @@ from app.store import _MEANINGLESS, group_key_for
     ("Yoshi_plate_1_gcode (2).3mf", "Yoshi"),
     ("Benchy (2).gcode.3mf", "Benchy"),
     ("Custom_tags_Plate 1.gcode.3mf", "Custom tags"),
-    ("Vom Drucker/P2S/gingerbread_house_3mf_plate_3.gcode.3mf", "gingerbread house"),
-    ("Vom Drucker/P2S/krampus.stl.gcode.3mf", "krampus"),
+    ("From printer/P2S/gingerbread_house_3mf_plate_3.gcode.3mf", "gingerbread house"),
+    ("From printer/P2S/krampus.stl.gcode.3mf", "krampus"),
     ("Werkstatt Wandhalter/Halter_links.gcode.3mf", "Werkstatt Wandhalter"),
 ])
 def test_group_names(path, name):

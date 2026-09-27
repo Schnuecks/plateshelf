@@ -22,6 +22,12 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 - Upgrading: after the update you have to sign in again once, because sessions are now
   signed with a key derived from `SECRET_KEY`.
 - New dependency `cryptography` (Apache-2.0 or BSD).
+- **No more image for 32-bit ARM** (arm/v7). Images are built for amd64 and arm64; a
+  Raspberry Pi 4/5 needs a 64-bit OS.
+- **Upgrade support for versions before 0.7 removed:** renaming `druckarchiv.sqlite`, the
+  old trash folder `.papierkorb`, the import folder `Vom Drucker` and the redirects from the
+  old German addresses (`/einstellungen`, `/papierkorb`, …). Coming from an older version,
+  update to 0.7.7 first and start it once.
 
 ## 0.7.7
 

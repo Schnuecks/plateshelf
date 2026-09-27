@@ -144,32 +144,3 @@ def test_trash_pages_undo_and_purge(client, lib, sample):
     assert r.headers["location"] == "/trash?purged=1"
     assert not list((lib / ".trash").iterdir())
     assert client.post("/trash/999/restore").status_code == 404
-
-
-def test_legacy_trash_folder_is_renamed(lib, sample):
-    """Ein „.papierkorb“ aus älteren Versionen wird zu „.trash“, die Einträge bleiben gültig."""
-    sample(lib / "Teil.gcode.3mf", PLATE)
-    store.scan(wait=True)
-    with store.connect() as con:
-        entry = trash.delete(con, [con.execute("SELECT id FROM files").fetchone()[0]], "datei")
-    # So hätte es eine ältere Version abgelegt
-    (lib / ".trash").rename(lib / ".papierkorb")
-    old_only = lib / ".papierkorb" / "2026-01-02_03-04-05" / "Vase"
-    old_only.mkdir(parents=True)
-    sample(old_only / "Vase.gcode.3mf", PLATE)
-
-    labels = sorted(e["label"] for e in trash.entries())
-    assert labels == ["Teil.gcode.3mf", "Vase"]
-    assert (lib / ".trash").is_dir() and not (lib / ".papierkorb").exists()
-    trash.restore(entry)
-    assert (lib / "Teil.gcode.3mf").exists()
-
-
-def test_legacy_trash_folder_merges_with_existing(lib):
-    (lib / ".trash" / "neu").mkdir(parents=True)
-    (lib / ".trash" / "neu" / "a.gcode.3mf").write_bytes(b"x")
-    (lib / ".papierkorb" / "alt").mkdir(parents=True)
-    (lib / ".papierkorb" / "alt" / "b.gcode.3mf").write_bytes(b"y")
-    assert trash.trash_root() == lib / ".trash"
-    assert sorted(p.name for p in (lib / ".trash").iterdir()) == ["alt", "neu"]
-    assert not (lib / ".papierkorb").exists()

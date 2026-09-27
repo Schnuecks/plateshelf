@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import threading
 from contextlib import asynccontextmanager
 from urllib.parse import quote, urlsplit
@@ -54,24 +53,8 @@ async def lifespan(_app):
 app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
-# Deutsche Adressen bis Version 0.7.0, dauerhaft auf die englischen umgeleitet
-LEGACY_PATHS = [(re.compile(old), new) for old, new in (
-    (r"/einstellungen", "/settings"),
-    (r"/einstellungen/drucker", "/settings/printers"),
-    (r"/papierkorb", "/trash"),
-    (r"/papierkorb/leeren", "/trash/empty"),
-    (r"/papierkorb/(\d+)/wiederherstellen", r"/trash/\1/restore"),
-    (r"/papierkorb/(\d+)/loeschen", r"/trash/\1/delete"),
-    (r"/darstellung", "/appearance"),
-)]
-
-
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
-    for pattern, target in LEGACY_PATHS:
-        if m := pattern.fullmatch(request.url.path):
-            url = m.expand(target) + (f"?{request.url.query}" if request.url.query else "")
-            return RedirectResponse(url, status_code=308)  # 308: Formulare bleiben Formulare
     i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
     if request.method not in SAFE_METHODS and not same_origin(request):
         logging.getLogger("plateshelf").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
