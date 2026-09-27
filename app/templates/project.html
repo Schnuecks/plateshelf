@@ -201,6 +201,22 @@
         {% if request.query_params.get('saved') %}<p class="saved" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
       </form>
 
+      {% if jobs %}
+      <section class="job-list">
+        <h2>{{ _('Druckverlauf') }}</h2>
+        <ul>
+          {% for j in jobs[:10] %}
+          <li>
+            <span class="job-status job-{{ j.status }}">{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span>
+            <span class="job-when">{{ j.started|datetime }}</span>
+            <span class="job-sub">{{ j.printer_name }}{% if j.file_name %}, {{ j.file_name }}{% endif %}{% if j.ended and j.started %}, <span class="nowrap">{{ (j.duration_s or (j.ended - j.started))|duration }}</span>{% endif %}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if jobs|length > 10 %}<a class="more" href="/history">{{ _('Alle {n} Drucke im Verlauf', n=jobs|length) }}</a>{% endif %}
+      </section>
+      {% endif %}
+
       {% if p.filaments %}
       <section class="usage">
         <h2>{{ _('Filament im Projekt') }}</h2>

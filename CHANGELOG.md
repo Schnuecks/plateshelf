@@ -2,6 +2,22 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Print history:** PlateShelf records every print of the printers set up for the direct
+  import, with start, end, duration and outcome (finished, cancelled, failed). Bambu
+  printers report via MQTT, Klipper printers via Moonraker’s history, Prusa printers are
+  queried via PrusaLink every minute. Each print is matched to the imported file and its
+  project.
+- New page “History” in the top bar; the project page lists the prints of its files and
+  the overview shows how often a project was printed.
+- A finished print sets a project without status to “Printed”.
+- `/api/stats` has new fields: `prints_30d`, `prints_failed_30d`, `printing_now`,
+  `last_print_end`.
+- New settings `PRINT_HISTORY` (default `true`) and `PRINT_HISTORY_INTERVAL` (60 s).
+- New dependency `paho-mqtt` (EPL-2.0 or BSD-3-Clause) for the connection to Bambu
+  printers.
+
 ## 0.7.3
 
 - **Binary G-code** (`.bgcode`) from PrusaSlicer, the default for Prusa MK4, XL, Mini and

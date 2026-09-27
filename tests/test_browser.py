@@ -117,7 +117,7 @@ def page(browser):
     context.close()
 
 
-@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/trash", "/upload", "/about"])
+@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/history", "/trash", "/upload", "/about"])
 def test_pages_without_errors(server, page, path):
     response = page.goto(server["url"] + path.format(**server))
     assert response.status == 200

@@ -81,6 +81,24 @@ CREATE TABLE IF NOT EXISTS trash (
     deleted REAL NOT NULL,
     since REAL NOT NULL            -- Beginn der Aufbewahrungsfrist
 );
+-- Druckverlauf, siehe print_history.py
+CREATE TABLE IF NOT EXISTS print_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    printer TEXT NOT NULL,          -- Kennung wie in printer_files
+    printer_name TEXT,
+    job_key TEXT NOT NULL,          -- Kennung des Drucks auf dem Drucker
+    remote_name TEXT,               -- Datei auf dem Drucker
+    local_path TEXT,                -- zugeordnete Datei in der Bibliothek
+    status TEXT NOT NULL,           -- running, completed, cancelled, failed
+    started REAL,
+    ended REAL,
+    duration_s REAL,                -- reine Druckzeit, sofern der Drucker sie meldet
+    filament_mm REAL,
+    progress REAL,
+    applied INTEGER NOT NULL DEFAULT 0,  -- Projektstatus schon auf „gedruckt“ gesetzt
+    UNIQUE (printer, job_key)
+);
+CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
 CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_plates_file ON plates(file_id);
 """

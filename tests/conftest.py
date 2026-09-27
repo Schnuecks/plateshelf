@@ -1,4 +1,5 @@
 """Gemeinsame Test-Hilfen: jede Test-Funktion bekommt eine eigene Bibliothek und Datenbank."""
+import os
 import sys
 from pathlib import Path
 
@@ -7,6 +8,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
+
+# Keine Verbindungen zu Druckern aus den Tests heraus (MQTT, Verlaufsabfragen), auch nicht
+# aus Hintergrund-Threads, die ein Test gestartet hat und die danach weiterlaufen
+os.environ["PRINT_HISTORY"] = "false"
 
 
 @pytest.fixture(autouse=True)

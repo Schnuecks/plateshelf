@@ -53,7 +53,7 @@ def _from_python() -> set[str]:
 
 def _from_tables() -> set[str]:
     from app import main, printer_import  # noqa: F401  (Beschriftungen und Listen)
-    found = set(main.JS_TEXTS) | set(main.STATUSES.values()) | set(main.THEME_LABELS.values())
+    found = set(main.JS_TEXTS) | set(main.STATUSES.values()) | set(main.THEME_LABELS.values()) | set(main.JOB_STATUSES.values())
     found |= {entry[1] for entry in main.SETTING_LABELS} | set(main.BOOL_WORDS.values())
     found |= {"IP-Adresse", "Seriennummer", "Zugangscode"}  # Feldnamen in Fehlermeldungen
     return found

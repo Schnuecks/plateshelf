@@ -445,6 +445,32 @@ button.danger-quiet:hover { color: var(--ink); }
 .flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }
 .flash-undo form { margin: 0; }
 .flash-undo button.quiet { color: var(--ink); padding: 0; }
+/* Druckverlauf */
+.history-page { max-width: 60rem; }
+.history-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1rem; }
+.history-page > .hint { margin: 0 0 1.25rem; font-size: .9rem; }
+.history-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.history-table th, .history-table td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: baseline; }
+.history-table th { font-weight: 600; color: var(--muted); font-size: .8rem; }
+.history-table .r { text-align: right; }
+.history-table .nowrap { white-space: nowrap; }
+@media (max-width: 40rem) {
+  .history-table th:nth-child(3), .history-table td:nth-child(3) { display: none; }
+  .history-table th, .history-table td { padding: .4rem .3rem; }
+}
+.job-status { font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.job-completed { color: var(--accent); }
+.job-running { color: var(--ink); }
+.job-cancelled { color: var(--muted); }
+.job-failed { color: var(--warn); }
+.job-list h2 { font: 600 1rem/1.2 var(--font-cond); margin: 0 0 .5rem; }
+.job-list ul { list-style: none; padding: 0; margin: 0; }
+.job-list li { display: grid; grid-template-columns: auto 1fr; gap: 0 .6rem; padding: .35rem 0; border-bottom: 1px solid var(--line); }
+.job-list .job-when { text-align: right; font-size: .85rem; }
+.job-list .job-sub { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+.job-list .nowrap { white-space: nowrap; }
+.card-meta .prints { font-size: .8rem; color: var(--muted); margin-left: .5rem; }
+
 .trash-page { max-width: 52rem; }
 .trash-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1.5rem; }
 .trash-head h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1rem; }

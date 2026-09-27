@@ -242,7 +242,7 @@ def moonraker(tmp_path):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     files = {}  # Pfad -> (Inhalt, Änderungszeit)
-    server_state = {"key": "", "requests": []}
+    server_state = {"key": "", "requests": [], "history": []}
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -254,7 +254,10 @@ def moonraker(tmp_path):
                 self.send_response(401)
                 self.end_headers()
                 return
-            if self.path == "/server/files/list?root=gcodes":
+            if self.path.startswith("/server/history/list"):
+                jobs = server_state["history"]
+                body = json.dumps({"result": {"count": len(jobs), "jobs": jobs}}).encode()
+            elif self.path == "/server/files/list?root=gcodes":
                 body = json.dumps({"result": [{"path": p, "modified": m, "size": len(c), "permissions": "rw"}
                                               for p, (c, m) in files.items()]}).encode()
             elif self.path.startswith("/server/files/gcodes/"):
@@ -352,7 +355,7 @@ def prusalink():
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     realm, nonce = "Printer API", "abc123"
-    st = {"password": "geheim", "files": {}, "requests": []}  # Pfad auf dem Stick -> (Inhalt, Zeit)
+    st = {"password": "geheim", "files": {}, "requests": [], "job": None}  # files: Pfad -> (Inhalt, Zeit)
 
     def md5(text):
         return hashlib.md5(text.encode()).hexdigest()
@@ -384,6 +387,8 @@ def prusalink():
             st["requests"].append(self.path)
             if not self._authorized():
                 return self._send(401)
+            if self.path == "/api/v1/job":
+                return self._send(204) if st["job"] is None else self._send(200, json.dumps(st["job"]).encode())
             if self.path == "/api/v1/storage":
                 return self._send(200, json.dumps({"storage_list": [
                     {"type": "USB", "path": "/usb", "available": True},
