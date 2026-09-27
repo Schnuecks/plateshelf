@@ -35,7 +35,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import store
+from . import crypto, store
 from .gcode_file import is_gcode
 from .i18n import UserError
 from .parser import parse_3mf
@@ -43,19 +43,13 @@ from .parser import parse_3mf
 log = logging.getLogger("plateshelf.printers")
 
 SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
-LEGACY_IMPORT_DIR = "Vom Drucker"  # Standard bis Version 0.6
 
 
 def import_dir() -> str:
-    """Zielordner für importierte Drucke.
+    """Zielordner für importierte Drucke: PRINTER_IMPORT_DIR, sonst „From printer“."""
+    return os.environ.get("PRINTER_IMPORT_DIR", "").strip() or "From printer"
 
-    PRINTER_IMPORT_DIR, sonst „From printer“. Gibt es aus älteren Versionen schon den
-    Ordner „Vom Drucker“, wird er weiter benutzt, damit nichts auseinanderfällt.
-    """
-    env = os.environ.get("PRINTER_IMPORT_DIR", "").strip()
-    if env:
-        return env
-    return LEGACY_IMPORT_DIR if (store.LIBRARY_DIR / LEGACY_IMPORT_DIR).is_dir() else "From printer"
+
 TIMEOUT = 15
 
 # Zeile aus einem Unix-artigen LIST: Rechte, Links, Besitzer, Gruppe, Größe, Datum, Name
@@ -129,7 +123,7 @@ class ImplicitFTPS(ftplib.FTP_TLS):
         return conn, size
 
 
-_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY|PASSWORD)")
+_ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY|PASSWORD)(_FILE)?")
 KINDS = ("bambu", "moonraker", "prusalink")
 MOONRAKER_PORT = 7125
 
@@ -156,12 +150,18 @@ def printer_id(kind: str, ip: str, serial: str) -> str:
 
 
 def env_printers(environ=None) -> list[dict]:
-    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY/_PASSWORD, sortiert nach <n>."""
+    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY/_PASSWORD, sortiert nach <n>.
+
+    Jeder Wert geht auch als Datei: PRINTER_<n>_CODE_FILE=/run/secrets/… (Docker-Secrets).
+    """
     environ = os.environ if environ is None else environ
     found: dict[int, dict] = {}
-    for key, value in environ.items():
+    for key in environ:
         if m := _ENV_KEY.fullmatch(key):
-            found.setdefault(int(m[1]), {})[m[2].lower()] = value.strip()
+            name = key[:-5] if m[3] else key
+            value = crypto.env_value(name, environ)
+            if value:
+                found.setdefault(int(m[1]), {})[m[2].lower()] = value
     printers = []
     for n in sorted(found):
         p = found[n]
@@ -182,10 +182,24 @@ def env_printers(environ=None) -> list[dict]:
 
 
 def db_printers() -> list[dict]:
+    """Drucker aus den Einstellungen; Zugangsdaten entschlüsselt (code_error, wenn das nicht geht)."""
+    out = []
     with store.connect() as con:
-        return [{"name": r["name"], "id": r["serial"], "code": r["code"], "ip": r["ip"], "kind": r["kind"],
-                 "source": "db", "db_id": r["id"]}
-                for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id")]
+        for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id"):
+            p = {"name": r["name"], "id": r["serial"], "ip": r["ip"], "kind": r["kind"], "source": "db",
+                 "db_id": r["id"], "code_error": None}
+            try:
+                p["code"] = crypto.decrypt(r["code"])
+            except crypto.SecretError as exc:
+                p["code"], p["code_error"] = "", str(exc)
+            out.append(p)
+    return out
+
+
+def stored_plaintext() -> int:
+    """Wie viele Zugangsdaten noch unverschlüsselt gespeichert sind (ohne SECRET_KEY)."""
+    with store.connect() as con:
+        return sum(1 for (code,) in con.execute("SELECT code FROM printers") if code and not crypto.is_encrypted(code))
 
 
 def load_printers() -> list[dict]:
@@ -215,8 +229,9 @@ def save_printers(rows: list[dict]) -> None:
             if row.get("delete") or (not old and not any((name, ip, serial, code))):
                 continue
             label = name or serial or ip
+            stored = crypto.encrypt(code)
             if not code and old and old["kind"] == kind:
-                code = old["code"]
+                code = stored = old["code"]  # unverändert übernehmen, wie gespeichert
             needed = {
                 "bambu": (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)),
                 "moonraker": (("IP-Adresse", ip),),
@@ -238,7 +253,7 @@ def save_printers(rows: list[dict]) -> None:
                 raise UserError("{label}: Seriennummer {serial} ist schon über Umgebungsvariablen eingerichtet",
                                 label=label, serial=serial)
             seen.add(pid)
-            keep.append((old["id"] if old else None, name or serial or ip, pid, ip, code, kind))
+            keep.append((old["id"] if old else None, name or serial or ip, pid, ip, stored, kind))
         kept_ids = {k[0] for k in keep if k[0]}
         for pid in set(existing) - kept_ids:
             con.execute("DELETE FROM printers WHERE id = ?", (pid,))
@@ -264,6 +279,13 @@ def init() -> None:
         con.executescript(SCHEMA)
         if "kind" not in {r["name"] for r in con.execute("PRAGMA table_info(printers)")}:
             con.execute("ALTER TABLE printers ADD COLUMN kind TEXT NOT NULL DEFAULT 'bambu'")  # vor 0.7.2
+        if crypto.secret_key():  # Klartext aus älteren Versionen oder ohne SECRET_KEY gespeichert
+            plain = [(r["id"], r["code"]) for r in con.execute("SELECT id, code FROM printers")
+                     if r["code"] and not crypto.is_encrypted(r["code"])]
+            for pid, code in plain:
+                con.execute("UPDATE printers SET code = ? WHERE id = ?", (crypto.encrypt(code), pid))
+            if plain:
+                log.info("%d Zugangsdaten von Druckern verschlüsselt", len(plain))
     state["enabled"] = bool(load_printers())
 
 
@@ -467,6 +489,11 @@ def sync_printer(printer: dict, connect=None) -> dict:
     def unreachable(exc) -> None:
         fail("nicht erreichbar, ausgeschaltet oder im Standby? ({detail})", detail=exc.__class__.__name__)
 
+    if printer.get("code_error"):
+        fail("Zugangsdaten lassen sich nicht entschlüsseln ({detail}). Wurde SECRET_KEY geändert? "
+             "Dann in den Einstellungen neu eingeben.", detail=printer["code_error"])
+        result["auth_failed"] = True
+        return result
     target_dir = store.LIBRARY_DIR / import_dir() / _local_name(printer["name"])
     connect = connect or SOURCES.get(kind, _connect)
     try:

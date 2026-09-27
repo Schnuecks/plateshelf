@@ -23,37 +23,14 @@ from . import store
 log = logging.getLogger("plateshelf")
 
 TRASH_DIR = ".trash"
-LEGACY_TRASH_DIR = ".papierkorb"  # Name bis Version 0.7
 TRASH_DAYS = int(os.environ.get("TRASH_DAYS", "30"))
 PROJECT_FIELDS = ("group_key", "name", "notes", "tags", "source_url", "status")
 _FOLDER = re.compile(r"[\w.\- ]+")
 
 
 def trash_root() -> Path:
-    """Papierkorb-Ordner der Bibliothek; ein alter „.papierkorb“ wird vorher übernommen."""
-    root = store.LIBRARY_DIR / TRASH_DIR
-    legacy = store.LIBRARY_DIR / LEGACY_TRASH_DIR
-    if legacy.is_dir() and not _migrate_legacy(legacy, root):
-        return legacy  # z. B. schreibgeschützt eingebunden: alten Ordner weiterverwenden
-    return root
-
-
-def _migrate_legacy(legacy: Path, root: Path) -> bool:
-    """„.papierkorb“ in „.trash“ umbenennen. Die Einträge speichern nur ihren Unterordner,
-    bleiben also gültig. Gibt es beide, werden die Unterordner zusammengeführt."""
-    try:
-        if not root.exists():
-            legacy.rename(root)
-        else:
-            for sub in legacy.iterdir():
-                if not (root / sub.name).exists():
-                    sub.rename(root / sub.name)
-            legacy.rmdir()  # schlägt fehl, falls etwas mit gleichem Namen übrig ist
-        log.info("Papierkorb-Ordner %s in %s umbenannt", LEGACY_TRASH_DIR, TRASH_DIR)
-        return True
-    except OSError as exc:
-        log.warning("Papierkorb-Ordner %s nicht umbenannt: %s", LEGACY_TRASH_DIR, exc)
-        return not legacy.is_dir()
+    """Papierkorb-Ordner der Bibliothek."""
+    return store.LIBRARY_DIR / TRASH_DIR
 
 
 def _folder_path(folder: str) -> Path:

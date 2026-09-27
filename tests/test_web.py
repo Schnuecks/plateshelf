@@ -191,19 +191,6 @@ def test_about_page_and_logo(client):
     assert logo.status_code == 200 and "<svg" in logo.text
 
 
-def test_old_german_urls_redirect(client):
-    """Lesezeichen und offene Seiten aus der Zeit vor 0.7.1 funktionieren weiter."""
-    for old, new in (("/einstellungen", "/settings"), ("/papierkorb?purged=1", "/trash?purged=1"),
-                     ("/darstellung", "/appearance")):
-        r = client.get(old, follow_redirects=False)
-        assert (r.status_code, r.headers["location"]) == (308, new), old
-    # Formulare: 308 behält POST samt Inhalt
-    r = client.post("/papierkorb/7/wiederherstellen", follow_redirects=False)
-    assert (r.status_code, r.headers["location"]) == (308, "/trash/7/restore")
-    r = client.post("/einstellungen", data={"strompreis": "0,40", "leistung_standard": "100"})
-    assert r.status_code == 200 and r.url.path == "/settings"
-
-
 def test_moonraker_printer_in_settings(client, monkeypatch):
     from app import printer_import as pi
     monkeypatch.setattr(pi, "sync_all", lambda: None)

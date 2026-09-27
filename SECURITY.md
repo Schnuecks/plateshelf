@@ -22,6 +22,9 @@ Security fixes go into the latest release. Please update to it before reporting
 
 PlateShelf is meant for the home network. It has an optional sign-in and protection
 against requests from other websites, but it is not designed to be exposed to the
-internet without a reverse proxy with its own authentication. Printer access codes,
-passwords and API keys are stored in the database in plain text so PlateShelf can use
-them; protect the `data` folder accordingly.
+internet without a reverse proxy with its own authentication.
+
+Printer access codes, passwords and API keys are stored encrypted (AES-256-GCM) with a key
+derived from `SECRET_KEY`, which is only read from the environment. Without `SECRET_KEY`
+they are stored in plain text, and the settings page warns about it. The sign-in password
+can be given as a scrypt hash (`AUTH_PASSWORD_HASH`).

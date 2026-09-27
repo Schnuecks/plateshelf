@@ -368,7 +368,8 @@ _watchers: dict[str, tuple[tuple, BambuWatcher]] = {}
 
 def refresh_watchers(printers: list[dict]) -> None:
     """MQTT-Verbindungen an die eingerichteten Bambu-Drucker anpassen."""
-    wanted = {p["id"]: p for p in printers if p.get("kind", "bambu") == "bambu"} if enabled() else {}
+    wanted = {p["id"]: p for p in printers if p.get("kind", "bambu") == "bambu" and not p.get("code_error")} \
+        if enabled() else {}
     for pid in list(_watchers):
         config, watcher = _watchers[pid]
         p = wanted.get(pid)
@@ -386,6 +387,8 @@ def poll_once() -> None:
     printers = printer_import.load_printers()
     refresh_watchers(printers)
     for p in printers:
+        if p.get("code_error"):
+            continue  # Zugangsdaten nicht lesbar, der Import meldet das in den Einstellungen
         try:
             if p["kind"] == "moonraker":
                 poll_moonraker(p)

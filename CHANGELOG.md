@@ -2,6 +2,33 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Printer credentials are stored encrypted** (AES-256-GCM) in the database, with a key
+  derived from `SECRET_KEY`. Existing credentials are encrypted automatically on the first
+  start with a `SECRET_KEY`. If the key no longer matches, the printer shows a clear
+  message and the credentials have to be entered again.
+- **`SECRET_KEY` only comes from the environment** (`SECRET_KEY` or `SECRET_KEY_FILE`). The
+  key file PlateShelf used to create in the data folder (`secret.key`) is no longer used
+  and is removed on start. Without `SECRET_KEY`, credentials stay unencrypted and sign-ins
+  last until the next restart; the settings page points this out. Create a key with
+  `docker compose exec plateshelf python -m app.auth secret`.
+- **Sign-in password as a hash:** `AUTH_PASSWORD_HASH` (scrypt), created with
+  `docker compose exec plateshelf python -m app.auth hash`. `AUTH_PASSWORD` in plain text
+  still works.
+- **Secrets from files:** every sensitive variable also accepts `_FILE` (Docker secrets):
+  `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`, `AUTH_PASSWORD_FILE`, `AUTH_USER_FILE`,
+  `PRINTER_<n>_CODE_FILE`, `PRINTER_<n>_PASSWORD_FILE`, `PRINTER_<n>_API_KEY_FILE`.
+- Upgrading: after the update you have to sign in again once, because sessions are now
+  signed with a key derived from `SECRET_KEY`.
+- New dependency `cryptography` (Apache-2.0 or BSD).
+- **No more image for 32-bit ARM** (arm/v7). Images are built for amd64 and arm64; a
+  Raspberry Pi 4/5 needs a 64-bit OS.
+- **Upgrade support for versions before 0.7 removed:** renaming `druckarchiv.sqlite`, the
+  old trash folder `.papierkorb`, the import folder `Vom Drucker` and the redirects from the
+  old German addresses (`/einstellungen`, `/papierkorb`, …). Coming from an older version,
+  update to 0.7.7 first and start it once.
+
 ## 0.7.7
 
 - **Running prints live:** the top bar shows printer, project, progress and remaining time

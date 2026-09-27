@@ -396,6 +396,9 @@ button.danger-quiet:hover { color: var(--ink); }
   .settings-section { padding: 1.1rem 1rem; }
 }
 
+.settings-key { margin: 0 0 1.25rem; }
+.key-ok { font-size: .82rem; }
+
 /* Drucker als Liste, Felder erst beim Bearbeiten */
 .printer-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; }
 .printer-list > li + li { border-top: 1px solid var(--line); }

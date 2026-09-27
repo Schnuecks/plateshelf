@@ -173,17 +173,13 @@ def test_save_printers_from_settings(lib, monkeypatch):
 
 
 
-def test_legacy_import_folder_is_kept(lib, monkeypatch):
-    """Bestehende Installationen mit „Vom Drucker“ importieren weiter dorthin."""
+def test_import_folder(lib, monkeypatch):
     monkeypatch.delenv("PRINTER_IMPORT_DIR", raising=False)
     assert pi.import_dir() == "From printer"
-    (lib / "Vom Drucker").mkdir()
-    assert pi.import_dir() == "Vom Drucker"
     monkeypatch.setenv("PRINTER_IMPORT_DIR", "Drucke")
     assert pi.import_dir() == "Drucke"
-    # Dateien in beiden Importordnern werden über den Namen gruppiert, nicht als ein Projekt
+    # Dateien im Importordner werden über den Namen gruppiert, nicht als ein Projekt
     from pathlib import Path
-    assert store.group_key_for(Path("Vom Drucker/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
     assert store.group_key_for(Path("From printer/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
 
 

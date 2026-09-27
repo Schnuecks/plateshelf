@@ -1,8 +1,7 @@
 fastapi>=0.141.1,<1
-uvicorn[standard]>=0.53.0; platform_machine != "armv7l"
-# 32-Bit-ARM: für uvloop und httptools gibt es dort keine fertigen Pakete, ohne sie läuft uvicorn genauso
-uvicorn>=0.30; platform_machine == "armv7l"
+uvicorn[standard]>=0.53.0
 jinja2>=3.1.6
 python-multipart>=0.0.32
 heatshrink2>=0.14,<1
 paho-mqtt>=2.1,<3
+cryptography>=44

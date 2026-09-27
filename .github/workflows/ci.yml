@@ -14,11 +14,11 @@ on:
   pull_request:
 
 env:
-  PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7   # PC/Server, Raspberry Pi 4/5 und NAS, ältere Raspberry Pi
+  PLATFORMS: linux/amd64,linux/arm64   # PC/Server, Raspberry Pi 4/5 und NAS
   # Paketversionen, die beim Aufräumen bleiben: pro Release 1 Index + 1 Image je Plattform
-  # (3 Plattformen = 4 Versionen), also 5 Releases = 20. Sonst würden die Plattform-Images
+  # (2 Plattformen = 3 Versionen), also 5 Releases = 15. Sonst würden die Plattform-Images
   # älterer Releases gelöscht und diese Versionen ließen sich nicht mehr installieren.
-  KEEP_VERSIONS: 20
+  KEEP_VERSIONS: 15
 
 jobs:
   test:

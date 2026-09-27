@@ -61,9 +61,8 @@ print settings and a 3D preview of the actual toolpaths.
 ### Requirements
 
 You need Docker with Docker Compose 2.24 or newer. Images are available for PCs and
-servers (amd64), 64-bit ARM (arm64, e.g. Raspberry Pi 4/5 with a 64-bit OS and many NAS
-devices) and 32-bit ARM (arm/v7, older Raspberry Pi). Docker picks the right one
-automatically.
+servers (amd64) and 64-bit ARM (arm64, e.g. Raspberry Pi 4/5 with a 64-bit OS and many NAS
+devices). Docker picks the right one automatically.
 
 ### Quick start
 
@@ -91,22 +90,8 @@ docker compose pull && docker compose up -d
 
 The database is upgraded automatically on startup if needed. If the format of the 3D
 preview changes, the previews are rebuilt once in the background. What changed in each
-version is listed in the [CHANGELOG](CHANGELOG.md).
-
-### Upgrading from Druckarchiv
-
-PlateShelf was called *Druckarchiv* up to version 0.6. Your data carries over as is:
-
-- In your `.env`, replace `DRUCKARCHIV_IMAGE` with
-  `PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:latest`, or download the new
-  `compose.yaml` and `.env.example` as in the quick start and copy your values over.
-- The database `druckarchiv.sqlite` in the data folder is renamed to
-  `plateshelf.sqlite` automatically on first start.
-- If your library already has a `Vom Drucker` folder from the direct import, it keeps
-  being used. New installations use `From printer`.
-- Settings stored in the browser (colour mode, camera position and so on) are kept.
-- The trash folder `.papierkorb` in the library is renamed to `.trash`; deleted items can
-  still be restored.
+version is listed in the [CHANGELOG](CHANGELOG.md). Coming from a version before 0.7
+(including the old name *Druckarchiv*), update to 0.7.7 first and start it once.
 
 ## Usage
 
@@ -380,9 +365,10 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `AUTH_USER`, `AUTH_PASSWORD` | – | Turn on sign-in (set both) |
+| `SECRET_KEY` | – | Key for encrypting printer credentials and signing sessions; strongly recommended, see [Secrets](#secrets) |
+| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Turn on sign-in with a password hash |
+| `AUTH_PASSWORD` | – | Alternative to the hash: password in plain text |
 | `SESSION_DAYS` | 30 | How long a sign-in lasts in the browser |
-| `SECRET_KEY` | – | Key for sign-in sessions; empty: generated once and stored in the data folder |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
 
 ### Access control
@@ -391,7 +377,16 @@ Out of the box, PlateShelf has no sign-in: anyone who can reach it can upload an
 delete files. On a home network that is usually fine. For more protection there are two
 options, which can also be combined.
 
-**Built-in sign-in:** set `AUTH_USER` and `AUTH_PASSWORD` in the `.env`.
+**Built-in sign-in:** set `AUTH_USER` and a password in the `.env`. Store the password
+as a hash rather than in plain text:
+
+```bash
+docker compose exec plateshelf python -m app.auth hash
+```
+
+The command asks for the password twice and prints a line such as
+`AUTH_PASSWORD_HASH=scrypt:15:8:1:…`, which goes into the `.env` next to `AUTH_USER`.
+`AUTH_PASSWORD=…` in plain text still works.
 
 - The browser then shows a sign-in page. A sign-in lasts `SESSION_DAYS` days, and “Sign
   out” appears in the top right.
@@ -411,6 +406,40 @@ browser sends along; behind a proxy, the forwarded host (`X-Forwarded-Host`) cou
 Scripts without a browser (e.g. `curl`) are not affected. To allow additional sites to
 send changes, add them to `TRUSTED_ORIGINS`, for example
 `TRUSTED_ORIGINS=https://dashboard.example.com`.
+
+### Secrets
+
+PlateShelf needs the access codes, passwords and API keys of your printers in readable
+form to connect to them. They are therefore not hashed but encrypted (AES-256-GCM) in
+the database. The key is derived from `SECRET_KEY`, which PlateShelf only takes from the
+environment, never from the data folder. A copy of the database alone, for example from
+a backup, is therefore useless.
+
+```bash
+docker compose exec plateshelf python -m app.auth secret
+```
+
+prints a random `SECRET_KEY=…`; put it into the `.env` and restart PlateShelf. Existing
+credentials are then encrypted automatically. Keep the key safe: without it the stored
+credentials cannot be decrypted, and you would have to enter them again. Without
+`SECRET_KEY`, PlateShelf still works, but stores credentials unencrypted and sign-ins only
+last until the next restart; the settings page points this out.
+
+**Secrets as files (Docker secrets):** every sensitive variable can also be read from a
+file by adding `_FILE`: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`, `AUTH_PASSWORD_FILE`
+and `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`. This keeps them out of the
+`.env` and out of `docker inspect`:
+
+```yaml
+services:
+  plateshelf:
+    environment:
+      SECRET_KEY_FILE: /run/secrets/plateshelf_key
+    secrets: [plateshelf_key]
+secrets:
+  plateshelf_key:
+    file: ./secrets/plateshelf_key.txt
+```
 
 ### Behind a reverse proxy
 
@@ -474,7 +503,7 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
 - Instead of the costs, `new_files_7d` (“New (7 days)”) or `printers_ok` (“Printers
   online”) work well too.
 - If the built-in sign-in is on, also add `username` and `password` to the widget, with
-  the same values as `AUTH_USER` and `AUTH_PASSWORD`.
+  the same user name and password as for the sign-in.
 - If Homepage and PlateShelf share a Docker network, use the internal address for
   `url`, e.g. `http://plateshelf:8000/api/stats`. This also works if PlateShelf sits
   behind a sign-in at the proxy from the outside.
@@ -484,7 +513,8 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
 - Files in the library are never modified, only moved to the trash when you delete them.
 - The database (SQLite), preview images, 3D previews and your notes are stored in the
   data folder. Backing up this folder is enough; the 3D previews in it are rebuilt when
-  needed.
+  needed. Keep `SECRET_KEY` somewhere safe as well, because the printer credentials in
+  the database can only be read with it.
 - New and changed files are detected regularly, also on network shares (SMB/NFS). Keep
   the data folder on a local disk, though, because SQLite is unreliable on network
   shares.
@@ -537,7 +567,7 @@ credentials, IP addresses, host names or printer names.
 ### Tests, builds and releases
 
 - Every pull request and every push to `main` runs the Python tests and the browser
-  test and builds the image for amd64, arm64 and arm/v7 as a trial. Nothing is
+  test and builds the image for amd64 and arm64 as a trial. Nothing is
   published.
 - A release is created by a version tag:
 

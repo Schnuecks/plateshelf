@@ -7,7 +7,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import RedirectResponse
 
-from . import diagnostics, i18n, print_history, printer_import, store
+from . import auth, crypto, diagnostics, i18n, print_history, printer_import, store
 from .i18n import gettext as _
 from .web import APP_VERSION, ONE_YEAR, templates
 
@@ -19,6 +19,10 @@ def _printer_rows() -> list[dict]:
     rows = []
     for p in printer_import.load_printers():
         status = printer_import.state["printers"].get(p["id"])
+        if p.get("code_error") and not status:  # schon vor dem ersten Abruf zeigen
+            status = {"error": p["code_error"], "kind": p["kind"], "error_args": {"detail": p["code_error"]},
+                      "error_msg": "Zugangsdaten lassen sich nicht entschlüsseln ({detail}). Wurde SECRET_KEY "
+                                   "geändert? Dann in den Einstellungen neu eingeben."}
         rows.append({"db_id": p.get("db_id"), "kind": p["kind"], "name": p["name"], "ip": p["ip"],
                      "serial": p["id"] if p["kind"] == "bambu" else "",
                      "url": printer_import.printer_url(p["kind"], p["ip"]) if p["kind"] != "bambu" else "",
@@ -45,6 +49,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "import_dir": printer_import.import_dir(),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
         "diagnostics": diagnostics.report(APP_VERSION),
+        "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
     }, status_code=status_code)
 
 

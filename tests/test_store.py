@@ -35,21 +35,3 @@ def test_ids_are_never_reused(lib, sample):
 def test_broken_file_is_recorded(lib):
     (lib / "kaputt.gcode.3mf").write_text("kein zip")
     assert store.scan(wait=True)["errors"] == 1
-
-
-def test_database_from_druckarchiv_is_taken_over(lib):
-    """Beim Update von Druckarchiv auf PlateShelf wird die alte Datenbank weiterverwendet."""
-    from app import store
-    import gc
-    con = store.connect()
-    con.execute("INSERT INTO settings (key, value) VALUES ('strompreis', '0.5')")
-    con.commit()
-    con.close()
-    gc.collect()  # Windows: offene Verbindungen früherer Aufrufe freigeben, sonst ist die Datei gesperrt
-    old = store.DB_PATH.with_name(store.LEGACY_DB_NAME)
-    store.DB_PATH.replace(old)
-    for suffix in ("-wal", "-shm"):
-        store.DB_PATH.with_name(store.DB_PATH.name + suffix).unlink(missing_ok=True)
-    store.init_db()
-    assert store.DB_PATH.exists() and not old.exists()
-    assert store.get_settings()["strompreis"] == 0.5

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import threading
 from contextlib import asynccontextmanager
 from urllib.parse import quote, urlsplit
@@ -17,7 +16,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
+from . import auth, crypto, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
     routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, current_url, is_public, signed_in
@@ -33,6 +32,7 @@ diagnostics.install()  # letzte Warnungen für die Diagnose in den Einstellungen
 @asynccontextmanager
 async def lifespan(_app):
     store.init_db()
+    crypto.remove_legacy_key_file(store.DATA_DIR)
     printer_import.init()
     if os.environ.get("BACKGROUND_TASKS", "true").lower() in ("0", "false", "no", "off"):
         # Nur für Tests: einmal einlesen, aber keine Threads, die über den Test hinaus weiterlaufen
@@ -53,24 +53,8 @@ async def lifespan(_app):
 app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
-# Deutsche Adressen bis Version 0.7.0, dauerhaft auf die englischen umgeleitet
-LEGACY_PATHS = [(re.compile(old), new) for old, new in (
-    (r"/einstellungen", "/settings"),
-    (r"/einstellungen/drucker", "/settings/printers"),
-    (r"/papierkorb", "/trash"),
-    (r"/papierkorb/leeren", "/trash/empty"),
-    (r"/papierkorb/(\d+)/wiederherstellen", r"/trash/\1/restore"),
-    (r"/papierkorb/(\d+)/loeschen", r"/trash/\1/delete"),
-    (r"/darstellung", "/appearance"),
-)]
-
-
 @app.middleware("http")
 async def language_middleware(request: Request, call_next):
-    for pattern, target in LEGACY_PATHS:
-        if m := pattern.fullmatch(request.url.path):
-            url = m.expand(target) + (f"?{request.url.query}" if request.url.query else "")
-            return RedirectResponse(url, status_code=308)  # 308: Formulare bleiben Formulare
     i18n.set_language(i18n.pick_language(request.cookies.get("sprache"), request.headers.get("accept-language")))
     if request.method not in SAFE_METHODS and not same_origin(request):
         logging.getLogger("plateshelf").warning("Anfrage von fremder Seite abgelehnt: %s %s (Origin %s)",
