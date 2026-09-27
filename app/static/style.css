@@ -469,6 +469,16 @@ button.danger-quiet:hover { color: var(--ink); }
 .job-list .job-when { text-align: right; font-size: .85rem; }
 .job-list .job-sub { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
 .job-list .nowrap { white-space: nowrap; }
+.job-list li { grid-template-columns: auto 1fr auto; }
+.job-list .job-sub { grid-column: 1 / -1; }
+.job-delete { margin: 0; display: inline; }
+.job-list .job-delete { grid-column: 3; grid-row: 1; }
+.icon-quiet { background: none; border: 0; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0 .25rem;
+  cursor: pointer; }
+.icon-quiet:hover, .icon-quiet:focus-visible { color: var(--warn); }
+#history { scroll-margin-top: 5rem; }
+.settings-form .check { display: flex; align-items: center; gap: .5rem; font-weight: 400; }
+.settings-form .check input { width: auto; margin: 0; }
 .card-meta .prints { font-size: .8rem; color: var(--muted); margin-left: .5rem; }
 
 .trash-page { max-width: 52rem; }

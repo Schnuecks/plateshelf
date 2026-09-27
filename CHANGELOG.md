@@ -2,6 +2,17 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- Prints can be removed from the print history (“×” on the history and project page),
+  e.g. test prints. They no longer count and are not re-added by Moonraker or PrusaLink.
+  If the print had set the project to “Printed” and no other finished print remains, the
+  status is reset; a status you changed yourself stays.
+- The print history can be switched on and off under “Settings” → “Print history”.
+  `PRINT_HISTORY` in the `.env` is now optional: set, it fixes the setting and hides the
+  switch. When switched off, the MQTT connections to Bambu printers are closed right away
+  and “History” disappears from the top bar.
+
 ## 0.7.4
 
 - **Print history:** PlateShelf records every print of the printers set up for the direct

@@ -29,10 +29,28 @@ log = logging.getLogger("plateshelf.history")
 
 FINAL = ("completed", "cancelled", "failed")
 _lock = threading.Lock()
+_wakeup = threading.Event()
+
+
+def env_setting() -> bool | None:
+    """PRINT_HISTORY aus der Umgebung; None, wenn nicht gesetzt (dann gilt die Einstellung)."""
+    value = os.environ.get("PRINT_HISTORY", "").strip().lower()
+    if not value:
+        return None
+    return value not in ("0", "false", "no", "off")
 
 
 def enabled() -> bool:
-    return os.environ.get("PRINT_HISTORY", "true").lower() not in ("0", "false", "no", "off")
+    env = env_setting()
+    if env is not None:
+        return env
+    return bool(store.get_settings().get("druckverlauf", 1))
+
+
+def set_enabled(on: bool) -> None:
+    """Schalter aus den Einstellungen; die Verbindungen passen sich sofort an."""
+    store.save_settings({"druckverlauf": 1 if on else 0})
+    _wakeup.set()
 
 
 def interval() -> int:
@@ -56,7 +74,7 @@ def _resolve(con, printer_id: str, remote_name: str | None) -> str | None:
 
 def _apply_project_status(con, job) -> None:
     """Ein fertiger Druck setzt ein Projekt ohne Status auf „gedruckt“, einmal pro Druck."""
-    if job["status"] != "completed" or not job["local_path"] or job["applied"]:
+    if job["status"] != "completed" or not job["local_path"] or job["applied"] or job["hidden"]:
         return
     con.execute("""UPDATE projects SET status = 'gedruckt', updated = ? WHERE status = '' AND id =
                    (SELECT project_id FROM files WHERE path = ? AND missing = 0)""", (time.time(), job["local_path"]))
@@ -97,6 +115,33 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
         _apply_project_status(con, job)
 
 
+def delete(job_id: int) -> None:
+    """Druck aus dem Verlauf entfernen, etwa einen Testdruck.
+
+    Der Eintrag bleibt als verborgen gespeichert, damit Moonraker oder PrusaLink ihn
+    beim nächsten Abruf nicht wieder anlegen. Hatte er den Projektstatus auf
+    „gedruckt“ gesetzt und bleibt kein anderer fertiger Druck des Projekts übrig,
+    wird der Status zurückgenommen.
+    """
+    with _lock, store.connect() as con:
+        job = con.execute("SELECT * FROM print_jobs WHERE id = ?", (job_id,)).fetchone()
+        if not job:
+            raise KeyError(job_id)
+        con.execute("UPDATE print_jobs SET hidden = 1 WHERE id = ?", (job_id,))
+        if not (job["applied"] and job["local_path"]):
+            return
+        project = con.execute("SELECT project_id FROM files WHERE path = ? AND missing = 0",
+                              (job["local_path"],)).fetchone()
+        if not project:
+            return
+        others = con.execute(
+            """SELECT COUNT(*) FROM print_jobs j JOIN files f ON f.path = j.local_path AND f.missing = 0
+               WHERE f.project_id = ? AND j.status = 'completed' AND j.hidden = 0""", (project[0],)).fetchone()[0]
+        if not others:
+            con.execute("UPDATE projects SET status = '', updated = ? WHERE id = ? AND status = 'gedruckt'",
+                        (time.time(), project[0]))
+
+
 def running_job(printer_id: str):
     with store.connect() as con:
         return con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' "
@@ -121,7 +166,7 @@ def jobs_for(paths: list[str]) -> list[dict]:
     with store.connect() as con:
         marks = ",".join("?" * len(paths))
         return [dict(r) for r in con.execute(
-            f"SELECT * FROM print_jobs WHERE local_path IN ({marks}) ORDER BY started DESC", paths)]
+            f"SELECT * FROM print_jobs WHERE local_path IN ({marks}) AND hidden = 0 ORDER BY started DESC", paths)]
 
 
 def recent(limit: int = 200) -> list[dict]:
@@ -130,7 +175,7 @@ def recent(limit: int = 200) -> list[dict]:
             """SELECT j.*, f.project_id, p.name AS project_name FROM print_jobs j
                LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
                LEFT JOIN projects p ON p.id = f.project_id
-               ORDER BY j.started DESC LIMIT ?""", (limit,))]
+               WHERE j.hidden = 0 ORDER BY j.started DESC LIMIT ?""", (limit,))]
 
 
 # --- Klipper (Moonraker) --------------------------------------------------------
@@ -308,9 +353,12 @@ def poll_once() -> None:
 
 def loop() -> None:
     while True:
-        if enabled():
-            try:
+        try:
+            if enabled():
                 poll_once()
-            except Exception:  # noqa: BLE001
-                log.exception("Druckverlauf fehlgeschlagen")
-        time.sleep(interval())
+            else:
+                refresh_watchers([])  # ausgeschaltet: MQTT-Verbindungen schließen
+        except Exception:  # noqa: BLE001
+            log.exception("Druckverlauf fehlgeschlagen")
+        _wakeup.wait(interval())
+        _wakeup.clear()

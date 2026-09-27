@@ -328,7 +328,7 @@ def load_projects(con) -> list[dict]:
 
     printed = {r[0]: r[1] for r in con.execute(
         "SELECT local_path, COUNT(*) FROM print_jobs WHERE status = 'completed' AND local_path IS NOT NULL "
-        "GROUP BY local_path")}
+        "AND hidden = 0 GROUP BY local_path")}
     out = []
     for p in projects.values():
         if not p["files"]:
@@ -446,6 +446,24 @@ def history(request: Request):
         "jobs": print_history.recent(), "enabled": print_history.enabled(),
         "printers": printer_import.load_printers(),
     })
+
+
+@app.post("/history/{job_id}/delete")
+def history_delete(job_id: int, next: str = Form("/history")):
+    try:
+        print_history.delete(job_id)
+    except KeyError:
+        raise HTTPException(404, _("Druck nicht gefunden"))
+    target = _local_target(next.split("#")[0])
+    anchor = "#history" if target.startswith("/p/") else ""
+    return RedirectResponse(target + ("&" if "?" in target else "?") + "job_deleted=1" + anchor, status_code=303)
+
+
+@app.post("/settings/history")
+def history_settings_save(enabled: str = Form("")):
+    if print_history.env_setting() is None:
+        print_history.set_enabled(enabled == "1")
+    return RedirectResponse("/settings?history=1#history", status_code=303)
 
 
 SETTING_LABELS = [
@@ -568,6 +586,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
+        "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
     }, status_code=status_code)
 
 
@@ -586,7 +605,7 @@ def current_url(request: Request) -> str:
     return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
 
-templates.env.globals.update(auth_enabled=auth.enabled)
+templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
                              NEXT_THEME=NEXT_THEME)
 
@@ -981,7 +1000,8 @@ def api_stats():
     with store.connect() as con:
         jobs = con.execute(
             """SELECT SUM(status = 'completed' AND started >= ?), SUM(status IN ('cancelled', 'failed') AND started >= ?),
-                      SUM(status = 'running'), MAX(ended) FROM print_jobs""", (month_ago, month_ago)).fetchone()
+                      SUM(status = 'running'), MAX(ended) FROM print_jobs WHERE hidden = 0""",
+            (month_ago, month_ago)).fetchone()
         projects = load_projects(con)
         files = con.execute("SELECT COUNT(*), MAX(added), SUM(added >= ?) FROM files WHERE missing = 0",
                             (week_ago,)).fetchone()

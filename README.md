@@ -227,8 +227,13 @@ A print is matched to the file fetched from the printer, and thus to its project
 file is not in the library yet, PlateShelf fetches it right away and links the print
 afterwards. A finished print sets a project without status to “Printed”.
 
-The history can be switched off with `PRINT_HISTORY=false`, e.g. if a Bambu printer
-should not get an additional MQTT connection.
+Test prints and the like can be removed from the history with “×”, on the history page
+or the project page. They no longer count, and if such a print had set the project to
+“Printed” and no other finished print remains, the status is reset.
+
+The history can be switched off under “Settings” → “Print history”, e.g. if a Bambu
+printer should not get an additional MQTT connection. `PRINT_HISTORY=true` or `false` in
+the `.env` fixes the setting; the switch in the interface is then hidden.
 
 ### 3D preview
 
@@ -351,7 +356,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `PRINTER_<n>_API_KEY` | – | Moonraker API key, only if required (Klipper) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
-| `PRINT_HISTORY` | true | Record the print history of the configured printers |
+| `PRINT_HISTORY` | – | `true` or `false` fixes the print history; unset, the switch in the settings applies (default on) |
 | `PRINT_HISTORY_INTERVAL` | 60 | Seconds between two queries of Klipper and Prusa printers |
 
 **Interface**
