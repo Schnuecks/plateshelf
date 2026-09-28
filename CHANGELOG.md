@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.11
 
 - Phones: long names without spaces (print profiles, objects, plates, links in the
   designer's description) no longer make the project page wider than the screen.
