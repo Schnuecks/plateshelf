@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- Print history on Bambu printers: older prints that only know the plate are now matched
+  to the plate file uploaded last before the print started. This also covers plates
+  uploaded well before printing and plates uploaded again later.
+
 ## 0.7.12
 
 - Print history on Bambu printers such as the P2S: the printer reports only the plate
