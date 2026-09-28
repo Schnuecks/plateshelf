@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.2
 
 - The Barlow fonts are now served by PlateShelf itself instead of Google Fonts. No page
   loads anything from other servers any more, so no IP addresses go to Google and the
