@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.7.10
 
 - **Phones:** the top bar stays compact, with the menu behind a button and the overview's
   filters behind “Filters”. The 3D preview fills the screen below the top bar and leaves
