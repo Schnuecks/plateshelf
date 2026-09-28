@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.0
 
 - **User accounts replace the single sign-in from the `.env`.** Sign-in is now on by
   default. On the first start, PlateShelf asks you to create the admin account; the page
