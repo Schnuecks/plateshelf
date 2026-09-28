@@ -253,6 +253,28 @@ def test_mobile_layout(server, browser):
         context.close()
 
 
+def test_long_names_do_not_widen_the_project_page(server, browser):
+    """Lange Namen ohne Leerzeichen (Profile, Objekte, Platten) sprengten auf dem Handy die Projektseite."""
+    import json
+    from app import store
+    long = "X" * 90
+    with store.connect() as con:
+        fid = server["fid"]
+        old = con.execute("SELECT name, objects_json FROM plates WHERE file_id = ?", (fid,)).fetchone()
+        con.execute("UPDATE plates SET name = ?, objects_json = ? WHERE file_id = ?",
+                    (long, json.dumps(["Objekt_" + long]), fid))
+    context = browser.new_context(viewport={"width": 390, "height": 844}, locale="de-DE")
+    pg = context.new_page()
+    try:
+        pg.goto(f"{server['url']}/p/{server['pid']}")
+        pg.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+        assert pg.evaluate("document.documentElement.scrollWidth") <= 390
+    finally:
+        context.close()
+        with store.connect() as con:
+            con.execute("UPDATE plates SET name = ?, objects_json = ? WHERE file_id = ?", (*old, fid))
+
+
 def test_language_and_theme_from_topbar(server, page):
     page.goto(server["url"] + "/")
     page.locator(".lang-menu summary").click()

@@ -185,7 +185,11 @@ main { padding: clamp(1rem, 3vw, 2rem); max-width: 1500px; margin: 0 auto; }
 .headline-stats dd { margin: 0; font: 600 1.6rem/1.2 var(--font-cond); }
 
 .project-layout { display: grid; gap: 2rem; grid-template-columns: minmax(0, 1fr) 20rem; align-items: start; }
-@media (max-width: 960px) { .project-layout { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .project-layout { grid-template-columns: minmax(0, 1fr); } }
+/* Nichts auf der Projektseite darf die Spalten breiter als den Bildschirm machen:
+   lange Namen, Links in Beschreibungen oder Profile brechen notfalls um */
+.plates-col, .side, .plate-info, .file-head > div { min-width: 0; }
+.project { overflow-wrap: anywhere; }
 
 .file { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; margin-bottom: 1.5rem; }
 .file-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--line); }
@@ -195,7 +199,7 @@ main { padding: clamp(1rem, 3vw, 2rem); max-width: 1500px; margin: 0 auto; }
 
 .plate { display: grid; grid-template-columns: minmax(200px, 340px) minmax(0, 1fr); gap: 1.25rem; padding: 1.25rem; }
 .plate + .plate { border-top: 1px solid var(--line); }
-@media (max-width: 640px) { .plate { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .plate { grid-template-columns: minmax(0, 1fr); } }
 .bed-large { border-radius: 10px; overflow: hidden; }
 .plate-info h3 { font: 600 1.2rem/1.2 var(--font-cond); margin: 0 0 .6rem; }
 .view-toggle { position: absolute; left: .5rem; bottom: .5rem; display: flex; border-radius: 5px; overflow: hidden; }
