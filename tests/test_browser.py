@@ -119,11 +119,26 @@ def page(browser):
 
 @pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/history", "/trash", "/upload", "/about"])
 def test_pages_without_errors(server, page, path):
+    foreign = []
+    page.on("request", lambda req: foreign.append(req.url) if not req.url.startswith((server["url"], "data:")) else None)
     response = page.goto(server["url"] + path.format(**server))
     assert response.status == 200
     page.wait_for_load_state("networkidle")
     assert page.locator("footer.site-footer").is_visible()
     assert page.errors == []
+    assert foreign == []  # nichts von fremden Servern (Schriften, Skripte …), läuft auch ohne Internet
+
+
+def test_fonts_are_served_locally(server, page):
+    page.goto(server["url"] + "/")
+    page.wait_for_load_state("networkidle")
+    loaded = page.evaluate("""async () => {
+        await document.fonts.ready;
+        return [document.fonts.check('400 16px "Barlow"'), document.fonts.check('600 16px "Barlow Semi Condensed"'),
+                [...document.fonts].filter(f => f.status === "loaded").map(f => f.family + " " + f.weight)];
+    }""")
+    assert loaded[0] and loaded[1], loaded
+    assert any(name.startswith('"Barlow Semi Condensed"') or name.startswith("Barlow Semi Condensed") for name in loaded[2]), loaded
 
 
 def test_viewer_loads_and_all_controls_work(server, page):

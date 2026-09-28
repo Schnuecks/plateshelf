@@ -7,9 +7,7 @@
   <meta name="format-detection" content="telephone=no">
   <script>document.documentElement.classList.add("js")</script>
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="preload" href="/static/fonts/barlow-latin-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css?v={{ ASSET_V }}">
   {% block head %}{% endblock %}
   <link rel="icon" href="/static/logo.svg?v={{ ASSET_V }}" type="image/svg+xml">
