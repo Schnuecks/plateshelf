@@ -28,20 +28,76 @@ APP_NAME = "PlateShelf"
 APP_REPO = "https://github.com/schnuecks/plateshelf"
 APP_LICENSE = "AGPL-3.0"
 # Beschriftungen werden beim Anzeigen übersetzt
+ROLE_LABELS = {"admin": "Admin", "user": "Benutzer", "viewer": "Nur lesen"}
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
 
 
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/login", "/healthz", "/appearance"}
+PUBLIC_PATHS = {"/login", "/setup", "/healthz", "/appearance"}
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+NOBODY = {"id": None, "name": "", "role": "admin", "session_id": None}  # mit AUTH=off darf jeder alles
+_UNSET = object()
 
 
 def is_public(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
 
 
+def current_user(request: Request) -> dict | None:
+    """Angemeldeter Benutzer (Sitzungs-Cookie oder Basic Auth), einmal pro Anfrage ermittelt."""
+    user = getattr(request.state, "user", _UNSET)
+    if user is _UNSET:
+        if not auth.enabled():
+            user = NOBODY
+        else:
+            user = (auth.session_user(request.cookies.get(auth.COOKIE))
+                    or auth.basic_auth_user(request.headers.get("authorization")))
+        request.state.user = user
+    return user
+
+
 def signed_in(request: Request) -> bool:
-    return (auth.session_valid(request.cookies.get(auth.COOKIE))
-            or auth.basic_auth_valid(request.headers.get("authorization")))
+    return current_user(request) is not None
+
+
+def can_edit(request: Request) -> bool:
+    user = current_user(request)
+    return bool(user) and user["role"] in ("admin", "user")
+
+
+def is_admin(request: Request) -> bool:
+    user = current_user(request)
+    return bool(user) and user["role"] == "admin"
+
+
+def allowed(role: str, method: str, path: str) -> bool:
+    """Admins dürfen alles, Benutzer alles außer den Einstellungen, „Nur lesen“ nur ansehen.
+
+    Mit „Nur lesen“ bleiben Abmelden, Sprache und Design sowie das eigene Konto erlaubt.
+    """
+    if role == "admin":
+        return True
+    if path == "/settings" or path.startswith("/settings/"):
+        return False
+    if role == "user":
+        return True
+    if method in SAFE_METHODS:
+        return path != "/upload"
+    return path in ("/logout", "/appearance") or path == "/account" or path.startswith("/account/")
+
+
+def device_label(agent: str | None) -> str:
+    """„Firefox auf Windows“ aus der User-Agent-Kopfzeile, für die Geräteliste."""
+    agent = agent or ""
+    browsers = (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox/", "Firefox"), ("Chrome/", "Chrome"),
+                ("Safari/", "Safari"), ("curl/", "curl"), ("python", "Python"))
+    systems = (("iPhone", "iPhone"), ("iPad", "iPad"), ("Android", "Android"), ("Windows", "Windows"),
+               ("Mac OS X", "macOS"), ("Linux", "Linux"))
+    browser = next((name for key, name in browsers if key in agent), "")
+    system = next((name for key, name in systems if key in agent), "")
+    if browser and system:
+        return _("{browser} auf {system}", browser=browser, system=system)
+    return browser or system or _("Unbekanntes Gerät")
 
 
 def _local_target(target: str) -> str:
@@ -191,7 +247,9 @@ def current_url(request: Request) -> str:
     return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
 
-templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled)
+templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled,
+                             current_user=current_user, can_edit=can_edit, is_admin=is_admin,
+                             device_label=device_label, ROLE_LABELS=ROLE_LABELS)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
                              NEXT_THEME=NEXT_THEME)
 

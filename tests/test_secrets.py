@@ -103,39 +103,29 @@ def client(lib, monkeypatch):
         yield c
 
 
-def test_login_with_hash_and_file(client, monkeypatch, tmp_path):
-    monkeypatch.setenv("SECRET_KEY", KEY)
+def test_env_password_file_seeds_admin(client, monkeypatch, tmp_path):
+    """AUTH_PASSWORD_FILE (Docker-Secret) wird beim Start wie AUTH_PASSWORD zum ersten Admin."""
+    from app import main
+    monkeypatch.setenv("AUTH", "on")
     monkeypatch.setenv("AUTH_USER", "andreas")
-    monkeypatch.delenv("AUTH_PASSWORD", raising=False)
-    monkeypatch.setenv("AUTH_PASSWORD_HASH", auth.hash_password("geheim-123"))
-    assert client.get("/", follow_redirects=False).status_code == 303
-    r = client.post("/login", data={"user": "andreas", "password": "falsch"})
-    assert r.status_code == 401
-    r = client.post("/login", data={"user": "andreas", "password": "geheim-123"}, follow_redirects=False)
-    assert r.status_code == 303 and auth.COOKIE in r.cookies
-    assert client.get("/").status_code == 200
-    # Anderer SECRET_KEY: bisherige Sitzungen gelten nicht mehr
-    monkeypatch.setenv("SECRET_KEY", OTHER_KEY)
-    assert client.get("/", follow_redirects=False).status_code == 303
-    client.cookies.clear()
-    header = {"Authorization": "Basic " + base64.b64encode(b"andreas:geheim-123").decode()}
-    assert client.get("/api/stats", headers=header).status_code == 200
-    assert client.get("/api/stats", headers=header).status_code == 200  # zweites Mal aus dem Zwischenspeicher
-    # Passwort aus einer Datei (Docker-Secret)
-    monkeypatch.delenv("AUTH_PASSWORD_HASH")
     secret = tmp_path / "pw"
     secret.write_text("aus-datei-99\n")
     monkeypatch.setenv("AUTH_PASSWORD_FILE", str(secret))
-    assert auth.enabled() and auth.check("andreas", "aus-datei-99")
-    assert client.get("/api/stats", headers=header).status_code == 401  # Zwischenspeicher gilt nicht mehr
+    with TestClient(main.app) as c:
+        assert auth.authenticate("andreas", "aus-datei-99")
+        r = c.post("/login", data={"user": "andreas", "password": "aus-datei-99"}, follow_redirects=False)
+        assert r.status_code == 303 and auth.COOKIE in r.cookies
 
 
-def test_without_key_sessions_still_work(client, monkeypatch):
+def test_sessions_do_not_need_secret_key(client, monkeypatch):
+    """Sitzungen liegen in der Datenbank: sie überstehen Neustarts auch ohne SECRET_KEY."""
+    monkeypatch.setenv("AUTH", "on")
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    monkeypatch.setenv("AUTH_USER", "andreas")
-    monkeypatch.setenv("AUTH_PASSWORD", "geheim-123")
+    auth.create_user("andreas", "geheim-123", "admin")
     r = client.post("/login", data={"user": "andreas", "password": "geheim-123"}, follow_redirects=False)
     assert r.status_code == 303 and client.get("/").status_code == 200
+    monkeypatch.setenv("SECRET_KEY", OTHER_KEY)
+    assert client.get("/").status_code == 200
 
 
 def test_settings_warn_without_key(client, monkeypatch):

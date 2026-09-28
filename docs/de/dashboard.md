@@ -49,8 +49,31 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
 
 - Statt der Kosten passen auch `new_files_7d` („Neu (7 Tage)“) oder `printers_ok`
   („Drucker online“).
-- Ist die eigene Anmeldung eingeschaltet, trage im Widget zusätzlich `username` und
-  `password` ein, also denselben Benutzernamen und dasselbe Passwort wie für die Anmeldung.
+- Mit Anmeldung (Standard) trägst du im Widget ein API-Token ein, siehe unten.
 - Laufen Homepage und PlateShelf im selben Docker-Netz, nimm bei `url` die interne
   Adresse, z. B. `http://plateshelf:8000/api/stats`. Das funktioniert auch, wenn das
   PlateShelf nach außen hinter einer Anmeldung am Proxy liegt.
+
+## API-Tokens
+
+Dashboards sollen dein Passwort nicht kennen. Unter „Einstellungen“ → „API-Tokens“ legt
+ein Admin ein Token mit einem Namen wie „Homepage“ an. Es wird nur einmal angezeigt, also
+gleich kopieren. PlateShelf speichert nur seinen Hash und zeigt die letzten vier Zeichen,
+damit du Tokens auseinanderhalten kannst.
+
+- Ein Token darf nur lesen, und nur unter `/api/` (z. B. `/api/stats`, `/api/printing`).
+- Es wird als `Authorization: Bearer <Token>` oder `X-API-Key: <Token>` mitgeschickt.
+- Die Liste zeigt, wann ein Token zuletzt benutzt wurde. „Widerrufen“ macht es sofort ungültig.
+
+Für Homepage kommt die Kopfzeile ins Widget:
+
+```yaml
+    widget:
+      type: customapi
+      url: http://<server>:8000/api/stats
+      headers:
+        Authorization: Bearer ps_…
+```
+
+Statt eines Tokens kann sich ein Skript auch mit Benutzername und Passwort per HTTP Basic
+Auth anmelden (`username` und `password` im Widget); dafür genügt ein Konto „Nur lesen“.

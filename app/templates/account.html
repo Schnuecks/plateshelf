@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Mein Konto') }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
+
+{% block main %}
+<section class="account-page">
+  <h1>{{ _('Mein Konto') }}</h1>
+  <p class="hint">{{ _('Angemeldet als {name}, Rolle: {role}.', name=me.name, role=_(ROLE_LABELS[me.role])) }}</p>
+  {% if error %}<p class="flash flash-warn" role="alert">{{ error }}</p>{% endif %}
+
+  <section class="settings-section">
+    <h2>{{ _('Passwort ändern') }}</h2>
+    {% if request.query_params.get('password') %}<p class="flash" role="status">{{ _('Passwort geändert. Alle anderen Geräte sind abgemeldet.') }}</p>{% endif %}
+    <form method="post" action="/account/password" class="account-form">
+      <input type="text" name="user" value="{{ me.name }}" autocomplete="username" hidden>
+      <label>{{ _('Bisheriges Passwort') }}<input type="password" name="current" autocomplete="current-password" required></label>
+      <label>{{ _('Neues Passwort') }}<input type="password" name="password" autocomplete="new-password" minlength="8" required>
+        <span class="hint">{{ _('Mindestens {n} Zeichen.', n=8) }}</span></label>
+      <label>{{ _('Neues Passwort wiederholen') }}<input type="password" name="repeat" autocomplete="new-password" minlength="8" required></label>
+      <div class="section-foot"><button type="submit">{{ _('Passwort ändern') }}</button></div>
+    </form>
+  </section>
+
+  <section class="settings-section">
+    <h2>{{ _('Angemeldete Geräte') }}</h2>
+    {% if request.query_params.get('ended') %}<p class="flash" role="status">{{ _('Abgemeldet.') }}</p>{% endif %}
+    <ul class="device-list">
+      {% for s in sessions %}
+      <li>
+        <span class="device-main">
+          <strong>{{ device_label(s.agent) }}</strong>
+          {% if s.id == me.session_id %}<span class="device-current">{{ _('dieses Gerät') }}</span>{% endif %}
+          <span class="hint">{{ _('angemeldet {when}, zuletzt aktiv {ago}', when=s.created|datetime, ago=s.last_seen|ago) }}</span>
+        </span>
+        {% if s.id != me.session_id %}
+        <form method="post" action="/account/sessions/{{ s.id }}/end">
+          <button type="submit" class="danger-quiet">{{ _('Abmelden') }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% else %}
+      <li class="hint">{{ _('Keine Sitzungen.') }}</li>
+      {% endfor %}
+    </ul>
+    {% if sessions|length > 1 %}
+    <form method="post" action="/account/sessions/others" class="section-foot">
+      <button type="submit">{{ _('Alle anderen Geräte abmelden') }}</button>
+    </form>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

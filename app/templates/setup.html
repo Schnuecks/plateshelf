@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Einrichten') }} – {{ APP_NAME }}{% endblock %}
+{% block nav_links %}{% endblock %}
+
+{% block main %}
+<section class="login-page">
+  <form method="post" action="/setup" class="login-form setup-form">
+    <h1>{{ _('Admin-Konto anlegen') }}</h1>
+    <p class="hint">{{ _('Willkommen bei {app}. Lege zuerst dein Konto an; weitere Benutzer fügst du danach in den Einstellungen hinzu.', app=APP_NAME) }}</p>
+    {% if error %}<p class="flash flash-warn" role="alert">{{ error }}</p>{% endif %}
+    <label>{{ _('Einrichtungscode') }}
+      <input type="text" name="code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required {% if not name %}autofocus{% endif %}>
+      <span class="hint">{{ _('Steht im Protokoll des Containers, zum Beispiel mit {cmd}. So kann niemand anderes im Netz das Konto vor dir anlegen.', cmd='<code>docker compose logs plateshelf</code>')|safe }}</span>
+    </label>
+    <label>{{ _('Benutzername') }}
+      <input type="text" name="name" value="{{ name or '' }}" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" required>
+    </label>
+    <label>{{ _('Passwort') }}
+      <input type="password" name="password" autocomplete="new-password" minlength="8" required {% if name %}autofocus{% endif %}>
+      <span class="hint">{{ _('Mindestens {n} Zeichen.', n=8) }}</span>
+    </label>
+    <label>{{ _('Passwort wiederholen') }}
+      <input type="password" name="repeat" autocomplete="new-password" minlength="8" required>
+    </label>
+    <button type="submit">{{ _('Konto anlegen') }}</button>
+  </form>
+</section>
+{% endblock %}

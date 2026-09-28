@@ -18,7 +18,9 @@ mkdir -p library data
 docker compose up -d
 ```
 
-Danach ist PlateShelf unter `http://<server>:8000` erreichbar. Lege deine
+Danach ist PlateShelf unter `http://<server>:8000` erreichbar. Beim ersten Aufruf legst
+du das Admin-Konto an; den Einrichtungscode dafür findest du im Protokoll (`docker compose
+logs plateshelf`), siehe [Zugriffsschutz](configuration.md#zugriffsschutz). Lege deine
 `.gcode.3mf`-, `.gcode`- oder `.bgcode`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
 Minuten, sofort über „Bibliothek neu einlesen“ in der Übersicht.
 

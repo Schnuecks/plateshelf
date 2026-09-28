@@ -51,39 +51,76 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SECRET_KEY` | – | Key for encrypting printer credentials and signing sessions; strongly recommended, see [Secrets](#secrets) |
-| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Turn on sign-in with a password hash |
-| `AUTH_PASSWORD` | – | Alternative to the hash: password in plain text |
+| `AUTH` | on | `off` switches sign-in off, e.g. when the reverse proxy already signs users in |
 | `SESSION_DAYS` | 30 | How long a sign-in lasts in the browser |
+| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Only for updates from before user accounts: become the first admin account once |
+| `SECRET_KEY` | – | Key for encrypting printer credentials; strongly recommended, see [Secrets](#secrets) |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
 
 ## Access control
 
-Out of the box, PlateShelf has no sign-in: anyone who can reach it can upload and
-delete files. On a home network that is usually fine. For more protection there are two
-options, which can also be combined.
+PlateShelf asks everyone to sign in. Accounts, passwords and roles are managed in
+PlateShelf itself; nothing has to go into the `.env`.
 
-**Built-in sign-in:** set `AUTH_USER` and a password in the `.env`. Store the password
-as a hash rather than in plain text:
+**First start:** as long as there is no account, every page leads to “Create admin
+account”. The page asks for a setup code that PlateShelf writes to the container log, so
+nobody else on your network can create the account before you:
 
 ```bash
-docker compose exec plateshelf python -m app.auth hash
+docker compose logs plateshelf | grep "Setup code"
 ```
 
-The command asks for the password twice and prints a line such as
-`AUTH_PASSWORD_HASH=scrypt:15:8:1:…`, which goes into the `.env` next to `AUTH_USER`.
-`AUTH_PASSWORD=…` in plain text still works.
+Alternatively, `docker compose exec plateshelf python -m app.auth setup-code` prints it.
+Enter the code, a user name and a password (at least 8 characters), and you are signed in
+as admin.
 
-- The browser then shows a sign-in page. A sign-in lasts `SESSION_DAYS` days, and “Sign
-  out” appears in the top right.
-- After five failed attempts, an address is blocked for five minutes.
-- Changing the password ends all existing sessions.
-- Scripts and dashboards sign in with the same credentials via HTTP Basic Auth.
-- `/healthz` stays reachable for the Docker health check, but without sign-in it only
-  reports that PlateShelf is running.
+**Updating from an older version:** if `AUTH_USER` and `AUTH_PASSWORD_HASH` (or
+`AUTH_PASSWORD`) are set, PlateShelf turns them into the first admin account on start. You
+sign in as before; afterwards the two lines can be removed from the `.env`, and the password
+is changed in PlateShelf. Dashboards that used these credentials via Basic Auth keep working.
 
-**Sign-in at the reverse proxy**, e.g. with Authelia or Basic Auth. This is recommended
-especially if PlateShelf is reachable from the internet.
+**Roles:** under “Settings” → “Users”, admins add accounts and pick a role:
+
+| Role | May |
+|---|---|
+| Admin | everything, including settings, users and API tokens |
+| User | upload, edit, move and delete files and projects, empty the trash; no settings |
+| Read only | view and download, switch language and theme, change their own password |
+
+At least one admin always remains. Admins can set a new password for any account; that
+signs the account out on all devices.
+
+**Own account:** the person icon in the top right opens “My account”:
+
+- change your password; all your other devices are signed out
+- see where you are signed in (browser and system, when, last active) and sign out
+  single devices or all others
+
+**Sessions:** a sign-in lasts `SESSION_DAYS` days. The browser only gets a random value;
+the database only stores its hash. Signing out ends the session on the server right away,
+so a copied cookie is useless afterwards. Sessions survive restarts, with or without
+`SECRET_KEY`.
+
+**Protection against guessing:** after five failed attempts (password or setup code), an
+address is blocked for five minutes. Whether a user name exists cannot be told from the
+response or its timing.
+
+**Scripts** sign in with user name and password via HTTP Basic Auth; the role applies here
+too. For dashboards, [API tokens](dashboard.md#api-tokens) are the better choice.
+
+**Locked out?** Set a new password on the console; if the account does not exist, an admin
+account with that name is created:
+
+```bash
+docker compose exec plateshelf python -m app.auth reset <name>
+```
+
+**Without sign-in:** `AUTH=off` in the `.env` switches all of this off; anyone who can reach
+PlateShelf may then do everything. This only makes sense if the reverse proxy signs users
+in (e.g. Authelia or Authentik) or PlateShelf is not reachable by anyone else.
+
+`/healthz` stays reachable for the Docker health check, but without sign-in it only reports
+that PlateShelf is running.
 
 **Protection against other websites:** Regardless of the above, PlateShelf only accepts
 changes (upload, delete, settings …) from its own pages. Forms that another website
@@ -108,8 +145,9 @@ docker compose exec plateshelf python -m app.auth secret
 prints a random `SECRET_KEY=…`; put it into the `.env` and restart PlateShelf. Existing
 credentials are then encrypted automatically. Keep the key safe: without it the stored
 credentials cannot be decrypted, and you would have to enter them again. Without
-`SECRET_KEY`, PlateShelf still works, but stores credentials unencrypted and sign-ins only
-last until the next restart; the settings page points this out.
+`SECRET_KEY`, PlateShelf still works, but stores printer credentials unencrypted; the
+settings page points this out. User passwords are always stored as scrypt hashes and
+never need the key.
 
 **Secrets as files (Docker secrets):** every sensitive variable can also be read from a
 file by adding `_FILE`: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`, `AUTH_PASSWORD_FILE`

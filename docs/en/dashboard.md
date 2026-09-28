@@ -49,8 +49,30 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
 
 - Instead of the costs, `new_files_7d` (“New (7 days)”) or `printers_ok` (“Printers
   online”) work well too.
-- If the built-in sign-in is on, also add `username` and `password` to the widget, with
-  the same user name and password as for the sign-in.
+- With sign-in (the default), add an API token to the widget, see below.
 - If Homepage and PlateShelf share a Docker network, use the internal address for
   `url`, e.g. `http://plateshelf:8000/api/stats`. This also works if PlateShelf sits
   behind a sign-in at the proxy from the outside.
+
+## API tokens
+
+Dashboards should not know your password. Under “Settings” → “API tokens”, an admin
+creates a token with a name such as “Homepage”. It is shown only once; copy it right away.
+PlateShelf stores only its hash and shows the last four characters to tell tokens apart.
+
+- A token can only read, and only below `/api/` (e.g. `/api/stats`, `/api/printing`).
+- It is sent as `Authorization: Bearer <token>` or `X-API-Key: <token>`.
+- The list shows when each token was last used. “Revoke” makes it invalid at once.
+
+For Homepage, add the header to the widget:
+
+```yaml
+    widget:
+      type: customapi
+      url: http://<server>:8000/api/stats
+      headers:
+        Authorization: Bearer ps_…
+```
+
+Instead of a token, a script can also sign in with user name and password via HTTP Basic
+Auth (`username` and `password` in the widget); a “Read only” account is enough for that.

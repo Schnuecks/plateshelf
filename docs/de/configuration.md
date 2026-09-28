@@ -52,39 +52,77 @@ weiter.
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Anmeldung mit Passwort-Hash einschalten |
-| `AUTH_PASSWORD` | – | Statt des Hashs: Passwort im Klartext |
+| `AUTH` | an | `off` schaltet die Anmeldung aus, etwa wenn schon der Reverse-Proxy anmeldet |
 | `SESSION_DAYS` | 30 | Wie lange eine Anmeldung im Browser gilt |
-| `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge und für die Anmeldung; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
+| `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Nur für Updates von Versionen ohne Benutzerkonten: werden einmalig zum ersten Admin-Konto |
+| `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
 
 ## Zugriffsschutz
 
-Ohne weitere Einstellungen hat PlateShelf keine Anmeldung: Jeder, der es erreicht,
-kann Dateien hochladen und löschen. Im Heimnetz ist das meist in Ordnung. Für mehr
-Schutz gibt es zwei Wege, die sich auch kombinieren lassen.
+PlateShelf verlangt eine Anmeldung. Konten, Passwörter und Rollen verwaltest du in
+PlateShelf selbst; in die `.env` muss dafür nichts.
 
-**Eigene Anmeldung:** Setze `AUTH_USER` und ein Passwort in der `.env`. Das Passwort
-legst du am besten als Hash ab statt im Klartext:
+**Erster Start:** Solange es kein Konto gibt, führt jede Seite zu „Admin-Konto anlegen“.
+Die Seite fragt nach einem Einrichtungscode, den PlateShelf ins Protokoll des Containers
+schreibt. So kann niemand anderes in deinem Netz das Konto vor dir anlegen:
 
 ```bash
-docker compose exec plateshelf python -m app.auth hash
+docker compose logs plateshelf | grep "Einrichtungscode"
 ```
 
-Der Befehl fragt das Passwort zweimal ab und gibt eine Zeile wie
-`AUTH_PASSWORD_HASH=scrypt:15:8:1:…` aus, die neben `AUTH_USER` in die `.env` kommt.
-`AUTH_PASSWORD=…` im Klartext funktioniert weiterhin.
+Alternativ gibt `docker compose exec plateshelf python -m app.auth setup-code` ihn aus.
+Code, Benutzername und Passwort (mindestens 8 Zeichen) eintragen, und du bist als Admin
+angemeldet.
 
-- Der Browser zeigt dann eine Anmeldeseite. Die Anmeldung gilt `SESSION_DAYS` Tage,
-  oben rechts gibt es „Abmelden“.
-- Nach fünf Fehlversuchen ist eine Adresse für fünf Minuten gesperrt.
-- Ändert sich das Passwort, sind alle bestehenden Anmeldungen ungültig.
-- Skripte und Dashboards melden sich mit denselben Zugangsdaten per HTTP Basic Auth an.
-- `/healthz` bleibt für den Docker-Healthcheck erreichbar, meldet ohne Anmeldung aber
-  nur, dass PlateShelf läuft.
+**Update von einer älteren Version:** Sind `AUTH_USER` und `AUTH_PASSWORD_HASH` (oder
+`AUTH_PASSWORD`) gesetzt, macht PlateShelf daraus beim Start das erste Admin-Konto. Du
+meldest dich an wie bisher; danach können die beiden Zeilen aus der `.env`, und das
+Passwort änderst du in PlateShelf. Dashboards, die sich damit per Basic Auth angemeldet
+haben, funktionieren weiter.
 
-**Anmeldung am Proxy**, z. B. mit Authelia oder Basic Auth. Das empfiehlt sich
-besonders, wenn PlateShelf aus dem Internet erreichbar ist.
+**Rollen:** Unter „Einstellungen“ → „Benutzer“ legen Admins Konten an und wählen eine Rolle:
+
+| Rolle | Darf |
+|---|---|
+| Admin | alles, auch Einstellungen, Benutzer und API-Tokens |
+| Benutzer | Dateien und Projekte hochladen, bearbeiten, verschieben und löschen, Papierkorb leeren; keine Einstellungen |
+| Nur lesen | ansehen und herunterladen, Sprache und Design wählen, eigenes Passwort ändern |
+
+Mindestens ein Admin bleibt immer erhalten. Admins können jedem Konto ein neues Passwort
+geben; das meldet das Konto auf allen Geräten ab.
+
+**Eigenes Konto:** Das Personen-Symbol oben rechts öffnet „Mein Konto“:
+
+- Passwort ändern; alle anderen Geräte werden dabei abgemeldet
+- sehen, wo du angemeldet bist (Browser und System, seit wann, zuletzt aktiv), und einzelne
+  oder alle anderen Geräte abmelden
+
+**Sitzungen:** Eine Anmeldung gilt `SESSION_DAYS` Tage. Der Browser bekommt nur einen
+Zufallswert, in der Datenbank steht nur dessen Hash. Abmelden beendet die Sitzung sofort
+auf dem Server, ein kopiertes Cookie nützt danach nichts mehr. Sitzungen überstehen
+Neustarts, mit oder ohne `SECRET_KEY`.
+
+**Schutz vor Durchprobieren:** Nach fünf Fehlversuchen (Passwort oder Einrichtungscode)
+ist eine Adresse für fünf Minuten gesperrt. Ob es einen Benutzernamen gibt, verrät weder
+die Antwort noch ihre Dauer.
+
+**Skripte** melden sich mit Benutzername und Passwort per HTTP Basic Auth an; die Rolle
+gilt auch hier. Für Dashboards sind [API-Tokens](dashboard.md#api-tokens) die bessere Wahl.
+
+**Ausgesperrt?** Neues Passwort über die Konsole setzen; gibt es das Konto nicht, entsteht
+ein Admin-Konto mit diesem Namen:
+
+```bash
+docker compose exec plateshelf python -m app.auth reset <name>
+```
+
+**Ohne Anmeldung:** `AUTH=off` in der `.env` schaltet all das ab; dann darf jeder, der
+PlateShelf erreicht, alles. Das ist nur sinnvoll, wenn schon der Reverse-Proxy anmeldet
+(etwa Authelia oder Authentik) oder niemand anderes PlateShelf erreicht.
+
+`/healthz` bleibt für den Docker-Healthcheck erreichbar, meldet ohne Anmeldung aber nur,
+dass PlateShelf läuft.
 
 **Schutz vor fremden Webseiten:** Unabhängig davon nimmt PlateShelf Änderungen
 (Hochladen, Löschen, Einstellungen …) nur von seinen eigenen Seiten an. Formulare, die
@@ -110,8 +148,8 @@ gibt einen zufälligen `SECRET_KEY=…` aus; trag ihn in die `.env` ein und star
 PlateShelf neu. Vorhandene Zugangsdaten werden dann automatisch verschlüsselt. Heb den
 Schlüssel gut auf: Ohne ihn lassen sich die gespeicherten Zugangsdaten nicht mehr lesen,
 und du müsstest sie neu eingeben. Ohne `SECRET_KEY` läuft PlateShelf weiter, speichert
-Zugangsdaten aber unverschlüsselt, und Anmeldungen gelten nur bis zum nächsten Neustart;
-die Einstellungsseite weist darauf hin.
+die Zugangsdaten der Drucker aber unverschlüsselt; die Einstellungsseite weist darauf hin.
+Passwörter der Benutzer liegen immer als scrypt-Hash vor und brauchen den Schlüssel nicht.
 
 **Geheimnisse als Dateien (Docker-Secrets):** Jede sensible Variable lässt sich mit der
 Endung `_FILE` auch aus einer Datei lesen: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`,

@@ -26,7 +26,9 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
   Moonraker (etwa Creality K1/K2, Sovol SV08, Qidi, Voron)
 - **Druckverlauf und Statistik:** was wann auf welchem Drucker gedruckt wurde und ob der
   Druck durchlief
-- **Sechs Sprachen**, helles und dunkles Design, optionale Anmeldung, Kennzahlen als JSON
+- **Benutzerkonten** mit Rollen (Admin, Benutzer, Nur lesen), Geräteliste und API-Tokens
+  nur zum Lesen
+- **Sechs Sprachen**, helles und dunkles Design, Kennzahlen als JSON
   für Dashboards
 
 | Projekt | 3D-Vorschau |
@@ -52,13 +54,14 @@ mkdir -p library data
 docker compose up -d
 ```
 
-Öffne `http://<server>:8000` und lege deine Druckdateien in den Ordner `library`.
+Öffne `http://<server>:8000` und lege das Admin-Konto an; den Einrichtungscode findest du im
+Protokoll (`docker compose logs plateshelf`). Danach legst du deine Druckdateien in den Ordner `library`.
 Aktualisieren: `docker compose pull && docker compose up -d`.
 
 ## Dokumentation
 
 - [Installation](docs/de/installation.md): Aktualisieren, Reverse-Proxy, Daten und Sicherung
-- [Konfiguration](docs/de/configuration.md): alle Einstellungen, Anmeldung und Geheimnisse
+- [Konfiguration](docs/de/configuration.md): alle Einstellungen, Benutzerkonten und Geheimnisse
 - [Bedienung](docs/de/usage.md): Bibliothek, Projekte, 3D-Vorschau, Kosten, Papierkorb
 - [Drucker und Druckverlauf](docs/de/printers.md): Direktimport, Verlauf, Statistik
 - [Dashboard-Widget](docs/de/dashboard.md): Kennzahlen für Homepage und andere

@@ -484,7 +484,7 @@ def test_schema_step_adds_plate_column(lib):
     store.init_db()
     with store.connect() as con:
         assert "plate" in {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}
-        assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION == 2
+        assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION
 
 
 def test_plates_uploaded_one_by_one(ready):

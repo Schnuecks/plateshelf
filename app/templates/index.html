@@ -63,6 +63,7 @@
                 totals.count, time=totals.time_s|duration, kg=(totals.weight_g / 1000)|num(2))|safe }}
   </p>
   {% if tag %}<a class="chip is-active" href="/?q={{ q|urlencode }}&material={{ material|urlencode }}&status={{ status }}&sort={{ sort }}">{{ _('{tag} entfernen', tag=tag) }}</a>{% endif %}
+  {% if can_edit(request) %}
   <div class="rescan">
     {% if psync.enabled %}
     <form method="post" action="/printer-sync">
@@ -75,6 +76,7 @@
       <button type="submit" class="quiet">{{ _('Bibliothek neu einlesen') }}</button>
     </form>
   </div>
+  {% endif %}
 </section>
 
 {% if all_tags and not tag %}

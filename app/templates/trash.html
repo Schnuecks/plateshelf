@@ -6,7 +6,7 @@
 <section class="trash-page">
   <div class="trash-head">
     <h1>{{ _('Papierkorb') }}</h1>
-    {% if entries and writable %}
+    {% if entries and writable and can_edit(request) %}
     <form method="post" action="/trash/empty"
           data-confirm="{{ ngettext('{n} Eintrag im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', 'Alle {n} Einträge im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.', entries|length) }}">
       <button type="submit" class="danger-quiet">{{ _('Papierkorb leeren') }}</button>
@@ -38,7 +38,7 @@
         <details><summary>{{ _('Dateien') }}</summary><ul class="trash-files">{% for f in e.files %}<li>{{ f }}</li>{% endfor %}</ul></details>
         {% endif %}
       </div>
-      {% if writable %}
+      {% if writable and can_edit(request) %}
       <div class="file-actions">
         <form method="post" action="/trash/{{ e.id }}/restore">
           <button type="submit">{{ _('Wiederherstellen') }}</button>

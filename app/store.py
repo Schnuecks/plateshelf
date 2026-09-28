@@ -127,6 +127,34 @@ CREATE TABLE IF NOT EXISTS printer_files (
     imported REAL NOT NULL,
     PRIMARY KEY (printer, remote_name)
 );
+-- Anmeldung, siehe auth.py
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',   -- admin, user oder viewer
+    created REAL NOT NULL,
+    last_login REAL
+);
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash TEXT NOT NULL UNIQUE,     -- SHA-256 des Cookie-Werts, nie der Wert selbst
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created REAL NOT NULL,
+    last_seen REAL NOT NULL,
+    expires REAL NOT NULL,
+    agent TEXT,                          -- Browser, zum Wiedererkennen in der Geräteliste
+    address TEXT
+);
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,     -- SHA-256 des Tokens
+    hint TEXT NOT NULL,                  -- letzte vier Zeichen zum Wiedererkennen
+    created REAL NOT NULL,
+    created_by TEXT,
+    last_used REAL
+);
 CREATE INDEX IF NOT EXISTS idx_files_project ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_plates_file ON plates(file_id);
 """
@@ -186,7 +214,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 2  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 3  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -198,6 +226,7 @@ def _add_column(table: str, column: str, decl: str):
 
 MIGRATIONS: dict = {
     2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu meldet teils nur die Platte
+    3: lambda con: None,  # Benutzerkonten: Tabellen users, sessions, api_tokens (legt SCHEMA an)
 }
 
 

@@ -56,11 +56,24 @@ def _yes(flag) -> str:
     return "on" if flag else "off"
 
 
+def _sign_in() -> str:
+    """Anmeldung mit Anzahl Konten je Rolle und Tokens, ohne Namen."""
+    if not auth.enabled():
+        return "off (AUTH=off)"
+    with store.connect() as con:
+        roles = dict(con.execute("SELECT role, COUNT(*) FROM users GROUP BY role").fetchall())
+        tokens = con.execute("SELECT COUNT(*) FROM api_tokens").fetchone()[0]
+    if not roles:
+        return "on, setup pending"
+    return ("on, accounts " + ", ".join(f"{role} {roles[role]}" for role in auth.ROLES if role in roles)
+            + f", API tokens {tokens}")
+
+
 def report(version: str) -> str:
     lines = [f"PlateShelf {version}",
              f"Python {platform.python_version()} on {platform.system()} {platform.machine()}"
              f"{' (container)' if os.path.exists('/.dockerenv') else ''}",
-             f"Language {i18n.current()}, sign-in {_yes(auth.enabled())}, "
+             f"Language {i18n.current()}, sign-in {_sign_in()}, "
              f"print history {_yes(print_history.enabled())}"
              f"{' (set via env)' if print_history.env_setting() is not None else ''}",
              f"Library writable: {_yes(os.access(store.LIBRARY_DIR, os.W_OK))}",

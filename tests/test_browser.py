@@ -289,9 +289,18 @@ def test_language_and_theme_from_topbar(server, page):
 
 
 def test_login_flow(server, page, monkeypatch):
-    """Mit AUTH_USER/AUTH_PASSWORD: Anmeldeseite, Anmelden, zurück zum Ziel, Abmelden."""
-    monkeypatch.setenv("AUTH_USER", "tester")
-    monkeypatch.setenv("AUTH_PASSWORD", "geheim-123")
+    """Mit Benutzerkonto: Anmeldeseite, Anmelden, zurück zum Ziel, eigenes Konto, Abmelden."""
+    from app import auth, store
+    monkeypatch.setenv("AUTH", "on")
+    user_id = auth.create_user("tester", "geheim-123", "admin")
+    try:
+        _login_flow(server, page)
+    finally:
+        with store.connect() as con:  # am letzten Admin vorbei, den delete_user schützt
+            con.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def _login_flow(server, page):
     page.goto(server["url"] + "/settings")
     assert "/login" in page.url
     assert page.locator(".tb-right .settings-link").count() == 0  # keine Navigation vor der Anmeldung
@@ -305,6 +314,11 @@ def test_login_flow(server, page, monkeypatch):
     page.fill('input[name="password"]', "geheim-123")
     page.click('.login-form button[type="submit"]')
     page.wait_for_url("**/settings")
+    page.click('a[href="#users"]')
+    assert page.locator("#users .printer-name", has_text="tester").is_visible()
+    page.click(".account-link")
+    page.wait_for_url("**/account")
+    assert page.locator(".device-current").is_visible()
     page.click('form[action="/logout"] button')
     page.wait_for_url("**/login")
     assert page.errors == []

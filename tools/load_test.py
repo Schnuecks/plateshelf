@@ -77,7 +77,7 @@ def timed(label, fn, repeat=1):
 def main() -> None:
     count = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
     tmp = Path(tempfile.mkdtemp(prefix="plateshelf-load-"))
-    os.environ.update(BACKGROUND_TASKS="false", PRINT_HISTORY="true", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false")
+    os.environ.update(AUTH="off", BACKGROUND_TASKS="false", PRINT_HISTORY="true", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false")
     from app import store
     store.LIBRARY_DIR, store.DATA_DIR = tmp / "library", tmp / "data"
     store.DB_PATH, store.THUMB_DIR, store.PREBUILD = tmp / "data" / "plateshelf.sqlite", tmp / "data" / "thumbs", False

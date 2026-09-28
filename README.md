@@ -25,7 +25,8 @@ print settings and a 3D preview of the actual toolpaths.
   Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron)
 - **Print history and statistics:** what was printed when, on which printer, and whether it
   finished
-- **Six languages**, light and dark theme, optional sign-in, key figures as JSON for dashboards
+- **User accounts** with roles (admin, user, read only), device list and read-only API tokens
+- **Six languages**, light and dark theme, key figures as JSON for dashboards
 
 | Project | 3D preview |
 |---|---|
@@ -47,13 +48,14 @@ mkdir -p library data
 docker compose up -d
 ```
 
-Open `http://<server>:8000` and put your print files into the `library` folder. To update:
+Open `http://<server>:8000` and create the admin account; the setup code is in the log
+(`docker compose logs plateshelf`). Then put your print files into the `library` folder. To update:
 `docker compose pull && docker compose up -d`.
 
 ## Documentation
 
 - [Installation](docs/en/installation.md): updating, reverse proxy, data and backups
-- [Configuration](docs/en/configuration.md): all settings, sign-in and secrets
+- [Configuration](docs/en/configuration.md): all settings, user accounts and secrets
 - [Usage](docs/en/usage.md): library, projects, 3D preview, costs, trash
 - [Printers and print history](docs/en/printers.md): direct import, history, statistics
 - [Dashboard widget](docs/en/dashboard.md): key figures for Homepage and others
