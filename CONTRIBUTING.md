@@ -14,13 +14,13 @@ Security problems go to **Security → Report a vulnerability** instead, see
 ## Pull requests
 
 1. Open an issue first for larger changes, so we can agree on the approach.
-2. Set up the development environment as described in the README under
-   [Development](README.md#development) and make sure `python -m pytest -q` passes.
+2. Set up the development environment as described in
+   [Development](docs/en/development.md) and make sure `python -m pytest -q` passes.
 3. Keep PlateShelf simple: it is an archive for sliced files, not a printer control panel.
 4. Texts in the interface are written in German and translated in `app/locales/`
    (English, French, Spanish, Italian, Dutch). `python tools/i18n_extract.py` lists missing
    translations; please add all five or say which ones you could not do.
-5. Update the README (English and German) and add a line under “Unreleased” in
+5. Update the documentation in `docs/en` and `docs/de` (and the README if needed) and add a line under “Unreleased” in
    `CHANGELOG.md` if users will notice the change.
 
 The pull request template has a short checklist for this.

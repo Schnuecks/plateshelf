@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Erzeugt die Screenshots für das README (docs/screenshots/*.png).
+"""Erzeugt die Screenshots für README und Dokumentation (docs/screenshots/*.png).
 
     pip install -r requirements-browser.txt && python -m playwright install chromium
     python tools/make_screenshots.py

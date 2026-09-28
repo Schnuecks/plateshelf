@@ -10,5 +10,5 @@
 
 - [ ] `python -m pytest -q` passes
 - [ ] New or changed texts are translated (`python tools/i18n_extract.py` reports nothing missing)
-- [ ] README (English and German) and CHANGELOG (“Unreleased”) are updated if users notice the change
+- [ ] Documentation in `docs/en` and `docs/de` and CHANGELOG (“Unreleased”) are updated if users notice the change
 - [ ] No credentials, IP addresses or personal data in code, tests or screenshots
