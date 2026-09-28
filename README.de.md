@@ -93,4 +93,6 @@ Fassung; bei einer eigenen Fassung passe ihn auf deinen Quellcode an (`APP_REPO`
 Das Programm wird ohne jede Gewährleistung bereitgestellt. Einzelheiten stehen in der
 [Lizenz](LICENSE). `app/static/vendor/` enthält [three.js](https://threejs.org) und
 OrbitControls, beide unter der MIT-Lizenz (siehe `three-LICENSE`), die mit der AGPL
-vereinbar ist.
+vereinbar ist. Die Schriften Barlow in `app/static/fonts/` stehen unter der SIL Open Font
+License (siehe `OFL.txt` dort); PlateShelf liefert sie selbst aus, keine Seite lädt etwas von
+Google oder anderen Servern.

@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- The Barlow fonts are now served by PlateShelf itself instead of Google Fonts. No page
+  loads anything from other servers any more, so no IP addresses go to Google and the
+  interface looks the same without internet access. The fonts are under the SIL Open Font
+  License (`app/static/fonts/OFL.txt`).
+- Screenshots updated (settings with users and API tokens).
+
 ## 0.8.1
 
 - Reloading the page after creating an API token (or after an error in a settings or

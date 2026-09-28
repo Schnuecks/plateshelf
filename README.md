@@ -85,4 +85,6 @@ point it to your source code (`APP_REPO` in `app/web.py`).
 
 The program is provided without any warranty. See the [license](LICENSE) for details.
 `app/static/vendor/` contains [three.js](https://threejs.org) and OrbitControls, both under
-the MIT license (see `three-LICENSE`), which is compatible with the AGPL.
+the MIT license (see `three-LICENSE`), which is compatible with the AGPL. The Barlow fonts in
+`app/static/fonts/` are under the SIL Open Font License (see `OFL.txt` there); PlateShelf serves
+them itself, so no page loads anything from Google or other servers.
