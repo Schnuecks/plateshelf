@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>document.documentElement.classList.add("js")</script>
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,7 +27,11 @@
       {% block topbar %}{% endblock %}
     </div>
     {% block back %}{% endblock %}
-    <nav class="tb-right">
+    <button type="button" class="icon-btn menu-toggle" aria-expanded="false" aria-controls="site-nav"
+            aria-label="{{ _('Menü') }}" title="{{ _('Menü') }}" data-menu-toggle>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="tb-right" id="site-nav">
       {% block nav_links %}
       {% if history_enabled() %}<a class="settings-link" href="/history">{{ _('Verlauf') }}</a>{% endif %}
       <a class="settings-link" href="/trash">{{ _('Papierkorb') }}</a>

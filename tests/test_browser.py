@@ -227,6 +227,32 @@ def test_settings_sections(server, page, monkeypatch):
     assert page.errors == []
 
 
+def test_mobile_layout(server, browser):
+    """Handy: flache Kopfzeile mit Menüknopf, nichts ragt über den Rand, Vorschau passt in den Bildschirm."""
+    context = browser.new_context(viewport={"width": 375, "height": 740}, locale="de-DE", has_touch=True)
+    pg = context.new_page()
+    errors = []
+    pg.on("pageerror", lambda exc: errors.append(str(exc)))
+    try:
+        for path in ("/", "/p/{pid}", "/history", "/statistics", "/settings", "/trash", "/upload"):
+            pg.goto(server["url"] + path.format(**server))
+            assert pg.evaluate("document.documentElement.scrollWidth") <= 375, path
+            assert pg.locator(".topbar").bounding_box()["height"] < 130, path
+        assert not pg.locator("#site-nav").is_visible()
+        pg.locator("[data-menu-toggle]").click()
+        assert pg.get_by_role("link", name="Einstellungen").is_visible()
+        pg.goto(server["url"] + "/")
+        assert not pg.locator("select[name=material]").is_visible()
+        pg.locator("[data-filter-toggle]").click()
+        assert pg.locator("select[name=material]").is_visible()
+        pg.goto(f"{server['url']}/view/{server['fid']}/1")
+        stage = pg.locator(".viewer-stage").bounding_box()
+        assert stage["y"] + stage["height"] < 740  # die Bedienung darunter schaut noch heraus
+        assert errors == []
+    finally:
+        context.close()
+
+
 def test_language_and_theme_from_topbar(server, page):
     page.goto(server["url"] + "/")
     page.locator(".lang-menu summary").click()

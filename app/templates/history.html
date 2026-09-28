@@ -21,6 +21,7 @@
   {% endif %}
 
   {% if jobs %}
+  <div class="table-scroll">
   <table class="history-table">
     <thead>
       <tr>
@@ -49,6 +50,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="empty">
     <h2>{{ _('Noch keine Drucke') }}</h2>
