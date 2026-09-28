@@ -15,7 +15,7 @@
   <header class="project-head">
     <div class="project-title">
       <h1>{{ p.name }}</h1>
-      {% if writable %}
+      {% if writable and can_edit(request) %}
       <form method="post" action="/p/{{ p.id }}/delete" class="delete-project"
             data-confirm="{{ ngettext('Projekt „{name}“ mit {n} Datei in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', 'Projekt „{name}“ mit {n} Dateien in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', files|length, name=p.name) }}">
         <button type="submit" class="danger-quiet">{{ _('Projekt löschen') }}</button>
@@ -80,7 +80,7 @@
           </div>
           <div class="file-actions">
             <a class="button" href="/f/{{ f.id }}/download">{{ _('Datei herunterladen') }}</a>
-            {% if writable %}
+            {% if writable and can_edit(request) %}
             {% set n = f.all_plates|length if f.all_plates else f.plates|length %}
             <form method="post" action="/f/{{ f.id }}/delete"
                   data-confirm="{{ _('„{name}“ mit {n} Platten in den Papierkorb verschieben?', name=f.path.split('/')[-1], n=n) if n > 1 else _('„{name}“ in den Papierkorb verschieben?', name=f.path.split('/')[-1]) }}">
@@ -149,6 +149,7 @@
         </details>
         {% endif %}
 
+        {% if can_edit(request) %}
         <details class="move">
           <summary>{{ _('Anderem Projekt zuordnen') }}</summary>
           <form method="post" action="/f/{{ f.id }}/move">
@@ -160,6 +161,7 @@
             <button type="submit">{{ _('Verschieben') }}</button>
           </form>
         </details>
+        {% endif %}
       </section>
       {% endfor %}
     </div>
@@ -186,6 +188,7 @@
       </section>
       {% endif %}
 
+      {% if can_edit(request) %}
       <form method="post" action="/p/{{ p.id }}" class="edit">
         <label>{{ _('Name') }}<input type="text" name="name" value="{{ p.name }}" required></label>
         <label>{{ _('Status') }}
@@ -200,6 +203,16 @@
         <button type="submit">{{ _('Änderungen speichern') }}</button>
         {% if request.query_params.get('saved') %}<p class="saved" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
       </form>
+      {% elif p.status or p.tags or p.source_url or p.notes %}
+      <section class="edit is-readonly">
+        <dl>
+          {% if p.status %}<div><dt>{{ _('Status') }}</dt><dd>{{ _(STATUSES[p.status]) }}</dd></div>{% endif %}
+          {% if p.tags %}<div><dt>{{ _('Tags') }}</dt><dd>{{ p.tags }}</dd></div>{% endif %}
+          {% if p.notes %}<div><dt>{{ _('Notizen') }}</dt><dd class="notes">{{ p.notes }}</dd></div>{% endif %}
+        </dl>
+        {% if p.source_url %}<a class="source" href="{{ p.source_url }}" target="_blank" rel="noopener">{{ _('Quelle öffnen') }}</a>{% endif %}
+      </section>
+      {% endif %}
 
       {% if jobs %}
       <section class="job-list" id="history">
@@ -208,11 +221,13 @@
         <ul>
           {% for j in jobs[:10] %}
           <li>
+            {% if can_edit(request) %}
             <form method="post" action="/history/{{ j.id }}/delete" class="job-delete"
                   data-confirm="{{ _('Diesen Druck aus dem Verlauf entfernen? Er wird dann auch nicht mehr gezählt.') }}">
               <input type="hidden" name="next" value="{{ current_url(request) }}">
               <button type="submit" class="icon-quiet" title="{{ _('Aus dem Verlauf entfernen') }}" aria-label="{{ _('Aus dem Verlauf entfernen') }}">×</button>
             </form>
+            {% endif %}
             <span class="job-status job-{{ j.status }}">{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span>
             <span class="job-when">{{ j.started|datetime }}</span>
             <span class="job-sub">{{ j.printer_name }}{% if j.file_name %}, {{ j.file_name }}{% endif %}{% if j.ended and j.started %}, <span class="nowrap">{{ (j.duration_s or (j.ended - j.started))|duration }}</span>{% endif %}</span>

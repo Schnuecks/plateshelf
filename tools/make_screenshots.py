@@ -153,7 +153,7 @@ def main() -> None:
     import uvicorn
 
     tmp = Path(tempfile.mkdtemp(prefix="plateshelf-shots-"))
-    os.environ.update(DEFAULT_LANGUAGE="en", DEFAULT_THEME="dark", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false",
+    os.environ.update(AUTH="off", DEFAULT_LANGUAGE="en", DEFAULT_THEME="dark", SCAN_INTERVAL="3600", PREVIEW_PREBUILD="false",
                       BACKGROUND_TASKS="false", PRINT_HISTORY="true", SECRET_KEY="screenshot-" + "x" * 40)
     from app import main as app_main, store
     store.LIBRARY_DIR, store.DATA_DIR = tmp / "library", tmp / "data"

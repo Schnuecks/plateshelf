@@ -18,7 +18,9 @@ mkdir -p library data
 docker compose up -d
 ```
 
-PlateShelf is now available at `http://<server>:8000`. Put your `.gcode.3mf`, `.gcode` or `.bgcode` files into
+PlateShelf is now available at `http://<server>:8000`. On the first visit you create
+the admin account; the setup code it asks for is in the log (`docker compose logs
+plateshelf`), see [Access control](configuration.md#access-control). Put your `.gcode.3mf`, `.gcode` or `.bgcode` files into
 the `library` folder. They show up within two minutes, or immediately via “Rescan
 library” in the overview.
 

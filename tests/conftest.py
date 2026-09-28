@@ -15,6 +15,8 @@ os.environ["PRINT_HISTORY"] = "false"
 # Keine Hintergrund-Threads (Einlesen, Druckerabruf, Papierkorb): sie überdauern den Test und
 # griffen sonst auf die Datenbank späterer Tests zu, was selten zu Fehlern führte
 os.environ["BACKGROUND_TASKS"] = "false"
+# Ohne Anmeldung, damit die übrigen Tests nicht erst Konten anlegen müssen; test_auth.py schaltet sie ein
+os.environ["AUTH"] = "off"
 
 
 @pytest.fixture(autouse=True)

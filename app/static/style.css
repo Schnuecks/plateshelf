@@ -542,6 +542,39 @@ button.danger-quiet:hover { color: var(--ink); }
 .login-form label { display: grid; gap: .3rem; font-weight: 500; }
 .login-form .flash { margin: 0; }
 .login-form button { justify-self: stretch; }
+.login-form .hint { margin: 0; }
+.setup-form { width: min(26rem, 100%); }
+a.icon-btn { text-decoration: none; }
+
+/* Eigenes Konto, Geräte und Tokens */
+.account-page { max-width: 44rem; margin-inline: auto; display: grid; gap: 1.25rem; }
+.account-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 0; }
+.account-page > .hint { margin: 0; font-size: .95rem; }
+.account-page > .flash { margin: 0; }
+.account-form { max-width: 26rem; }
+.device-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; }
+.device-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: .5rem 1rem; padding: .7rem .9rem; }
+.device-list > li + li { border-top: 1px solid var(--line); }
+.settings-section .device-list form { display: block; margin: 0; }
+.device-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; min-width: 0; overflow-wrap: anywhere; }
+.device-main .hint { flex-basis: 100%; font-size: .82rem; }
+.device-current { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 3px; background: var(--bg);
+  color: var(--accent); }
+.printer-item > form.section-foot { padding: 0 .9rem .9rem; }
+.user-list .printer-summary { grid-template-columns: minmax(0, 1fr) auto; }
+.user-list .printer-status { grid-column: 1 / -1; }
+.user-row .section-foot { grid-column: 1 / -1; }
+.settings-section .token-form { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; }
+.token-form label { flex: 1 1 14rem; }
+.new-token { display: grid; gap: .6rem; }
+.new-token p { margin: 0; }
+.new-token input { width: 100%; font: .85rem/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.new-token .diag-actions { display: flex; justify-content: flex-end; }
+.edit.is-readonly dl { margin: 0; display: grid; gap: .7rem; }
+.edit.is-readonly dt { font-weight: 500; font-size: .92rem; }
+.edit.is-readonly dd { margin: .15rem 0 0; }
+.edit.is-readonly .notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Papierkorb */
 .flash-undo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1rem; }

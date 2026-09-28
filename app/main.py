@@ -16,10 +16,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, crypto, diagnostics, i18n, print_history, printer_import, routes_library, routes_preview, routes_settings, \
-    routes_system, store, trash
+from . import auth, crypto, diagnostics, i18n, print_history, printer_import, routes_account, routes_library, \
+    routes_preview, routes_settings, routes_system, store, trash
 from .i18n import gettext as _
-from .web import APP_NAME, BASE, current_url, is_public, signed_in
+from .web import APP_NAME, BASE, SAFE_METHODS, allowed, current_url, current_user, is_public
 # Für Tests und Werkzeuge, die diese Namen bisher aus main holten
 from .i18n import fmt_printer_date  # noqa: F401
 from .projects import BOOL_WORDS, SETTING_LABELS, load_projects  # noqa: F401
@@ -32,6 +32,8 @@ diagnostics.install()  # letzte Warnungen für die Diagnose in den Einstellungen
 @asynccontextmanager
 async def lifespan(_app):
     store.init_db()
+    auth.seed_from_env()
+    auth.announce_setup()
     crypto.remove_legacy_key_file(store.DATA_DIR)
     printer_import.init()
     if os.environ.get("BACKGROUND_TASKS", "true").lower() in ("0", "false", "no", "off"):
@@ -61,12 +63,24 @@ async def language_middleware(request: Request, call_next):
                                                  request.method, request.url.path,
                                                  request.headers.get("origin") or request.headers.get("referer"))
         return PlainTextResponse(_("Anfrage von einer fremden Seite abgelehnt."), status_code=403)
-    if auth.enabled() and not is_public(request.url.path) and not signed_in(request):
-        if request.method == "GET" and not request.url.path.startswith("/api/"):
+    path = request.url.path
+    if not auth.enabled() or is_public(path):
+        return await call_next(request)
+    user = current_user(request)
+    if user is None:
+        # Dashboards: API-Token, nur lesend und nur unter /api/
+        if request.method in SAFE_METHODS and path.startswith("/api/") and \
+                auth.token_valid(auth.token_from_headers(request.headers)):
+            return await call_next(request)
+        if request.method == "GET" and not path.startswith("/api/"):
+            if not auth.has_users():
+                return RedirectResponse("/setup", status_code=303)
             return RedirectResponse(f"/login?next={quote(current_url(request))}", status_code=303)
-        # Skripte und Dashboards: Anmeldung per HTTP Basic Auth
+        # Skripte: Anmeldung per HTTP Basic Auth oder API-Token
         return PlainTextResponse(_("Anmeldung erforderlich."), status_code=401,
                                  headers={"WWW-Authenticate": f'Basic realm="{APP_NAME}", charset="UTF-8"'})
+    if not allowed(user["role"], request.method, path):
+        return PlainTextResponse(_("Dafür fehlt deinem Konto die Berechtigung."), status_code=403)
     return await call_next(request)
 
 
@@ -75,7 +89,6 @@ async def language_middleware(request: Request, call_next):
 # man im selben Netz öffnet, dem Browser ein Formular an PlateShelf unterschieben
 # (z. B. „Papierkorb leeren“). Browser schicken bei solchen Anfragen immer Origin oder
 # Referer mit; stimmt deren Host nicht mit dem angefragten überein, wird abgelehnt.
-SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 TRUSTED_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("TRUSTED_ORIGINS", "").split(",")
                    if o.strip()}
 
@@ -97,5 +110,5 @@ def same_origin(request: Request) -> bool:
 
 
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
-for module in (routes_library, routes_settings, routes_preview, routes_system):
+for module in (routes_account, routes_library, routes_settings, routes_preview, routes_system):
     app.include_router(module.router)

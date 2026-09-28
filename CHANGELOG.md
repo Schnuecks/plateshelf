@@ -2,6 +2,23 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **User accounts replace the single sign-in from the `.env`.** Sign-in is now on by
+  default. On the first start, PlateShelf asks you to create the admin account; the page
+  needs a setup code from the container log, so nobody else on the network can take over.
+  Existing `AUTH_USER` and `AUTH_PASSWORD_HASH` become the first admin account
+  automatically. `AUTH=off` switches sign-in off, e.g. behind a proxy that signs users in.
+- **Roles:** admin (everything), user (everything except settings) and read only (view and
+  download). Admins manage accounts under “Settings” → “Users”.
+- **Real sessions:** signing out ends the session on the server. “My account” shows the
+  signed-in devices, signs out single devices or all others and changes the password.
+  Sessions survive restarts and no longer depend on `SECRET_KEY`.
+- **API tokens** for dashboards such as Homepage: read only, limited to `/api/`, revocable,
+  stored as a hash. Basic Auth with user name and password still works.
+- Console: `python -m app.auth reset <name>` sets a new password or creates an admin account;
+  `python -m app.auth setup-code` shows the setup code.
+
 ## 0.7.13
 
 - Print history on Bambu printers: older prints that only know the plate are now matched

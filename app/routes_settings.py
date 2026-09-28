@@ -17,7 +17,7 @@ from fastapi.responses import RedirectResponse
 
 from . import auth, crypto, diagnostics, i18n, print_history, printer_import, store
 from .i18n import gettext as _
-from .web import APP_VERSION, ONE_YEAR, templates
+from .web import APP_VERSION, ONE_YEAR, current_user, templates
 
 router = APIRouter()
 
@@ -43,7 +43,8 @@ def settings_form(request: Request):
     return _render_settings(request)
 
 
-def _render_settings(request: Request, error: str = "", form_rows: list | None = None, status_code: int = 200):
+def _render_settings(request: Request, error: str = "", form_rows: list | None = None, status_code: int = 200,
+                     users_error: str = "", new_token: str = "", tokens_error: str = ""):
     with store.connect() as con:
         settings = store.get_settings(con)
         printers = [r[0] for r in con.execute(
@@ -58,6 +59,9 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
         "diagnostics": diagnostics.report(APP_VERSION),
         "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
+        "users": auth.list_users() if auth.enabled() else [], "tokens": auth.list_tokens(),
+        "me": current_user(request), "users_error": users_error,
+        "new_token": new_token, "tokens_error": tokens_error,
     }, status_code=status_code)
 
 
@@ -128,6 +132,56 @@ async def printers_save(request: Request):
                       and (r["db_id"] or any((r["name"], r["ip"], r["serial"])))]
         return _render_settings(request, error=exc.translated(), form_rows=kept, status_code=400)
     return RedirectResponse("/settings?printers=1#printers", status_code=303)
+
+
+@router.post("/settings/users")
+def user_add(request: Request, name: str = Form(""), role: str = Form("user"), password: str = Form(""),
+             repeat: str = Form("")):
+    try:
+        auth.check_password_rules(password, repeat)
+        auth.create_user(name, password, role)
+    except i18n.UserError as exc:
+        return _render_settings(request, users_error=exc.translated(), status_code=400)
+    return RedirectResponse("/settings?users=1#users", status_code=303)
+
+
+@router.post("/settings/users/{user_id}")
+def user_save(request: Request, user_id: int, role: str = Form(""), password: str = Form("")):
+    try:
+        if role:
+            auth.set_role(user_id, role)
+        if password:
+            auth.set_password(user_id, password, keep_session=request.cookies.get(auth.COOKIE))
+    except i18n.UserError as exc:
+        return _render_settings(request, users_error=exc.translated(), status_code=400)
+    return RedirectResponse("/settings?users=1#users", status_code=303)
+
+
+@router.post("/settings/users/{user_id}/delete")
+def user_delete(request: Request, user_id: int):
+    try:
+        auth.delete_user(user_id, current_user(request)["id"])
+    except i18n.UserError as exc:
+        return _render_settings(request, users_error=exc.translated(), status_code=400)
+    return RedirectResponse("/settings?users=1#users", status_code=303)
+
+
+@router.post("/settings/tokens")
+def token_add(request: Request, name: str = Form("")):
+    try:
+        token = auth.create_token(name, current_user(request)["name"])
+    except i18n.UserError as exc:
+        return _render_settings(request, tokens_error=exc.translated(), status_code=400)
+    # Nur jetzt sichtbar, deshalb keine Weiterleitung; der Browser darf die Seite nicht zwischenspeichern
+    response = _render_settings(request, new_token=token)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@router.post("/settings/tokens/{token_id}/delete")
+def token_delete(token_id: int):
+    auth.delete_token(token_id)
+    return RedirectResponse("/settings?tokens=1#tokens", status_code=303)
 
 
 def _number(value: str, low: float, high: float) -> float | None:

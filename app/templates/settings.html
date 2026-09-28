@@ -40,9 +40,9 @@
 {% block main %}
 <section class="settings-page">
   <h1>{{ _('Einstellungen') }}</h1>
-  {% if not key.set and (import_printers or auth_on) %}
+  {% if not key.set and import_printers %}
   <p class="flash flash-warn settings-key" role="alert">
-    {{ _('Es ist kein {key} gesetzt. Zugangsdaten der Drucker werden deshalb unverschlüsselt gespeichert, und Anmeldungen gelten nur bis zum nächsten Neustart. Lege in der {env} einen {key} an, zum Beispiel mit {cmd}, und starte {app} neu; vorhandene Zugangsdaten werden dann automatisch verschlüsselt.', key='<code>SECRET_KEY</code>', env='<code>.env</code>', cmd='<code>docker compose exec plateshelf python -m app.auth secret</code>', app=APP_NAME)|safe }}
+    {{ _('Es ist kein {key} gesetzt. Zugangsdaten der Drucker werden deshalb unverschlüsselt gespeichert. Lege in der {env} einen {key} an, zum Beispiel mit {cmd}, und starte {app} neu; vorhandene Zugangsdaten werden dann automatisch verschlüsselt.', key='<code>SECRET_KEY</code>', env='<code>.env</code>', cmd='<code>docker compose exec plateshelf python -m app.auth secret</code>', app=APP_NAME)|safe }}
   </p>
   {% elif key.short %}
   <p class="flash flash-warn settings-key" role="alert">{{ _('Der {key} ist kürzer als {n} Zeichen. Ein längerer zufälliger Schlüssel ist sicherer.', key='<code>SECRET_KEY</code>', n=32)|safe }}</p>
@@ -53,6 +53,8 @@
       <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
       <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Stromkosten') }}</a>
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
+      <a href="#users"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.5 3.5 5.2"/></svg>{{ _('Benutzer') }}</a>
+      <a href="#tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>{{ _('API-Tokens') }}</a>
       <a href="#backup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4-4 4 4 4-4M5 19h14"/></svg>{{ _('Sicherung') }}</a>
       <a href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>{{ _('Diagnose') }}</a>
     </nav>
@@ -166,6 +168,106 @@
             {{ _('Druckverlauf mitschreiben') }}
           </label>
           <button type="submit" data-autosubmit-button>{{ _('Druckverlauf speichern') }}</button>
+        </form>
+        {% endif %}
+      </section>
+
+      <section class="settings-section" id="users" data-section>
+        <h2>{{ _('Benutzer') }}</h2>
+        {% if not auth_on %}
+        <p class="hint">{{ _('Die Anmeldung ist mit {env} ausgeschaltet; jeder, der {app} erreicht, darf alles. Entferne die Zeile aus der {file}, um Benutzerkonten zu nutzen.', env='<code>AUTH=off</code>', app=APP_NAME, file='<code>.env</code>')|safe }}</p>
+        {% else %}
+        <p class="hint">{{ _('Admins dürfen alles. Benutzer dürfen hochladen, bearbeiten und löschen, aber keine Einstellungen ändern. „Nur lesen“ erlaubt Ansehen und Herunterladen.') }}</p>
+        {% if request.query_params.get('users') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        {% if users_error %}<p class="flash flash-warn" role="alert">{{ users_error }}</p>{% endif %}
+        <ul class="printer-list user-list">
+          {% for u in users %}
+          <li>
+            <details class="printer-item">
+              <summary class="printer-summary">
+                <span class="printer-main">
+                  <strong class="printer-name">{{ u.name }}</strong>
+                  <span class="printer-kind">{{ _(ROLE_LABELS[u.role]) }}</span>
+                  {% if me and u.id == me.id %}<span class="printer-kind">{{ _('du') }}</span>{% endif %}
+                </span>
+                <span class="printer-status">{% if u.last_login %}{{ _('zuletzt angemeldet {ago}', ago=u.last_login|ago) }}{% else %}{{ _('noch nie angemeldet') }}{% endif %}</span>
+                <span class="printer-edit">{{ _('Bearbeiten') }}</span>
+              </summary>
+              <form method="post" action="/settings/users/{{ u.id }}#users" class="printer-row user-row">
+                <label>{{ _('Rolle') }}
+                  <select name="role">
+                    {% for key, label in ROLE_LABELS.items() %}<option value="{{ key }}" {{ 'selected' if key == u.role }}>{{ _(label) }}</option>{% endfor %}
+                  </select></label>
+                <label>{{ _('Neues Passwort') }} <input type="password" name="password" autocomplete="new-password" minlength="8"
+                       placeholder="{{ _('leer lassen, um es zu behalten') }}"></label>
+                <p class="hint printer-help">{{ _('Ein neues Passwort meldet den Benutzer auf allen Geräten ab.') }}</p>
+                <div class="section-foot"><button type="submit">{{ _('Speichern') }}</button></div>
+              </form>
+              {% if not me or u.id != me.id %}
+              <form method="post" action="/settings/users/{{ u.id }}/delete#users" class="section-foot"
+                    data-confirm="{{ _('Benutzer „{name}“ löschen? Er wird auf allen Geräten abgemeldet.', name=u.name) }}">
+                <button type="submit" class="danger-quiet">{{ _('Benutzer löschen') }}</button>
+              </form>
+              {% endif %}
+            </details>
+          </li>
+          {% endfor %}
+        </ul>
+        <details class="printer-new" {% if users_error %}open{% endif %}>
+          <summary><span aria-hidden="true">+</span> {{ _('Benutzer hinzufügen') }}</summary>
+          <form method="post" action="/settings/users#users" class="printer-row user-row">
+            <label>{{ _('Benutzername') }} <input type="text" name="name" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64" required></label>
+            <label>{{ _('Rolle') }}
+              <select name="role">
+                {% for key, label in ROLE_LABELS.items() %}<option value="{{ key }}" {{ 'selected' if key == 'user' }}>{{ _(label) }}</option>{% endfor %}
+              </select></label>
+            <label>{{ _('Passwort') }} <input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+            <label>{{ _('Passwort wiederholen') }} <input type="password" name="repeat" autocomplete="new-password" minlength="8" required></label>
+            <p class="hint printer-help">{{ _('Gib das Passwort weiter; ändern kann es jeder selbst unter „Mein Konto“.') }}</p>
+            <div class="section-foot"><button type="submit">{{ _('Benutzer anlegen') }}</button></div>
+          </form>
+        </details>
+        {% endif %}
+      </section>
+
+      <section class="settings-section" id="tokens" data-section>
+        <h2>{{ _('API-Tokens') }}</h2>
+        <p class="hint">{{ _('Mit einem API-Token lesen Dashboards wie Homepage die Kennzahlen unter {url}, ohne dein Passwort zu kennen. Ein Token darf nur lesen und lässt sich jederzeit widerrufen.', url='<code>/api/stats</code>')|safe }}</p>
+        {% if not auth_on %}
+        <p class="hint">{{ _('Ohne Anmeldung sind die Kennzahlen ohnehin frei abrufbar.') }}</p>
+        {% else %}
+        {% if request.query_params.get('tokens') %}<p class="flash" role="status">{{ _('Token widerrufen.') }}</p>{% endif %}
+        {% if tokens_error %}<p class="flash flash-warn" role="alert">{{ tokens_error }}</p>{% endif %}
+        {% if new_token %}
+        <div class="flash new-token" role="status">
+          <p>{{ _('Neues Token angelegt. Kopiere es jetzt, es wird nur dieses eine Mal angezeigt:') }}</p>
+          <input type="text" value="{{ new_token }}" readonly spellcheck="false" aria-label="{{ _('Neues Token') }}" data-copy-source>
+          <div class="diag-actions">
+            <span class="hint" data-copy-done hidden role="status">{{ _('Kopiert.') }}</span>
+            <button type="button" data-copy>{{ _('Kopieren') }}</button>
+          </div>
+          <p class="hint">{{ _('Im Homepage-Widget trägst du es unter {headers} ein, siehe Dokumentation.', headers='<code>headers: Authorization: Bearer …</code>')|safe }}</p>
+        </div>
+        {% endif %}
+        {% if tokens %}
+        <ul class="device-list">
+          {% for t in tokens %}
+          <li>
+            <span class="device-main">
+              <strong>{{ t.name }}</strong> <code>ps_…{{ t.hint }}</code>
+              <span class="hint">{{ _('angelegt {when}', when=t.created|datetime) }}{% if t.created_by %} ({{ t.created_by }}){% endif %}, {% if t.last_used %}{{ _('zuletzt benutzt {ago}', ago=t.last_used|ago) }}{% else %}{{ _('noch nie benutzt') }}{% endif %}</span>
+            </span>
+            <form method="post" action="/settings/tokens/{{ t.id }}/delete#tokens"
+                  data-confirm="{{ _('Token „{name}“ widerrufen? Dashboards mit diesem Token bekommen dann keine Kennzahlen mehr.', name=t.name) }}">
+              <button type="submit" class="danger-quiet">{{ _('Widerrufen') }}</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="/settings/tokens#tokens" class="token-form">
+          <label>{{ _('Name') }} <input type="text" name="name" maxlength="64" placeholder="{{ _('z. B. Homepage') }}" required></label>
+          <button type="submit">{{ _('Token anlegen') }}</button>
         </form>
         {% endif %}
       </section>

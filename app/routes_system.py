@@ -1,17 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Kennzahlen für Dashboards, About-Seite, Anmeldung und Healthcheck."""
+"""Kennzahlen für Dashboards, About-Seite und Healthcheck."""
 from __future__ import annotations
 
 import time
 
-from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Request
 
 from . import auth, print_history, printer_import, store
-from .i18n import gettext as _, ngettext
 from .projects import load_projects
-from .web import live_prints, APP_REPO, APP_VERSION, _local_target, signed_in, templates
+from .web import live_prints, APP_REPO, APP_VERSION, signed_in, templates
 
 router = APIRouter()
 
@@ -78,45 +76,6 @@ def api_stats():
 def about(request: Request):
     return templates.TemplateResponse(request, "about.html", {"license_url": f"{APP_REPO}/blob/main/LICENSE",
                                                               "changelog_url": f"{APP_REPO}/blob/main/CHANGELOG.md"})
-
-
-@router.get("/login")
-def login_form(request: Request, next: str = "/"):
-    if not auth.enabled():
-        return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(request, "login.html", {"next": _local_target(next), "error": ""})
-
-
-@router.post("/login")
-def login(request: Request, user: str = Form(""), password: str = Form(""), next: str = Form("/")):
-    if not auth.enabled():
-        return RedirectResponse("/", status_code=303)
-    address = request.client.host if request.client else "?"
-    context = {"next": _local_target(next), "user": user}
-    wait = auth.locked_out(address)
-    if wait:
-        minutes = max(1, (wait + 59) // 60)
-        return templates.TemplateResponse(request, "login.html", {
-            **context, "error": ngettext("Zu viele Fehlversuche. Bitte in {n} Minute erneut versuchen.",
-                                         "Zu viele Fehlversuche. Bitte in {n} Minuten erneut versuchen.", minutes),
-        }, status_code=429)
-    if not auth.check(user.strip(), password):
-        auth.record_failure(address)
-        return templates.TemplateResponse(request, "login.html", {
-            **context, "error": _("Benutzername oder Passwort ist falsch."),
-        }, status_code=401)
-    auth.record_success(address)
-    response = RedirectResponse(_local_target(next), status_code=303)
-    response.set_cookie(auth.COOKIE, auth.new_session(user.strip()), max_age=auth.SESSION_DAYS * 86400,
-                        httponly=True, samesite="lax", secure=request.url.scheme == "https")
-    return response
-
-
-@router.post("/logout")
-def logout():
-    response = RedirectResponse("/login", status_code=303)
-    response.delete_cookie(auth.COOKIE)
-    return response
 
 
 @router.get("/healthz")
