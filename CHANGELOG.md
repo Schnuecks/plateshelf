@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.1
 
 - Reloading the page after creating an API token (or after an error in a settings or
   password form) no longer shows “Method Not Allowed”; it goes back to that section.
