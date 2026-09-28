@@ -101,6 +101,14 @@ th.r, td.r, .r { text-align: right; }
 .nav-back:hover { border-color: var(--accent); color: var(--accent); }
 .search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1; }
 .search input[type=search] { flex: 1 1 16rem; }
+.filter-toggle { display: none; }
+@media (max-width: 640px) {
+  /* Auf dem Handy: Suche bleibt sichtbar, die Auswahlfelder erst nach „Filter“ */
+  .js .search input[type=search] { flex: 1 1 8rem; }
+  .js .filter-toggle { display: inline-flex; }
+  .js .search:not(.filters-open) select { display: none; }
+  .js .search.filters-open select { flex: 1 1 calc(50% - .5rem); min-width: 0; }
+}
 
 input, select, textarea, button, .button {
   font: inherit; color: inherit; border-radius: 6px;
@@ -253,14 +261,28 @@ summary { cursor: pointer; font-weight: 500; }
 
 /* Upload */
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
+.topbar > .menu-toggle { display: none; }  /* nur auf dem Handy, siehe unten */
 @media (max-width: 640px) {
   .tb-right { flex-basis: 100%; flex-wrap: wrap; justify-content: flex-end; gap: .35rem 1rem; }
   .topbar:has(.nav-back) .tb-left { min-width: max-content; }
+  /* Mit JavaScript: Menü hinter einem Knopf, damit die Kopfzeile flach bleibt */
+  .js .topbar, .js .topbar:has(.nav-back) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem .75rem;
+    padding-block: .6rem; }
+  .js .topbar > .tb-left { grid-column: 1; grid-row: 1; min-width: 0; }
+  .js .topbar > .menu-toggle { display: inline-flex; grid-column: 2; grid-row: 1; align-self: center; }
+  .js .topbar > .nav-back { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center;
+    max-width: none; padding-block: .35rem; }
+  .js .topbar > .tb-right { display: none; grid-column: 1 / -1; }
+  .js .topbar.menu-open > .tb-right { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .js .topbar.menu-open > .tb-right > a { padding: .7rem .25rem; border-top: 1px solid var(--line); text-align: left; }
+  .js .topbar.menu-open > .tb-right > .tb-prefs { padding: .5rem 0 0; border-top: 1px solid var(--line);
+    justify-content: flex-start; }
+  .js .topbar .tb-left { gap: .5rem .75rem; }
 }
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
 .settings-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
 .settings-link:hover { color: var(--ink); }
-.upload { max-width: 44rem; }
+.upload { max-width: 44rem; margin-inline: auto; }
 .upload h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
 .upload-form { display: grid; gap: 1.25rem; }
 .dropzone {
@@ -330,7 +352,10 @@ summary { cursor: pointer; font-weight: 500; }
 .viewer:fullscreen { height: 100vh; background: var(--bg); }
 .viewer-help { margin: 0; }
 @media (max-width: 800px) {
-  .viewer { grid-template-columns: 1fr; grid-template-rows: 60dvh auto; height: auto; }
+  /* Vorschau füllt den Bildschirm unter der Kopfzeile; oben schaut die Bedienung heraus,
+     damit klar ist, dass es darunter weitergeht (Wischen auf der Vorschau dreht das Modell) */
+  .viewer { grid-template-columns: 1fr; height: auto;
+    grid-template-rows: max(16rem, calc(100dvh - var(--topbar-h, 7rem) - 5.5rem)) auto; }
   .viewer-panel { border-left: 0; border-top: 1px solid var(--line); }
   .viewer-help { display: none; }
 }
@@ -373,7 +398,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .cost-line a { margin-left: .35rem; }
 
 /* Einstellungen: Bereiche links, Inhalt rechts */
-.settings-page { max-width: 64rem; }
+.settings-page { max-width: 64rem; margin-inline: auto; }
 .settings-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1.25rem; }
 .settings-layout { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: 2rem; align-items: start; }
 .settings-nav { position: sticky; top: 5rem; display: grid; gap: .15rem; }
@@ -554,7 +579,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .seg-ok { background: var(--chart-ok); }
 .seg-bad { background: var(--chart-bad); }
 .column-label { position: absolute; bottom: -1.3rem; font-size: .72rem; color: var(--muted); white-space: nowrap; }
-.chart-table { margin-top: .9rem; font-size: .85rem; }
+.chart-table { margin-top: .9rem; font-size: .85rem; overflow-x: auto; position: relative; }
 .chart-table summary { color: var(--muted); cursor: pointer; }
 .chart-table table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
 .chart-table th, .chart-table td { padding: .3rem .4rem; border-bottom: 1px solid var(--line); text-align: left; }
@@ -569,9 +594,10 @@ button.danger-quiet:hover { color: var(--ink); }
 .rate-table td:last-child { width: 40%; }
 
 /* Druckverlauf */
-.history-page { max-width: 60rem; }
+.history-page { max-width: 60rem; margin-inline: auto; }
 .history-page h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1rem; }
 .history-page > .hint { margin: 0 0 1.25rem; font-size: .9rem; }
+.table-scroll { overflow-x: auto; max-width: 100%; position: relative; }
 .history-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .history-table th, .history-table td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: baseline; }
 .history-table th { font-weight: 600; color: var(--muted); font-size: .8rem; }
@@ -580,6 +606,7 @@ button.danger-quiet:hover { color: var(--ink); }
 @media (max-width: 40rem) {
   .history-table th:nth-child(3), .history-table td:nth-child(3) { display: none; }
   .history-table th, .history-table td { padding: .4rem .3rem; }
+  .history-table td:first-child { white-space: normal; }
 }
 .job-status { font-size: .8rem; font-weight: 600; white-space: nowrap; }
 .job-completed { color: var(--accent); }
@@ -619,7 +646,7 @@ button.danger-quiet:hover { color: var(--ink); }
 .bed-live { position: absolute; left: .5rem; top: .5rem; background: var(--accent); color: var(--accent-ink);
   font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 3px; }
 
-.trash-page { max-width: 52rem; }
+.trash-page { max-width: 52rem; margin-inline: auto; }
 .trash-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem 1.5rem; }
 .trash-head h1 { font: 600 2rem/1.1 var(--font-cond); margin: .25rem 0 1rem; }
 .trash-head form { margin: 0; }

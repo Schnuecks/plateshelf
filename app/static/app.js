@@ -32,6 +32,22 @@ document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
   sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
 });
 
+// Kopfzeile auf dem Handy: Menü auf- und zuklappen; Höhe der Kopfzeile für die 3D-Vorschau merken
+document.querySelectorAll("[data-menu-toggle]").forEach((button) => {
+  const bar = button.closest(".topbar");
+  const set = (open) => {
+    bar.classList.toggle("menu-open", open);
+    button.setAttribute("aria-expanded", String(open));
+  };
+  button.addEventListener("click", () => set(!bar.classList.contains("menu-open")));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+});
+document.querySelectorAll(".topbar").forEach((bar) => {
+  const store = () => document.documentElement.style.setProperty("--topbar-h", `${bar.offsetHeight}px`);
+  store();
+  if ("ResizeObserver" in window) new ResizeObserver(store).observe(bar);
+});
+
 // Einstellungen: immer nur einen Bereich zeigen, gewählt über den Anker (#printers, #power, #history)
 document.querySelectorAll("[data-settings]").forEach((root) => {
   const sections = [...root.querySelectorAll("[data-section]")];
@@ -152,6 +168,13 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
 });
 
 // Filter sofort anwenden: Auswahlfelder beim Ändern, Suche nach kurzer Tipppause
+document.querySelectorAll("[data-filter-toggle]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const open = button.form.classList.toggle("filters-open");
+    button.setAttribute("aria-expanded", String(open));
+  });
+});
+
 document.querySelectorAll("[data-autofilter]").forEach((form) => {
   const button = form.querySelector("[data-filter-button]");
   if (button) button.hidden = true;  // ohne JavaScript bleibt der Knopf sichtbar

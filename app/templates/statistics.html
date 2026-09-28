@@ -97,6 +97,7 @@
 
   <section class="chart-card">
     <h2>{{ _('Erfolgsquote je Drucker') }}</h2>
+    <div class="table-scroll">
     <table class="history-table rate-table">
       <thead><tr><th scope="col">{{ _('Drucker') }}</th><th scope="col" class="r">{{ _('Fertig') }}</th><th scope="col" class="r">{{ _('Abgebrochen oder fehlgeschlagen') }}</th><th scope="col">{{ _('Erfolgsquote') }}</th></tr></thead>
       <tbody>
@@ -108,6 +109,7 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </section>
   {% endif %}
 </section>

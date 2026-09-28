@@ -2,6 +2,8 @@
 {% block topbar %}
 <form class="search" method="get" action="/" data-autofilter>
   <input type="search" name="q" value="{{ q }}" placeholder="{{ _('Projekte, Objekte oder Tags suchen') }}" aria-label="{{ _('Suche') }}">
+  {% set active = [material, printer, status, printed, tag]|select|list|length + (1 if sort != 'neu' else 0) %}
+  <button type="button" class="filter-toggle" aria-expanded="false" data-filter-toggle>{{ _('Filter') }}{% if active %} ({{ active }}){% endif %}</button>
   <select name="material" aria-label="{{ _('Material') }}">
     <option value="">{{ _('Alle Materialien') }}</option>
     {% for m in all_materials %}<option {% if m == material %}selected{% endif %}>{{ m }}</option>{% endfor %}
