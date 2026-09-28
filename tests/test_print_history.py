@@ -426,3 +426,62 @@ def test_overview_in_steps(ready, sample):
         assert "limit=120" in page and "sort=name" in page
         page = client.get("/?sort=name&limit=120").text
         assert page.count('class="card"') == 65 and "anzeigen</a>" not in page
+
+
+# --- Bambu P2S: meldet die Platte statt des Dateinamens (0.7.12) -------------------
+
+def imported_plate(lib, printer, remote, local, added):
+    """Wie der Import: printer_imports-Eintrag und Datei mit Importzeitpunkt."""
+    path = lib / local
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("G1 X1 Y1 E1\n")
+    store.scan(wait=True)
+    with store.connect() as con:
+        con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                    "VALUES (?, ?, ?, 'x')", (local, printer["name"], remote))
+        con.execute("UPDATE files SET added = ? WHERE path = ?", (added, local))
+
+
+def test_bambu_plate_and_subtask_name(ready):
+    now = time.time()
+    base = "From printer/P2S/Goofy_series_–_GRIM_REAPER"
+    imported_plate(ready, BAMBU, "Goofy_series_–_GRIM_REAPER.gcode.3mf", base + "_plate_1.gcode", now - 9000)
+    imported_plate(ready, BAMBU, "Goofy_series_–_GRIM_REAPER.gcode.3mf", base + "_plate_2.gcode", now - 60)
+    with store.connect() as con:  # Dateinamen wie vom Import: …_plate_N.gcode.3mf
+        for n in (1, 2):
+            con.execute("UPDATE printer_imports SET local_path = ? WHERE local_path = ?",
+                        (f"{base}_plate_{n}.gcode.3mf", f"{base}_plate_{n}.gcode"))
+            con.execute("UPDATE files SET path = ? WHERE path = ?",
+                        (f"{base}_plate_{n}.gcode.3mf", f"{base}_plate_{n}.gcode"))
+    t = ph.BambuTracker(BAMBU)
+    t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "/data/Metadata/plate_2.gcode",
+                        "subtask_name": "Goofy series – GRIM REAPER", "task_id": "77"}})
+    t.update({"print": {"gcode_state": "FINISH"}})
+    (job,) = jobs()
+    assert (job["plate"], job["remote_name"]) == (2, "Goofy series – GRIM REAPER")
+    assert job["local_path"] == base + "_plate_2.gcode.3mf"
+
+
+def test_old_plate_jobs_are_linked_by_import_time(ready):
+    """Drucke aus 0.7.4 bis 0.7.11 heißen nur „plate_3.gcode“: Zuordnung über den Importzeitpunkt."""
+    now = time.time()
+    imported_plate(ready, BAMBU, "Eevee.gcode.3mf", "From printer/P2S/Eevee_plate_3.gcode.3mf", now - 7200 + 40)
+    imported_plate(ready, BAMBU, "Truck.gcode.3mf", "From printer/P2S/Truck_plate_3.gcode.3mf", now - 86400)
+    with store.connect() as con:
+        con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, status, started, ended) "
+                    "VALUES ('SER1', 'P2S', 'alt', 'plate_3.gcode', 'completed', ?, ?)", (now - 7200, now - 3600))
+        con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, status, started, ended) "
+                    "VALUES ('SER1', 'P2S', 'ohne', 'plate_9.gcode', 'completed', ?, ?)", (now - 7200, now - 3600))
+    ph.link_pending()
+    got = {j["job_key"]: j["local_path"] for j in jobs()}
+    assert got == {"alt": "From printer/P2S/Eevee_plate_3.gcode.3mf", "ohne": None}
+
+
+def test_schema_step_adds_plate_column(lib):
+    with store.connect() as con:
+        con.execute("ALTER TABLE print_jobs DROP COLUMN plate")
+        con.execute("PRAGMA user_version = 1")
+    store.init_db()
+    with store.connect() as con:
+        assert "plate" in {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}
+        assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION == 2

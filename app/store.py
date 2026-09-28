@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     duration_s REAL,                -- reine Druckzeit, sofern der Drucker sie meldet
     filament_mm REAL,
     progress REAL,
+    plate INTEGER,                  -- gedruckte Platte, wenn der Drucker sie statt des Dateinamens meldet
     applied INTEGER NOT NULL DEFAULT 0,  -- Projektstatus schon auf „gedruckt“ gesetzt
     hidden INTEGER NOT NULL DEFAULT 0,   -- vom Nutzer aus dem Verlauf entfernt
     remaining_s REAL,               -- Restzeit laut Drucker, solange er druckt
@@ -185,9 +186,19 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 1  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
-# Beispiel für später: MIGRATIONS = {2: lambda con: con.execute("ALTER TABLE files ADD COLUMN …")}
-MIGRATIONS: dict = {}
+SCHEMA_VERSION = 2  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+
+
+def _add_column(table: str, column: str, decl: str):
+    def step(con: sqlite3.Connection) -> None:
+        if column not in {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    return step
+
+
+MIGRATIONS: dict = {
+    2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu meldet teils nur die Platte
+}
 
 
 def _upgrade_before_versioning(con: sqlite3.Connection) -> None:
@@ -221,6 +232,8 @@ def init_db() -> None:
         version = con.execute("PRAGMA user_version").fetchone()[0]
         existed = con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'projects'").fetchone()
         con.executescript(SCHEMA)
+        if not existed:
+            version = SCHEMA_VERSION  # neu angelegt: schon auf dem aktuellen Stand
         if existed and version == 0:
             _upgrade_before_versioning(con)
             con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
