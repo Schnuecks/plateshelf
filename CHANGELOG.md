@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- Print history on Bambu printers such as the P2S: the printer reports only the plate
+  (“plate_2.gcode”) instead of the file name. Prints are now matched to the imported
+  plate file by plate number and project name, so statistics show filament and costs.
+  Prints that are already in the history are linked automatically via the import time.
+
 ## 0.7.11
 
 - Phones: long names without spaces (print profiles, objects, plates, links in the

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import ssl
 import threading
 import time
@@ -59,17 +60,62 @@ def interval() -> int:
 
 # --- Speichern ----------------------------------------------------------------
 
-def _resolve(con, printer_id: str, remote_name: str | None) -> str | None:
-    """Lokale Datei zu einem Dateinamen auf dem Drucker (auch nur der letzte Teil des Pfads)."""
-    if not remote_name:
+_PLATE_GCODE = re.compile(r"(?:^|/)plate_(\d+)\.gcode$", re.I)
+_PLATE_SUFFIX = re.compile(r"_plate_(\d+)\.gcode\.3mf$", re.I)
+_EXT = re.compile(r"(\.gcode)?\.3mf$|\.b?gcode$", re.I)
+
+
+def _norm(name: str) -> str:
+    """Nur Buchstaben und Ziffern, klein: „Goofy series – X“ und „Goofy_series_–_X“ sind gleich."""
+    return re.sub(r"[\W_]+", "", _EXT.sub("", name).lower())
+
+
+def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = None,
+             printer_name: str | None = None, started: float | None = None) -> str | None:
+    """Lokale Datei zu einem Druck.
+
+    Normalfall: der Dateiname auf dem Drucker (auch nur der letzte Teil des Pfads).
+    Bambu-Drucker wie der P2S melden aber teils nur die Platte in der Datei
+    („Metadata/plate_2.gcode“) und den Projektnamen getrennt. Dann passt die vom
+    Import angelegte Datei „<Name>_plate_2.gcode.3mf“; fehlt der Name (Drucke aus
+    0.7.4 bis 0.7.11), entscheidet der Zeitpunkt des Imports, der beim Druckstart
+    ausgelöst wird.
+    """
+    if remote_name and (m := _PLATE_GCODE.search(remote_name)):
+        plate, remote_name = int(m[1]), None
+    if remote_name and plate is None:
+        row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND remote_name = ?",
+                          (printer_id, remote_name)).fetchone()
+        if not row:
+            base = remote_name.rsplit("/", 1)[-1]
+            row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND (remote_name = ? OR "
+                              "remote_name LIKE ?) ORDER BY imported DESC", (printer_id, base, "%/" + base)).fetchone()
+        if row and row["local_path"]:
+            return row["local_path"]
+    if plate is None or not printer_name:
         return None
-    row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND remote_name = ?",
-                      (printer_id, remote_name)).fetchone()
-    if not row:
-        base = remote_name.rsplit("/", 1)[-1]
-        row = con.execute("SELECT local_path FROM printer_files WHERE printer = ? AND (remote_name = ? OR "
-                          "remote_name LIKE ?) ORDER BY imported DESC", (printer_id, base, "%/" + base)).fetchone()
-    return row["local_path"] if row and row["local_path"] else None
+    candidates = []
+    for r in con.execute(
+            """SELECT i.local_path, i.remote_name, f.added FROM printer_imports i
+               JOIN files f ON f.path = i.local_path AND f.missing = 0 WHERE i.printer_name = ?""",
+            (printer_name,)):
+        m = _PLATE_SUFFIX.search(r["local_path"])
+        if m and int(m[1]) == plate:
+            candidates.append(r)
+    def distance(r):
+        return abs((r["added"] or 0) - (started or 0))
+
+    if remote_name:  # Projektname bekannt: dieselbe Platte desselben Projekts, bei mehreren die zeitlich nächste
+        wanted = _norm(remote_name)
+        named = [r for r in candidates if _norm(r["remote_name"] or "") == wanted
+                 or _norm(_PLATE_SUFFIX.sub("", r["local_path"].rsplit("/", 1)[-1])) == wanted]
+        if named:
+            return min(named, key=distance)["local_path"]
+    if started is None:
+        return None
+    # Ohne passenden Namen nur, wenn die Datei zum Druckstart importiert wurde
+    near = [r for r in candidates if started - 900 <= (r["added"] or 0) <= started + 1800]
+    return min(near, key=distance)["local_path"] if near else None
 
 
 def _apply_project_status(con, job) -> None:
@@ -84,7 +130,7 @@ def _apply_project_status(con, job) -> None:
 def record(printer: dict, job_key: str, status: str, *, remote_name: str | None = None,
            started: float | None = None, ended: float | None = None, duration_s: float | None = None,
            filament_mm: float | None = None, progress: float | None = None,
-           remaining_s: float | None = None) -> None:
+           remaining_s: float | None = None, plate: int | None = None) -> None:
     """Legt einen Druck an oder schreibt seinen neuen Stand fort."""
     now = time.time()
     with _lock, store.connect() as con:
@@ -92,11 +138,16 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
                           (printer["id"], job_key)).fetchone()
         if row and row["status"] in FINAL and status == "running":
             return  # schon abgeschlossen, verspätete Meldung
-        local = (row["local_path"] if row else None) or _resolve(con, printer["id"], remote_name)
+        local = (row["local_path"] if row else None) or _resolve(
+            con, printer["id"], remote_name or (row["remote_name"] if row else None),
+            plate if plate is not None else (row["plate"] if row else None), printer["name"],
+            (row["started"] if row else None) or started or now)
         if row:
             values = {"status": status, "local_path": local, "printer_name": printer["name"], "updated": now}
             if remote_name:
                 values["remote_name"] = remote_name
+            if plate is not None:
+                values["plate"] = plate
             for key, value in (("duration_s", duration_s), ("filament_mm", filament_mm), ("progress", progress),
                                ("remaining_s", remaining_s)):
                 if value is not None:
@@ -110,11 +161,11 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
         else:
             con.execute(
                 """INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, local_path, status,
-                       started, ended, duration_s, filament_mm, progress, remaining_s, updated)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       started, ended, duration_s, filament_mm, progress, remaining_s, updated, plate)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (printer["id"], printer["name"], job_key, remote_name, local, status, started or now,
                  (ended or now) if status in FINAL else None, duration_s, filament_mm, progress,
-                 None if status in FINAL else remaining_s, now))
+                 None if status in FINAL else remaining_s, now, plate))
         job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
         _apply_project_status(con, job)
@@ -174,7 +225,8 @@ def link_pending() -> None:
     with _lock, store.connect() as con:
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NULL AND remote_name IS NOT NULL "
                                "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
-            if local := _resolve(con, job["printer"], job["remote_name"]):
+            if local := _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
+                                 job["started"]):
                 con.execute("UPDATE print_jobs SET local_path = ? WHERE id = ?", (local, job["id"]))
                 _apply_project_status(con, {**dict(job), "local_path": local})
 
@@ -292,7 +344,13 @@ class BambuTracker:
             return
         self.state.update(report)
         gstate = str(self.state.get("gcode_state") or "").upper()
-        remote = str(self.state.get("gcode_file") or self.state.get("subtask_name") or "").rsplit("/", 1)[-1]
+        # Meist der Dateiname auf der SD-Karte; der P2S meldet dagegen „…/Metadata/plate_2.gcode“
+        # und den Projektnamen getrennt in subtask_name
+        gfile = str(self.state.get("gcode_file") or "")
+        plate_match = _PLATE_GCODE.search(gfile)
+        plate = int(plate_match[1]) if plate_match else None
+        subtask = str(self.state.get("subtask_name") or "")
+        remote = subtask if plate is not None else (gfile.rsplit("/", 1)[-1] or subtask)
         if gstate in BAMBU_ACTIVE:
             minutes = self.state.get("mc_remaining_time")
             remaining = minutes * 60 if isinstance(minutes, (int, float)) and minutes >= 0 else None
@@ -301,7 +359,7 @@ class BambuTracker:
                 self.job_key = self._key(remote)
                 printer_import.request_sync()  # Datei holen, damit der Druck ihr zugeordnet werden kann
                 record(self.printer, self.job_key, "running", remote_name=remote or None,
-                       progress=current[0], remaining_s=remaining)
+                       progress=current[0], remaining_s=remaining, plate=plate)
                 self.progress = current
             elif current != self.progress:  # höchstens etwa einmal pro Minute
                 self.progress = current
