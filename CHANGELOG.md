@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- Phones: long names without spaces (print profiles, objects, plates, links in the
+  designer's description) no longer make the project page wider than the screen.
+- Safari on iPhone no longer turns version numbers such as “02.08.02.61” into phone links.
+
 ## 0.7.10
 
 - **Phones:** the top bar stays compact, with the menu behind a button and the overview's
