@@ -117,6 +117,12 @@ def _render_account(request: Request, error: str = "", status_code: int = 200):
     }, status_code=status_code)
 
 
+@router.get("/account/password")
+def account_password_url():
+    """Neu laden nach einer Fehlermeldung beim Passwortwechsel: zurück zum Konto."""
+    return RedirectResponse("/account", status_code=303)
+
+
 @router.get("/account")
 def account(request: Request):
     user = current_user(request)

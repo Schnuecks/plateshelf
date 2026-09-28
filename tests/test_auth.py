@@ -285,3 +285,13 @@ def test_cli_reset_and_setup_code(lib, monkeypatch, capsys):
     assert auth.main(["auth", "reset", "notfall"]) == 0
     assert auth.authenticate("notfall", "wieder-da-123")
     assert auth.main(["auth", "reset"]) == 2
+
+
+def test_reloading_a_form_address_leads_back(accounts):
+    """Nach „Token anlegen“ steht /settings/tokens in der Adresszeile; neu laden darf nicht 405 geben."""
+    login(accounts, "andreas")
+    for section in ("printers", "history", "users", "tokens"):
+        r = accounts.get(f"/settings/{section}", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == f"/settings#{section}"
+    assert accounts.get("/account/password", follow_redirects=False).headers["location"] == "/account"
+    assert accounts.get("/settings/backup").status_code == 200  # die Sicherung bleibt ein Download

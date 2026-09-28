@@ -65,6 +65,16 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
     }, status_code=status_code)
 
 
+@router.get("/settings/printers")
+@router.get("/settings/history")
+@router.get("/settings/users")
+@router.get("/settings/tokens")
+def settings_form_url(request: Request):
+    """Adressen der Formulare, falls der Browser die Seite danach neu lädt: zum passenden Bereich."""
+    section = request.url.path.rsplit("/", 1)[-1]
+    return RedirectResponse(f"/settings#{section}", status_code=303)
+
+
 @router.get("/settings/backup")
 def backup_download():
     """Sicherung der Datenbank als eine Datei, konsistent auch während PlateShelf schreibt.

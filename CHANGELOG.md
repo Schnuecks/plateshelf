@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- Reloading the page after creating an API token (or after an error in a settings or
+  password form) no longer shows “Method Not Allowed”; it goes back to that section.
+
 ## 0.8.0
 
 - **User accounts replace the single sign-in from the `.env`.** Sign-in is now on by
