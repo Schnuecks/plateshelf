@@ -78,8 +78,7 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     Bambu-Drucker wie der P2S melden aber teils nur die Platte in der Datei
     („Metadata/plate_2.gcode“) und den Projektnamen getrennt. Dann passt die vom
     Import angelegte Datei „<Name>_plate_2.gcode.3mf“; fehlt der Name (Drucke aus
-    0.7.4 bis 0.7.11), entscheidet der Zeitpunkt des Imports, der beim Druckstart
-    ausgelöst wird.
+    0.7.4 bis 0.7.11), gilt der letzte Import vor dem Druckstart.
     """
     if remote_name and (m := _PLATE_GCODE.search(remote_name)):
         plate, remote_name = int(m[1]), None
@@ -94,28 +93,36 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
             return row["local_path"]
     if plate is None or not printer_name:
         return None
-    candidates = []
-    for r in con.execute(
-            """SELECT i.local_path, i.remote_name, f.added FROM printer_imports i
-               JOIN files f ON f.path = i.local_path AND f.missing = 0 WHERE i.printer_name = ?""",
-            (printer_name,)):
-        m = _PLATE_SUFFIX.search(r["local_path"])
-        if m and int(m[1]) == plate:
-            candidates.append(r)
-    def distance(r):
-        return abs((r["added"] or 0) - (started or 0))
+    # Alle Importe dieses Druckers mit dem Zeitpunkt des letzten Imports (bei erneutem Hochladen
+    # derselben Platte zählt der neue Import, nicht das erste Einlesen der Datei)
+    imports = [dict(r) for r in con.execute(
+        """SELECT i.local_path, i.remote_name,
+                  COALESCE((SELECT MAX(pf.imported) FROM printer_files pf WHERE pf.local_path = i.local_path),
+                           f.added) AS at
+           FROM printer_imports i JOIN files f ON f.path = i.local_path AND f.missing = 0
+           WHERE i.printer_name = ?""", (printer_name,))]
 
+    def plate_of(r):
+        m = _PLATE_SUFFIX.search(r["local_path"])
+        return int(m[1]) if m else None
+
+    candidates = [r for r in imports if plate_of(r) == plate]
     if remote_name:  # Projektname bekannt: dieselbe Platte desselben Projekts, bei mehreren die zeitlich nächste
         wanted = _norm(remote_name)
         named = [r for r in candidates if _norm(r["remote_name"] or "") == wanted
                  or _norm(_PLATE_SUFFIX.sub("", r["local_path"].rsplit("/", 1)[-1])) == wanted]
         if named:
-            return min(named, key=distance)["local_path"]
+            return min(named, key=lambda r: abs((r["at"] or 0) - (started or 0)))["local_path"]
     if started is None:
         return None
-    # Ohne passenden Namen nur, wenn die Datei zum Druckstart importiert wurde
-    near = [r for r in candidates if started - 900 <= (r["added"] or 0) <= started + 1800]
-    return min(near, key=distance)["local_path"] if near else None
+    # Ohne Namen (Drucke aus 0.7.4 bis 0.7.11): Bambu Studio lädt jede Platte direkt vor dem Druck
+    # hoch, also gilt der letzte Import vor dem Start (etwas Nachlauf für den Abgleich), wenn er
+    # dieselbe Platte ist
+    before = [r for r in imports if (r["at"] or 0) <= started + 900]
+    if not before:
+        return None
+    last = max(before, key=lambda r: r["at"] or 0)
+    return last["local_path"] if plate_of(last) == plate else None
 
 
 def _apply_project_status(con, job) -> None:

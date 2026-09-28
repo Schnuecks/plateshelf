@@ -485,3 +485,26 @@ def test_schema_step_adds_plate_column(lib):
     with store.connect() as con:
         assert "plate" in {r["name"] for r in con.execute("PRAGMA table_info(print_jobs)")}
         assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION == 2
+
+
+def test_plates_uploaded_one_by_one(ready):
+    """Wie beim P2S am 27.09.: jede Platte kurz vor ihrem Druck hochgeladen; Platte 1 lag schon früher
+    in der Bibliothek und wurde neu importiert (files.added bleibt alt, printer_files.imported ist neu)."""
+    now = time.time()
+    base = "From printer/P2S/Grim_plate_"
+    for n, up in ((2, now - 6 * 3600), (3, now - 5 * 3600), (1, now - 3600)):
+        imported_plate(ready, BAMBU, "Grim.gcode.3mf", f"{base}{n}.gcode.3mf", up)
+        with store.connect() as con:
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, "
+                        "printer_name, imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', ?)",
+                        (f"Grim{n}.gcode.3mf", f"{base}{n}.gcode.3mf", up))
+    with store.connect() as con:
+        con.execute("UPDATE files SET added = ? WHERE path = ?", (now - 86400, base + "1.gcode.3mf"))
+        for key, plate, start in (("p2", 2, now - 6 * 3600 + 26 * 60), ("p3", 3, now - 5 * 3600 + 60),
+                                  ("p1", 1, now - 3600 + 5), ("p9", 9, now - 1800)):
+            con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, status, started, "
+                        "ended) VALUES ('SER1', 'P2S', ?, ?, 'completed', ?, ?)",
+                        (key, f"plate_{plate}.gcode", start, start + 600))
+    ph.link_pending()
+    got = {j["job_key"]: j["local_path"] for j in jobs()}
+    assert got == {"p2": base + "2.gcode.3mf", "p3": base + "3.gcode.3mf", "p1": base + "1.gcode.3mf", "p9": None}
