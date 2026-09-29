@@ -147,6 +147,9 @@ def _build(con) -> list[dict]:
         p["latest"] = max(f["mtime"] or 0 for f in p["files"])
         cover = next((x for x in plates if x["has_thumb"]), None)
         p["cover"] = f"/thumb/{cover['file_id']}/plate/{cover['idx']}?v={cover['v']}" if cover else None
+        p["cover_is_photo"] = bool(p.get("cover_photo"))
+        if p["cover_is_photo"]:  # eigenes Foto vom Druck statt Slicer-Vorschau
+            p["cover"] = f"/p/{p['id']}/photos/{p['cover_photo'].removesuffix('.jpg')}.small.jpg"
         p["plates_total"] = len(plates) + len(p["extra_plates"])
         p["tag_list"] = [t.strip() for t in p["tags"].split(",") if t.strip()]
         prints = [printed[f["path"]] for f in p["files"] if f["path"] in printed]

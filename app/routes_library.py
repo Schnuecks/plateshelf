@@ -20,10 +20,10 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import gcode_file, i18n, print_history, printer_import, statistics, store, trash
+from . import gcode_file, i18n, photos, print_history, printer_import, statistics, store, trash
 from .i18n import gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
-from .web import STATUSES, _local_target, templates
+from .web import ONE_YEAR, STATUSES, _local_target, templates
 
 router = APIRouter()
 PAGE = 60  # Projekte pro Schritt in der Übersicht; große Bibliotheken bleiben so schnell
@@ -113,10 +113,77 @@ def project(request: Request, pid: int):
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
     for j in jobs:
         j["file_name"] = names.get(j["local_path"], "")
+    with store.connect() as con:
+        dupes = store.duplicates_of(con, list(file_rows))
+    for f in file_rows.values():
+        f["duplicates"] = dupes.get(f["id"], [])
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
         "writable": _library_writable(), "strip": strip, "jobs": jobs,
+        "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
     })
+
+
+# --- Eigene Fotos -------------------------------------------------------------
+
+def _group_key(pid: int) -> str:
+    with store.connect() as con:
+        row = con.execute("SELECT group_key FROM projects WHERE id = ?", (pid,)).fetchone()
+    if not row:
+        raise HTTPException(404, _("Projekt nicht gefunden"))
+    return row["group_key"]
+
+
+@router.post("/p/{pid}/photos")
+async def photos_upload(pid: int, files: list[UploadFile] = File(...)):
+    _require_writable()
+    key = _group_key(pid)
+    saved = failed = 0
+    for upload in files:
+        if not upload.filename:
+            continue
+        try:
+            await run_in_threadpool(photos.save, key, upload.file)
+            saved += 1
+        except i18n.UserError:
+            failed += 1
+    if saved:  # das erste Foto wird Titelbild, solange es keines gibt
+        with store.connect() as con:
+            con.execute("UPDATE projects SET cover_photo = ?, updated = ? WHERE id = ? AND COALESCE(cover_photo, '') = ''",
+                        (photos.list_photos(key)[0], time.time(), pid))
+    return RedirectResponse(f"/p/{pid}?photos={saved}&photo_errors={failed}#photos", status_code=303)
+
+
+@router.get("/p/{pid}/photos/{name}")
+def photo_file(pid: int, name: str):
+    path = photos.path_of(_group_key(pid), name)
+    if not path:
+        raise HTTPException(404)
+    # Namen sind zufällig und ändern sich nie: dauerhaft zwischenspeichern
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": f"private, max-age={ONE_YEAR}, immutable"})
+
+
+@router.post("/p/{pid}/photos/{name}/cover")
+def photo_cover(pid: int, name: str):
+    key = _group_key(pid)
+    if not photos.path_of(key, name):
+        raise HTTPException(404)
+    with store.connect() as con:
+        current = con.execute("SELECT cover_photo FROM projects WHERE id = ?", (pid,)).fetchone()[0]
+        con.execute("UPDATE projects SET cover_photo = ?, updated = ? WHERE id = ?",
+                    (None if current == name else name, time.time(), pid))
+    return RedirectResponse(f"/p/{pid}#photos", status_code=303)
+
+
+@router.post("/p/{pid}/photos/{name}/delete")
+def photo_delete(pid: int, name: str):
+    _require_writable()
+    key = _group_key(pid)
+    photos.delete(key, name)
+    with store.connect() as con:
+        con.execute("UPDATE projects SET cover_photo = NULL, updated = ? WHERE id = ? AND cover_photo = ?",
+                    (time.time(), pid, name))
+    return RedirectResponse(f"/p/{pid}#photos", status_code=303)
 
 
 @router.get("/history")
@@ -141,6 +208,18 @@ def history_delete(job_id: int, next: str = Form("/history")):
     target = _local_target(next.split("#")[0])
     anchor = "#history" if target.startswith("/p/") else ""
     return RedirectResponse(target + ("&" if "?" in target else "?") + "job_deleted=1" + anchor, status_code=303)
+
+
+@router.post("/history/{job_id}/note")
+def history_note(job_id: int, note: str = Form(""), rating: str = Form(""), next: str = Form("/history")):
+    if rating not in ("", "1", "-1"):
+        raise HTTPException(400, _("Unbekannte Bewertung"))
+    try:
+        print_history.set_note(job_id, note, int(rating) if rating else None)
+    except KeyError:
+        raise HTTPException(404, _("Druck nicht gefunden")) from None
+    target = _local_target(next.split("#")[0])
+    return RedirectResponse(target + ("#history" if target.startswith("/p/") else ""), status_code=303)
 
 
 @router.post("/p/{pid}")

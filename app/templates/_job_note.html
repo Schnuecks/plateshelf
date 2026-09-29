@@ -1,0 +1,25 @@
+{# Notiz und Bewertung zu einem Druck, im Verlauf und auf der Projektseite #}
+{% macro job_note(j, request) -%}
+<span class="job-note-view">
+  {%- if j.rating == 1 %}<span class="job-rating is-good" role="img" aria-label="{{ _('Gelungen') }}" title="{{ _('Gelungen') }}">👍</span>
+  {%- elif j.rating == -1 %}<span class="job-rating is-bad" role="img" aria-label="{{ _('Misslungen') }}" title="{{ _('Misslungen') }}">👎</span>{% endif %}
+  {%- if j.note %} <span class="job-note">{{ j.note }}</span>{% endif -%}
+</span>
+{% if can_edit(request) %}
+<details class="job-note-edit">
+  <summary>{{ _('Notiz bearbeiten') if j.note or j.rating else _('Notiz') }}</summary>
+  <form method="post" action="/history/{{ j.id }}/note" class="job-note-form">
+    <input type="hidden" name="next" value="{{ current_url(request) }}">
+    <fieldset class="rating-choice">
+      <legend>{{ _('Wie ist der Druck geworden?') }}</legend>
+      <label><input type="radio" name="rating" value="1" {{ 'checked' if j.rating == 1 }}> 👍 {{ _('Gelungen') }}</label>
+      <label><input type="radio" name="rating" value="-1" {{ 'checked' if j.rating == -1 }}> 👎 {{ _('Misslungen') }}</label>
+      <label><input type="radio" name="rating" value="" {{ 'checked' if not j.rating }}> {{ _('Keine Angabe') }}</label>
+    </fieldset>
+    <label>{{ _('Notiz') }}
+      <textarea name="note" rows="2" maxlength="1000" placeholder="{{ _('z. B. Warping an einer Ecke, nächstes Mal mit Brim') }}">{{ j.note or '' }}</textarea></label>
+    <button type="submit">{{ _('Speichern') }}</button>
+  </form>
+</details>
+{% endif %}
+{%- endmacro %}

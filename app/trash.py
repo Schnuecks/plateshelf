@@ -24,7 +24,7 @@ log = logging.getLogger("plateshelf")
 
 TRASH_DIR = ".trash"
 TRASH_DAYS = int(os.environ.get("TRASH_DAYS", "30"))
-PROJECT_FIELDS = ("group_key", "name", "notes", "tags", "source_url", "status")
+PROJECT_FIELDS = ("group_key", "name", "notes", "tags", "source_url", "status", "cover_photo")
 _FOLDER = re.compile(r"[\w.\- ]+")
 
 
@@ -136,9 +136,9 @@ def _restore_project(con: sqlite3.Connection, snapshot: dict) -> int:
         return row["id"]
     now = time.time()
     return con.execute(
-        "INSERT INTO projects (group_key, name, notes, tags, source_url, status, created, updated) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (*(snapshot.get(k) or "" for k in PROJECT_FIELDS), now, now),
+        f"INSERT INTO projects ({', '.join(PROJECT_FIELDS)}, created, updated) "
+        f"VALUES ({', '.join('?' * (len(PROJECT_FIELDS) + 2))})",
+        (*(snapshot.get(k) or ("" if k != "cover_photo" else None) for k in PROJECT_FIELDS), now, now),
     ).lastrowid
 
 
@@ -193,12 +193,18 @@ def restore(entry_id: int) -> dict:
 # --- Endgültig löschen --------------------------------------------------------
 
 def purge(entry_id: int) -> None:
+    from . import photos
     with store.connect() as con:
-        entry = con.execute("SELECT folder FROM trash WHERE id = ?", (entry_id,)).fetchone()
+        entry = con.execute("SELECT folder, project_json FROM trash WHERE id = ?", (entry_id,)).fetchone()
         if not entry:
             raise LookupError("Eintrag nicht gefunden")
         shutil.rmtree(_folder_path(entry["folder"]), ignore_errors=True)
         con.execute("DELETE FROM trash WHERE id = ?", (entry_id,))
+        # Fotos eines endgültig gelöschten Projekts mit wegräumen, sofern es nicht wieder existiert
+        snapshot = json.loads(entry["project_json"] or "null")
+        key = snapshot.get("group_key") if snapshot and snapshot.get("removed") else None
+        if key and not con.execute("SELECT 1 FROM projects WHERE group_key = ?", (key,)).fetchone():
+            photos.remove_all(key)
 
 
 def purge_all() -> int:

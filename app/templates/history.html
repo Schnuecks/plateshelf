@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_job_note.html" import job_note with context %}
 {% block title %}{{ _('Druckverlauf') }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
@@ -30,6 +31,7 @@
         <th scope="col">{{ _('Drucker') }}</th>
         <th scope="col" class="r">{{ _('Dauer') }}</th>
         <th scope="col">{{ _('Status') }}</th>
+        <th scope="col">{{ _('Notiz') }}</th>
         <th scope="col"><span class="visually-hidden">{{ _('Entfernen') }}</span></th>
       </tr>
     </thead>
@@ -41,6 +43,7 @@
         <td>{{ j.printer_name }}</td>
         <td class="r nowrap">{% if j.ended and j.started %}{{ (j.duration_s or (j.ended - j.started))|duration }}{% else %}–{% endif %}</td>
         <td><span class="job-status job-{{ j.status }}">{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span></td>
+        <td class="job-note-cell">{{ job_note(j, request) }}</td>
         <td class="r">{% if can_edit(request) %}<form method="post" action="/history/{{ j.id }}/delete" class="job-delete"
                   data-confirm="{{ _('Diesen Druck aus dem Verlauf entfernen? Er wird dann auch nicht mehr gezählt.') }}">
               <input type="hidden" name="next" value="{{ current_url(request) }}">

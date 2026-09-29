@@ -21,8 +21,9 @@ docker compose up -d
 PlateShelf is now available at `http://<server>:8000`. On the first visit you create
 the admin account; the setup code it asks for is in the log (`docker compose logs
 plateshelf`), see [Access control](configuration.md#access-control). Put your `.gcode.3mf`, `.gcode` or `.bgcode` files into
-the `library` folder. They show up within two minutes, or immediately via “Rescan
-library” in the overview.
+the `library` folder. They show up within seconds; on network shares, where changes are
+not always reported, within two minutes at the latest.
+
 
 The `library` and `data` folders must be writable for the user the container runs as
 (`PUID` and `PGID` in the `.env`, default 1000). Otherwise startup fails with “unable
@@ -54,6 +55,7 @@ settings. An example for Traefik (instead of `ports:` in the `compose.yaml`):
 ## Data and backups
 
 - Files in the library are never modified, only moved to the trash when you delete them.
+- Your own photos of prints lie in the library under `.photos/` and are backed up with it.
 - The database (SQLite), preview images, 3D previews and your notes are stored in the
   data folder.
 - **Backup:** “Settings” → “Backup” downloads the database as a single file, consistent
@@ -73,6 +75,8 @@ settings. An example for Traefik (instead of `ports:` in the `compose.yaml`):
   the backup into the data folder as `plateshelf.sqlite` (delete `plateshelf.sqlite-wal`
   and `-shm` if present) and start it again.
 - The database has a schema version and is upgraded automatically on start.
-- New and changed files are detected regularly, also on network shares (SMB/NFS). Keep
+- New and changed files are detected right away. On network shares (SMB/NFS) the system
+  often does not report changes made elsewhere; there PlateShelf still checks every
+  `SCAN_INTERVAL` seconds. Keep
   the data folder on a local disk, though, because SQLite is unreliable on network
   shares.

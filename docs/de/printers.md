@@ -100,6 +100,11 @@ Ein Druck wird der vom Drucker geholten Datei zugeordnet und damit ihrem Projekt
 die Datei noch nicht in der Bibliothek, holt PlateShelf sie sofort und ordnet den Druck
 danach zu. Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.
 
+**Notizen pro Druck:** Unter „Notiz“ im Verlauf und auf der Projektseite bewertest du einen
+Druck (👍 gelungen, 👎 misslungen) und hältst fest, was gut oder schief lief, etwa „Warping
+an einer Ecke, nächstes Mal mit Brim“. Die Projektnotizen beschreiben das Modell, diese
+Notizen einen einzelnen Druck.
+
 Testdrucke und Ähnliches entfernst du mit „×“ aus dem Verlauf, auf der Verlaufsseite
 oder der Projektseite. Sie zählen dann nicht mehr mit; hatte so ein Druck das Projekt
 auf „Gedruckt“ gesetzt und bleibt kein anderer fertiger Druck übrig, wird der Status
