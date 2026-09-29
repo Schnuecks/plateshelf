@@ -77,7 +77,14 @@ For printers set up for the direct import, PlateShelf records every print: start
 duration, printer and outcome (finished, cancelled, failed). “History” in the top bar
 lists all prints; the project page shows the prints of its files, and the overview shows
 how often a project was printed. The overview can be sorted by “Recently printed” or
-“Most printed” and filtered by “Printed before” or “Never printed”.
+“Most printed” and filtered by “Printed before”, “Never printed” or “Partly printed”.
+
+**Plates printed:** for projects with several plates, the overview shows how many of them
+are printed (“3/4 plates printed”), and the project page marks each printed plate with a
+check mark and “Printed (2×)”. If every plate is its own file, as with plates fetched from a
+Bambu printer or G-code files, each print of that file counts; if a file holds several
+plates, the plate the printer reported counts. “Partly printed” lists the projects where
+plates are still missing.
 
 A running print appears in the top bar with printer, project, progress and remaining
 time, and on the project's card in the overview; the top bar refreshes every 30 seconds.

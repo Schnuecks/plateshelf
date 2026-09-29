@@ -48,6 +48,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         return ((not material or material in p["materials"]) and (not printer or printer in p["printers"])
                 and (status == "" or p["status"] == ("" if status == "ohne" else status))
                 and (printed != "ja" or p["prints"] > 0) and (printed != "nein" or p["prints"] == 0)
+                and (printed != "teilweise" or 0 < p["plates_printed"] < len(p["plates"]))
                 and (not tag or tag in p["tag_list"]))
 
     shown = [p for p in projects if match(p)]

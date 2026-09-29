@@ -82,8 +82,15 @@ Für die Drucker aus dem Direktimport schreibt PlateShelf jeden Druck mit: Start
 Dauer, Drucker und Ausgang (fertig, abgebrochen, fehlgeschlagen). „Verlauf“ in der
 Titelleiste zeigt alle Drucke, die Projektseite die Drucke ihrer Dateien, die Übersicht,
 wie oft ein Projekt gedruckt wurde. Die Übersicht lässt sich nach „Zuletzt gedruckt“ oder
-„Am häufigsten gedruckt“ sortieren und nach „Schon gedruckt“ oder „Noch nie gedruckt“
-filtern.
+„Am häufigsten gedruckt“ sortieren und nach „Schon gedruckt“, „Noch nie gedruckt“ oder
+„Teilweise gedruckt“ filtern.
+
+**Gedruckte Platten:** Bei Projekten mit mehreren Platten zeigt die Übersicht, wie viele davon
+gedruckt sind („3/4 Platten gedruckt“), und die Projektseite markiert jede gedruckte Platte mit
+einem Haken und „Gedruckt (2×)“. Ist jede Platte eine eigene Datei, wie bei vom Bambu-Drucker
+geholten Platten oder G-Code-Dateien, zählt jeder Druck dieser Datei; enthält eine Datei
+mehrere Platten, zählt die Platte, die der Drucker gemeldet hat. „Teilweise gedruckt“ zeigt die
+Projekte, bei denen noch Platten fehlen.
 
 Ein laufender Druck erscheint in der Titelleiste mit Drucker, Projekt, Fortschritt und
 Restzeit sowie auf der Karte des Projekts in der Übersicht; die Titelleiste frischt sich

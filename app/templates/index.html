@@ -24,6 +24,7 @@
     <option value="">{{ _('Gedruckt oder nicht') }}</option>
     <option value="ja" {% if printed == 'ja' %}selected{% endif %}>{{ _('Schon gedruckt') }}</option>
     <option value="nein" {% if printed == 'nein' %}selected{% endif %}>{{ _('Noch nie gedruckt') }}</option>
+    <option value="teilweise" {% if printed == 'teilweise' %}selected{% endif %}>{{ _('Teilweise gedruckt') }}</option>
   </select>
   {% endif %}
   <select name="sort" aria-label="{{ _('Sortierung') }}">
@@ -119,7 +120,8 @@
         <p class="card-meta">
           {{ p.materials|join(', ') or _('Material unbekannt') }}
           {% if p.status %}<span class="status status-{{ p.status }}">{{ _(STATUSES[p.status]) }}</span>{% endif %}
-          {% if p.prints %}<span class="prints" title="{{ _('Fertige Drucke laut Druckverlauf') }}">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}</span>{% endif %}
+          {% if p.plates|length > 1 and p.plates_printed %}<span class="prints{{ ' is-complete' if p.plates_printed == p.plates|length }}" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}">{{ _('{n}/{total} Platten gedruckt', n=p.plates_printed, total=p.plates|length) }}</span>
+          {% elif p.prints %}<span class="prints" title="{{ _('Fertige Drucke laut Druckverlauf') }}">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}</span>{% endif %}
         </p>
       </div>
     </a>

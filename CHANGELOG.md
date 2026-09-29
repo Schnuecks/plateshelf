@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Plates printed:** projects with several plates show how many are printed (“3/4 plates
+  printed”) in the overview; the project page marks each printed plate with a check mark and
+  “Printed (2×)”. New overview filter “Partly printed” for projects with plates still to print.
+
 ## 0.8.5
 
 - **One look across all pages:** the same corner radius, page widths and heading sizes
