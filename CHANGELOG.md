@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.5
 
 - **One look across all pages:** the same corner radius, page widths and heading sizes
   everywhere; the sidebar of the project page now shows photos, print history and filament
