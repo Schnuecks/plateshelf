@@ -17,7 +17,7 @@
   </p>
   {% if not enabled %}
   <p class="flash flash-warn" role="status">{{ _('Der Druckverlauf ist ausgeschaltet. Einschalten lässt er sich unter „Einstellungen“.') }}</p>
-  {% elif not printers %}
+  {% elif not printers and not jobs %}
   <p class="flash" role="status">{{ _('Richte unter „Einstellungen“ einen Drucker für den Direktimport ein, dann erscheinen hier seine Drucke.') }}</p>
   {% endif %}
 

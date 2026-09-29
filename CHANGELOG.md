@@ -2,6 +2,18 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **One look across all pages:** the same corner radius, page widths and heading sizes
+  everywhere; the sidebar of the project page now shows photos, print history and filament
+  in the same boxes as the project details; file pickers match the other buttons.
+- Fixed: on the project page, a print with a note squeezed the date of the print into a
+  narrow column (one character per line).
+- Fixed: “Note” in the print history was indented and had a stray line.
+- The notice to set up a printer no longer appears in the history when prints are listed.
+- The About page lists the current features (accounts, backups, photos, notes per print).
+- Screenshots updated.
+
 ## 0.8.4
 
 - **Photos of the print:** add your own photos on the project page, for example straight from
