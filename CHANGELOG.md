@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.4
 
 - **Photos of the print:** add your own photos on the project page, for example straight from
   the phone. The first one becomes the cover in the overview. Photos are rotated as taken,
