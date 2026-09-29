@@ -27,6 +27,7 @@ weiter.
 | `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
 | `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
 | `TRASH_DAYS` | 30 | Tage bis zum endgültigen Löschen aus dem Papierkorb (0 = nie) |
+| `BACKUP_KEEP` | 7 | Automatische tägliche Sicherungen, die in `backups/` im Datenordner bleiben (0 = aus) |
 
 **Direktimport**
 

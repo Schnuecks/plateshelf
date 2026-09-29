@@ -275,10 +275,10 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
             put(nx, ny)
             cur_n += 1
             ax, ay, bx, by = bx, by, nx, ny
-            if nx < minx: minx = nx
-            if nx > maxx: maxx = nx
-            if ny < miny: miny = ny
-            if ny > maxy: maxy = ny
+            if nx < minx: minx = nx  # noqa: E701  (heiße Schleife, bewusst knapp)
+            if nx > maxx: maxx = nx  # noqa: E701
+            if ny < miny: miny = ny  # noqa: E701
+            if ny > maxy: maxy = ny  # noqa: E701
 
         for n_line, line in enumerate(lines):
             if n_line % 200_000 == 0:

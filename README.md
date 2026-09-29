@@ -20,13 +20,16 @@ print settings and a 3D preview of the actual toolpaths.
 - **3D preview** of the toolpaths with a layer slider, print playback and colouring by
   filament, line type, speed, volumetric flow, fan or temperature
 - **Automatic projects** from folders or file names, notes, tags and status per project
-- **Upload** by drag & drop and a **trash** with restore
+- **Upload** by drag & drop, a **trash** with restore, editing several projects at once
+  and projects as ZIP
+- **Daily automatic backups**, restore in the interface
 - **Direct import from printers:** Bambu Lab, Prusa via PrusaLink and Klipper printers via
   Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron)
 - **Print history and statistics:** what was printed when, on which printer, and whether it
   finished
 - **User accounts** with roles (admin, user, read only), device list and read-only API tokens
-- **Six languages**, light and dark theme, key figures as JSON for dashboards
+- **Six languages**, light and dark theme, installable on the home screen, key figures as
+  JSON for dashboards
 
 | Project | 3D preview |
 |---|---|

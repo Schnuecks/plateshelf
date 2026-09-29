@@ -1,0 +1,14 @@
+# Linter für app/, tests/ und tools/ (läuft in der CI, lokal: python -m ruff check)
+line-length = 120
+target-version = "py312"
+
+[lint]
+# Standardregeln (Syntax, ungenutzte Namen) plus typische Fehlerquellen
+select = ["E", "F", "W", "B", "UP"]
+ignore = [
+    "E501",   # lange Zeilen: 120 als Richtwert, Vorlagen-Texte dürfen länger sein
+    "B008",   # FastAPI: Form(...) als Standardwert ist dort so gewollt
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["F811"]  # Fixtures als Parameter gleichen Namens

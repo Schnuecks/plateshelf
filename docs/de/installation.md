@@ -62,13 +62,21 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
   Datenordner.
 - **Sicherung:** „Einstellungen“ → „Sicherung“ lädt die Datenbank als eine Datei herunter,
   auch während PlateShelf läuft in sich stimmig. Sie enthält Projekte mit Notizen, Tags
-  und Status, Zuordnungen, Einstellungen, Drucker und den Druckverlauf. Den
+  und Status, Zuordnungen, Einstellungen, Drucker, Benutzer und den Druckverlauf. Den
   Bibliotheksordner mit den Druckdateien sicherst du wie gewohnt. Heb auch den
   `SECRET_KEY` gut auf, denn nur mit ihm lassen sich die Zugangsdaten der Drucker lesen.
-- **Zurückspielen oder umziehen:** PlateShelf stoppen, die Sicherung als
-  `plateshelf.sqlite` in den Datenordner legen (`plateshelf.sqlite-wal` und `-shm` dort
-  löschen, falls vorhanden) und wieder starten, mit demselben `SECRET_KEY` in der
-  `.env`. Vorschaubilder und 3D-Vorschauen entstehen automatisch neu.
+- **Automatische Sicherungen:** Einmal am Tag legt PlateShelf so eine Sicherung unter
+  `backups/` im Datenordner ab und behält die letzten `BACKUP_KEEP` (Standard 7; `0`
+  schaltet das ab). Die Einstellungen listen sie zum Herunterladen oder Zurückspielen.
+- **Zurückspielen:** Unter „Einstellungen“ → „Sicherung“ lädst du eine Sicherung hoch oder
+  wählst eine der automatischen. PlateShelf sichert vorher den aktuellen Stand als „vor dem
+  Zurückspielen“, tauscht dann die Datenbank aus, bringt sie bei Bedarf auf den neuen Stand
+  und erzeugt Vorschaubilder und 3D-Vorschauen neu. Benutzer und Anmeldungen kommen aus der
+  Sicherung, eventuell musst du dich also neu anmelden.
+- **Umzug auf einen anderen Rechner:** Bibliotheksordner kopieren, dort die Sicherung
+  zurückspielen und denselben `SECRET_KEY` in der `.env` verwenden. Von Hand, ohne
+  Oberfläche: PlateShelf stoppen, die Sicherung als `plateshelf.sqlite` in den Datenordner
+  legen (`plateshelf.sqlite-wal` und `-shm` löschen, falls vorhanden) und wieder starten.
 - Die Datenbank hat eine Schema-Version und wird beim Start automatisch aktualisiert.
 - Neue und geänderte Dateien werden regelmäßig erkannt, auch auf Netzwerkfreigaben
   (SMB/NFS). Den Datenordner solltest du dagegen lokal ablegen, weil SQLite auf

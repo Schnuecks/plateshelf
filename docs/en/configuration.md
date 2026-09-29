@@ -26,6 +26,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `MAX_UPLOAD_MB` | 1024 | Size limit per uploaded file in MB |
 | `PREVIEW_PREBUILD` | true | Prepare 3D previews in the background after reading files |
 | `TRASH_DAYS` | 30 | Days until items are deleted permanently from the trash (0 = never) |
+| `BACKUP_KEEP` | 7 | Automatic daily backups to keep in `backups/` of the data folder (0 = off) |
 
 **Direct import**
 

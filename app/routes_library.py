@@ -7,6 +7,7 @@ import filecmp
 import json
 import os
 import re
+import tempfile
 import threading
 import time
 import uuid
@@ -17,6 +18,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
+from starlette.background import BackgroundTask
 
 from . import gcode_file, i18n, print_history, printer_import, statistics, store, trash
 from .i18n import gettext as _
@@ -135,7 +137,7 @@ def history_delete(job_id: int, next: str = Form("/history")):
     try:
         print_history.delete(job_id)
     except KeyError:
-        raise HTTPException(404, _("Druck nicht gefunden"))
+        raise HTTPException(404, _("Druck nicht gefunden")) from None
     target = _local_target(next.split("#")[0])
     anchor = "#history" if target.startswith("/p/") else ""
     return RedirectResponse(target + ("&" if "?" in target else "?") + "job_deleted=1" + anchor, status_code=303)
@@ -146,13 +148,58 @@ def update_project(pid: int, name: str = Form(...), notes: str = Form(""), tags:
                    source_url: str = Form(""), status: str = Form("")):
     if status not in STATUSES:
         raise HTTPException(400, _("Unbekannter Status"))
-    tags = ", ".join(dict.fromkeys(t.strip() for t in tags.split(",") if t.strip()))
+    tags = _merge_tags(tags)
     with store.connect() as con:
         con.execute(
             "UPDATE projects SET name=?, notes=?, tags=?, source_url=?, status=?, updated=? WHERE id=?",
             (name.strip() or _("Ohne Namen"), notes, tags, source_url.strip(), status, time.time(), pid),
         )
     return RedirectResponse(f"/p/{pid}?saved=1", status_code=303)
+
+
+def _merge_tags(*parts: str) -> str:
+    return ", ".join(dict.fromkeys(t.strip() for part in parts for t in part.split(",") if t.strip()))
+
+
+@router.post("/bulk")
+async def bulk_edit(request: Request):
+    """Mehrere Projekte aus der Übersicht: Status setzen, Tag hinzufügen oder in den Papierkorb."""
+    form = await request.form()
+    ids = list(dict.fromkeys(int(x) for x in form.getlist("pid") if str(x).isdigit()))
+    target = _local_target(str(form.get("next") or "/"))
+    sep = "&" if "?" in target else "?"
+    if not ids:
+        return RedirectResponse(target, status_code=303)
+    if form.get("action") == "trash":
+        _require_writable()
+        moved = 0
+        with store.connect() as con:
+            for pid in ids:
+                fids = [r["id"] for r in con.execute("SELECT id FROM files WHERE project_id = ?", (pid,))]
+                if fids:
+                    try:
+                        trash.delete(con, fids, "projekt")
+                    except ValueError as exc:
+                        raise HTTPException(400, str(exc)) from None
+                    moved += 1
+        return RedirectResponse(f"{target}{sep}bulk_trashed={moved}", status_code=303)
+    status = str(form.get("status", "-"))
+    tag = str(form.get("add_tag", "")).strip()
+    if status != "-" and status not in STATUSES:
+        raise HTTPException(400, _("Unbekannter Status"))
+    changed = 0
+    with store.connect() as con:
+        for pid in ids:
+            row = con.execute("SELECT tags, status FROM projects WHERE id = ?", (pid,)).fetchone()
+            if not row:
+                continue
+            new_status = row["status"] if status == "-" else status
+            new_tags = _merge_tags(row["tags"], tag)
+            if (new_status, new_tags) != (row["status"], row["tags"]):
+                con.execute("UPDATE projects SET status = ?, tags = ?, updated = ? WHERE id = ?",
+                            (new_status, new_tags, time.time(), pid))
+                changed += 1
+    return RedirectResponse(f"{target}{sep}bulk={changed}", status_code=303)
 
 
 @router.post("/f/{fid}/move")
@@ -258,7 +305,7 @@ def delete_file(fid: int):
         try:
             entry = trash.delete(con, [fid], "datei")
         except ValueError as exc:
-            raise HTTPException(400, str(exc))
+            raise HTTPException(400, str(exc)) from None
         still_there = con.execute("SELECT 1 FROM projects WHERE id = ?", (row["project_id"],)).fetchone()
     if still_there:
         return RedirectResponse(f"/p/{row['project_id']}?deleted={entry}", status_code=303)
@@ -275,7 +322,7 @@ def delete_project(pid: int):
         try:
             entry = trash.delete(con, ids, "projekt")
         except ValueError as exc:
-            raise HTTPException(400, str(exc))
+            raise HTTPException(400, str(exc)) from None
     return RedirectResponse(f"/?deleted={entry}", status_code=303)
 
 
@@ -292,9 +339,9 @@ def trash_restore(entry_id: int):
     try:
         result = trash.restore(entry_id)
     except LookupError:
-        raise HTTPException(404, _("Eintrag nicht gefunden"))
+        raise HTTPException(404, _("Eintrag nicht gefunden")) from None
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise HTTPException(400, str(exc)) from None
     if result["project_id"]:
         return RedirectResponse(f"/p/{result['project_id']}?restored={result['restored']}", status_code=303)
     return RedirectResponse(f"/?restored={result['restored']}", status_code=303)
@@ -306,7 +353,7 @@ def trash_purge(entry_id: int):
     try:
         trash.purge(entry_id)
     except LookupError:
-        raise HTTPException(404, _("Eintrag nicht gefunden"))
+        raise HTTPException(404, _("Eintrag nicht gefunden")) from None
     return RedirectResponse("/trash?purged=1", status_code=303)
 
 
@@ -386,6 +433,48 @@ def photo(fid: int, name: str):
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path, headers={"Cache-Control": "max-age=86400"})
+
+
+@router.get("/p/{pid}/download")
+def download_project(pid: int):
+    """Alle Dateien eines Projekts als ZIP, dazu eine Textdatei mit Status, Tags, Quelle und Notizen."""
+    with store.connect() as con:
+        project = con.execute("SELECT * FROM projects WHERE id = ?", (pid,)).fetchone()
+        rows = con.execute("SELECT path FROM files WHERE project_id = ? AND missing = 0 ORDER BY path",
+                           (pid,)).fetchall()
+    if not project or not rows:
+        raise HTTPException(404, _("Projekt nicht gefunden"))
+    root = store.LIBRARY_DIR.resolve()
+    fd, name = tempfile.mkstemp(suffix=".zip", prefix="plateshelf-project-")
+    os.close(fd)
+    target = Path(name)
+    used: set[str] = set()
+    # Gesliced Dateien sind schon gepackt: nur speichern, nicht noch einmal komprimieren
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as z:
+        for row in rows:
+            path = (store.LIBRARY_DIR / row["path"]).resolve()
+            if not path.is_relative_to(root) or not path.is_file():
+                continue
+            arcname = path.name
+            n = 2
+            while arcname.lower() in used:  # gleiche Namen aus verschiedenen Ordnern
+                arcname = f"{path.stem} ({n}){path.suffix}"
+                n += 1
+            used.add(arcname.lower())
+            z.write(path, arcname)
+        info = [f"{_('Projekt')}: {project['name']}"]
+        if project["status"]:
+            info.append(f"{_('Status')}: {_(STATUSES.get(project['status'], project['status']))}")
+        if project["tags"]:
+            info.append(f"{_('Tags')}: {project['tags']}")
+        if project["source_url"]:
+            info.append(f"{_('Quelle')}: {project['source_url']}")
+        if project["notes"]:
+            info += ["", project["notes"]]
+        z.writestr(f"{_('Projekt')}.txt", "\n".join(info) + "\n", compress_type=zipfile.ZIP_DEFLATED)
+    filename = _clean_name(project["name"]) or "PlateShelf"
+    return FileResponse(target, filename=f"{filename}.zip", media_type="application/zip",
+                        background=BackgroundTask(target.unlink))
 
 
 @router.get("/f/{fid}/download")

@@ -4,18 +4,17 @@
 from __future__ import annotations
 
 import os
-import sqlite3
 import tempfile
+import threading
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import FileResponse
-from starlette.background import BackgroundTask
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
+from starlette.background import BackgroundTask
 
-from . import auth, crypto, diagnostics, i18n, print_history, printer_import, store
+from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, store
 from .i18n import gettext as _
 from .web import APP_VERSION, ONE_YEAR, current_user, templates
 
@@ -44,7 +43,7 @@ def settings_form(request: Request):
 
 
 def _render_settings(request: Request, error: str = "", form_rows: list | None = None, status_code: int = 200,
-                     users_error: str = "", new_token: str = "", tokens_error: str = ""):
+                     users_error: str = "", new_token: str = "", tokens_error: str = "", backup_error: str = ""):
     with store.connect() as con:
         settings = store.get_settings(con)
         printers = [r[0] for r in con.execute(
@@ -62,6 +61,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "users": auth.list_users() if auth.enabled() else [], "tokens": auth.list_tokens(),
         "me": current_user(request), "users_error": users_error,
         "new_token": new_token, "tokens_error": tokens_error,
+        "backups": backup.list_backups(), "backup_keep": backup.KEEP, "backup_error": backup_error,
     }, status_code=status_code)
 
 
@@ -69,9 +69,10 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
 @router.get("/settings/history")
 @router.get("/settings/users")
 @router.get("/settings/tokens")
+@router.get("/settings/backup/restore")
 def settings_form_url(request: Request):
     """Adressen der Formulare, falls der Browser die Seite danach neu lädt: zum passenden Bereich."""
-    section = request.url.path.rsplit("/", 1)[-1]
+    section = request.url.path.removeprefix("/settings/").split("/")[0]
     return RedirectResponse(f"/settings#{section}", status_code=303)
 
 
@@ -86,16 +87,56 @@ def backup_download():
     fd, name = tempfile.mkstemp(suffix=".sqlite", prefix="plateshelf-backup-")
     os.close(fd)
     target = Path(name)
-    src = store.connect()
-    dst = sqlite3.connect(target)
-    try:
-        src.backup(dst)
-        dst.execute("PRAGMA journal_mode = DELETE")  # eine einzelne Datei, ohne -wal
-    finally:
-        dst.close()
-        src.close()
+    backup.write(target)
     return FileResponse(target, filename=f"plateshelf-backup-{time.strftime('%Y-%m-%d')}.sqlite",
                         media_type="application/vnd.sqlite3", background=BackgroundTask(target.unlink))
+
+
+@router.get("/settings/backup/file/{name}")
+def backup_file(name: str):
+    """Eine der automatischen Sicherungen herunterladen."""
+    path = backup.path_of(name)
+    if not path:
+        raise HTTPException(404, _("Sicherung nicht gefunden"))
+    return FileResponse(path, filename=name, media_type="application/vnd.sqlite3")
+
+
+def _after_restore(request: Request, safety: str) -> RedirectResponse:
+    printer_import.init()  # Drucker aus der Sicherung, Zugangsdaten ggf. verschlüsseln
+    # Vorschaubilder neu erzeugen; wie „Bibliothek neu einlesen“ im Hintergrund
+    if os.environ.get("BACKGROUND_TASKS", "true").lower() not in ("0", "false", "no", "off"):
+        threading.Thread(target=store.scan, kwargs={"force": True}, daemon=True).start()
+    else:
+        store.scan(force=True, wait=True)
+    return RedirectResponse(f"/settings?restored={safety}#backup", status_code=303)
+
+
+@router.post("/settings/backup/restore")
+async def backup_restore_upload(request: Request, file: UploadFile = File(...)):
+    fd, name = tempfile.mkstemp(suffix=".sqlite", prefix="plateshelf-restore-")
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd, "wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                out.write(chunk)
+        safety = await run_in_threadpool(backup.restore, tmp)
+    except i18n.UserError as exc:
+        return _render_settings(request, backup_error=exc.translated(), status_code=400)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return _after_restore(request, safety)
+
+
+@router.post("/settings/backup/file/{name}/restore")
+def backup_restore_file(request: Request, name: str):
+    path = backup.path_of(name)
+    if not path:
+        raise HTTPException(404, _("Sicherung nicht gefunden"))
+    try:
+        safety = backup.restore(path)
+    except i18n.UserError as exc:
+        return _render_settings(request, backup_error=exc.translated(), status_code=400)
+    return _after_restore(request, safety)
 
 
 @router.post("/settings/history")
@@ -128,7 +169,7 @@ async def printers_save(request: Request):
     ids, deletes, kinds = form.getlist("db_id"), set(form.getlist("delete")), form.getlist("kind")
     rows = []
     for i, (name, ip, serial, code) in enumerate(zip(form.getlist("name"), form.getlist("ip"),
-                                                      form.getlist("serial"), form.getlist("code"))):
+                                                      form.getlist("serial"), form.getlist("code"), strict=False)):
         db_id = int(ids[i]) if i < len(ids) and ids[i].isdigit() else None
         kind = kinds[i] if i < len(kinds) and kinds[i] in printer_import.KINDS else "bambu"
         rows.append({"db_id": db_id, "kind": kind, "name": name, "ip": ip, "serial": serial, "code": code,
@@ -201,7 +242,7 @@ def _number(value: str, low: float, high: float) -> float | None:
     try:
         number = float(value)
     except ValueError:
-        raise HTTPException(400, _("„{value}“ ist keine Zahl", value=value))
+        raise HTTPException(400, _("„{value}“ ist keine Zahl", value=value)) from None
     if not low <= number <= high:
         raise HTTPException(400, _("{number} liegt außerhalb von {low} bis {high}", number=number, low=low, high=high))
     return number

@@ -26,7 +26,6 @@ import json
 import logging
 import os
 import re
-import socket
 import ssl
 import threading
 import time
@@ -475,7 +474,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
     except ftplib.error_perm as exc:
         auth_failed(exc)
         return result
-    except (OSError, ftplib.Error, socket.timeout) as exc:
+    except (TimeoutError, OSError, ftplib.Error) as exc:
         unreachable(exc)
         return result
     try:
@@ -534,7 +533,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
             result["updated" if prev else "new"] += 1
             log.info("%s: %s übernommen", printer["name"], f["name"])
         result["ok"] = True
-    except (OSError, ftplib.Error, socket.timeout) as exc:
+    except (TimeoutError, OSError, ftplib.Error) as exc:
         fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
     finally:
         source.close()

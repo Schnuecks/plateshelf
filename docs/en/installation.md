@@ -58,13 +58,20 @@ settings. An example for Traefik (instead of `ports:` in the `compose.yaml`):
   data folder.
 - **Backup:** “Settings” → “Backup” downloads the database as a single file, consistent
   even while PlateShelf is running. It contains projects with notes, tags and status,
-  assignments, settings, printers and the print history. Back up the library folder with
-  the print files as usual. Keep `SECRET_KEY` somewhere safe as well, because the printer
-  credentials in the backup can only be read with it.
-- **Restore or move:** stop PlateShelf, put the backup into the data folder as
-  `plateshelf.sqlite` (delete `plateshelf.sqlite-wal` and `-shm` if present) and start it
-  again, with the same `SECRET_KEY` in the `.env`. Preview images and 3D previews are
-  rebuilt automatically.
+  assignments, settings, printers, users and the print history. Back up the library folder
+  with the print files as usual. Keep `SECRET_KEY` somewhere safe as well, because the
+  printer credentials in the backup can only be read with it.
+- **Automatic backups:** once a day PlateShelf writes such a backup to `backups/` in the
+  data folder and keeps the last `BACKUP_KEEP` (default 7; `0` switches this off). The
+  settings list them for download or restore.
+- **Restore:** under “Settings” → “Backup”, upload a backup or pick one of the automatic
+  ones. PlateShelf first saves the current state as “before restore”, then replaces the
+  database, upgrades it if needed and rebuilds preview images and 3D previews. Users and
+  sign-ins come from the backup, so you may have to sign in again.
+- **Move to another computer:** copy the library folder, restore the backup there and use
+  the same `SECRET_KEY` in the `.env`. By hand, without the interface: stop PlateShelf, put
+  the backup into the data folder as `plateshelf.sqlite` (delete `plateshelf.sqlite-wal`
+  and `-shm` if present) and start it again.
 - The database has a schema version and is upgraded automatically on start.
 - New and changed files are detected regularly, also on network shares (SMB/NFS). Keep
   the data folder on a local disk, though, because SQLite is unreliable on network

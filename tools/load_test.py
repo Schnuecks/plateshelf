@@ -105,7 +105,7 @@ def main() -> None:
         timed("Einstellungen /settings", lambda: client.get("/settings"), repeat=3)
         timed("Kennzahlen /api/stats", lambda: client.get("/api/stats"), repeat=3)
         for extra in sys.argv[2:]:
-            timed(extra, lambda: client.get(extra), repeat=3)
+            timed(extra, lambda path=extra: client.get(path), repeat=3)
     current, peak = tracemalloc.get_traced_memory()
     print(f"{'Speicher Python (Spitze)':<42} {peak // 1024 // 1024:8d} MB")
     print(f"{'Datenbank':<42} {store.DB_PATH.stat().st_size // 1024:8d} KB")
