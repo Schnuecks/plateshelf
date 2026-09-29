@@ -180,6 +180,13 @@ main { padding: clamp(1rem, 3vw, 2rem); max-width: 1500px; margin: 0 auto; }
   display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 .project-zip { font-size: .9rem; font-weight: 500; white-space: nowrap; }
+/* Gedruckte Platten */
+.plate-strip .bed { position: relative; }
+.plate-done { position: absolute; top: .3rem; right: .3rem; display: grid; place-items: center; width: 1.35rem; height: 1.35rem;
+  border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: .8rem; font-weight: 700; }
+.plate-printed { font-size: .78rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; background: var(--bg);
+  color: var(--accent); white-space: nowrap; }
+.card-meta .prints.is-complete { color: var(--accent); font-weight: 600; }
 /* Eigene Fotos vom Druck */
 .bed img.is-photo { width: 100%; height: 100%; object-fit: cover; }
 .photos-own, .job-list, .usage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem; }
@@ -405,6 +412,7 @@ summary { cursor: pointer; font-weight: 500; }
 /* 3D-Vorschau */
 .plate-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
 .plate-title h3 { margin: 0; }
+.plate-title .button { margin-left: auto; }  /* „Gedruckt“ bleibt neben der Überschrift */
 .button-small { padding: .3rem .7rem; font-size: .88rem; }
 .viewer-title { color: var(--muted); }
 .page-viewer main { padding: 0; max-width: none; }

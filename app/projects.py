@@ -85,6 +85,23 @@ def load_projects(con) -> list[dict]:
     return [{**p, "printing": live.get(p["id"])} if p["id"] in live else p for p in cached]
 
 
+def _mark_printed_plates(p: dict, by_plate: dict) -> None:
+    """Wie oft jede geslicte Platte fertig gedruckt wurde, und wie viele Platten schon gedruckt sind.
+
+    Enthält eine Datei nur eine geslicte Platte (einzeln exportierte Platten, G-Code), zählt jeder
+    Druck dieser Datei. Bei mehreren Platten in einer Datei entscheidet die Platte, die der Drucker
+    gemeldet hat; Drucke ohne diese Angabe lassen sich keiner Platte zuordnen.
+    """
+    paths = {f["id"]: f["path"] for f in p["files"]}
+    per_file: dict[int, int] = {}
+    for x in p["plates"]:
+        per_file[x["file_id"]] = per_file.get(x["file_id"], 0) + 1
+    for x in p["plates"]:
+        counts = by_plate.get(paths.get(x["file_id"]), {})
+        x["printed"] = sum(counts.values()) if per_file[x["file_id"]] == 1 else counts.get(x["idx"], 0)
+    p["plates_printed"] = sum(1 for x in p["plates"] if x["printed"])
+
+
 def _build(con) -> list[dict]:
     settings = store.get_settings(con)
     projects = {r["id"]: {**dict(r), "files": [], "plates": [], "extra_plates": []}
@@ -129,6 +146,12 @@ def _build(con) -> list[dict]:
     printed = {r[0]: (r[1], r[2]) for r in con.execute(
         "SELECT local_path, COUNT(*), MAX(COALESCE(ended, started)) FROM print_jobs WHERE status = 'completed' "
         "AND local_path IS NOT NULL AND hidden = 0 GROUP BY local_path")}
+    # Fertige Drucke je Datei und gemeldeter Platte (None: der Drucker hat keine Platte genannt)
+    by_plate: dict[str, dict] = {}
+    for path, plate, n in con.execute(
+            "SELECT local_path, plate, COUNT(*) FROM print_jobs WHERE status = 'completed' AND hidden = 0 "
+            "AND local_path IS NOT NULL GROUP BY local_path, plate"):
+        by_plate.setdefault(path, {})[plate] = n
     out = []
     for p in projects.values():
         if not p["files"]:
@@ -154,6 +177,7 @@ def _build(con) -> list[dict]:
         p["tag_list"] = [t.strip() for t in p["tags"].split(",") if t.strip()]
         prints = [printed[f["path"]] for f in p["files"] if f["path"] in printed]
         p["prints"] = sum(n for n, _last in prints)
+        _mark_printed_plates(p, by_plate)
         p["last_printed"] = max((last or 0 for _n, last in prints), default=0)
         p["printing"] = None
         out.append(p)

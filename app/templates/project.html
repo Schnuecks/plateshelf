@@ -33,7 +33,8 @@
       <div><dt>{{ _('Filament') }}</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
       <div><dt>{{ _('Kosten') }}</dt><dd>{{ p.total_cost|money }}</dd>
         <dd class="cost-split">{{ _('Material {material}, Strom {energy}', material=p.cost|money, energy=p.energy_cost|money) }}</dd></div>
-      <div><dt>{{ _('Gesliced') if p.plates_total > p.plates|length else _('Platten') }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ _('{n} von {total}', n=p.plates|length, total=p.plates_total) }}{% else %}{{ p.plates|length }}{% endif %}</dd></div>
+      <div><dt>{{ _('Gesliced') if p.plates_total > p.plates|length else _('Platten') }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ _('{n} von {total}', n=p.plates|length, total=p.plates_total) }}{% else %}{{ p.plates|length }}{% endif %}</dd>
+        {% if p.plates|length > 1 and p.plates_printed %}<dd class="cost-split">{{ _('davon {n} gedruckt', n=p.plates_printed) }}</dd>{% endif %}</div>
     </dl>
   </header>
 
@@ -52,7 +53,8 @@
           {% for pl in strip %}
           <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}">
             {% if pl.sliced %}<a href="#platte-{{ pl.fid }}-{{ pl.idx }}" data-plate-link="platte-{{ pl.fid }}-{{ pl.idx }}">{% endif %}
-            <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}</div>
+            <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}
+              {% if pl.printed %}<span class="plate-done" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}"><span aria-hidden="true">✓</span><span class="visually-hidden">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}</span></span>{% endif %}</div>
             <span class="strip-title">{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
             {% if pl.sliced %}
               <span class="strip-sub">{{ pl.prediction_s|duration }}, {{ pl.weight_g|num(1, 'g') }}</span>
@@ -114,6 +116,7 @@
           <div class="plate-info">
             <div class="plate-title">
               <h3>{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</h3>
+              {% if pl.printed %}<span class="plate-printed">{{ _('Gedruckt') }}{% if pl.printed > 1 %} ({{ pl.printed }}×){% endif %}</span>{% endif %}
               <a class="button button-small" href="/view/{{ f.id }}/{{ pl.idx }}">{{ _('3D-Vorschau') }}</a>
             </div>
             <dl class="stats">
