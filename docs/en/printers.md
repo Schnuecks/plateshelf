@@ -94,6 +94,11 @@ A print is matched to the file fetched from the printer, and thus to its project
 file is not in the library yet, PlateShelf fetches it right away and links the print
 afterwards. A finished print sets a project without status to “Printed”.
 
+**Notes per print:** under “Note” in the history and on the project page, you rate a
+print (👍 turned out well, 👎 failed) and write down what went well or wrong, for example
+“warping at one corner, use a brim next time”. The project notes describe the model, these
+notes a single print.
+
 Test prints and the like can be removed from the history with “×”, on the history page
 or the project page. They no longer count, and if such a print had set the project to
 “Printed” and no other finished print remains, the status is reset.

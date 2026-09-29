@@ -22,7 +22,8 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `SCAN_INTERVAL` | 120 | Seconds between two scans of the library |
+| `SCAN_INTERVAL` | 120 | Seconds between two full scans of the library (fallback, e.g. for network shares) |
+| `WATCH_LIBRARY` | true | Detect new and changed files right away; `false` relies on `SCAN_INTERVAL` only |
 | `MAX_UPLOAD_MB` | 1024 | Size limit per uploaded file in MB |
 | `PREVIEW_PREBUILD` | true | Prepare 3D previews in the background after reading files |
 | `TRASH_DAYS` | 30 | Days until items are deleted permanently from the trash (0 = never) |

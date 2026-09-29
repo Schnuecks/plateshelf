@@ -2,6 +2,19 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Photos of the print:** add your own photos on the project page, for example straight from
+  the phone. The first one becomes the cover in the overview. Photos are rotated as taken,
+  shrunk to 2400 pixels and stripped of all metadata including GPS. They lie in the library
+  under `.photos/` and follow the project into the trash and back.
+- **Note and rating per print:** in the history and on the project page, mark a print as
+  turned out well or failed and note what happened.
+- **New files show up right away** instead of after up to two minutes. The regular scan
+  stays as a fallback, e.g. for network shares (`WATCH_LIBRARY`, `SCAN_INTERVAL`).
+- **Duplicate files:** the project page points out identical copies of a file elsewhere in
+  the library.
+
 ## 0.8.3
 
 - **Automatic backups:** once a day PlateShelf saves the database to `backups/` in the data

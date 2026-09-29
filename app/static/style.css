@@ -170,6 +170,40 @@ main { padding: clamp(1rem, 3vw, 2rem); max-width: 1500px; margin: 0 auto; }
   display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 .project-zip { font-size: .9rem; font-weight: 500; white-space: nowrap; }
+/* Eigene Fotos vom Druck */
+.bed img.is-photo { width: 100%; height: 100%; object-fit: cover; }
+.photos-own { display: grid; gap: .6rem; }
+#photos, #history { scroll-margin-top: 5rem; }  /* Sprungziele nicht unter der Titelleiste */
+.photos-own h2 { font: 600 1rem/1.2 var(--font-cond); margin: 0; }
+.photos-own .saved, .photos-own .warn { margin: 0; }
+.photo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: .6rem; }
+.photo-grid li { position: relative; display: grid; gap: .3rem; }
+.photo-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); }
+.photo-cover-badge { position: absolute; top: .3rem; left: .3rem; font-size: .7rem; font-weight: 600; padding: .05rem .35rem;
+  border-radius: 3px; background: var(--accent); color: #fff; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: .1rem .6rem; font-size: .8rem; }
+.photo-actions form { margin: 0; }
+.photo-actions button { padding: 0; font-size: .8rem; }
+.photo-upload { display: grid; gap: .4rem; }
+.photo-upload label { display: grid; gap: .25rem; font-size: .9rem; font-weight: 500; }
+.photo-upload input[type="file"] { max-width: 100%; }
+.photo-upload .hint { margin: 0; }
+.dup-hint a { overflow-wrap: anywhere; }
+/* Notiz und Bewertung pro Druck */
+.job-note-view { overflow-wrap: anywhere; }
+.job-note { color: var(--ink); }
+.job-rating { font-size: .95rem; }
+.job-note-edit > summary { cursor: pointer; font-size: .8rem; color: var(--accent); list-style: none; display: inline-block; }
+.job-note-edit > summary::-webkit-details-marker { display: none; }
+.job-note-form { display: grid; gap: .5rem; margin-top: .4rem; max-width: 26rem; }
+.job-note-form label { display: grid; gap: .25rem; font-size: .85rem; font-weight: 500; }
+.job-note-form textarea { width: 100%; }
+.job-note-form button { justify-self: start; }
+.rating-choice { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.rating-choice legend { font-size: .85rem; font-weight: 500; padding: 0; margin-bottom: .25rem; }
+.rating-choice label { display: flex; align-items: center; gap: .3rem; font-weight: 400; }
+.job-note-line { flex-basis: 100%; font-size: .85rem; }
+.job-note-cell { min-width: 10rem; font-size: .88rem; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; position: relative; }
 /* Auswahl für mehrere Projekte: erscheint beim Überfahren, auf Touch-Geräten und sobald etwas gewählt ist */
 .card-select { position: absolute; top: .45rem; right: .45rem; z-index: 2; display: grid; place-items: center;

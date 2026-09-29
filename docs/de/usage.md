@@ -35,6 +35,10 @@ Exportierst du Platten einzeln, enthält jede Datei zusätzlich die Vorschaubild
 anderen Platten. Liegt eine Platte in einer anderen Datei des Projekts geslict vor, wird
 ihre Vorschau nicht doppelt angezeigt.
 
+**Doppelte Dateien:** Liegt genau dieselbe Datei mehrfach in der Bibliothek, sagt das die
+Projektseite unter dem Dateinamen und verlinkt die anderen Kopien. Das hilft beim Aufräumen,
+etwa wenn derselbe Druck hochgeladen und zusätzlich vom Drucker geholt wurde.
+
 ## Hochladen
 
 Über „Hochladen“ oben rechts lädst du eine oder mehrere Dateien per Drag & Drop hoch,
@@ -55,6 +59,22 @@ wiederherstellen.
 Projekte mit mehreren Dateien haben neben dem Namen „Alle Dateien als ZIP“. Das ZIP enthält
 die Druckdateien und eine `Projekt.txt` mit Status, Tags, Quelle und Notizen (der Dateiname
 folgt der Sprache der Oberfläche).
+
+## Fotos vom Druck
+
+Auf der Projektseite gibt es den Bereich „Fotos vom Druck“ für Bilder vom fertigen Ergebnis,
+etwa gleich am Drucker mit dem Handy aufgenommen. Das erste Foto wird in der Übersicht zum
+Titelbild statt der Slicer-Vorschau; „Als Titelbild“ wählt ein anderes, „Nicht mehr
+Titelbild“ kehrt zur Slicer-Vorschau zurück.
+
+- JPEG, PNG und WebP bis 30 MB. iPhones wandeln HEIC-Fotos beim Hochladen im Browser
+  automatisch um.
+- PlateShelf dreht jedes Foto so, wie die Kamera es vermerkt hat, verkleinert es auf
+  höchstens 2400 Pixel und entfernt alle Metadaten, auch die GPS-Position.
+- Die Fotos liegen in der Bibliothek unter `.photos/`, wie der Papierkorb unter `.trash/`,
+  und sind damit Teil deiner Bibliothekssicherung. Wandert ein Projekt in den Papierkorb,
+  kommen seine Fotos beim Wiederherstellen mit zurück; wird es endgültig gelöscht,
+  verschwinden sie ebenfalls.
 
 ## 3D-Vorschau
 

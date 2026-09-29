@@ -20,14 +20,15 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
   Kosten, dazu Angaben von MakerWorld, sofern in der Datei enthalten
 - **3D-Vorschau** der Druckbahnen mit Schichtregler, Wiedergabe des Drucks und Einfärbung
   nach Filament, Linientyp, Geschwindigkeit, Volumenstrom, Lüfter oder Temperatur
-- **Automatische Projekte** aus Ordnern oder Dateinamen, Notizen, Tags und Status pro Projekt
+- **Automatische Projekte** aus Ordnern oder Dateinamen, Notizen, Tags und Status pro Projekt,
+  eigene **Fotos vom Druck** als Titelbild
 - **Hochladen** per Drag & Drop, **Papierkorb** mit Wiederherstellen, mehrere Projekte auf
   einmal bearbeiten und Projekte als ZIP
 - **Tägliche automatische Sicherungen**, Zurückspielen in der Oberfläche
 - **Direktimport von Druckern:** Bambu Lab, Prusa über PrusaLink und Klipper-Drucker über
   Moonraker (etwa Creality K1/K2, Sovol SV08, Qidi, Voron)
 - **Druckverlauf und Statistik:** was wann auf welchem Drucker gedruckt wurde und ob der
-  Druck durchlief
+  Druck durchlief, mit Notiz und Bewertung pro Druck
 - **Benutzerkonten** mit Rollen (Admin, Benutzer, Nur lesen), Geräteliste und API-Tokens
   nur zum Lesen
 - **Sechs Sprachen**, helles und dunkles Design, als App auf dem Homescreen, Kennzahlen als JSON

@@ -7,6 +7,7 @@ landen nur ausgelesene Metadaten, Vorschaubilder und deine eigenen Notizen.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS projects (
     source_url TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT '',
     created REAL NOT NULL,
-    updated REAL NOT NULL
+    updated REAL NOT NULL,
+    cover_photo TEXT                -- eigenes Foto als Titelbild, siehe photos.py
 );
 CREATE TABLE IF NOT EXISTS files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +54,8 @@ CREATE TABLE IF NOT EXISTS files (
     model_json TEXT,
     error TEXT,
     missing INTEGER NOT NULL DEFAULT 0,
-    added REAL NOT NULL
+    added REAL NOT NULL,
+    sha256 TEXT                     -- Inhalt, zum Erkennen doppelter Dateien
 );
 CREATE TABLE IF NOT EXISTS plates (
     id INTEGER PRIMARY KEY,
@@ -99,6 +102,8 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     hidden INTEGER NOT NULL DEFAULT 0,   -- vom Nutzer aus dem Verlauf entfernt
     remaining_s REAL,               -- Restzeit laut Drucker, solange er druckt
     updated REAL,                   -- letzte Meldung zu diesem Druck
+    note TEXT,                      -- Notiz zu diesem Druck
+    rating INTEGER,                 -- 1 gelungen, -1 misslungen
     UNIQUE (printer, job_key)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
@@ -214,7 +219,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 3  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 4  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -227,7 +232,15 @@ def _add_column(table: str, column: str, decl: str):
 MIGRATIONS: dict = {
     2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu meldet teils nur die Platte
     3: lambda con: None,  # Benutzerkonten: Tabellen users, sessions, api_tokens (legt SCHEMA an)
+    4: lambda con: _migrate_4(con),
 }
+
+
+def _migrate_4(con: sqlite3.Connection) -> None:
+    """Fotos als Titelbild, Notiz und Bewertung pro Druck, Hash gegen doppelte Dateien."""
+    for table, column, decl in (("projects", "cover_photo", "TEXT"), ("print_jobs", "note", "TEXT"),
+                                ("print_jobs", "rating", "INTEGER"), ("files", "sha256", "TEXT")):
+        _add_column(table, column, decl)(con)
 
 
 def _upgrade_before_versioning(con: sqlite3.Connection) -> None:
@@ -270,6 +283,8 @@ def init_db() -> None:
         for step in sorted(v for v in MIGRATIONS if v > version):
             MIGRATIONS[step](con)
             log.info("Datenbank auf Schema-Version %d aktualisiert", step)
+        # Indizes auf Spalten aus Migrationen erst danach, sonst fehlt die Spalte in alten Datenbanken
+        con.execute("CREATE INDEX IF NOT EXISTS idx_files_sha ON files(sha256)")
         con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         # Nach dem Wiederherstellen einer Sicherung fehlen die Vorschaubilder: neu einlesen
         if not THUMB_DIR.exists() and con.execute("SELECT 1 FROM files LIMIT 1").fetchone():
@@ -361,7 +376,7 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
         settings_json=json.dumps(parsed.settings) if parsed else None,
         model_json=json.dumps({**parsed.model, "photos": [f"photo_{i}{ext}" for i, (ext, _) in enumerate(parsed.photos)]})
         if parsed else None,
-        error=error, missing=0,
+        error=error, missing=0, sha256=None,
     )
     if existing:
         file_id = existing["id"]
@@ -410,6 +425,68 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
         )
 
 
+WATCH = os.environ.get("WATCH_LIBRARY", "true").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _watch_relevant(change, path: str) -> bool:
+    """Nur Druckdateien, nichts aus versteckten Ordnern (.trash, .photos) oder Uploads in Arbeit."""
+    for base in (LIBRARY_DIR, LIBRARY_DIR.resolve()):
+        try:
+            parts = Path(path).relative_to(base).parts
+            break
+        except ValueError:
+            continue
+    else:
+        return False
+    return bool(parts) and is_library_file(parts[-1]) and not any(p.startswith((".", "@")) for p in parts[:-1])
+
+
+def watch_loop(stop_event=None) -> None:
+    """Liest neu ein, sobald sich eine Druckdatei ändert, statt bis zum nächsten Durchlauf zu warten.
+
+    Auf Netzwerkfreigaben (SMB/NFS) meldet das System fremde Änderungen oft nicht; dort
+    bleibt der regelmäßige Durchlauf (SCAN_INTERVAL) der Rückfall.
+    """
+    from watchfiles import watch
+    while not (stop_event and stop_event.is_set()):
+        try:
+            for _changes in watch(LIBRARY_DIR, watch_filter=_watch_relevant, debounce=2000, raise_interrupt=False,
+                                  stop_event=stop_event):
+                scan(wait=True)
+        except Exception as exc:  # z. B. zu viele Ordner für inotify
+            log.warning("Ordnerüberwachung nicht möglich (%s); neue Dateien erscheinen beim nächsten Durchlauf", exc)
+            time.sleep(600)
+
+
+def _fill_hashes(con: sqlite3.Connection) -> None:
+    """SHA-256 der Dateien, die noch keinen haben (neu, geändert oder aus älteren Versionen)."""
+    for r in con.execute("SELECT id, path FROM files WHERE sha256 IS NULL AND missing = 0").fetchall():
+        try:
+            with open(LIBRARY_DIR / r["path"], "rb") as fh:
+                digest = hashlib.file_digest(fh, "sha256").hexdigest()
+        except OSError:
+            continue
+        con.execute("UPDATE files SET sha256 = ? WHERE id = ?", (digest, r["id"]))
+        con.commit()
+
+
+def duplicates_of(con: sqlite3.Connection, file_ids: list[int]) -> dict[int, list[dict]]:
+    """Andere Dateien mit genau demselben Inhalt: {Datei-ID: [{path, project_id, project_name}]}."""
+    if not file_ids:
+        return {}
+    marks = ",".join("?" * len(file_ids))
+    rows = con.execute(
+        f"""SELECT a.id AS fid, b.path, b.project_id, p.name AS project_name FROM files a
+            JOIN files b ON b.sha256 = a.sha256 AND b.id != a.id AND b.missing = 0
+            LEFT JOIN projects p ON p.id = b.project_id
+            WHERE a.id IN ({marks}) AND a.sha256 IS NOT NULL ORDER BY b.path""", file_ids)
+    out: dict[int, list[dict]] = {}
+    for r in rows:
+        out.setdefault(r["fid"], []).append({"path": r["path"], "project_id": r["project_id"],
+                                             "project_name": r["project_name"]})
+    return out
+
+
 def scan(force: bool = False, wait: bool = False) -> dict:
     if not _scan_lock.acquire(blocking=wait):
         return last_scan
@@ -441,6 +518,7 @@ def scan(force: bool = False, wait: bool = False) -> dict:
                     updated += prev is not None
             for path in set(known) - seen:
                 con.execute("UPDATE files SET missing = 1 WHERE path = ?", (path,))
+            _fill_hashes(con)
             # Leere Projekte ohne eigene Angaben aufräumen
             con.execute(
                 """DELETE FROM projects WHERE id NOT IN (SELECT DISTINCT project_id FROM files

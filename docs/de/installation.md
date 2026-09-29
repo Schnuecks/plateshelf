@@ -21,8 +21,8 @@ docker compose up -d
 Danach ist PlateShelf unter `http://<server>:8000` erreichbar. Beim ersten Aufruf legst
 du das Admin-Konto an; den Einrichtungscode dafür findest du im Protokoll (`docker compose
 logs plateshelf`), siehe [Zugriffsschutz](configuration.md#zugriffsschutz). Lege deine
-`.gcode.3mf`-, `.gcode`- oder `.bgcode`-Dateien in den Ordner `library`. Sie erscheinen nach spätestens zwei
-Minuten, sofort über „Bibliothek neu einlesen“ in der Übersicht.
+`.gcode.3mf`-, `.gcode`- oder `.bgcode`-Dateien in den Ordner `library`. Sie erscheinen nach wenigen
+Sekunden; auf Netzwerkfreigaben, die Änderungen nicht immer melden, nach spätestens zwei Minuten.
 
 Die Ordner `library` und `data` müssen für den Benutzer beschreibbar sein, unter dem
 der Container läuft (`PUID` und `PGID` in der `.env`, Standard 1000). Sonst bricht der
@@ -58,6 +58,8 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
 
 - Die Dateien in der Bibliothek werden nie verändert, nur beim Löschen in den
   Papierkorb verschoben.
+- Deine eigenen Fotos von Drucken liegen in der Bibliothek unter `.photos/` und werden mit
+  ihr gesichert.
 - Datenbank (SQLite), Vorschaubilder, 3D-Vorschauen und deine Notizen liegen im
   Datenordner.
 - **Sicherung:** „Einstellungen“ → „Sicherung“ lädt die Datenbank als eine Datei herunter,
@@ -78,6 +80,7 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
   Oberfläche: PlateShelf stoppen, die Sicherung als `plateshelf.sqlite` in den Datenordner
   legen (`plateshelf.sqlite-wal` und `-shm` löschen, falls vorhanden) und wieder starten.
 - Die Datenbank hat eine Schema-Version und wird beim Start automatisch aktualisiert.
-- Neue und geänderte Dateien werden regelmäßig erkannt, auch auf Netzwerkfreigaben
-  (SMB/NFS). Den Datenordner solltest du dagegen lokal ablegen, weil SQLite auf
+- Neue und geänderte Dateien werden sofort erkannt. Auf Netzwerkfreigaben (SMB/NFS) meldet
+  das System Änderungen von anderen Rechnern oft nicht; dort schaut PlateShelf weiterhin alle
+  `SCAN_INTERVAL` Sekunden nach. Den Datenordner solltest du dagegen lokal ablegen, weil SQLite auf
   Netzwerkfreigaben unzuverlässig ist.

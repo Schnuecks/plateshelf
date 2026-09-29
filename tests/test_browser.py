@@ -77,6 +77,10 @@ def server(tmp_path_factory):
     from app import main
     store.init_db()
     store.scan(wait=True)
+    with store.connect() as con:  # ein Druck mit Notiz, damit Verlauf und Projektseite ihre Formulare zeigen
+        con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, local_path, status, started, ended, note, "
+                    "rating) VALUES ('S', 'P1S', 'b1', 'Zylinder.gcode.3mf', 'completed', ?, ?, 'Sauber gedruckt', 1)",
+                    (time.time() - 3600, time.time()))
     port = _free_port()
     srv = uvicorn.Server(uvicorn.Config(main.app, host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=srv.run, daemon=True)

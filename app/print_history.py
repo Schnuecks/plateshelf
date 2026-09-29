@@ -238,6 +238,15 @@ def link_pending() -> None:
                 _apply_project_status(con, {**dict(job), "local_path": local})
 
 
+def set_note(job_id: int, note: str, rating: int | None) -> None:
+    """Notiz und Bewertung (1 gelungen, -1 misslungen, None keine Angabe) zu einem Druck."""
+    with _lock, store.connect() as con:
+        cur = con.execute("UPDATE print_jobs SET note = ?, rating = ? WHERE id = ?",
+                          (note.strip()[:1000] or None, rating, job_id))
+        if not cur.rowcount:
+            raise KeyError(job_id)
+
+
 # --- Abfragen ----------------------------------------------------------------
 
 def jobs_for(paths: list[str]) -> list[dict]:

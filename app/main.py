@@ -51,6 +51,8 @@ async def lifespan(_app):
     threading.Thread(target=print_history.loop, daemon=True).start()
     threading.Thread(target=trash.purge_loop, daemon=True).start()
     threading.Thread(target=backup.loop, daemon=True).start()
+    if store.WATCH:
+        threading.Thread(target=store.watch_loop, daemon=True).start()
     yield
 
 

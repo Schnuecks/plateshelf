@@ -23,7 +23,8 @@ weiter.
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
-| `SCAN_INTERVAL` | 120 | Sekunden zwischen zwei Durchläufen durch die Bibliothek |
+| `SCAN_INTERVAL` | 120 | Sekunden zwischen zwei vollständigen Durchläufen (Rückfall, etwa für Netzwerkfreigaben) |
+| `WATCH_LIBRARY` | true | Neue und geänderte Dateien sofort erkennen; `false` verlässt sich nur auf `SCAN_INTERVAL` |
 | `MAX_UPLOAD_MB` | 1024 | Größenlimit pro hochgeladener Datei in MB |
 | `PREVIEW_PREBUILD` | true | 3D-Vorschauen nach dem Einlesen im Hintergrund vorbereiten |
 | `TRASH_DAYS` | 30 | Tage bis zum endgültigen Löschen aus dem Papierkorb (0 = nie) |

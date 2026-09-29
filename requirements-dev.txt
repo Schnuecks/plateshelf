@@ -3,5 +3,4 @@ pytest>=9.1.1
 httpx2>=2.13.1  # Testclient von Starlette (httpx ist dort veraltet)
 pyftpdlib>=2.2.0
 pyopenssl>=26.4.0
-pillow>=12.3.0
 ruff>=0.16.9

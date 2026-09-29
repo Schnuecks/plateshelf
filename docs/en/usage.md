@@ -33,6 +33,10 @@ If you export plates individually, each file also contains the preview images of
 other plates. If a plate is available sliced in another file of the project, its
 preview is not shown twice.
 
+**Duplicate files:** if exactly the same file lies in the library more than once, the
+project page says so under the file name and links to the other copies. That helps when
+tidying up, for example after an upload and a direct import of the same print.
+
 ## Uploading
 
 Use “Upload” in the top right to upload one or more files by drag & drop, optionally
@@ -51,6 +55,21 @@ lands in the trash on its own and can be restored individually.
 Projects with several files have “All files as ZIP” next to their name. The ZIP contains
 the print files and a `Project.txt` with status, tags, source and notes (the file name
 follows the interface language).
+
+## Photos of the print
+
+The project page has a “Photos of the print” section for pictures of the finished result,
+for example taken with the phone right at the printer. The first photo becomes the cover in
+the overview instead of the slicer preview; “Use as cover” picks another one, “Remove as
+cover” goes back to the slicer preview.
+
+- JPEG, PNG and WebP up to 30 MB. iPhones convert HEIC photos automatically when uploading
+  in the browser.
+- PlateShelf turns each photo the way the camera noted, shrinks it to at most 2400 pixels and
+  removes all metadata, including the GPS position.
+- The photos lie in the library under `.photos/`, like the trash under `.trash/`, so they are
+  part of your library backup. If a project goes to the trash, its photos come back with it;
+  once it is deleted permanently, they are removed as well.
 
 ## 3D preview
 
