@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.3
 
 - **Automatic backups:** once a day PlateShelf saves the database to `backups/` in the data
   folder and keeps the last 7 (`BACKUP_KEEP`, `0` = off). The settings list them for
