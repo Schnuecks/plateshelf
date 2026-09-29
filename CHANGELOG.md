@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.6
 
 - **Plates printed:** projects with several plates show how many are printed (“3/4 plates
   printed”) in the overview; the project page marks each printed plate with a check mark and
