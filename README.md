@@ -4,6 +4,14 @@
 
 **English** · [Deutsch](README.de.md)
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  <a href="https://github.com/Schnuecks/plateshelf/pkgs/container/plateshelf"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready"></a>
+  <img src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-E4572E" alt="Platform amd64 | arm64">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-4C9A2A" alt="License AGPL-3.0"></a>
+  <img src="https://img.shields.io/badge/maintained-yes-4C9A2A" alt="Maintained">
+</p>
+
 PlateShelf is a self-hosted archive for your 3D prints. It reads sliced `.gcode.3mf`
 files from Bambu Studio and OrcaSlicer, `.gcode` files from PrusaSlicer, OrcaSlicer, Cura
 and similar slicers and binary `.bgcode` files from PrusaSlicer, and presents them as clearly as you know from your slicer:
@@ -66,6 +74,17 @@ Open `http://<server>:8000` and create the admin account; the setup code is in t
 - [Development](docs/en/development.md): running locally, tests, translations
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
+
+## Support
+
+PlateShelf is free and stays free. If it saves you time, you can buy me a coffee; it keeps
+the project going. Thank you!
+
+<p>
+  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-5_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 5 €"></a>
+  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-10_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 10 €"></a>
+  <a href="https://buymeacoffee.com/il6hhwtzr6"><img src="https://img.shields.io/badge/Buy_me_a_coffee-20_%E2%82%AC-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee: 20 €"></a>
+</p>
 
 ## Feedback
 
