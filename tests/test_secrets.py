@@ -1,5 +1,4 @@
 """Geheimnisse: SECRET_KEY aus der Umgebung, verschlüsselte Druckerzugänge, Passwort-Hash, *_FILE."""
-import base64
 
 import pytest
 from fastapi.testclient import TestClient

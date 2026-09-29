@@ -1,6 +1,7 @@
 name: CI
 
-# Tests bei jedem Push und Pull Request: Python-Tests und ein Browsertest (Playwright).
+# Tests bei jedem Push und Pull Request: Linter (Ruff), Python-Tests und ein Browsertest
+# (Playwright). Das fertige Image prüft Trivy auf bekannte Sicherheitslücken.
 # Das Docker-Image wird bei Pull Requests und Pushes auf main für alle Plattformen nur
 # probeweise gebaut (nicht hochgeladen), damit Speicher und Datenvolumen des kostenlosen
 # Plans geschont werden und ein Fehler auf einer Plattform vor dem Release auffällt.
@@ -33,6 +34,7 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-dev.txt
       - run: pip install -r requirements-dev.txt
+      - run: python -m ruff check
       - run: python -m pytest -q
 
   browser:
@@ -91,6 +93,34 @@ jobs:
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Sicherheitsscan: das amd64-Image aus dem Cache laden (die arm64-Pakete sind dieselben)
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: plateshelf:scan
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+      # Übersicht über kritische und hohe Lücken, für die es eine Korrektur gibt …
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: plateshelf:scan
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
+      # … abgebrochen wird nur bei kritischen; „hoch“ im Basis-Image soll kein Release blockieren,
+      # bis Debian nachgezogen hat (Dependabot schlägt das neue Basis-Image dann vor)
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: plateshelf:scan
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+          skip-setup-trivy: true
 
   cleanup:
     # Nach einem Release ältere Image-Versionen entfernen

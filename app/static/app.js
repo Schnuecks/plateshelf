@@ -211,6 +211,30 @@ document.querySelectorAll("details[data-menu]").forEach((menu) => {
 });
 
 // Sicherheitsabfrage vor dem Löschen
+// Mehrfachauswahl in der Übersicht: Leiste erscheint, sobald ein Projekt ausgewählt ist
+const bulk = document.querySelector("[data-bulk]");
+if (bulk) {
+  const items = [...document.querySelectorAll("[data-bulk-item]")];
+  const count = bulk.querySelector("[data-bulk-count]");
+  const selected = () => items.filter((i) => i.checked).length;
+  const update = () => {
+    const n = selected();
+    bulk.hidden = n === 0;
+    document.body.classList.toggle("bulk-active", n > 0);
+    count.textContent = (n === 1 ? bulk.dataset.one : bulk.dataset.many).replace("{n}", n);
+  };
+  items.forEach((i) => i.addEventListener("change", update));
+  bulk.querySelector("[data-bulk-clear]").addEventListener("click", () => {
+    items.forEach((i) => { i.checked = false; });
+    update();
+  });
+  bulk.addEventListener("submit", (e) => {
+    if (e.submitter && e.submitter.value === "trash"
+        && !window.confirm(bulk.dataset.trashConfirm.replace("{n}", selected()))) e.preventDefault();
+  });
+  update();  // der Browser stellt Häkchen beim Zurückgehen wieder her
+}
+
 document.querySelectorAll("form[data-confirm]").forEach((form) => {
   form.addEventListener("submit", (e) => {
     if (!window.confirm(form.dataset.confirm)) e.preventDefault();

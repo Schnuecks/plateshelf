@@ -8,6 +8,7 @@ import socket
 import threading
 import time
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -127,6 +128,44 @@ def test_pages_without_errors(server, page, path):
     assert page.locator("footer.site-footer").is_visible()
     assert page.errors == []
     assert foreign == []  # nichts von fremden Servern (Schriften, Skripte …), läuft auch ohne Internet
+
+
+AXE = Path(__file__).parent / "vendor" / "axe.min.js"  # axe-core 4.13 (MPL-2.0), nur für Tests
+
+
+@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/history", "/statistics", "/trash", "/upload",
+                                  "/about", "/view/{fid}/1"])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_accessibility(server, page, path, theme):
+    """Barrierefreiheit nach WCAG 2 A/AA mit axe-core: keine ernsten oder kritischen Verstöße."""
+    page.context.add_cookies([{"name": "design", "value": theme, "url": server["url"]}])
+    _check_accessibility(page, server["url"] + path.format(**server))
+
+
+def test_accessibility_sign_in_pages(server, page, monkeypatch):
+    """Einrichtung und Anmeldung sind das Erste, was neue Nutzer sehen."""
+    from app import auth, store
+    monkeypatch.setenv("AUTH", "on")
+    _check_accessibility(page, server["url"] + "/setup")
+    user_id = auth.create_user("tester", "geheim-123", "admin")
+    try:
+        _check_accessibility(page, server["url"] + "/login")
+    finally:
+        with store.connect() as con:
+            con.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def _check_accessibility(page, url):
+    page.goto(url)
+    page.wait_for_load_state("networkidle")
+    page.add_script_tag(path=str(AXE))
+    result = page.evaluate("""async () => {
+        const r = await axe.run(document, {runOnly: {type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]}});
+        return {passes: r.passes.length, violations: r.violations.filter(v => ["serious", "critical"].includes(v.impact))
+            .map(v => `${v.id} (${v.impact}): ${v.help} -> ${v.nodes.slice(0, 3).map(n => n.target.join(" ")).join(" | ")}`)};
+    }""")
+    assert result["passes"] > 10  # axe hat wirklich geprüft
+    assert result["violations"] == [], "\n".join(result["violations"])
 
 
 def test_fonts_are_served_locally(server, page):

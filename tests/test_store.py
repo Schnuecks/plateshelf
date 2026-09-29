@@ -25,7 +25,8 @@ def test_ids_are_never_reused(lib, sample):
     store.scan(wait=True)
     with store.connect() as con:
         first = con.execute("SELECT id FROM files").fetchone()[0]
-        con.execute("DELETE FROM plates"); con.execute("DELETE FROM files")
+        con.execute("DELETE FROM plates")
+        con.execute("DELETE FROM files")
     (lib / "a.gcode.3mf").rename(lib / "b.gcode.3mf")
     store.scan(wait=True)
     with store.connect() as con:

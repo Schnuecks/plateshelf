@@ -275,13 +275,54 @@
       <section class="settings-section" id="backup" data-section>
         <h2>{{ _('Sicherung') }}</h2>
         <p class="hint">{{ _('Die Sicherung enthält alles, was nicht in deinen Dateien steht: Projekte mit Notizen, Tags und Status, Zuordnungen, Einstellungen, Drucker und den Druckverlauf. Die Druckdateien selbst sicherst du wie gewohnt mit dem Bibliotheksordner. Vorschaubilder und 3D-Vorschauen entstehen nach dem Zurückspielen von selbst neu.') }}</p>
+        {% if request.query_params.get('restored') %}<p class="flash" role="status">{{ _('Sicherung zurückgespielt. Der vorherige Stand liegt als {name} bei den automatischen Sicherungen.', name=request.query_params.get('restored')) }}</p>{% endif %}
+        {% if backup_error %}<p class="flash flash-warn" role="alert">{{ backup_error }}</p>{% endif %}
         <div class="section-foot"><a class="button" href="/settings/backup" download>{{ _('Sicherung herunterladen') }}</a></div>
+
+        <h3>{{ _('Automatische Sicherungen') }}</h3>
+        {% if backup_keep %}
+        <p class="hint">{{ _('Jeden Tag legt {app} eine Sicherung im Datenordner unter {folder} an und behält die letzten {n}.', app=APP_NAME, folder='<code>backups/</code>', n=backup_keep)|safe }}</p>
+        {% else %}
+        <p class="hint">{{ _('Mit {env} ausgeschaltet.', env='<code>BACKUP_KEEP=0</code>')|safe }}</p>
+        {% endif %}
+        {% if backups %}
+        <ul class="device-list">
+          {% for b in backups %}
+          <li>
+            <span class="device-main">
+              <strong>{{ b.time|datetime }}</strong>
+              {% if b.before_restore %}<span class="device-current">{{ _('vor dem Zurückspielen') }}</span>{% endif %}
+              <span class="hint">{{ (b.size / 1048576)|num(1, 'MB') }}</span>
+            </span>
+            <span class="backup-actions">
+              <a href="/settings/backup/file/{{ b.name }}" download>{{ _('Herunterladen') }}</a>
+              <form method="post" action="/settings/backup/file/{{ b.name }}/restore#backup"
+                    data-confirm="{{ _('Den aktuellen Stand durch diese Sicherung ersetzen? Er wird vorher selbst gesichert.') }}">
+                <button type="submit" class="danger-quiet">{{ _('Zurückspielen') }}</button>
+              </form>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% elif backup_keep %}
+        <p class="hint">{{ _('Noch keine; die erste entsteht kurz nach dem Start.') }}</p>
+        {% endif %}
+
         <h3>{{ _('Zurückspielen') }}</h3>
-        <ol class="hint backup-steps">
-          <li>{{ _('{app} stoppen, zum Beispiel mit {cmd}.', app=APP_NAME, cmd='<code>docker compose down</code>')|safe }}</li>
-          <li>{{ _('Die Sicherung als {file} in den Datenordner legen und dort {extra} löschen, falls vorhanden.', file='<code>plateshelf.sqlite</code>', extra='<code>plateshelf.sqlite-wal</code>, <code>plateshelf.sqlite-shm</code>')|safe }}</li>
-          <li>{{ _('{app} starten. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', app=APP_NAME, key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</li>
-        </ol>
+        <form method="post" action="/settings/backup/restore#backup" enctype="multipart/form-data" class="token-form"
+              data-confirm="{{ _('Den aktuellen Stand durch diese Sicherung ersetzen? Er wird vorher selbst gesichert.') }}">
+          <label>{{ _('Sicherung (.sqlite)') }} <input type="file" name="file" accept=".sqlite,.db,application/vnd.sqlite3" required></label>
+          <button type="submit">{{ _('Sicherung zurückspielen') }}</button>
+        </form>
+        <p class="hint">{{ _('Benutzer und Anmeldungen kommen aus der Sicherung; eventuell musst du dich danach neu anmelden. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</p>
+        <details class="settings-help">
+          <summary>{{ _('Von Hand zurückspielen') }}</summary>
+          <ol class="hint backup-steps">
+            <li>{{ _('{app} stoppen, zum Beispiel mit {cmd}.', app=APP_NAME, cmd='<code>docker compose down</code>')|safe }}</li>
+            <li>{{ _('Die Sicherung als {file} in den Datenordner legen und dort {extra} löschen, falls vorhanden.', file='<code>plateshelf.sqlite</code>', extra='<code>plateshelf.sqlite-wal</code>, <code>plateshelf.sqlite-shm</code>')|safe }}</li>
+            <li>{{ _('{app} starten. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', app=APP_NAME, key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</li>
+          </ol>
+        </details>
       </section>
 
       <section class="settings-section" id="diagnostics" data-section>

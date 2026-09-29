@@ -7,6 +7,7 @@
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
+python -m ruff check                       # Linter, läuft auch in der CI
 python -m pytest -q                        # Tests ausführen
 python tools/make_sample.py ./library      # Beispieldateien erzeugen
 LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
@@ -14,10 +15,13 @@ LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 
 `python tools/make_screenshots.py` erzeugt die Screenshots für README und Dokumentation neu.
 `python tools/load_test.py 2000` legt eine Bibliothek mit 2000 Dateien an und misst
-Einlesen und die wichtigsten Seiten.
+Einlesen und die wichtigsten Seiten. `python tools/make_icons.py` erzeugt die Symbole für
+den Homescreen aus `app/static/logo.svg`.
 
 Zusätzlich gibt es einen Browsertest, der alle Seiten und die 3D-Vorschau in Chromium
-öffnet und bei jedem JavaScript-Fehler fehlschlägt:
+öffnet. Er schlägt fehl bei jedem JavaScript-Fehler, bei jeder Anfrage an einen fremden
+Server und bei ernsten oder kritischen Mängeln der Barrierefreiheit (WCAG 2 A/AA, geprüft
+mit axe-core aus `tests/vendor/`, im hellen und im dunklen Design):
 
 ```bash
 pip install -r requirements-browser.txt
@@ -50,9 +54,12 @@ IP-Adressen, Hostnamen oder Druckernamen.
 
 ## Tests, Builds und Releases
 
-- Jeder Pull Request und jeder Push auf `main` durchläuft die Python-Tests und den
+- Jeder Pull Request und jeder Push auf `main` durchläuft Ruff, die Python-Tests und den
   Browsertest und baut das Image probeweise für amd64 und arm64. Veröffentlicht
   wird dabei nichts.
+- Danach prüft Trivy das Image auf bekannte Sicherheitslücken. Kritische und hohe, für die
+  es schon eine Korrektur gibt, werden aufgelistet; abgebrochen wird nur bei kritischen,
+  damit ein neues „hoch“ im Basis-Image kein Release blockiert, bis Debian nachgezogen hat.
 - Ein Release entsteht durch einen Versions-Tag:
 
   1. Änderungen in `CHANGELOG.md` unter der neuen Versionsnummer eintragen.

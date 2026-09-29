@@ -42,6 +42,20 @@ auf Wunsch direkt in einen Projektordner. Vorhandene Dateien werden nie übersch
 Identische Dateien werden übersprungen, bei gleichem Namen mit anderem Inhalt wird
 „(2)“ angehängt.
 
+## Mehrere Projekte bearbeiten
+
+Fahr in der Übersicht mit der Maus über eine Karte (auf Handy und Tablet ist das Kästchen
+immer da) und setze oben rechts den Haken. Sobald ein Projekt ausgewählt ist, erscheint
+unten eine Leiste: Status setzen, Tag hinzufügen oder alle ausgewählten Projekte in den
+Papierkorb verschieben. Jedes Projekt landet dort einzeln und lässt sich einzeln
+wiederherstellen.
+
+## Projekt herunterladen
+
+Projekte mit mehreren Dateien haben neben dem Namen „Alle Dateien als ZIP“. Das ZIP enthält
+die Druckdateien und eine `Projekt.txt` mit Status, Tags, Quelle und Notizen (der Dateiname
+folgt der Sprache der Oberfläche).
+
 ## 3D-Vorschau
 
 Eine geslicte Datei enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die
@@ -129,3 +143,9 @@ Einstellung haben. Zahlen, Beträge und Datumsangaben folgen der gewählten Spra
 Ohne eigene Auswahl gelten `DEFAULT_LANGUAGE` und `DEFAULT_THEME` aus der `.env`. Ist
 keine Sprache vorgegeben, gilt die Sprache des Browsers, und Englisch, wenn diese keine
 der sechs ist.
+
+## Auf dem Homescreen
+
+PlateShelf lässt sich wie eine App auf den Homescreen legen und öffnet dann ohne
+Browserleiste: auf iPhone und iPad über Teilen → „Zum Home-Bildschirm“, auf Android und in
+Chrome oder Edge über das Menü → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.

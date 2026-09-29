@@ -52,6 +52,12 @@
 {% if request.query_params.get('restored') %}
 <p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt.') }}</p>
 {% endif %}
+{% if request.query_params.get('bulk') %}
+<p class="flash" role="status">{{ ngettext('{n} Projekt geändert.', '{n} Projekte geändert.', request.query_params.get('bulk')|int(0)) }}</p>
+{% endif %}
+{% if request.query_params.get('bulk_trashed') %}
+<p class="flash" role="status">{{ ngettext('{n} Projekt in den Papierkorb verschoben.', '{n} Projekte in den Papierkorb verschoben.', request.query_params.get('bulk_trashed')|int(0)) }} <a href="/trash">{{ _('Papierkorb') }}</a></p>
+{% endif %}
 {% if request.query_params.get('uploaded') %}
 {% set up = request.query_params.get('uploaded')|int(0) %}
 <p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen.', '{n} Dateien hochgeladen.', up) }}</p>
@@ -86,9 +92,16 @@
 {% endif %}
 
 {% if projects %}
+{% set editable = can_edit(request) %}
 <ul class="grid">
   {% for p in projects %}
   <li class="card">
+    {% if editable %}
+    <label class="card-select" title="{{ _('Auswählen') }}">
+      <input type="checkbox" name="pid" value="{{ p.id }}" form="bulk" data-bulk-item>
+      <span class="visually-hidden">{{ _('„{name}“ auswählen', name=p.name) }}</span>
+    </label>
+    {% endif %}
     <a href="/p/{{ p.id }}" class="card-link">
       <div class="bed">
         {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy">{% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
@@ -113,6 +126,23 @@
   </li>
   {% endfor %}
 </ul>
+{% if editable %}
+<form id="bulk" method="post" action="/bulk" class="bulk-bar" data-bulk hidden
+      data-one="{{ _('{n} Projekt ausgewählt') }}" data-many="{{ _('{n} Projekte ausgewählt') }}"
+      data-trash-confirm="{{ _('{n} Projekte in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.') }}">
+  <input type="hidden" name="next" value="{{ current_url(request) }}">
+  <strong class="bulk-count" data-bulk-count></strong>
+  <label>{{ _('Status') }}
+    <select name="status">
+      <option value="-">{{ _('unverändert') }}</option>
+      {% for key, label in STATUSES.items() %}<option value="{{ key }}">{{ _(label) }}</option>{% endfor %}
+    </select></label>
+  <label>{{ _('Tag hinzufügen') }} <input type="text" name="add_tag" placeholder="{{ _('z. B. Geschenke') }}"></label>
+  <button type="submit" name="action" value="apply">{{ _('Übernehmen') }}</button>
+  <button type="submit" name="action" value="trash" class="danger-quiet">{{ _('In den Papierkorb') }}</button>
+  <button type="button" class="quiet" data-bulk-clear>{{ _('Auswahl aufheben') }}</button>
+</form>
+{% endif %}
 {% if more_url %}
 <p class="more-projects"><a class="button" href="{{ more_url }}">{{ ngettext('{n} weiteres Projekt anzeigen', 'Weitere {n} Projekte anzeigen', [hidden_count, 60]|min) }}</a>
   <span class="hint">{{ _('{n} von {total} angezeigt', n=projects|length, total=totals.count) }}</span></p>

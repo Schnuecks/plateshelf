@@ -2,6 +2,22 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Automatic backups:** once a day PlateShelf saves the database to `backups/` in the data
+  folder and keeps the last 7 (`BACKUP_KEEP`, `0` = off). The settings list them for
+  download.
+- **Restore in the interface:** upload a backup or pick an automatic one under “Settings” →
+  “Backup”. The current state is saved first; preview images are rebuilt afterwards.
+- **Edit several projects at once:** tick projects in the overview, then set the status, add
+  a tag or move them all to the trash.
+- **Project as ZIP:** “All files as ZIP” on the project page, with a text file holding
+  status, tags, source and notes.
+- **Home screen:** PlateShelf can be installed like an app on phones, tablets and in
+  Chrome/Edge (web app manifest and icons).
+- Quality: CI now runs the Ruff linter and scans the image with Trivy; the browser test
+  checks every page for accessibility problems (axe-core, WCAG 2 A/AA) in both themes.
+
 ## 0.8.2
 
 - The Barlow fonts are now served by PlateShelf itself instead of Google Fonts. No page

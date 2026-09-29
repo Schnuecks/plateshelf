@@ -7,6 +7,7 @@ Die Seiten selbst liegen in routes_*.py, Gemeinsames in web.py und projects.py.
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -16,8 +17,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, crypto, diagnostics, i18n, print_history, printer_import, routes_account, routes_library, \
-    routes_preview, routes_settings, routes_system, store, trash
+from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, routes_account, \
+    routes_library, routes_preview, routes_settings, routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, SAFE_METHODS, allowed, current_url, current_user, is_public
 # Für Tests und Werkzeuge, die diese Namen bisher aus main holten
@@ -49,6 +50,7 @@ async def lifespan(_app):
     threading.Thread(target=printer_import.sync_loop, daemon=True).start()
     threading.Thread(target=print_history.loop, daemon=True).start()
     threading.Thread(target=trash.purge_loop, daemon=True).start()
+    threading.Thread(target=backup.loop, daemon=True).start()
     yield
 
 
@@ -109,6 +111,7 @@ def same_origin(request: Request) -> bool:
     return parts.netloc.lower() == host.strip().lower()
 
 
+mimetypes.add_type("application/manifest+json", ".webmanifest")  # Web-App-Manifest (Homescreen)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 for module in (routes_account, routes_library, routes_settings, routes_preview, routes_system):
     app.include_router(module.router)

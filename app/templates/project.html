@@ -15,6 +15,7 @@
   <header class="project-head">
     <div class="project-title">
       <h1>{{ p.name }}</h1>
+      {% if files|length > 1 %}<a class="project-zip" href="/p/{{ p.id }}/download" download>{{ _('Alle Dateien als ZIP') }}</a>{% endif %}
       {% if writable and can_edit(request) %}
       <form method="post" action="/p/{{ p.id }}/delete" class="delete-project"
             data-confirm="{{ ngettext('Projekt „{name}“ mit {n} Datei in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', 'Projekt „{name}“ mit {n} Dateien in den Papierkorb verschieben? Notizen und Tags kommen beim Wiederherstellen mit zurück.', files|length, name=p.name) }}">

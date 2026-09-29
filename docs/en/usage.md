@@ -39,6 +39,19 @@ Use “Upload” in the top right to upload one or more files by drag & drop, op
 straight into a project folder. Existing files are never overwritten: identical files
 are skipped, and files with the same name but different content get “(2)” appended.
 
+## Editing several projects
+
+Point at a card in the overview (on phones and tablets the box is always visible) and tick
+the box in its top right corner. As soon as one project is selected, a bar appears at the
+bottom: set the status, add a tag or move all selected projects to the trash. Each project
+lands in the trash on its own and can be restored individually.
+
+## Downloading a project
+
+Projects with several files have “All files as ZIP” next to their name. The ZIP contains
+the print files and a `Project.txt` with status, tags, source and notes (the file name
+follows the interface language).
+
 ## 3D preview
 
 A sliced file no longer contains a 3D model but the finished G-code. The 3D preview
@@ -122,3 +135,9 @@ amounts and dates follow the selected language.
 Without a choice, `DEFAULT_LANGUAGE` and `DEFAULT_THEME` from the `.env` apply. If no
 language is set there either, the browser language is used, and English if that isn’t
 one of the six.
+
+## On the home screen
+
+PlateShelf can be added to the home screen like an app and then opens without the browser
+bar: on iPhone and iPad via Share → “Add to Home Screen”, on Android and in Chrome or Edge
+via the menu → “Install app” or “Add to home screen”.
