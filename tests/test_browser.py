@@ -184,6 +184,24 @@ def test_fonts_are_served_locally(server, page):
     assert any(name.startswith('"Barlow Semi Condensed"') or name.startswith("Barlow Semi Condensed") for name in loaded[2]), loaded
 
 
+def test_viewer_loading_on_phone(server, browser):
+    """Handy: Ladeanzeige mittig, 3D-Fläche mit Abstand zur Kopfleiste und nicht breiter als der Bildschirm."""
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="de-DE")
+    pg = context.new_page()
+    pg.route("**/api/preview/**", lambda route: None)  # nie beantworten: die Ladeanzeige bleibt stehen
+    pg.goto(f"{server['url']}/view/{server['fid']}/1", wait_until="domcontentloaded")
+    pg.wait_for_selector("#viewer-loading-bar")
+    m = pg.evaluate("""() => {
+        const r = s => document.querySelector(s).getBoundingClientRect();
+        const stage = r('.viewer-stage'), bar = r('#viewer-loading-bar'), top = r('.topbar');
+        return {offset: (bar.left + bar.width / 2) - (stage.left + stage.width / 2), gap: stage.top - top.bottom,
+                left: stage.left, right: innerWidth - stage.right, wide: document.documentElement.scrollWidth > innerWidth};
+    }""")
+    context.close()
+    assert abs(m["offset"]) <= 1, m
+    assert m["gap"] >= 8 and m["left"] >= 8 and m["right"] >= 8 and not m["wide"], m
+
+
 def test_viewer_loads_and_all_controls_work(server, page):
     page.goto(f"{server['url']}/view/{server['fid']}/1")
     # Vorschau fertig: Ladehinweis weg, Bedienfeld da, Schichtanzeige gesetzt.

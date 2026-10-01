@@ -419,7 +419,7 @@ summary { cursor: pointer; font-weight: 500; }
 .viewer { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; height: calc(100dvh - 3.3rem); }
 .viewer-stage { position: relative; min-height: 0; }
 #viewer-canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-.viewer-loading { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: .6rem; padding: 2rem; background: var(--viewer-bg); }
+.viewer-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; gap: .6rem; padding: 2rem; background: var(--viewer-bg); }
 .viewer-loading p { margin: 0; }
 .viewer-loading progress { width: min(22rem, 70vw); accent-color: var(--accent); }
 .viewer-panel { background: var(--surface); border-left: 1px solid var(--line); padding: 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem; }
@@ -457,8 +457,11 @@ summary { cursor: pointer; font-weight: 500; }
   /* Vorschau füllt den Bildschirm unter der Kopfzeile; oben schaut die Bedienung heraus,
      damit klar ist, dass es darunter weitergeht (Wischen auf der Vorschau dreht das Modell) */
   .viewer { grid-template-columns: 1fr; height: auto;
-    grid-template-rows: max(16rem, calc(100dvh - var(--topbar-h, 7rem) - 5.5rem)) auto; }
-  .viewer-panel { border-left: 0; border-top: 1px solid var(--line); }
+    grid-template-rows: max(16rem, calc(100dvh - var(--topbar-h, 7rem) - 6.25rem)) auto; }
+  /* Mit Abstand zur Kopfleiste und abgerundet, wie die Kästen der übrigen Seiten */
+  .viewer-stage { margin: .75rem .75rem 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .viewer:fullscreen .viewer-stage { margin: 0; border: 0; border-radius: 0; }
+  .viewer-panel { border-left: 0; border-top: 0; }
   .viewer-help { display: none; }
 }
 
