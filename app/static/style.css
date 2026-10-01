@@ -97,6 +97,8 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--ink);
+  /* viewport-fit=cover: im Querformat nicht unter die Kameraaussparung */
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   font: 400 16px/1.5 var(--font); font-variant-numeric: tabular-nums;
 }
 a { color: var(--accent); }
@@ -114,6 +116,8 @@ th.r, td.r, .r { text-align: right; }
   padding: .75rem clamp(1rem, 3vw, 2rem);
   background: var(--surface); border-bottom: 1px solid var(--line);
 }
+/* iPhone: Kopfleiste reicht bis unter die Statusleiste, statt dort die Seite unscharf durchscheinen zu lassen */
+@supports (padding: max(0px)) { .topbar { padding-top: max(.75rem, calc(env(safe-area-inset-top) + .5rem)); } }
 .brand img { display: block; border-radius: 6px; }
 .brand {
   font: 600 1.25rem/1 var(--font-cond); color: var(--ink); text-decoration: none; letter-spacing: .01em;
@@ -368,7 +372,7 @@ summary { cursor: pointer; font-weight: 500; }
   .topbar:has(.nav-back) .tb-left { min-width: max-content; }
   /* Mit JavaScript: Menü hinter einem Knopf, damit die Kopfzeile flach bleibt */
   .js .topbar, .js .topbar:has(.nav-back) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem .75rem;
-    padding-block: .6rem; }
+    padding-block: max(.6rem, calc(env(safe-area-inset-top) + .4rem)) .6rem; }
   .js .topbar > .tb-left { grid-column: 1; grid-row: 1; min-width: 0; }
   .js .topbar > .menu-toggle { display: inline-flex; grid-column: 2; grid-row: 1; align-self: center; }
   .js .topbar > .nav-back { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center;

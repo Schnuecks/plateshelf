@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **iPhone:** the top bar now reaches up under the status bar, so Safari no longer shows a
+  blurred strip of the page above it; in landscape nothing hides behind the camera cutout.
+  The browser bar takes the colour of the chosen theme even when it differs from the system.
+
 ## 0.8.7
 
 - **3D preview on phones:** the loading bar is now exactly centered, and the 3D view keeps
