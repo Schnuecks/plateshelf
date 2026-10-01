@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **3D preview on phones:** the loading bar is now exactly centered, and the 3D view keeps
+  some space below the top bar with rounded corners instead of looking cut off.
+
 ## 0.8.6
 
 - **Plates printed:** projects with several plates show how many are printed (“3/4 plates
