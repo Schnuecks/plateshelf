@@ -159,6 +159,19 @@ def test_accessibility_sign_in_pages(server, page, monkeypatch):
             con.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_browser_bar_matches_top_bar(server, page, theme):
+    """Handy: Browser-/Statusleiste in der Farbe der Kopfleiste, auch wenn das Design fest gewählt ist."""
+    page.context.add_cookies([{"name": "design", "value": theme, "url": server["url"]}])
+    page.goto(server["url"] + "/")
+    colors = page.evaluate("""() => ({
+        meta: [...document.querySelectorAll('meta[name=theme-color]')].map(m => m.content),
+        bar: getComputedStyle(document.querySelector('.topbar')).backgroundColor })""")
+    expected = {"light": ("#FFFFFF", "rgb(255, 255, 255)"), "dark": ("#1D2227", "rgb(29, 34, 39)")}[theme]
+    assert colors["meta"] == [expected[0]] and colors["bar"] == expected[1], colors
+    assert "viewport-fit=cover" in page.get_attribute("meta[name=viewport]", "content")
+
+
 def _check_accessibility(page, url):
     page.goto(url)
     page.wait_for_load_state("networkidle")

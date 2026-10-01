@@ -3,7 +3,7 @@
 <html lang="{{ lang() }}"{% if t != 'system' %} data-theme="{{ t }}"{% endif %}>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="format-detection" content="telephone=no">
   <script>document.documentElement.classList.add("js")</script>
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
@@ -16,8 +16,13 @@
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="{{ APP_NAME }}">
   <meta name="mobile-web-app-capable" content="yes">
+  {# Farbe der Browserleiste = Kopfleiste; bei fest gewähltem Design unabhängig vom System #}
+  {% if t == 'system' %}
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1D2227" media="(prefers-color-scheme: dark)">
+  {% else %}
+  <meta name="theme-color" content="{{ '#1D2227' if t == 'dark' else '#FFFFFF' }}">
+  {% endif %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <header class="topbar">
