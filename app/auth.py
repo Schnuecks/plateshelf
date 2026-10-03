@@ -49,6 +49,7 @@ MIN_PASSWORD = 8
 ROLES = ("admin", "user", "viewer")
 TOKEN_PREFIX = "ps_"
 SETUP_KEY = "auth:setup_code"
+NO_PASSWORD = "-"  # Konten, die sich nur über OIDC anmelden
 _SETUP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # ohne 0/O und 1/I
 
 _failures: dict[str, list[float]] = {}
@@ -85,6 +86,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, hashed: str) -> bool:
+    if hashed == NO_PASSWORD:
+        return False
     try:
         kind, n_log2, r, p, salt, digest = hashed.split(":")
         if kind != "scrypt":
@@ -121,6 +124,12 @@ def list_users() -> list[dict]:
 def get_user(user_id: int) -> dict | None:
     with store.connect() as con:
         return _user(con.execute("SELECT id, name, role FROM users WHERE id = ?", (user_id,)).fetchone())
+
+
+def has_password(user_id: int) -> bool:
+    with store.connect() as con:
+        row = con.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+    return bool(row) and row["password_hash"] != NO_PASSWORD
 
 
 def check_password_rules(password: str, repeat: str | None = None) -> None:
@@ -202,6 +211,40 @@ def authenticate(name: str, password: str) -> dict | None:
         verify_password(password, _DUMMY_HASH)
         return None
     return _user(row) if verify_password(password, row["password_hash"]) else None
+
+
+def login_external(subject: str, name: str, role: str | None) -> int:
+    """Konto für eine Anmeldung über OIDC: verknüpft, gleichnamig oder neu; liefert die Benutzer-ID.
+
+    subject ist Aussteller + sub und bleibt gleich, auch wenn sich der Name beim Anbieter ändert.
+    role kommt aus den Gruppen (None: keine Zuordnung eingestellt, Rolle bleibt wie in PlateShelf).
+    """
+    name = _clean_name(name)
+    with store.connect() as con:
+        row = (con.execute("SELECT id, role FROM users WHERE oidc_sub = ?", (subject,)).fetchone()
+               or con.execute("SELECT id, role FROM users WHERE name = ? AND oidc_sub IS NULL", (name,)).fetchone())
+        if row:
+            con.execute("UPDATE users SET oidc_sub = ? WHERE id = ?", (subject, row["id"]))
+            user_id, current = row["id"], row["role"]
+        else:
+            if con.execute("SELECT 1 FROM users WHERE name = ?", (name,)).fetchone():
+                raise UserError("Den Benutzernamen „{name}“ gibt es schon.", name=name)
+            first = _admins(con) == 0
+            if first and role != "admin":
+                # Das erste Konto legt die Besitzerin mit dem Einrichtungscode an (oder über die Admin-Gruppe)
+                raise UserError("Lege zuerst das Admin-Konto an.")
+            cur = con.execute("INSERT INTO users (name, password_hash, role, created, oidc_sub) VALUES (?, ?, ?, ?, ?)",
+                              (name, NO_PASSWORD, role or "viewer", time.time(), subject))
+            if first:
+                con.execute("DELETE FROM settings WHERE key = ?", (SETUP_KEY,))
+            log.info("Konto „%s“ bei der ersten Anmeldung über OIDC angelegt (%s)", name, role or "viewer")
+            return cur.lastrowid
+    if role and role != current:
+        try:
+            set_role(user_id, role)
+        except UserError:
+            log.warning("Rolle von „%s“ bleibt %s: es wäre kein Admin mehr übrig", name, current)
+    return user_id
 
 
 def seed_from_env() -> None:

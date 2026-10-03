@@ -4,6 +4,10 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Single sign-on (OIDC):** sign in with Authelia, Authentik, Keycloak, Pocket ID and other
+  OpenID Connect providers, alongside the password. Accounts are linked by user name on the
+  first sign-in or created; roles can follow groups (`OIDC_ADMIN_GROUP`, `OIDC_USER_GROUP`).
+  Authorization code flow with PKCE and signature check of the ID token. Database schema 5.
 - **Old prints no longer show up as new:** Bambu printers list files older than about six
   months with the year instead of the time (“Apr 03 18:18” becomes “Apr 03 2026”).
   PlateShelf took that as a changed file, fetched it again and put the project at the top of
