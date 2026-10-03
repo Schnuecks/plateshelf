@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
 from . import gcode_file, i18n, photos, print_history, printer_import, statistics, store, trash
-from .i18n import gettext as _
+from .i18n import fmt_date, fmt_num, gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
 from .web import ONE_YEAR, STATUSES, _local_target, templates
 
@@ -107,8 +107,24 @@ def project(request: Request, pid: int):
         source = (f["model"].get("title") or "").strip().lower()
         for pl in f["all_plates"]:
             strip.append({**pl, "fid": f["id"], "v": f["v"], "file_name": f["path"].split("/")[-1],
-                          "_sort": (source, pl["idx"], natural_key(f["path"]))})
+                          "_sort": (source, pl["idx"], -(f["mtime"] or 0), natural_key(f["path"])),
+                          "_version": (f["mtime"], f["layer_height"])})
     strip.sort(key=lambda x: x["_sort"])
+    # Dieselbe Platte mehrfach gesliced (etwa neu gesliced und erneut gedruckt): Fassungen
+    # mit Datum und Schichthöhe unterscheidbar machen, die neueste zuerst
+    seen: dict = {}
+    for pl in strip:
+        if pl["sliced"]:
+            seen.setdefault(pl["_sort"][:2], []).append(pl)
+    for group in seen.values():
+        if len({pl["fid"] for pl in group}) > 1:
+            for pl in group:
+                mtime, layer = pl["_version"]
+                try:
+                    layer = fmt_num(float(layer), 2, "mm") if layer else ""
+                except ValueError:
+                    layer = ""
+                pl["version"] = " · ".join(x for x in (fmt_date(mtime) if mtime else "", layer) if x)
     others = sorted((o for o in projects.values() if o["id"] != pid), key=lambda o: o["name"].lower())
     jobs = print_history.jobs_for([f["path"] for f in file_rows.values()])
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
