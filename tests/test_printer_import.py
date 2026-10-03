@@ -3,6 +3,7 @@ import shutil
 import socket
 import subprocess
 import threading
+import time
 
 import pytest
 
@@ -72,6 +73,31 @@ def test_sync_keeps_every_printed_plate(lib, sample, tmp_path):
     store.scan(wait=True)
     with store.connect() as con:
         assert con.execute("SELECT DISTINCT p.name FROM projects p JOIN files f ON f.project_id = p.id").fetchall()[0][0] == "Jade Mountains"
+
+
+def test_older_listing_format_is_not_a_new_file(lib, sample, tmp_path):
+    """Nach etwa sechs Monaten zeigt der Drucker das Jahr statt der Uhrzeit; das ist dieselbe Datei."""
+    src = tmp_path / "bunny.gcode.3mf"
+    sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    pi.init()
+    fake = FakePrinter({"(Unsaved).gcode.3mf": (src, "Apr 03 18:18")})
+    now = time.time()
+    april = pi.parse_remote_date("Apr 03 18:18", now)
+    assert time.localtime(april)[:5] == (time.localtime(now).tm_year - (time.localtime(now).tm_mon < 4), 4, 3, 18, 18)
+    assert pi.sync_printer(PRINTER, connect=fake)["new"] == 1
+    local = lib / "From printer" / "P2S" / "(Unsaved).gcode.3mf"
+    assert abs(local.stat().st_mtime - april) < 1   # Datum vom Drucker, nicht vom Herunterladen
+    fake.files["(Unsaved).gcode.3mf"] = (src, f"Apr 03  {time.localtime(april).tm_year}")
+    res = pi.sync_printer(PRINTER, connect=fake)
+    assert res["new"] == res["updated"] == 0
+    assert abs(local.stat().st_mtime - april) < 1   # nicht neu geschrieben
+    # Von einer früheren Version schon neu geholt: bekommt beim nächsten Abgleich sein Datum zurück
+    os.utime(local)
+    pi.sync_printer(PRINTER, connect=fake)
+    assert local.stat().st_mtime < now - 86400
+    # Andere Tage oder Uhrzeiten bleiben Änderungen
+    assert pi.same_date("Apr 03 2026", "Apr 03 18:18") and not pi.same_date("Apr 03 18:18", "Apr 04 2026")
+    assert not pi.same_date("Apr 03 18:18", "Apr 03 19:00") and not pi.same_date(None, "Apr 03 2026")
 
 
 def test_offline_printer_is_reported(lib):

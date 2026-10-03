@@ -8,6 +8,11 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
   OpenID Connect providers, alongside the password. Accounts are linked by user name on the
   first sign-in or created; roles can follow groups (`OIDC_ADMIN_GROUP`, `OIDC_USER_GROUP`).
   Authorization code flow with PKCE and signature check of the ID token. Database schema 5.
+- **Old prints no longer show up as new:** Bambu printers list files older than about six
+  months with the year instead of the time (“Apr 03 18:18” becomes “Apr 03 2026”).
+  PlateShelf took that as a changed file, fetched it again and put the project at the top of
+  “Newest first”. Files from the printer now keep the date the printer reports; files that
+  were fetched again by mistake get their old date back on the next sync.
 - **iPhone:** the top bar now reaches up under the status bar, so Safari no longer shows a
   blurred strip of the page above it; in landscape nothing hides behind the camera cutout.
   The browser bar takes the colour of the chosen theme even when it differs from the system.
