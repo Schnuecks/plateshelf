@@ -591,12 +591,18 @@ def filament_name(f: dict) -> str:
 
 
 def filament_price(settings: dict, f: dict) -> float | None:
-    """€/kg aus der Datei; fehlt er dort (leer oder 0), der Ersatzpreis aus den Einstellungen."""
-    own = f.get("cost_per_kg")
-    if own:
-        return own
-    fallback = settings.get(f"filamentpreis:{filament_name(f)}")
-    return float(fallback) if fallback not in (None, "") else own
+    """€/kg: eigener Preis des Filamentprofils, sonst der aus der Datei, sonst der Standardpreis.
+
+    Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
+    Standardpreis haben trotzdem alle Drucke Materialkosten.
+    """
+    own = settings.get(f"filamentpreis:{filament_name(f)}")
+    if own not in (None, ""):
+        return float(own)
+    if f.get("cost_per_kg"):
+        return f["cost_per_kg"]
+    default = settings.get("filamentpreis_standard")
+    return float(default) if default not in (None, "") else f.get("cost_per_kg")
 
 
 def material_cost(settings: dict, filaments: list[dict]) -> float | None:
@@ -605,14 +611,23 @@ def material_cost(settings: dict, filaments: list[dict]) -> float | None:
     return sum(costs) if costs else None
 
 
-def filaments_without_price(con: sqlite3.Connection) -> dict[str, int]:
-    """Filamentprofile, die in mindestens einer Platte ohne Preis vorkommen, mit Anzahl der Platten."""
-    out: dict[str, int] = {}
+def filament_profiles(con: sqlite3.Connection) -> dict[str, dict]:
+    """Filamentprofile der Bibliothek: Anzahl Platten, davon ohne Preis, häufigster Preis aus den Dateien."""
+    out: dict[str, dict] = {}
     for r in con.execute("""SELECT p.filaments_json FROM plates p JOIN files f ON f.id = p.file_id
                             WHERE f.missing = 0 AND p.sliced = 1"""):
         for fil in json.loads(r["filaments_json"] or "[]"):
-            if not fil.get("cost_per_kg") and (fil.get("used_g") or 0) > 0 and (name := filament_name(fil)):
-                out[name] = out.get(name, 0) + 1
+            if (fil.get("used_g") or 0) <= 0 or not (name := filament_name(fil)):
+                continue
+            entry = out.setdefault(name, {"plates": 0, "unpriced": 0, "prices": {}})
+            entry["plates"] += 1
+            if fil.get("cost_per_kg"):
+                entry["prices"][fil["cost_per_kg"]] = entry["prices"].get(fil["cost_per_kg"], 0) + 1
+            else:
+                entry["unpriced"] += 1
+    for entry in out.values():
+        prices = entry.pop("prices")
+        entry["file_price"] = max(prices, key=prices.get) if prices else None
     return out
 
 

@@ -121,7 +121,7 @@
 
       <section class="settings-section" id="power" data-section>
         <h2>{{ _('Kosten') }}</h2>
-        <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen aus den Filamentprofilen im Slicer; fehlt dort ein Preis, gilt der Ersatzpreis unten.') }}</p>
+        <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen aus den Filamentpreisen unten, sonst aus den Filamentprofilen im Slicer.') }}</p>
         {% if request.query_params.get('saved') %}<p class="flash" role="status">{{ _('Gespeichert. Die Kosten aller Projekte sind aktualisiert.') }}</p>{% endif %}
         <form method="post" action="/settings" class="power-form">
           <div class="field-pair">
@@ -151,17 +151,24 @@
           </table>
           {% endif %}
 
-          {% if filaments %}
           <h3>{{ _('Filamentpreise') }}</h3>
-          <p class="hint">{{ _('Für Filamente ohne Preis in der Datei (im Slicer leer oder 0 €). Ein Preis aus der Datei hat Vorrang. Leer lassen, wenn kein Ersatzpreis gelten soll.') }}</p>
+          <div class="field-pair">
+          <label>{{ _('Standardpreis in € pro kg') }}
+            <input type="text" inputmode="decimal" name="filamentpreis_standard"
+                   value="{{ s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '' }}">
+            <span class="hint">{{ _('für Filamente ohne eigenen Preis, wenn auch die Datei keinen mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
+          </label>
+          </div>
+          {% if filaments %}
+          <p class="hint">{{ _('Ein hier eingetragener Preis gilt für alle Drucke mit diesem Filament, auch rückwirkend. Leer lassen, um den Preis aus der Datei zu verwenden (grau angezeigt).') }}</p>
           <table class="printer-watts">
             <thead><tr><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('€ pro kg') }}</th></tr></thead>
             <tbody>
             {% for fil in filaments %}
               <tr>
-                <td>{{ fil.name }}{% if fil.plates %}<span class="hint"> · {{ ngettext('ohne Preis in {n} Platte', 'ohne Preis in {n} Platten', fil.plates) }}</span>{% endif %}</td>
+                <td>{{ fil.name }}{% if fil.unpriced %}<span class="hint"> · {{ ngettext('ohne Preis in {n} Platte', 'ohne Preis in {n} Platten', fil.unpriced) }}</span>{% endif %}</td>
                 <td class="r"><input type="text" inputmode="decimal" name="filamentpreis:{{ fil.name }}"
-                       value="{{ fil.price|num(2) if fil.price is not none else '' }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
+                       value="{{ fil.price|num(2) if fil.price is not none else '' }}" placeholder="{{ fil.file_price|num(2) if fil.file_price else '' }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
               </tr>
             {% endfor %}
             </tbody>

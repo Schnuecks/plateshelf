@@ -1,4 +1,5 @@
 import io
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -77,13 +78,13 @@ def test_energy_costs_and_settings(client, lib, sample):
 
 
 
-def test_fallback_filament_price(client, lib, sample):
-    """Filament ohne Preis im Slicer (0 €): Ersatzpreis aus den Einstellungen; Preise aus der Datei gehen vor."""
-    from app import main
+def test_filament_prices_in_plateshelf(client, lib, sample):
+    """In PlateShelf eingetragene Filamentpreise gelten immer (auch rückwirkend), sonst der Preis aus der Datei."""
+    from app import main, statistics
     sample(lib / "Ohne.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
            types=("PLA",), costs=("0",))
     sample(lib / "Mit.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
-           types=("PLA",), costs=("20",))
+           types=("PETG",), costs=("20",))
     store.scan(wait=True)
 
     def material():
@@ -92,16 +93,25 @@ def test_fallback_filament_price(client, lib, sample):
     assert material() == {"Ohne": 0, "Mit": 0.2}
     page = client.get("/settings").text
     assert 'name="filamentpreis:Bambu PLA Basic"' in page and "ohne Preis in 1 Platte" in page
+    assert re.search(r'name="filamentpreis:Bambu PETG Basic"\s+value="" placeholder="20,00"', page)
 
-    data = {"strompreis": "0,35", "leistung_standard": "100", "filamentpreis:Bambu PLA Basic": "25,50"}
+    data = {"strompreis": "0,35", "leistung_standard": "100", "filamentpreis:Bambu PLA Basic": "25,50",
+            "filamentpreis:Bambu PETG Basic": "30"}
     assert client.post("/settings", data=data, follow_redirects=False).status_code == 303
-    assert material() == {"Ohne": 0.255, "Mit": 0.2}
+    assert material() == {"Ohne": 0.255, "Mit": 0.3}   # eigener Preis schlägt den aus der Datei
     assert 'value="25,50"' in client.get("/settings").text
-    from app import statistics
     with store.connect() as con:
-        assert round(statistics._file_facts(con, store.get_settings(con))["Ohne.gcode.3mf"]["cost"], 3) == 0.255
-    # Leer: wieder ohne Ersatzpreis
-    client.post("/settings", data={**data, "filamentpreis:Bambu PLA Basic": ""})
+        facts = statistics._file_facts(con, store.get_settings(con))
+    assert round(facts["Ohne.gcode.3mf"]["cost"], 3) == 0.255 and round(facts["Mit.gcode.3mf"]["cost"], 3) == 0.3
+    # Leer: wieder der Preis aus der Datei
+    data.update({"filamentpreis:Bambu PLA Basic": "", "filamentpreis:Bambu PETG Basic": ""})
+    client.post("/settings", data=data)
+    assert material() == {"Ohne": 0, "Mit": 0.2}
+    # Standardpreis: nur für Filamente ohne eigenen Preis und ohne Preis in der Datei (z. B. Cura)
+    client.post("/settings", data={**data, "filamentpreis_standard": "18"})
+    assert material() == {"Ohne": 0.18, "Mit": 0.2}
+    assert re.search(r'name="filamentpreis_standard"\s+value="18,00"', client.get("/settings").text)
+    client.post("/settings", data={**data, "filamentpreis_standard": ""})
     assert material() == {"Ohne": 0, "Mit": 0.2}
 
 
