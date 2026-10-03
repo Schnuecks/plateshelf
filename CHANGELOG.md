@@ -2,6 +2,16 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Prints in the old “Vom Drucker” folder are separate projects again:** installations from
+  the Druckarchiv days still keep many prints in the former import folder “Vom Drucker”.
+  Since 0.7.8 it was no longer treated as a printer folder, so as soon as its files were read
+  again (in 0.8.8 by the date fix), all of them collapsed into a single project. PlateShelf
+  now groups that folder by file name again and reads the library once more on start
+  (database schema 6), which brings the projects back with their notes, tags and photos.
+- Projects that have their own cover photo are no longer removed when their files are gone.
+
 ## 0.8.8
 
 - **Single sign-on (OIDC):** sign in with Authelia, Authentik, Keycloak, Pocket ID and other

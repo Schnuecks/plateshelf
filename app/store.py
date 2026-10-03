@@ -220,7 +220,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 5  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 6  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -235,7 +235,13 @@ MIGRATIONS: dict = {
     3: lambda con: None,  # Benutzerkonten: Tabellen users, sessions, api_tokens (legt SCHEMA an)
     4: lambda con: _migrate_4(con),
     5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: Anmeldung über OIDC
+    6: lambda con: _rescan_all(),  # 0.8.9: „Vom Drucker“ wieder nach Namen gruppieren
 }
+
+
+def _rescan_all() -> None:
+    global _force_next_scan
+    _force_next_scan = True
 
 
 def _migrate_4(con: sqlite3.Connection) -> None:
@@ -309,8 +315,10 @@ def parse_file(path: Path):
 
 _STEM_SUFFIX = re.compile(r"([_\- ]?(plate|platte)[_\- ]?\d+|[_\- ]?\(\d+\)|[_\- ]v\d+|[_\-. ]gcode|[_\-. ](3mf|stl|step|stp|obj))$", re.I)
 _MEANINGLESS = re.compile(r"\(?unsaved\)?|untitled|unbenannt|[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.I)
-# Ordner, deren Dateien über den Namen gruppiert werden statt als ein Projekt
-FLAT_DIRS = {"from printer"} | {os.environ.get("PRINTER_IMPORT_DIR", "").strip().lower()} - {""}
+# Ordner, deren Dateien über den Namen gruppiert werden statt als ein Projekt. „Vom Drucker“
+# hieß der Importordner bis 0.6 (Druckarchiv); dort liegen bei älteren Installationen noch viele
+# Drucke, die sonst beim nächsten Einlesen zu einem einzigen Projekt zusammenfallen.
+FLAT_DIRS = {"from printer", "vom drucker"} | {os.environ.get("PRINTER_IMPORT_DIR", "").strip().lower()} - {""}
 
 
 def group_key_for(rel: Path) -> tuple[str, str]:
@@ -526,7 +534,7 @@ def scan(force: bool = False, wait: bool = False) -> dict:
             con.execute(
                 """DELETE FROM projects WHERE id NOT IN (SELECT DISTINCT project_id FROM files
                    WHERE project_id IS NOT NULL AND missing = 0)
-                   AND notes = '' AND tags = '' AND source_url = '' AND status = ''"""
+                   AND notes = '' AND tags = '' AND source_url = '' AND status = '' AND cover_photo IS NULL"""
             )
             errors = con.execute("SELECT COUNT(*) FROM files WHERE error IS NOT NULL AND missing = 0").fetchone()[0]
     finally:

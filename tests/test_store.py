@@ -67,3 +67,49 @@ def test_missing_thumbnails_trigger_full_scan(lib, sample, monkeypatch):
     monkeypatch.setattr(store, "_force_next_scan", False)
     store.init_db()
     assert store._force_next_scan
+
+
+def test_old_printer_folder_is_grouped_by_name(lib, sample, monkeypatch):
+    """„Vom Drucker“ (Importordner bis 0.6): ein Projekt je Druck, nicht eines für den ganzen Ordner.
+
+    0.7.8 bis 0.8.8 kannten den Ordner nicht mehr; sobald Dateien darin neu eingelesen wurden,
+    fielen alle zu einem Projekt zusammen. Schema 6 liest deshalb einmal alles neu ein.
+    """
+    folder = lib / "Vom Drucker" / "P2S"
+    folder.mkdir(parents=True)
+    for name in ("Grim_Reaper_plate_1", "Grim_Reaper_plate_2", "Garfield", "Easter_bunny_set"):
+        sample(folder / f"{name}.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    expected = {"Grim Reaper", "Garfield", "Easter bunny set"}
+
+    with monkeypatch.context() as m:
+        m.setattr(store, "FLAT_DIRS", {"from printer"})  # Stand 0.8.8
+        store.scan(force=True, wait=True)
+    with store.connect() as con:
+        assert set(_projects(con).values()) == {"P2S"}
+        collapsed = con.execute("SELECT id FROM projects WHERE name = 'P2S'").fetchone()[0]
+        con.execute("PRAGMA user_version = 5")
+
+    monkeypatch.setattr(store, "_force_next_scan", False)
+    store.init_db()
+    assert store._force_next_scan
+    store.scan(force=True, wait=True)
+    with store.connect() as con:
+        assert set(_projects(con).values()) == expected
+        assert not con.execute("SELECT 1 FROM projects WHERE id = ?", (collapsed,)).fetchone()
+    # Später geänderte Dateien bleiben in ihrem Projekt
+    import os
+    os.utime(folder / "Garfield.gcode.3mf", (1_700_000_000, 1_700_000_000))
+    store.scan(wait=True)
+    with store.connect() as con:
+        assert set(_projects(con).values()) == expected
+
+
+def test_project_with_own_cover_photo_is_kept(lib, sample):
+    sample(lib / "Vase.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    store.scan(wait=True)
+    with store.connect() as con:
+        con.execute("UPDATE projects SET cover_photo = 'photo_1.jpg'")
+    (lib / "Vase.gcode.3mf").unlink()
+    store.scan(wait=True)
+    with store.connect() as con:
+        assert con.execute("SELECT cover_photo FROM projects").fetchone()[0] == "photo_1.jpg"
