@@ -114,6 +114,7 @@ def _build(con) -> list[dict]:
             files[r["id"]] = dict(r)
             files[r["id"]]["source"] = plate_source(files[r["id"]].pop("model_json"))
             projects[r["project_id"]]["files"].append(files[r["id"]])
+    rules = store.price_rules(settings)
     for r in con.execute("SELECT * FROM plates ORDER BY file_id, idx"):
         f = files.get(r["file_id"])
         if f:
@@ -122,8 +123,8 @@ def _build(con) -> list[dict]:
             pd["v"] = file_stamp(f)
             # Material: Preise aus der Datei, sonst Ersatzpreise aus den Einstellungen
             for fil in pd["filaments"]:
-                fil["cost_per_kg"] = store.filament_price(settings, fil)
-            pd["cost"] = store.material_cost(settings, pd["filaments"])
+                fil["cost_per_kg"] = store.filament_price(settings, fil, rules)
+            pd["cost"] = store.material_cost(settings, pd["filaments"], rules)
             # Strom: Druckzeit × durchschnittliche Leistung des Druckers × Strompreis
             watts = store.printer_watts(settings, f["printer"])
             pd["energy_kwh"] = (pd["prediction_s"] or 0) / 3600 * watts / 1000

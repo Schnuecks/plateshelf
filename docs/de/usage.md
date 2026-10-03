@@ -123,24 +123,56 @@ Darstellung, die noch flüssig läuft. Eine Internetverbindung ist nicht nötig.
 
 ## Kosten
 
-Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
+Die angezeigten Kosten setzen sich aus Material und Strom zusammen. Beides rechnet
+PlateShelf bei jedem Aufruf mit den aktuellen Einstellungen: Änderst du einen Preis oder die
+Leistung eines Druckers, stimmen sofort alle Projekte, die Statistik und die API, auch für
+Drucke von vor Monaten.
 
-- **Material:** Verbrauch pro Filament mal seinem Preis pro kg. Es gilt:
-  1. der Preis, den du für dieses Filament unter „Einstellungen“ → „Kosten“ →
-     „Filamentpreis hinzufügen“ einträgst (für alle Drucke, auch rückwirkend);
-  2. sonst der Preis aus dem Filamentprofil im Slicer (etwa „Preis“ in Bambu Studio,
-     „Kosten“ in PrusaSlicer);
-  3. sonst der Standardpreis pro kg aus demselben Abschnitt, für Dateien ohne Preis
-     (Cura, Profile mit 0 €).
+### Material
 
-  Hast du die Preise in deinen Slicer-Profilen nie angepasst, setze den Haken „Preise aus
-  den Slicer-Dateien ignorieren“: Dann gilt für jedes Filament ohne eigenen Preis der
-  Standardpreis.
+Verbrauch pro Filament (aus der Datei) mal Preis pro kg. PlateShelf nimmt den ersten Preis,
+der zutrifft:
 
-  Ohne all das fehlt dieser Anteil.
-- **Strom:** Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis.
-  Strompreis und Leistung stellst du unter „Einstellungen“ → „Kosten“ ein, auf Wunsch für jeden
-  Drucker einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.
+1. eine **Preisregel**, die zum Filament passt,
+2. sonst den **Preis aus der Datei**, also aus dem Filamentprofil im Slicer („Preis“ in
+   Bambu Studio, „Kosten“ in PrusaSlicer); Cura speichert keinen,
+3. sonst den **Standardpreis** pro kg.
+
+Ohne all das fehlt der Materialanteil.
+
+**Preisregeln** legst du unter „Einstellungen“ → „Kosten“ → „Preisregeln“ an: ein Stichwort
+und ein Preis pro kg. Eine Regel gilt für jedes Filament, dessen Profilname oder Material
+das Stichwort enthält. Groß- und Kleinschreibung spielen keine Rolle, und das Stichwort darf
+ein Wortteil sein. Passen mehrere Regeln, gewinnt die mit dem **längsten Stichwort**, weil
+sie am genauesten ist. Beispiel:
+
+| Stichwort | € pro kg | gilt für |
+|---|---|---|
+| `PLA` | 20,00 | jedes PLA ohne genauere Regel |
+| `PETG` | 22,00 | jedes PETG |
+| `Silk` | 28,00 | z. B. „Bambu PLA Silk+“ („Silk“ ist länger als „PLA“) |
+| `Panchroma` | 18,00 | jedes Polymaker Panchroma, z. B. „Panchroma PLA Matte“ |
+
+Der Profilname ist das im Slicer gewählte Filamentprofil, etwa „Panchroma PLA Matte
+@BBL P2S“, das Material der Filamenttyp, etwa „PLA“ oder „PETG“. Beides steht auf der
+Projektseite in der Filamenttabelle jeder Platte. Neben jeder Regel zeigen die
+Einstellungen, auf wie viele Platten sie gerade zutrifft; „trifft nichts“ heißt meist
+Tippfehler. Zum Entfernen den Preis einer Regel leeren und speichern.
+
+**Standardpreis:** für Filamente ohne passende Regel, wenn auch die Datei keinen Preis
+mitbringt, etwa bei Cura oder Slicer-Profilen mit 0 €. Leer lassen, wenn diese Drucke keine
+Materialkosten haben sollen.
+
+**Preise aus den Slicer-Dateien ignorieren:** praktisch, wenn du die Preise in deinen
+Slicer-Profilen nie gepflegt hast (Bambu Studio bringt eigene Beispielpreise mit). Dann
+zählen nur Regeln und der Standardpreis, und „ein Standardpreis plus ein paar Regeln für
+besondere Filamente“ deckt alles ab.
+
+### Strom
+
+Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis. Strompreis und
+Leistung stellst du unter „Einstellungen“ → „Kosten“ ein, auf Wunsch für jeden Drucker
+einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.
 
 Die durchschnittliche Leistung misst du am genauesten mit einer Steckdose mit
 Verbrauchsanzeige: Energie eines Drucks in Wh geteilt durch die Druckzeit in Stunden.

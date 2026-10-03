@@ -4,6 +4,11 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Price rules instead of a filament list:** under “Settings” → “Costs” you now add free
+  rules “keyword → € per kg” (e.g. `PLA` 20, `Silk` 28, `Panchroma` 18). A rule applies to
+  every filament whose profile name or material contains the keyword; the longest keyword
+  wins. Each rule shows how many plates it matches. Prices entered in 0.8.11 keep working as
+  rules. Explained with examples in the usage docs.
 - **Fix:** saving “Settings” → “Costs” now returns to “Costs” instead of “Printers”.
 
 ## 0.8.11

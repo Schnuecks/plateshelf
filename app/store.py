@@ -587,51 +587,52 @@ def printer_watts(settings: dict, printer: str | None) -> float:
                  else settings["leistung_standard"])
 
 
-def filament_name(f: dict) -> str:
-    """Profilname ohne Drucker-Zusatz: „Panchroma PLA Matte @BBL P2S“ -> „Panchroma PLA Matte“."""
-    return (f.get("name") or "").split(" @")[0].strip() or (f.get("type") or "").strip()
+def price_rules(settings: dict) -> list[tuple[str, float]]:
+    """Preisregeln „Stichwort -> €/kg“, das längste (genaueste) Stichwort zuerst."""
+    rules = [(k.split(":", 1)[1], float(v)) for k, v in settings.items()
+             if k.startswith("filamentpreis:") and v not in (None, "")]
+    return sorted(rules, key=lambda r: (-len(r[0]), r[0].lower()))
 
 
-def filament_price(settings: dict, f: dict) -> float | None:
-    """€/kg: eigener Preis des Filamentprofils, sonst der aus der Datei, sonst der Standardpreis.
+def matching_rule(rules: list[tuple[str, float]], f: dict) -> tuple[str, float] | None:
+    """Erste (also genaueste) Regel, deren Stichwort im Profilnamen oder Material vorkommt."""
+    text = f"{f.get('name') or ''} {f.get('type') or ''}".lower()
+    return next((r for r in rules if r[0].lower() in text), None)
+
+
+def filament_price(settings: dict, f: dict, rules: list | None = None) -> float | None:
+    """€/kg: passende Preisregel, sonst der Preis aus der Datei, sonst der Standardpreis.
 
     Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
     Standardpreis haben trotzdem alle Drucke Materialkosten. Mit „Preise aus den Dateien
-    ignorieren“ zählen nur eigene Preise und der Standardpreis (Slicer-Profile nie gepflegt).
+    ignorieren“ zählen nur Regeln und der Standardpreis (Slicer-Profile nie gepflegt).
     """
-    own = settings.get(f"filamentpreis:{filament_name(f)}")
-    if own not in (None, ""):
-        return float(own)
+    rule = matching_rule(price_rules(settings) if rules is None else rules, f)
+    if rule:
+        return rule[1]
     if f.get("cost_per_kg") and not settings.get("dateipreise_ignorieren"):
         return f["cost_per_kg"]
     default = settings.get("filamentpreis_standard")
     return float(default) if default not in (None, "") else f.get("cost_per_kg")
 
 
-def material_cost(settings: dict, filaments: list[dict]) -> float | None:
+def material_cost(settings: dict, filaments: list[dict], rules: list | None = None) -> float | None:
+    rules = price_rules(settings) if rules is None else rules
     costs = [(f.get("used_g") or 0) / 1000 * price for f in filaments
-             if (price := filament_price(settings, f)) is not None]
+             if (price := filament_price(settings, f, rules)) is not None]
     return sum(costs) if costs else None
 
 
-def filament_profiles(con: sqlite3.Connection) -> dict[str, dict]:
-    """Filamentprofile der Bibliothek: Anzahl Platten, davon ohne Preis, häufigster Preis aus den Dateien."""
-    out: dict[str, dict] = {}
+def rule_hits(con: sqlite3.Connection, rules: list[tuple[str, float]]) -> dict[str, int]:
+    """Je Stichwort: wie viele geslicte Platten die Regel tatsächlich trifft (für die Einstellungen)."""
+    hits = {keyword: 0 for keyword, _ in rules}
     for r in con.execute("""SELECT p.filaments_json FROM plates p JOIN files f ON f.id = p.file_id
                             WHERE f.missing = 0 AND p.sliced = 1"""):
-        for fil in json.loads(r["filaments_json"] or "[]"):
-            if (fil.get("used_g") or 0) <= 0 or not (name := filament_name(fil)):
-                continue
-            entry = out.setdefault(name, {"plates": 0, "unpriced": 0, "prices": {}})
-            entry["plates"] += 1
-            if fil.get("cost_per_kg"):
-                entry["prices"][fil["cost_per_kg"]] = entry["prices"].get(fil["cost_per_kg"], 0) + 1
-            else:
-                entry["unpriced"] += 1
-    for entry in out.values():
-        prices = entry.pop("prices")
-        entry["file_price"] = max(prices, key=prices.get) if prices else None
-    return out
+        used = {rule[0] for fil in json.loads(r["filaments_json"] or "[]")
+                if (fil.get("used_g") or 0) > 0 and (rule := matching_rule(rules, fil))}
+        for keyword in used:
+            hits[keyword] += 1
+    return hits
 
 
 def unique_path(folder: Path, name: str) -> Path:
