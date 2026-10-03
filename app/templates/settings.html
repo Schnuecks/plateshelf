@@ -152,42 +152,43 @@
           {% endif %}
 
           <h3>{{ _('Filamentpreise') }}</h3>
-          <div class="field-pair">
-          <label>{{ _('Standardpreis in € pro kg') }}
-            <input type="text" inputmode="decimal" name="filamentpreis_standard"
-                   value="{{ s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '' }}">
-            <span class="hint">{{ _('für Filamente ohne eigenen Preis, wenn auch die Datei keinen mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
-          </label>
-          </div>
-          <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
-            {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
-          <p class="hint">{{ _('Dann gilt für jedes Filament ohne eigenen Preis der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
-          <h4>{{ _('Eigene Filamentpreise') }}</h4>
-          <p class="hint">{{ _('Gelten für alle Drucke mit diesem Filament, auch rückwirkend, und haben Vorrang vor allen anderen Preisen. Zum Entfernen das Feld leeren.') }}</p>
-          {% if filaments %}
-          <table class="printer-watts">
-            <thead><tr><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('€ pro kg') }}</th></tr></thead>
+          <p class="hint">{{ _('Reihenfolge: passende Preisregel, sonst der Preis aus der Datei, sonst der Standardpreis.') }}</p>
+          <h4>{{ _('Preisregeln') }}</h4>
+          <p class="hint">{{ _('Eine Regel gilt für jedes Filament, dessen Profilname oder Material das Stichwort enthält, etwa „PLA“, „Silk“ oder „Panchroma“; Groß- und Kleinschreibung egal. Passen mehrere, gilt das längste Stichwort. Regeln gelten für alle Drucke, auch rückwirkend. Zum Entfernen das Feld leeren.') }}</p>
+          {% if price_rules %}
+          <table class="printer-watts price-rules">
+            <thead><tr><th scope="col">{{ _('Stichwort') }}</th><th scope="col">{{ _('Treffer') }}</th><th scope="col" class="r">{{ _('€ pro kg') }}</th></tr></thead>
             <tbody>
-            {% for fil in filaments %}
+            {% for rule in price_rules %}
               <tr>
-                <td>{{ fil.name }}</td>
-                <td class="r"><input type="text" inputmode="decimal" name="filamentpreis:{{ fil.name }}"
-                       value="{{ fil.price|num(2) }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
+                <td>{{ rule.keyword }}</td>
+                <td class="hint">{{ ngettext('{n} Platte', '{n} Platten', rule.hits) if rule.hits else _('trifft nichts') }}</td>
+                <td class="r"><input type="text" inputmode="decimal" name="filamentpreis:{{ rule.keyword }}"
+                       value="{{ rule.price|num(2) }}" aria-label="{{ _('Preis für „{keyword}“ in € pro kg', keyword=rule.keyword) }}"></td>
               </tr>
             {% endfor %}
             </tbody>
           </table>
           {% endif %}
           <div class="field-pair">
-            <label>{{ _('Filamentpreis hinzufügen') }}
-              <input type="text" name="neues_filament" list="filament-profiles" autocomplete="off" spellcheck="false">
-              <span class="hint">{{ _('Beim Tippen erscheinen die Filamentprofile aus deinen Dateien.') }}</span>
+            <label>{{ _('Neue Regel: Stichwort') }}
+              <input type="text" name="neues_stichwort" autocomplete="off" spellcheck="false">
             </label>
             <label>{{ _('€ pro kg') }}
               <input type="text" inputmode="decimal" name="neuer_filamentpreis">
             </label>
           </div>
-          <datalist id="filament-profiles">{% for name in filament_suggestions %}<option value="{{ name }}"></option>{% endfor %}</datalist>
+          <h4>{{ _('Standardpreis') }}</h4>
+          <div class="field-pair">
+          <label>{{ _('Standardpreis in € pro kg') }}
+            <input type="text" inputmode="decimal" name="filamentpreis_standard"
+                   value="{{ s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '' }}">
+            <span class="hint">{{ _('für Filamente ohne passende Regel, wenn auch die Datei keinen Preis mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
+          </label>
+          </div>
+          <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
+            {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
+          <p class="hint">{{ _('Dann gilt für jedes Filament ohne passende Regel der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
       </section>

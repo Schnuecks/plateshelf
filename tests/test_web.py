@@ -78,53 +78,59 @@ def test_energy_costs_and_settings(client, lib, sample):
 
 
 
-def test_filament_prices_in_plateshelf(client, lib, sample):
-    """In PlateShelf eingetragene Filamentpreise gelten immer (auch rückwirkend), sonst der Preis aus der Datei."""
+def test_filament_price_rules(client, lib, sample):
+    """Preisregeln nach Stichwort (längstes gewinnt) vor Dateipreis vor Standardpreis; alles rückwirkend."""
     from app import main, statistics
     sample(lib / "Ohne.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
-           types=("PLA",), costs=("0",))
+           types=("PLA",), costs=("0",))   # Profil „Bambu PLA Basic @BBL P1P“, kein Preis
     sample(lib / "Mit.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
-           types=("PETG",), costs=("20",))
+           types=("PETG",), costs=("20",))  # Profil „Bambu PETG Basic @BBL P1P“, 20 €/kg
     store.scan(wait=True)
 
     def material():
         with store.connect() as con:
             return {p["name"]: round(p["plates"][0]["cost"], 3) for p in main.load_projects(con)}
-    assert material() == {"Ohne": 0, "Mit": 0.2}
-    page = client.get("/settings").text
-    assert "filamentpreis:" not in page.replace("filamentpreis_standard", "")  # noch keine eigenen Preise
-    assert '<option value="Bambu PETG Basic">' in page and '<option value="Bambu PLA Basic">' in page
 
-    # Hinzufügen über das Feld; der Drucker-Zusatz des Profils fällt weg
-    base = {"strompreis": "0,35", "leistung_standard": "100"}
-    for name, price in (("Bambu PLA Basic @BBL P1P", "25,50"), ("Bambu PETG Basic", "30")):
-        r = client.post("/settings", data={**base, "neues_filament": name, "neuer_filamentpreis": price},
+    def save(**fields):
+        r = client.post("/settings", data={"strompreis": "0,35", "leistung_standard": "100", **fields},
                         follow_redirects=False)
         assert r.status_code == 303
-    assert material() == {"Ohne": 0.255, "Mit": 0.3}   # eigener Preis schlägt den aus der Datei
+
+    assert material() == {"Ohne": 0, "Mit": 0.2}
     page = client.get("/settings").text
-    assert re.search(r'name="filamentpreis:Bambu PLA Basic"\s+value="25,50"', page)
-    assert '<option value="Bambu PLA Basic">' not in page   # schon angelegt: kein Vorschlag mehr
-    data = {**base, "filamentpreis:Bambu PLA Basic": "25,50", "filamentpreis:Bambu PETG Basic": "30"}
+    assert "<datalist" not in page and 'name="neues_stichwort"' in page   # freies Feld, keine Vorschläge
+
+    save(neues_stichwort="  pla ", neuer_filamentpreis="20")   # Groß-/Kleinschreibung egal, Leerzeichen weg
+    assert material() == {"Ohne": 0.2, "Mit": 0.2}
+    page = client.get("/settings").text
+    assert re.search(r'<td>pla</td>\s*<td class="hint">1 Platte</td>', page)
+
+    save(**{"filamentpreis:pla": "20", "neues_stichwort": "Basic", "neuer_filamentpreis": "25,50"})
+    assert material() == {"Ohne": 0.255, "Mit": 0.255}   # „Basic“ ist länger als „pla“ und schlägt die Datei
+    page = client.get("/settings").text
+    assert re.search(r'<td>pla</td>\s*<td class="hint">trifft nichts</td>', page)
+    assert re.search(r'<td>Basic</td>\s*<td class="hint">2 Platten</td>', page)
     with store.connect() as con:
         facts = statistics._file_facts(con, store.get_settings(con))
-    assert round(facts["Ohne.gcode.3mf"]["cost"], 3) == 0.255 and round(facts["Mit.gcode.3mf"]["cost"], 3) == 0.3
-    # Leer: wieder der Preis aus der Datei
-    data.update({"filamentpreis:Bambu PLA Basic": "", "filamentpreis:Bambu PETG Basic": ""})
-    client.post("/settings", data=data)
+    assert round(facts["Ohne.gcode.3mf"]["cost"], 3) == 0.255
+
+    rules = {"filamentpreis:pla": "20", "filamentpreis:Basic": ""}   # Feld leeren = Regel entfernen
+    save(**rules)
+    assert material() == {"Ohne": 0.2, "Mit": 0.2} and "Basic</td>" not in client.get("/settings").text
+    save(**{"filamentpreis:pla": ""})
     assert material() == {"Ohne": 0, "Mit": 0.2}
-    # Standardpreis: nur für Filamente ohne eigenen Preis und ohne Preis in der Datei (z. B. Cura)
-    client.post("/settings", data={**data, "filamentpreis_standard": "18"})
+
+    # Standardpreis: nur ohne Regel und ohne Preis in der Datei (z. B. Cura)
+    save(filamentpreis_standard="18")
     assert material() == {"Ohne": 0.18, "Mit": 0.2}
     assert re.search(r'name="filamentpreis_standard"\s+value="18,00"', client.get("/settings").text)
-    # Schalter: Preise aus den Dateien ignorieren, dann gilt überall der Standardpreis
-    client.post("/settings", data={**data, "filamentpreis_standard": "18", "dateipreise_ignorieren": "1"})
+    # Schalter: Preise aus den Dateien ignorieren, dann gilt ohne Regel überall der Standardpreis
+    save(filamentpreis_standard="18", dateipreise_ignorieren="1")
     assert material() == {"Ohne": 0.18, "Mit": 0.18}
     assert 'name="dateipreise_ignorieren" value="1" checked' in client.get("/settings").text
-    client.post("/settings", data={**data, "filamentpreis_standard": "18", "dateipreise_ignorieren": "1",
-                                   "filamentpreis:Bambu PETG Basic": "30"})
-    assert material() == {"Ohne": 0.18, "Mit": 0.3}     # eigener Preis gilt weiter
-    client.post("/settings", data={**data, "filamentpreis_standard": ""})  # Schalter aus (nicht angehakt)
+    save(filamentpreis_standard="18", dateipreise_ignorieren="1", neues_stichwort="PETG", neuer_filamentpreis="30")
+    assert material() == {"Ohne": 0.18, "Mit": 0.3}
+    save(filamentpreis_standard="", **{"filamentpreis:PETG": ""})   # Schalter aus (nicht angehakt)
     assert material() == {"Ohne": 0, "Mit": 0.2}
 
 

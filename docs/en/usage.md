@@ -116,23 +116,53 @@ display that still runs smoothly. No internet connection is required.
 
 ## Costs
 
-The costs shown consist of material and electricity:
+The costs shown consist of material and electricity. Both are calculated whenever a page
+is shown, from the current settings: if you change a price or a printer's power, all
+projects, the statistics and the API follow right away, including prints from months ago.
 
-- **Material:** usage per filament times its price per kg. Which price counts:
-  1. the price you add for this filament under “Settings” → “Costs” → “Add filament
-     price” (applies to all prints, also retroactively);
-  2. otherwise the price from the filament profile in the slicer (e.g. “Price” in Bambu
-     Studio, “Cost” in PrusaSlicer);
-  3. otherwise the default price per kg from the same section, for files without a price
-     (Cura, profiles with €0).
+### Material
 
-  If you never adjusted the prices in your slicer profiles, tick “Ignore prices from slicer
-  files”: then the default price applies to every filament without its own price.
+Usage per filament (from the file) times its price per kg. PlateShelf takes the first
+price that applies:
 
-  Without any of these, this part is missing.
-- **Electricity:** print time times the printer’s average power times the electricity
-  price. You set price and power under “Settings” → “Costs”, per printer if you like. Defaults are
-  €0.35 per kWh and 100 watts.
+1. a **price rule** that matches the filament,
+2. otherwise the **price from the file**, i.e. from the filament profile in the slicer
+   (“Price” in Bambu Studio, “Cost” in PrusaSlicer); Cura stores none,
+3. otherwise the **default price** per kg.
+
+Without any of these, the material part is missing.
+
+**Price rules** are set under “Settings” → “Costs” → “Price rules”: a keyword and a price
+per kg. A rule applies to every filament whose profile name or material contains the
+keyword. Case does not matter, and a keyword can be part of a word. If several rules match,
+the one with the **longest keyword** wins, because it is the most specific. Example:
+
+| Keyword | € per kg | applies to |
+|---|---|---|
+| `PLA` | 20.00 | every PLA without a more specific rule |
+| `PETG` | 22.00 | every PETG |
+| `Silk` | 28.00 | e.g. “Bambu PLA Silk+” (“Silk” is longer than “PLA”) |
+| `Panchroma` | 18.00 | every Polymaker Panchroma, e.g. “Panchroma PLA Matte” |
+
+The profile name is the filament profile chosen in the slicer, e.g. “Panchroma PLA Matte
+@BBL P2S”; the material is the filament type, e.g. “PLA” or “PETG”. You can find both on the
+project page in the filament table of each plate. Next to every rule, the settings show how
+many plates it currently applies to; “no match” usually means a typo. To remove a rule,
+clear its price and save.
+
+**Default price:** for filaments without a matching rule when the file has no price either,
+e.g. from Cura or slicer profiles with €0. Leave it empty if those prints should have no
+material costs.
+
+**Ignore prices from slicer files:** handy if you never maintained the prices in your slicer
+profiles (Bambu Studio ships its own example prices). Then only rules and the default price
+count, so “a default price plus a few rules for special filaments” covers everything.
+
+### Electricity
+
+Print time times the printer's average power times the electricity price. You set price and
+power under “Settings” → “Costs”, per printer if you like. Defaults are €0.35 per kWh and
+100 watts.
 
 The most accurate way to measure average power is a smart plug with energy metering:
 energy of one print in Wh divided by the print time in hours. Wear and failed prints are
