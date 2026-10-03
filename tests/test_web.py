@@ -62,7 +62,7 @@ def test_energy_costs_and_settings(client, lib, sample):
     assert page.status_code == 200 and "Bambu Lab P1S" in page.text
     r = client.post("/settings", data={
         "strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": "150"}, follow_redirects=False)
-    assert r.status_code == 303
+    assert r.status_code == 303 and r.headers["location"] == "/settings?saved=1#power"  # zurück zu „Kosten“
     with store.connect() as con:
         p = main.load_projects(con)[0]
     assert round(p["energy_cost"], 3) == round(0.3 * 0.40, 3)  # 150 W × 2 h = 0,3 kWh
