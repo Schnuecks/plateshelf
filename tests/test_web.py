@@ -76,6 +76,35 @@ def test_energy_costs_and_settings(client, lib, sample):
         assert main.load_projects(con)[0]["energy_cost"] == 0
 
 
+
+def test_fallback_filament_price(client, lib, sample):
+    """Filament ohne Preis im Slicer (0 €): Ersatzpreis aus den Einstellungen; Preise aus der Datei gehen vor."""
+    from app import main
+    sample(lib / "Ohne.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
+           types=("PLA",), costs=("0",))
+    sample(lib / "Mit.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
+           types=("PLA",), costs=("20",))
+    store.scan(wait=True)
+
+    def material():
+        with store.connect() as con:
+            return {p["name"]: round(p["plates"][0]["cost"], 3) for p in main.load_projects(con)}
+    assert material() == {"Ohne": 0, "Mit": 0.2}
+    page = client.get("/settings").text
+    assert 'name="filamentpreis:Bambu PLA Basic"' in page and "ohne Preis in 1 Platte" in page
+
+    data = {"strompreis": "0,35", "leistung_standard": "100", "filamentpreis:Bambu PLA Basic": "25,50"}
+    assert client.post("/settings", data=data, follow_redirects=False).status_code == 303
+    assert material() == {"Ohne": 0.255, "Mit": 0.2}
+    assert 'value="25,50"' in client.get("/settings").text
+    from app import statistics
+    with store.connect() as con:
+        assert round(statistics._file_facts(con, store.get_settings(con))["Ohne.gcode.3mf"]["cost"], 3) == 0.255
+    # Leer: wieder ohne Ersatzpreis
+    client.post("/settings", data={**data, "filamentpreis:Bambu PLA Basic": ""})
+    assert material() == {"Ohne": 0, "Mit": 0.2}
+
+
 def test_footer_shows_version(client):
     from app import main
     page = client.get("/").text

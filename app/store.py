@@ -585,6 +585,37 @@ def printer_watts(settings: dict, printer: str | None) -> float:
                  else settings["leistung_standard"])
 
 
+def filament_name(f: dict) -> str:
+    """Profilname ohne Drucker-Zusatz: „Panchroma PLA Matte @BBL P2S“ -> „Panchroma PLA Matte“."""
+    return (f.get("name") or "").split(" @")[0].strip() or (f.get("type") or "").strip()
+
+
+def filament_price(settings: dict, f: dict) -> float | None:
+    """€/kg aus der Datei; fehlt er dort (leer oder 0), der Ersatzpreis aus den Einstellungen."""
+    own = f.get("cost_per_kg")
+    if own:
+        return own
+    fallback = settings.get(f"filamentpreis:{filament_name(f)}")
+    return float(fallback) if fallback not in (None, "") else own
+
+
+def material_cost(settings: dict, filaments: list[dict]) -> float | None:
+    costs = [(f.get("used_g") or 0) / 1000 * price for f in filaments
+             if (price := filament_price(settings, f)) is not None]
+    return sum(costs) if costs else None
+
+
+def filaments_without_price(con: sqlite3.Connection) -> dict[str, int]:
+    """Filamentprofile, die in mindestens einer Platte ohne Preis vorkommen, mit Anzahl der Platten."""
+    out: dict[str, int] = {}
+    for r in con.execute("""SELECT p.filaments_json FROM plates p JOIN files f ON f.id = p.file_id
+                            WHERE f.missing = 0 AND p.sliced = 1"""):
+        for fil in json.loads(r["filaments_json"] or "[]"):
+            if not fil.get("cost_per_kg") and (fil.get("used_g") or 0) > 0 and (name := filament_name(fil)):
+                out[name] = out.get(name, 0) + 1
+    return out
+
+
 def unique_path(folder: Path, name: str) -> Path:
     """Nie überschreiben: bei Namensgleichheit ' (2)', ' (3)' … anhängen."""
     target = folder / name

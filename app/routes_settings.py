@@ -49,9 +49,13 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         printers = [r[0] for r in con.execute(
             "SELECT DISTINCT printer FROM files WHERE missing = 0 AND printer IS NOT NULL AND printer != '' "
             "ORDER BY printer")]
+        unpriced = store.filaments_without_price(con)
     rows = [{"name": pr, "watts": settings.get(f"leistung:{pr}")} for pr in printers]
+    configured = {k.split(":", 1)[1] for k in settings if k.startswith("filamentpreis:")}
+    filaments = [{"name": n, "plates": unpriced.get(n, 0), "price": settings.get(f"filamentpreis:{n}")}
+                 for n in sorted(set(unpriced) | configured, key=str.lower)]
     return templates.TemplateResponse(request, "settings.html", {
-        "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS,
+        "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS, "filaments": filaments,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
@@ -262,6 +266,8 @@ async def settings_save(request: Request):
     for key, value in form.items():
         if key.startswith("leistung:"):
             values[key] = _number(value, 1, 5000)  # leer = Standardleistung verwenden
+        elif key.startswith("filamentpreis:"):
+            values[key] = _number(value, 0, 1000)  # leer = kein Ersatzpreis
     store.save_settings(values)
     return RedirectResponse("/settings?saved=1", status_code=303)
 
