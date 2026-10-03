@@ -107,7 +107,7 @@ def login(request: Request, user: str = Form(""), password: str = Form(""), next
 
 @router.get("/login/oidc")
 def oidc_start(request: Request, next: str = "/"):
-    if not oidc.enabled():
+    if not oidc.available(request.url.hostname):
         return RedirectResponse("/login", status_code=303)
     try:
         url, state = oidc.start(str(request.url_for("oidc_callback")), _local_target(next))

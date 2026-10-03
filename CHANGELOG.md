@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **`OIDC_HOSTS`:** shows “Sign in with …” only on the listed host names. Useful when
+  PlateShelf is also reachable from outside (e.g. through a tunnel) but the provider only at
+  home; elsewhere the page shows just the password sign-in.
+
 ## 0.8.9
 
 - **Prints in the old “Vom Drucker” folder are separate projects again:** installations from

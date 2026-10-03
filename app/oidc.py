@@ -65,6 +65,21 @@ def enabled() -> bool:
     return auth.enabled() and bool(issuer() and os.environ.get("OIDC_CLIENT_ID", "").strip())
 
 
+def _hostname(value: str) -> str:
+    value = value.strip().lower()
+    value = value.split("://", 1)[-1].split("/", 1)[0]
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
+
+
+def available(host: str | None) -> bool:
+    """OIDC an dieser Adresse anbieten? OIDC_HOSTS beschränkt es auf bestimmte Hostnamen,
+    etwa wenn PlateShelf auch von außen erreichbar ist, der Anbieter aber nur im Heimnetz."""
+    if not enabled():
+        return False
+    hosts = {_hostname(h) for h in os.environ.get("OIDC_HOSTS", "").split(",") if h.strip()}
+    return not hosts or _hostname(host or "") in hosts
+
+
 def provider_name() -> str:
     return os.environ.get("OIDC_NAME", "").strip() or "SSO"
 

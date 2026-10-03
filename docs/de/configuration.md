@@ -151,6 +151,7 @@ dann zusätzlich „Anmelden mit …“; die Anmeldung mit Passwort funktioniert
 | `OIDC_USER_GROUP` | – | Mitglieder dieser Gruppe werden Benutzer |
 | `OIDC_GROUPS_CLAIM` | groups | Claim mit den Gruppen |
 | `OIDC_SCOPES` | openid profile email groups | Angefragte Scopes |
+| `OIDC_HOSTS` | – | Knopf nur unter diesen Hostnamen anzeigen (durch Komma getrennt), z. B. `plateshelf.home.lan`, wenn der Anbieter nur zu Hause erreichbar ist |
 
 Beim Anbieter trägst du PlateShelf als Client mit der Redirect-URI
 `https://<deine PlateShelf-Adresse>/login/oidc/callback` ein. Beispiel für Authelia:
