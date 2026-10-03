@@ -51,7 +51,7 @@
   <div class="settings-layout" data-settings>
     <nav class="settings-nav" aria-label="{{ _('Bereiche') }}">
       <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
-      <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Stromkosten') }}</a>
+      <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Kosten') }}</a>
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
       <a href="#users"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.5 3.5 5.2"/></svg>{{ _('Benutzer') }}</a>
       <a href="#tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>{{ _('API-Tokens') }}</a>
@@ -120,8 +120,8 @@
       </section>
 
       <section class="settings-section" id="power" data-section>
-        <h2>{{ _('Stromkosten') }}</h2>
-        <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen aus den Filamentprofilen im Slicer.') }}</p>
+        <h2>{{ _('Kosten') }}</h2>
+        <p class="hint">{{ _('Die Stromkosten eines Drucks ergeben sich aus Druckzeit, durchschnittlicher Leistung des Druckers und Strompreis. Die Materialkosten kommen aus den Filamentprofilen im Slicer; fehlt dort ein Preis, gilt der Ersatzpreis unten.') }}</p>
         {% if request.query_params.get('saved') %}<p class="flash" role="status">{{ _('Gespeichert. Die Kosten aller Projekte sind aktualisiert.') }}</p>{% endif %}
         <form method="post" action="/settings" class="power-form">
           <div class="field-pair">
@@ -150,7 +150,24 @@
             </tbody>
           </table>
           {% endif %}
-          <div class="section-foot"><button type="submit">{{ _('Stromkosten speichern') }}</button></div>
+
+          {% if filaments %}
+          <h3>{{ _('Filamentpreise') }}</h3>
+          <p class="hint">{{ _('Für Filamente ohne Preis in der Datei (im Slicer leer oder 0 €). Ein Preis aus der Datei hat Vorrang. Leer lassen, wenn kein Ersatzpreis gelten soll.') }}</p>
+          <table class="printer-watts">
+            <thead><tr><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('€ pro kg') }}</th></tr></thead>
+            <tbody>
+            {% for fil in filaments %}
+              <tr>
+                <td>{{ fil.name }}{% if fil.plates %}<span class="hint"> · {{ ngettext('ohne Preis in {n} Platte', 'ohne Preis in {n} Platten', fil.plates) }}</span>{% endif %}</td>
+                <td class="r"><input type="text" inputmode="decimal" name="filamentpreis:{{ fil.name }}"
+                       value="{{ fil.price|num(2) if fil.price is not none else '' }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+          <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
       </section>
 

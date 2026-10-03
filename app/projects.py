@@ -120,6 +120,10 @@ def _build(con) -> list[dict]:
             pd = _plate_dict(r)
             pd["file_id"] = f["id"]
             pd["v"] = file_stamp(f)
+            # Material: Preise aus der Datei, sonst Ersatzpreise aus den Einstellungen
+            for fil in pd["filaments"]:
+                fil["cost_per_kg"] = store.filament_price(settings, fil)
+            pd["cost"] = store.material_cost(settings, pd["filaments"])
             # Strom: Druckzeit × durchschnittliche Leistung des Druckers × Strompreis
             watts = store.printer_watts(settings, f["printer"])
             pd["energy_kwh"] = (pd["prediction_s"] or 0) / 3600 * watts / 1000

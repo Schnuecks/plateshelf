@@ -4,6 +4,10 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Fallback filament prices:** under “Settings” → “Costs” (formerly “Electricity costs”)
+  you can enter a price per filament profile for files sliced without a price (empty or
+  €0). Prices from the file still take precedence; the list shows which filaments lack one.
+  Project costs, statistics and the API use them right away, also for older files.
 - **Plate sliced twice:** when a project holds the same plate in several files (re-sliced and
   printed again), the plate strip shows each version with its date and layer height, newest
   first, instead of two identical entries.

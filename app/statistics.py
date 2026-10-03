@@ -30,7 +30,7 @@ def _month_keys(now: float) -> list[str]:
     return keys[::-1]
 
 
-def _file_facts(con) -> dict[str, dict]:
+def _file_facts(con, settings: dict) -> dict[str, dict]:
     """Je Datei: Gewicht, Filamente, Materialkosten und geplante Zeit der geslicten Platten."""
     facts: dict[str, dict] = {}
     for r in con.execute(
@@ -40,8 +40,9 @@ def _file_facts(con) -> dict[str, dict]:
                                             "prediction_s": 0, "filaments": []})
         fact["weight_g"] += r["weight_g"] or 0
         fact["prediction_s"] += r["prediction_s"] or 0
-        if r["cost"] is not None:
-            fact["cost"] = (fact["cost"] or 0) + r["cost"]
+        cost = store.material_cost(settings, json.loads(r["filaments_json"] or "[]"))
+        if cost is not None:
+            fact["cost"] = (fact["cost"] or 0) + cost
         fact["filaments"] += json.loads(r["filaments_json"] or "[]")
     return facts
 
@@ -57,7 +58,7 @@ def compute(now: float | None = None) -> dict:
 
     with store.connect() as con:
         settings = store.get_settings(con)
-        facts = _file_facts(con)
+        facts = _file_facts(con, settings)
         jobs = con.execute(
             """SELECT printer_name, local_path, status, started, ended, duration_s FROM print_jobs
                WHERE hidden = 0 AND status IN ('completed', 'cancelled', 'failed') AND started >= ?""",
