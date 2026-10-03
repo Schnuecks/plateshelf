@@ -125,11 +125,15 @@ Darstellung, die noch flüssig läuft. Eine Internetverbindung ist nicht nötig.
 
 Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
 
-- **Material:** Verbrauch pro Filament mal dem Preis aus dem Filamentprofil im Slicer
-  (etwa „Preis“ in Bambu Studio, „Kosten“ in PrusaSlicer). Ist dort nichts eingetragen
-  (leer oder 0 €, auch bei Cura), nimmt PlateShelf den Ersatzpreis aus „Einstellungen“ →
-  „Kosten“ → „Filamentpreise“; die Liste zeigt jedes Filament, dem ein Preis fehlt. Ohne
-  Ersatzpreis fehlt dieser Anteil.
+- **Material:** Verbrauch pro Filament mal seinem Preis pro kg. Es gilt:
+  1. der Preis, den du für dieses Filament unter „Einstellungen“ → „Kosten“ →
+     „Filamentpreise“ einträgst (für alle Drucke, auch rückwirkend);
+  2. sonst der Preis aus dem Filamentprofil im Slicer (etwa „Preis“ in Bambu Studio,
+     „Kosten“ in PrusaSlicer), in der Liste grau angezeigt;
+  3. sonst der Standardpreis pro kg aus demselben Abschnitt, für Dateien ohne Preis
+     (Cura, Profile mit 0 €).
+
+  Ohne all das fehlt dieser Anteil.
 - **Strom:** Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis.
   Strompreis und Leistung stellst du unter „Einstellungen“ → „Kosten“ ein, auf Wunsch für jeden
   Drucker einzeln. Voreingestellt sind 0,35 € pro kWh und 100 Watt.

@@ -118,11 +118,15 @@ display that still runs smoothly. No internet connection is required.
 
 The costs shown consist of material and electricity:
 
-- **Material:** usage per filament times the price from the filament profile in the
-  slicer (e.g. “Price” in Bambu Studio, “Cost” in PrusaSlicer). If no price is set
-  there (empty or €0, also in Cura), PlateShelf uses the fallback price you enter under
-  “Settings” → “Costs” → “Filament prices”; the list shows every filament that lacks a
-  price. Without a fallback price, this part is missing.
+- **Material:** usage per filament times its price per kg. Which price counts:
+  1. the price you enter for this filament under “Settings” → “Costs” → “Filament
+     prices” (applies to all prints, also retroactively);
+  2. otherwise the price from the filament profile in the slicer (e.g. “Price” in Bambu
+     Studio, “Cost” in PrusaSlicer), shown in grey in that list;
+  3. otherwise the default price per kg from the same section, for files without a price
+     (Cura, profiles with €0).
+
+  Without any of these, this part is missing.
 - **Electricity:** print time times the printer’s average power times the electricity
   price. You set price and power under “Settings” → “Costs”, per printer if you like. Defaults are
   €0.35 per kWh and 100 watts.
