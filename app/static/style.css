@@ -527,6 +527,8 @@ button.danger-quiet:hover { color: var(--ink); }
 .settings-section .flash { margin: 0; }
 .settings-section form { display: grid; gap: 1rem; }
 .settings-section label { display: grid; gap: .3rem; font-weight: 500; }
+.settings-section label.check { display: flex; width: fit-content; font-weight: 400; }
+.settings-section label.check input { width: auto; }
 .section-foot { display: flex; justify-content: flex-end; padding-top: .25rem; }
 @media (max-width: 760px) {
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 1rem; }

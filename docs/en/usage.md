@@ -126,6 +126,9 @@ The costs shown consist of material and electricity:
   3. otherwise the default price per kg from the same section, for files without a price
      (Cura, profiles with €0).
 
+  If you never adjusted the prices in your slicer profiles, tick “Ignore prices from slicer
+  files”: then the default price applies to every filament without its own price.
+
   Without any of these, this part is missing.
 - **Electricity:** print time times the printer’s average power times the electricity
   price. You set price and power under “Settings” → “Costs”, per printer if you like. Defaults are

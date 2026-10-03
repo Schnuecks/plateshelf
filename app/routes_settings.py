@@ -263,6 +263,7 @@ async def settings_save(request: Request):
     values = {
         "strompreis": or_default(_number(form.get("strompreis"), 0, 5), "strompreis"),
         "leistung_standard": or_default(_number(form.get("leistung_standard"), 1, 5000), "leistung_standard"),
+        "dateipreise_ignorieren": 1 if form.get("dateipreise_ignorieren") else None,
     }
     for key, value in form.items():
         if key.startswith("leistung:"):
