@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.11
 
 - **Choose the version of a plate:** if a project holds plates sliced with different layer
   heights (re-sliced and printed again), buttons above the plate strip (e.g. “0.16 mm”,
