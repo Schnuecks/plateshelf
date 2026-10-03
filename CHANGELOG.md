@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.9
 
 - **Prints in the old “Vom Drucker” folder are separate projects again:** installations from
   the Druckarchiv days still keep many prints in the former import folder “Vom Drucker”.
