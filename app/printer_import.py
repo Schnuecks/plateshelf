@@ -273,6 +273,55 @@ def parse_listing(lines: list[str]) -> list[dict]:
     return out
 
 
+def same_date(stored: str | None, listed: str) -> bool:
+    """Gleiches Datum, auch wenn die Dateiliste inzwischen das Jahr statt der Uhrzeit zeigt.
+
+    FTP-Listen (und _remote_date) zeigen bei Dateien aus den letzten Monaten bzw. dem
+    laufenden Jahr die Uhrzeit, danach das Jahr: aus „Apr 03 18:18“ wird „Apr 03 2026“.
+    Das ist keine neue Datei und darf sie nicht noch einmal holen.
+    """
+    if stored == listed:
+        return True
+    a, b = (stored or "").split(), listed.split()
+    if len(a) != 3 or len(b) != 3 or a[:2] != b[:2]:
+        return False
+    return {":" in a[2], ":" in b[2]} == {True, False}
+
+
+def parse_remote_date(text: str, now: float | None = None) -> float | None:
+    """Zeitpunkt zu „Apr 03 18:18“ (dieses Jahr, sonst letztes) oder „Apr 03 2026“ (mittags)."""
+    parts = (text or "").split()
+    if len(parts) != 3 or parts[0] not in _MONTHS or not parts[1].isdigit():
+        return None
+    month, day = _MONTHS.index(parts[0]) + 1, int(parts[1])
+    now = time.time() if now is None else now
+    try:
+        if ":" in parts[2]:
+            hour, minute = (int(x) for x in parts[2].split(":"))
+            year = time.localtime(now).tm_year
+            ts = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
+            if ts > now + 2 * 86400:  # ohne Jahr und in der Zukunft: aus dem Vorjahr
+                ts = time.mktime((year - 1, month, day, hour, minute, 0, 0, 0, -1))
+            return ts
+        return time.mktime((int(parts[2]), month, day, 12, 0, 0, 0, 0, -1))
+    except (ValueError, OverflowError):
+        return None
+
+
+def _keep_printer_date(path: Path, date: str) -> None:
+    """Datei trägt das Datum, an dem sie auf dem Drucker landete, nicht das des Herunterladens.
+
+    So steht ein altes Projekt unter „Neueste zuerst“ nicht vorne, nur weil es (wieder)
+    geholt wurde. Repariert auch Dateien, die frühere Versionen unnötig neu geholt haben.
+    """
+    ts = parse_remote_date(date)
+    try:
+        if ts and path.stat().st_mtime > ts + 86400:
+            os.utime(path, (ts, ts))
+    except OSError:
+        pass
+
+
 def _local_name(remote: str) -> str:
     return _SAFE_NAME.sub("_", remote).strip(" .") or "Unbenannt.gcode.3mf"
 
@@ -495,10 +544,17 @@ def sync_printer(printer: dict, connect=None) -> dict:
         result["files"] = len(remote)
         with store.connect() as con:
             known = {r["remote_name"]: r for r in con.execute(
-                "SELECT remote_name, size, remote_date FROM printer_files WHERE printer = ?", (printer["id"],))}
+                "SELECT remote_name, size, remote_date, local_path FROM printer_files WHERE printer = ?",
+                (printer["id"],))}
         for f in remote:
             prev = known.get(f["name"])
-            if prev and prev["size"] == f["size"] and prev["remote_date"] == f["date"]:
+            if prev and prev["size"] == f["size"] and same_date(prev["remote_date"], f["date"]):
+                if prev["remote_date"] != f["date"]:  # nur die Schreibweise hat sich geändert
+                    with store.connect() as con:
+                        con.execute("UPDATE printer_files SET remote_date = ? WHERE printer = ? AND remote_name = ?",
+                                    (f["date"], printer["id"], f["name"]))
+                if prev["local_path"]:
+                    _keep_printer_date(store.LIBRARY_DIR / prev["local_path"], f["date"])
                 continue  # schon geholt (oder bewusst gelöscht): nichts tun
             target_dir.mkdir(parents=True, exist_ok=True)
             tmp = target_dir / f".{_local_name(f['name'])}.part"
@@ -509,6 +565,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")
                 final = target_dir / _plate_file_name(f["name"], tmp)
                 os.replace(tmp, final)
+                _keep_printer_date(final, f["date"])
             except (OSError, ftplib.Error) as exc:
                 log.warning("%s: %s konnte nicht geholt werden: %s", printer["name"], f["name"], exc)
                 tmp.unlink(missing_ok=True)
