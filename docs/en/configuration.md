@@ -149,6 +149,7 @@ button “Sign in with …”; signing in with a password keeps working.
 | `OIDC_USER_GROUP` | – | Members of this group become users |
 | `OIDC_GROUPS_CLAIM` | groups | Claim that holds the groups |
 | `OIDC_SCOPES` | openid profile email groups | Requested scopes |
+| `OIDC_HOSTS` | – | Only offer the button on these host names (comma-separated), e.g. `plateshelf.home.lan` when the provider is only reachable at home |
 
 At the provider, register PlateShelf as a client with the redirect URI
 `https://<your PlateShelf address>/login/oidc/callback`. Example for Authelia:

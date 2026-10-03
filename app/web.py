@@ -250,7 +250,11 @@ def current_url(request: Request) -> str:
 templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled,
                              current_user=current_user, can_edit=can_edit, is_admin=is_admin,
                              device_label=device_label, ROLE_LABELS=ROLE_LABELS)
-templates.env.globals.update(oidc_enabled=oidc.enabled, oidc_name=oidc.provider_name,
+def oidc_offered(request: Request) -> bool:
+    return oidc.available(request.url.hostname)
+
+
+templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
                              NEXT_THEME=NEXT_THEME)

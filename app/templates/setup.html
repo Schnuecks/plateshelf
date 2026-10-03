@@ -23,7 +23,7 @@
       <input type="password" name="repeat" autocomplete="new-password" minlength="8" required>
     </label>
     <button type="submit">{{ _('Konto anlegen') }}</button>
-  {% if oidc_enabled() and oidc_admin_group() %}
+  {% if oidc_offered(request) and oidc_admin_group() %}
   <div class="login-sso">
     <p class="login-or"><span>{{ _('oder') }}</span></p>
     <a class="button" href="/login/oidc?next={{ (next or '/')|urlencode }}">{{ _('Anmelden mit {name}', name=oidc_name()) }}</a>

@@ -227,3 +227,17 @@ def test_without_configuration_nothing_changes(client, monkeypatch):
     auth.create_user("andreas", "andreas-pass-123", "admin")
     assert "/login/oidc" not in client.get("/login").text
     assert client.get("/login/oidc", follow_redirects=False).headers["location"] == "/login"
+
+
+def test_button_only_on_listed_hosts(client, provider, monkeypatch):
+    """Anbieter nur im Heimnetz erreichbar: von außen (Tunnel) nur Passwort-Anmeldung."""
+    auth.create_user("andreas", "andreas-pass-123", "admin")
+    monkeypatch.setenv("OIDC_HOSTS", "https://plateshelf.home.lan:443, other.lan")
+    outside = {"host": "bambu.example.net"}
+    assert "/login/oidc" not in client.get("/login", headers=outside).text
+    assert client.get("/login/oidc", headers=outside, follow_redirects=False).headers["location"] == "/login"
+    inside = {"host": "plateshelf.home.lan"}
+    assert "Anmelden mit Authelia" in client.get("/login", headers=inside).text
+    r = client.get("/login/oidc", headers=inside, follow_redirects=False)
+    assert r.headers["location"].startswith(ISSUER + "/authorize?")
+    assert "redirect_uri=http%3A%2F%2Fplateshelf.home.lan%2Flogin%2Foidc%2Fcallback" in r.headers["location"]
