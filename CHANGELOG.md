@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.12
 
 - **Price rules instead of a filament list:** under “Settings” → “Costs” you now add free
   rules “keyword → € per kg” (e.g. `PLA` 20, `Silk` 28, `Panchroma` 18). A rule applies to
