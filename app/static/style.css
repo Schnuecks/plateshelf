@@ -523,6 +523,7 @@ button.danger-quiet:hover { color: var(--ink); }
   display: grid; gap: 1rem; scroll-margin-top: 5rem; }
 .settings-section h2 { font: var(--h-panel); margin: 0; }
 .settings-section h3 { font: 600 1.05rem/1.2 var(--font-cond); margin: .5rem 0 0; }
+.settings-section h4 { font: 600 .95rem/1.2 var(--font); margin: .75rem 0 0; }
 .settings-section > .hint, .settings-section form > .hint { margin: 0; max-width: 46rem; }
 .settings-section .flash { margin: 0; }
 .settings-section form { display: grid; gap: 1rem; }

@@ -127,9 +127,9 @@ Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
 
 - **Material:** Verbrauch pro Filament mal seinem Preis pro kg. Es gilt:
   1. der Preis, den du für dieses Filament unter „Einstellungen“ → „Kosten“ →
-     „Filamentpreise“ einträgst (für alle Drucke, auch rückwirkend);
+     „Filamentpreis hinzufügen“ einträgst (für alle Drucke, auch rückwirkend);
   2. sonst der Preis aus dem Filamentprofil im Slicer (etwa „Preis“ in Bambu Studio,
-     „Kosten“ in PrusaSlicer), in der Liste grau angezeigt;
+     „Kosten“ in PrusaSlicer);
   3. sonst der Standardpreis pro kg aus demselben Abschnitt, für Dateien ohne Preis
      (Cura, Profile mit 0 €).
 

@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Filament prices are added, not listed:** “Settings” → “Costs” no longer lists every
+  filament profile of the library. You add prices yourself (“Add filament price”, with the
+  profiles from your files as suggestions while typing) and only see the ones you added.
+
 ## 0.8.10
 
 - **Filament prices in PlateShelf:** under “Settings” → “Costs” (formerly “Electricity

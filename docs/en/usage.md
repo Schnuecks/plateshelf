@@ -119,10 +119,10 @@ display that still runs smoothly. No internet connection is required.
 The costs shown consist of material and electricity:
 
 - **Material:** usage per filament times its price per kg. Which price counts:
-  1. the price you enter for this filament under “Settings” → “Costs” → “Filament
-     prices” (applies to all prints, also retroactively);
+  1. the price you add for this filament under “Settings” → “Costs” → “Add filament
+     price” (applies to all prints, also retroactively);
   2. otherwise the price from the filament profile in the slicer (e.g. “Price” in Bambu
-     Studio, “Cost” in PrusaSlicer), shown in grey in that list;
+     Studio, “Cost” in PrusaSlicer);
   3. otherwise the default price per kg from the same section, for files without a price
      (Cura, profiles with €0).
 
