@@ -530,12 +530,14 @@ def scan(force: bool = False, wait: bool = False) -> dict:
             for path in set(known) - seen:
                 con.execute("UPDATE files SET missing = 1 WHERE path = ?", (path,))
             _fill_hashes(con)
-            # Leere Projekte ohne eigene Angaben aufräumen
-            con.execute(
-                """DELETE FROM projects WHERE id NOT IN (SELECT DISTINCT project_id FROM files
-                   WHERE project_id IS NOT NULL AND missing = 0)
-                   AND notes = '' AND tags = '' AND source_url = '' AND status = '' AND cover_photo IS NULL"""
-            )
+            # Leere Projekte ohne eigene Angaben aufräumen. Verschwundene Dateien lösen sich vorher
+            # vom Projekt (sonst verhindert der Fremdschlüssel das Löschen); kommen sie wieder,
+            # werden sie neu zugeordnet.
+            empty = """id NOT IN (SELECT DISTINCT project_id FROM files WHERE project_id IS NOT NULL AND missing = 0)
+                       AND notes = '' AND tags = '' AND source_url = '' AND status = '' AND cover_photo IS NULL"""
+            con.execute(f"""UPDATE files SET project_id = NULL, pinned = 0
+                            WHERE missing = 1 AND project_id IN (SELECT id FROM projects WHERE {empty})""")
+            con.execute(f"DELETE FROM projects WHERE {empty}")
             errors = con.execute("SELECT COUNT(*) FROM files WHERE error IS NOT NULL AND missing = 0").fetchone()[0]
     finally:
         last_scan.update(finished=time.time(), added=added, updated=updated, errors=errors, running=False)

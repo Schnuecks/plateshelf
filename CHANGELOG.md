@@ -4,6 +4,13 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Choose the version of a plate:** if a project holds plates sliced with different layer
+  heights (re-sliced and printed again), buttons above the plate strip (e.g. “0.16 mm”,
+  “0.20 mm”, “All versions”) show only the plates and files of one version; the newest
+  is selected first.
+- **Fix:** when all files of a project were deleted outside PlateShelf, reading the library
+  stopped with a database error. The empty project is now removed; if the files come back,
+  they are assigned again.
 - **Filament prices are added, not listed:** “Settings” → “Costs” no longer lists every
   filament profile of the library. You add prices yourself (“Add filament price”, with the
   profiles from your files as suggestions while typing) and only see the ones you added.

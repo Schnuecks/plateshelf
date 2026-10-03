@@ -77,6 +77,18 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
     })
 
 
+def _layer_key(layer) -> str:
+    try:
+        return f"{float(layer):.2f}" if layer else ""
+    except ValueError:
+        return ""
+
+
+def _layer_label(layer) -> str:
+    key = _layer_key(layer)
+    return fmt_num(float(key), 2, "mm") if key else ""
+
+
 @router.get("/p/{pid}")
 def project(request: Request, pid: int):
     with store.connect() as con:
@@ -116,15 +128,25 @@ def project(request: Request, pid: int):
     for pl in strip:
         if pl["sliced"]:
             seen.setdefault(pl["_sort"][:2], []).append(pl)
+    twice = False
     for group in seen.values():
         if len({pl["fid"] for pl in group}) > 1:
+            twice = True
             for pl in group:
                 mtime, layer = pl["_version"]
-                try:
-                    layer = fmt_num(float(layer), 2, "mm") if layer else ""
-                except ValueError:
-                    layer = ""
-                pl["version"] = " · ".join(x for x in (fmt_date(mtime) if mtime else "", layer) if x)
+                pl["version"] = " · ".join(x for x in (fmt_date(mtime) if mtime else "", _layer_label(layer)) if x)
+    # Fassungen mit verschiedener Schichthöhe: Auswahl über der Leiste, die neueste zuerst
+    versions = []
+    if twice:
+        newest: dict = {}
+        for f in file_rows.values():
+            f["vkey"] = _layer_key(f["layer_height"])
+            newest[f["vkey"]] = max(newest.get(f["vkey"], 0), f["mtime"] or 0)
+        if len(newest) > 1:
+            versions = [{"key": k, "label": _layer_label(k) or _("ohne Angabe")}
+                        for k in sorted(newest, key=lambda k: -newest[k])]
+        for pl in strip:
+            pl["vkey"] = file_rows[pl["fid"]]["vkey"]
     others = sorted((o for o in projects.values() if o["id"] != pid), key=lambda o: o["name"].lower())
     jobs = print_history.jobs_for([f["path"] for f in file_rows.values()])
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
@@ -136,7 +158,7 @@ def project(request: Request, pid: int):
         f["duplicates"] = dupes.get(f["id"], [])
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
-        "writable": _library_writable(), "strip": strip, "jobs": jobs,
+        "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
     })
 

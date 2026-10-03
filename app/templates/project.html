@@ -49,9 +49,15 @@
             <button type="button" data-plate-mode="all" aria-pressed="false">{{ _('Alle zeigen') }}</button>
           </div>
         </div>
+        {% if versions %}
+        <div class="seg seg-small strip-versions" role="group" aria-label="{{ _('Fassung nach Schichthöhe') }}" data-version-filter hidden>
+          {% for v in versions %}<button type="button" data-version="{{ v.key }}" aria-pressed="{{ 'true' if loop.first else 'false' }}">{{ v.label }}</button>{% endfor %}
+          <button type="button" data-version="*" aria-pressed="false">{{ _('Alle Fassungen') }}</button>
+        </div>
+        {% endif %}
         <ol class="plate-strip">
           {% for pl in strip %}
-          <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}">
+          <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}"{% if versions %} data-version="{{ pl.vkey }}"{% endif %}>
             {% if pl.sliced %}<a href="#platte-{{ pl.fid }}-{{ pl.idx }}" data-plate-link="platte-{{ pl.fid }}-{{ pl.idx }}">{% endif %}
             <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}
               {% if pl.printed %}<span class="plate-done" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}"><span aria-hidden="true">✓</span><span class="visually-hidden">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}</span></span>{% endif %}</div>
@@ -71,7 +77,7 @@
       </nav>
       {% endif %}
       {% for f in files %}
-      <section class="file" data-file>
+      <section class="file" data-file{% if versions %} data-version="{{ f.vkey }}"{% endif %}>
         <header class="file-head">
           <div>
             <h2 class="file-name">{{ f.path.split('/')[-1] }}</h2>

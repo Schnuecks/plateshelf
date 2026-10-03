@@ -265,28 +265,45 @@ document.addEventListener("keydown", (e) => {
 
 // Plattenleiste: eine Platte anzeigen, per Klick, Adresse (#platte-…) oder Pfeiltasten wechseln
 document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
-  const links = [...nav.querySelectorAll("[data-plate-link]")];
-  const plates = links.map((a) => document.getElementById(a.dataset.plateLink)).filter(Boolean);
+  const allLinks = [...nav.querySelectorAll("[data-plate-link]")];
   const files = [...document.querySelectorAll("[data-file]")];
-  if (plates.length < 2) return;
+  if (allLinks.length < 2) return;
+  // Mehrere Fassungen (Schichthöhen): nur die gewählte zeigen, anfangs die neueste
+  const filter = nav.querySelector("[data-version-filter]");
+  let version = filter ? filter.querySelector("[data-version]").dataset.version : "*";
+  const shown = (el) => version === "*" || !el.dataset.version || el.dataset.version === version;
+  let links = allLinks;
+  let plates = [];
+  const refresh = () => {
+    nav.querySelectorAll(".plate-strip > li").forEach((li) => { li.hidden = !shown(li); });
+    links = allLinks.filter((a) => shown(a.closest("li")));
+    plates = links.map((a) => document.getElementById(a.dataset.plateLink)).filter(Boolean);
+  };
+  refresh();
   let mode = "single";
   try { mode = localStorage.getItem("plateshelf-plate-mode") || localStorage.getItem("druckarchiv-plate-mode") || "single"; } catch (e) {}
   let current = plates[0];
 
   const apply = () => {
     const single = mode === "single";
+    if (!plates.includes(current)) current = plates[0];
     nav.classList.toggle("is-all", !single);
     plates.forEach((p) => { p.hidden = single && p !== current; });
     files.forEach((f) => {
       const hasPlates = f.querySelector(".plate");
-      f.hidden = single && hasPlates && !f.contains(current);
+      f.hidden = !shown(f) || (single && hasPlates && !f.contains(current));
     });
     links.forEach((a) => a.setAttribute("aria-current", String(a.dataset.plateLink === current.id)));
     nav.querySelectorAll("[data-plate-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.plateMode === mode)));
   };
   const select = (id, scroll) => {
     const p = document.getElementById(id);
-    if (!p || !plates.includes(p)) return;
+    if (!p) return;
+    if (!plates.includes(p) && filter) {  // Adresse zeigt auf eine andere Fassung: dorthin wechseln
+      const li = allLinks.find((a) => a.dataset.plateLink === id)?.closest("li");
+      if (li) { version = li.dataset.version; markVersion(); refresh(); }
+    }
+    if (!plates.includes(p)) return;
     current = p;
     apply();
     const link = links.find((a) => a.dataset.plateLink === id);
@@ -294,7 +311,20 @@ document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
     if (mode === "all" && scroll) p.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  links.forEach((a) => a.addEventListener("click", (e) => {
+  function markVersion() {
+    filter?.querySelectorAll("[data-version]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.version === version)));
+  }
+  if (filter) {
+    filter.hidden = false;
+    filter.querySelectorAll("[data-version]").forEach((b) => b.addEventListener("click", () => {
+      version = b.dataset.version;
+      markVersion();
+      refresh();
+      apply();
+    }));
+  }
+
+  allLinks.forEach((a) => a.addEventListener("click", (e) => {
     e.preventDefault();
     history.replaceState(null, "", "#" + a.dataset.plateLink);
     select(a.dataset.plateLink, true);
@@ -317,6 +347,6 @@ document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
   });
 
   const fromHash = location.hash.slice(1);
-  if (fromHash && document.getElementById(fromHash)) current = document.getElementById(fromHash);
-  apply();
+  if (fromHash && document.getElementById(fromHash)) select(fromHash, false);
+  else apply();
 });
