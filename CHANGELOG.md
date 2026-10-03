@@ -4,6 +4,9 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Plate sliced twice:** when a project holds the same plate in several files (re-sliced and
+  printed again), the plate strip shows each version with its date and layer height, newest
+  first, instead of two identical entries.
 - **`OIDC_HOSTS`:** shows “Sign in with …” only on the listed host names. Useful when
   PlateShelf is also reachable from outside (e.g. through a tunnel) but the provider only at
   home; elsewhere the page shows just the password sign-in.

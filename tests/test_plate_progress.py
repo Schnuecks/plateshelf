@@ -78,3 +78,22 @@ def test_single_plate_projects_keep_the_print_count(client, lib, sample):
     overview = client.get("/").text
     assert "2× gedruckt" in overview and "Platten gedruckt" not in overview
     assert "Clip" not in client.get("/?printed=teilweise").text
+
+
+def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
+    """Neu gesliced und erneut gedruckt: zwei Fassungen von Platte 2, neueste zuerst, mit Datum."""
+    import os
+    import re
+    for folder, stamp in (("Vom Drucker", 1_790_000_000), ("From printer", 1_790_600_000)):
+        path = lib / folder / "P2S" / "Eevee_Chibi_plate_2.gcode.3mf"
+        path.parent.mkdir(parents=True)
+        sample(path, [{**PLATE, "idx": 2, "name": "BODY"}])
+        os.utime(path, (stamp, stamp))
+    sample(lib / "From printer" / "P2S" / "Eevee_Chibi_plate_3.gcode.3mf", [{**PLATE, "idx": 3}])
+    store.scan(wait=True)
+    page = client.get(f"/p/{project('Eevee Chibi')['id']}").text
+    strip = page[page.index('class="plate-strip"'):page.index("</ol>")]
+    assert strip.count("Platte 2: BODY") == 2 and strip.count("strip-version") == 2
+    dates = re.findall(r'strip-version">([^<]+)<', strip)
+    assert dates[0].startswith(time.strftime("%d.%m.%Y", time.localtime(1_790_600_000))), dates
+    assert "0,20 mm" in dates[0] and "Platte 3" in strip.split(dates[1])[1]  # Platte 3 ohne Zusatz

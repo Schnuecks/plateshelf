@@ -58,6 +58,7 @@
             <span class="strip-title">{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
             {% if pl.sliced %}
               <span class="strip-sub">{{ pl.prediction_s|duration }}, {{ pl.weight_g|num(1, 'g') }}</span>
+              {% if pl.version %}<span class="strip-sub strip-version">{{ pl.version }}</span>{% endif %}
             {% else %}
               <span class="strip-sub">{{ _('nicht gesliced') }}</span>
             {% endif %}
