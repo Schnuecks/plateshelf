@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.10
 
 - **Filament prices in PlateShelf:** under “Settings” → “Costs” (formerly “Electricity
   costs”) you can set a price per kg for every filament in your library; it applies to all
