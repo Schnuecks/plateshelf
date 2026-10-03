@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.8
 
 - **Single sign-on (OIDC):** sign in with Authelia, Authentik, Keycloak, Pocket ID and other
   OpenID Connect providers, alongside the password. Accounts are linked by user name on the
