@@ -594,12 +594,13 @@ def filament_price(settings: dict, f: dict) -> float | None:
     """€/kg: eigener Preis des Filamentprofils, sonst der aus der Datei, sonst der Standardpreis.
 
     Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
-    Standardpreis haben trotzdem alle Drucke Materialkosten.
+    Standardpreis haben trotzdem alle Drucke Materialkosten. Mit „Preise aus den Dateien
+    ignorieren“ zählen nur eigene Preise und der Standardpreis (Slicer-Profile nie gepflegt).
     """
     own = settings.get(f"filamentpreis:{filament_name(f)}")
     if own not in (None, ""):
         return float(own)
-    if f.get("cost_per_kg"):
+    if f.get("cost_per_kg") and not settings.get("dateipreise_ignorieren"):
         return f["cost_per_kg"]
     default = settings.get("filamentpreis_standard")
     return float(default) if default not in (None, "") else f.get("cost_per_kg")

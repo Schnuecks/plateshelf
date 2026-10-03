@@ -7,8 +7,10 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 - **Filament prices in PlateShelf:** under “Settings” → “Costs” (formerly “Electricity
   costs”) you can set a price per kg for every filament in your library; it applies to all
   prints, also retroactively, and takes precedence over the price in the file. A default
-  price per kg covers files without any price (Cura, profiles with €0). Project costs,
-  statistics and the API use the prices right away.
+  price per kg covers files without any price (Cura, profiles with €0); with “Ignore prices
+  from slicer files” it applies to every filament without its own price, for slicer
+  profiles whose prices were never maintained. Project costs, statistics and the API use
+  the prices right away.
 - **Plate sliced twice:** when a project holds the same plate in several files (re-sliced and
   printed again), the plate strip shows each version with its date and layer height, newest
   first, instead of two identical entries.

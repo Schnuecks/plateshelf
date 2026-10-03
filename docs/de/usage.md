@@ -133,6 +133,10 @@ Die angezeigten Kosten setzen sich aus Material und Strom zusammen:
   3. sonst der Standardpreis pro kg aus demselben Abschnitt, für Dateien ohne Preis
      (Cura, Profile mit 0 €).
 
+  Hast du die Preise in deinen Slicer-Profilen nie angepasst, setze den Haken „Preise aus
+  den Slicer-Dateien ignorieren“: Dann gilt für jedes Filament ohne eigenen Preis der
+  Standardpreis.
+
   Ohne all das fehlt dieser Anteil.
 - **Strom:** Druckzeit mal durchschnittliche Leistung des Druckers mal Strompreis.
   Strompreis und Leistung stellst du unter „Einstellungen“ → „Kosten“ ein, auf Wunsch für jeden

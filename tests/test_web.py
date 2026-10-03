@@ -111,7 +111,16 @@ def test_filament_prices_in_plateshelf(client, lib, sample):
     client.post("/settings", data={**data, "filamentpreis_standard": "18"})
     assert material() == {"Ohne": 0.18, "Mit": 0.2}
     assert re.search(r'name="filamentpreis_standard"\s+value="18,00"', client.get("/settings").text)
-    client.post("/settings", data={**data, "filamentpreis_standard": ""})
+    # Schalter: Preise aus den Dateien ignorieren, dann gilt überall der Standardpreis
+    client.post("/settings", data={**data, "filamentpreis_standard": "18", "dateipreise_ignorieren": "1"})
+    assert material() == {"Ohne": 0.18, "Mit": 0.18}
+    page = client.get("/settings").text
+    assert 'name="dateipreise_ignorieren" value="1" checked' in page
+    assert re.search(r'name="filamentpreis:Bambu PETG Basic"\s+value="" placeholder="18,00"', page)
+    client.post("/settings", data={**data, "filamentpreis_standard": "18", "dateipreise_ignorieren": "1",
+                                   "filamentpreis:Bambu PETG Basic": "30"})
+    assert material() == {"Ohne": 0.18, "Mit": 0.3}     # eigener Preis gilt weiter
+    client.post("/settings", data={**data, "filamentpreis_standard": ""})  # Schalter aus (nicht angehakt)
     assert material() == {"Ohne": 0, "Mit": 0.2}
 
 

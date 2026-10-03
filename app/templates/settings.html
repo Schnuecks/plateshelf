@@ -159,8 +159,11 @@
             <span class="hint">{{ _('für Filamente ohne eigenen Preis, wenn auch die Datei keinen mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
           </label>
           </div>
+          <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
+            {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
+          <p class="hint">{{ _('Dann gilt für jedes Filament ohne eigenen Preis der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           {% if filaments %}
-          <p class="hint">{{ _('Ein hier eingetragener Preis gilt für alle Drucke mit diesem Filament, auch rückwirkend. Leer lassen, um den Preis aus der Datei zu verwenden (grau angezeigt).') }}</p>
+          <p class="hint">{{ _('Ein hier eingetragener Preis gilt für alle Drucke mit diesem Filament, auch rückwirkend. Leer lassen, um den grau angezeigten Preis zu verwenden.') }}</p>
           <table class="printer-watts">
             <thead><tr><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('€ pro kg') }}</th></tr></thead>
             <tbody>
@@ -168,7 +171,7 @@
               <tr>
                 <td>{{ fil.name }}{% if fil.unpriced %}<span class="hint"> · {{ ngettext('ohne Preis in {n} Platte', 'ohne Preis in {n} Platten', fil.unpriced) }}</span>{% endif %}</td>
                 <td class="r"><input type="text" inputmode="decimal" name="filamentpreis:{{ fil.name }}"
-                       value="{{ fil.price|num(2) if fil.price is not none else '' }}" placeholder="{{ fil.file_price|num(2) if fil.file_price else '' }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
+                       value="{{ fil.price|num(2) if fil.price is not none else '' }}" placeholder="{{ (s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '') if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren else (fil.file_price|num(2) if fil.file_price else '') }}" aria-label="{{ _('Preis {filament} in € pro kg', filament=fil.name) }}"></td>
               </tr>
             {% endfor %}
             </tbody>
