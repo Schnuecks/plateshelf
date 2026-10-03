@@ -113,3 +113,18 @@ def test_project_with_own_cover_photo_is_kept(lib, sample):
     store.scan(wait=True)
     with store.connect() as con:
         assert con.execute("SELECT cover_photo FROM projects").fetchone()[0] == "photo_1.jpg"
+
+
+def test_project_whose_files_all_vanished(lib, sample):
+    """Alle Dateien außerhalb von PlateShelf gelöscht: Projekt verschwindet, Einlesen läuft weiter."""
+    sample(lib / "Weg.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
+    store.scan(wait=True)
+    data = (lib / "Weg.gcode.3mf").read_bytes()
+    (lib / "Weg.gcode.3mf").unlink()
+    store.scan(wait=True)
+    with store.connect() as con:
+        assert con.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0
+    (lib / "Weg.gcode.3mf").write_bytes(data)  # kommt zurück, z. B. Freigabe wieder erreichbar
+    store.scan(wait=True)
+    with store.connect() as con:
+        assert set(_projects(con).values()) == {"Weg"}

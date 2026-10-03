@@ -411,3 +411,39 @@ def _login_flow(server, page):
     page.click('form[action="/logout"] button')
     page.wait_for_url("**/login")
     assert page.errors == []
+
+
+def test_plate_versions_can_be_filtered(server, page):
+    """Neu gesliced (andere Schichthöhe): über der Plattenleiste die Fassung wählen, anfangs die neueste."""
+    import os
+    import shutil
+    from make_sample import make
+
+    from app import store
+    folder = store.LIBRARY_DIR / "Eevee"
+    folder.mkdir()
+    plate = {"sec": 600, "layers": 5, "fil": [(1, "#C29572FF", 3.0)]}
+    files = {"Eevee_plate_2.gcode.3mf": (2, 1_790_000_000, "0.2"), "Eevee_plate_3.gcode.3mf": (3, 1_790_000_100, "0.2"),
+             "Eevee_plate_2 (2).gcode.3mf": (2, 1_790_600_000, "0.16")}
+    for name, (idx, stamp, _) in files.items():
+        make(folder / name, [{**plate, "idx": idx}])
+        os.utime(folder / name, (stamp, stamp))
+    try:
+        store.scan(wait=True)
+        with store.connect() as con:
+            for name, (_, _, layer) in files.items():
+                con.execute("UPDATE files SET layer_height = ? WHERE path = ?", (layer, f"Eevee/{name}"))
+            pid = con.execute("SELECT id FROM projects WHERE name = 'Eevee'").fetchone()[0]
+        page.goto(f"{server['url']}/p/{pid}")
+        chips = page.locator("[data-version-filter] button")
+        assert chips.all_inner_texts() == ["0,16 mm", "0,20 mm", "Alle Fassungen"]
+        visible = lambda: page.locator(".plate-strip > li:visible .strip-title").all_inner_texts()  # noqa: E731
+        assert visible() == ["Platte 2"]                       # neueste Fassung: nur 0,16 mm
+        chips.nth(1).click()
+        assert visible() == ["Platte 2", "Platte 3"]
+        assert page.locator("section.file:visible").count() == 1
+        chips.nth(2).click()
+        assert len(visible()) == 3
+    finally:
+        shutil.rmtree(folder)
+        store.scan(wait=True)
