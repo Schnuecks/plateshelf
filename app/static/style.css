@@ -649,6 +649,10 @@ button.danger-quiet:hover { color: var(--ink); }
 .login-form .flash { margin: 0; }
 .login-form button { justify-self: stretch; }
 .login-form .hint { margin: 0; }
+.login-sso { display: grid; gap: .9rem; }
+.login-sso .button { text-align: center; }
+.login-or { display: flex; align-items: center; gap: .75rem; margin: 0; color: var(--muted); font-size: .9rem; }
+.login-or::before, .login-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .setup-form { width: min(26rem, 100%); }
 a.icon-btn { text-decoration: none; }
 

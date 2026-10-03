@@ -10,6 +10,9 @@
 
   <section class="settings-section">
     <h2>{{ _('Passwort ändern') }}</h2>
+    {% if not has_password %}
+    <p class="hint">{{ _('Du meldest dich über {name} an; dein Passwort änderst du dort.', name=oidc_name()) }}</p>
+    {% else %}
     {% if request.query_params.get('password') %}<p class="flash" role="status">{{ _('Passwort geändert. Alle anderen Geräte sind abgemeldet.') }}</p>{% endif %}
     <form method="post" action="/account/password" class="account-form">
       <input type="text" name="user" value="{{ me.name }}" autocomplete="username" hidden>
@@ -19,6 +22,7 @@
       <label>{{ _('Neues Passwort wiederholen') }}<input type="password" name="repeat" autocomplete="new-password" minlength="8" required></label>
       <div class="section-foot"><button type="submit">{{ _('Passwort ändern') }}</button></div>
     </form>
+    {% endif %}
   </section>
 
   <section class="settings-section">

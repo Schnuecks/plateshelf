@@ -36,7 +36,8 @@ print settings and a 3D preview of the actual toolpaths.
   Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron)
 - **Print history and statistics:** what was printed when, on which printer, and whether it
   finished, with a note and rating per print
-- **User accounts** with roles (admin, user, read only), device list and read-only API tokens
+- **User accounts** with roles (admin, user, read only), device list and read-only API tokens;
+  single sign-on with Authelia, Authentik, Keycloak & co. (OIDC)
 - **Six languages**, light and dark theme, installable on the home screen, key figures as
   JSON for dashboards
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-from . import auth, i18n, print_history, store
+from . import auth, i18n, oidc, print_history, store
 from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 BASE = Path(__file__).parent
@@ -33,7 +33,7 @@ STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fe
 
 
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/login", "/setup", "/healthz", "/appearance"}
+PUBLIC_PATHS = {"/login", "/login/oidc", "/login/oidc/callback", "/setup", "/healthz", "/appearance"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 NOBODY = {"id": None, "name": "", "role": "admin", "session_id": None}  # mit AUTH=off darf jeder alles
 _UNSET = object()
@@ -250,6 +250,8 @@ def current_url(request: Request) -> str:
 templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled,
                              current_user=current_user, can_edit=can_edit, is_admin=is_admin,
                              device_label=device_label, ROLE_LABELS=ROLE_LABELS)
+templates.env.globals.update(oidc_enabled=oidc.enabled, oidc_name=oidc.provider_name,
+                             oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
                              NEXT_THEME=NEXT_THEME)
 

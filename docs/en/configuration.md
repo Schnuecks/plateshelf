@@ -58,6 +58,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Only for updates from before user accounts: become the first admin account once |
 | `SECRET_KEY` | – | Key for encrypting printer credentials; strongly recommended, see [Secrets](#secrets) |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Sign in with Authelia, Authentik, Keycloak & co., see [Single sign-on](#single-sign-on-oidc) |
 
 ## Access control
 
@@ -132,6 +133,73 @@ Scripts without a browser (e.g. `curl`) are not affected. To allow additional si
 send changes, add them to `TRUSTED_ORIGINS`, for example
 `TRUSTED_ORIGINS=https://dashboard.example.com`.
 
+### Single sign-on (OIDC)
+
+Besides the password, PlateShelf can let people sign in with an OpenID Connect provider such
+as Authelia, Authentik, Keycloak, Pocket ID or Kanidm. The sign-in page then shows an extra
+button “Sign in with …”; signing in with a password keeps working.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OIDC_ISSUER` | – | Address of the provider (issuer), e.g. `https://auth.example.com`; switches OIDC on |
+| `OIDC_CLIENT_ID` | – | Client ID registered at the provider |
+| `OIDC_CLIENT_SECRET` | – | Client secret (also as `OIDC_CLIENT_SECRET_FILE`); empty for a public client with PKCE only |
+| `OIDC_NAME` | SSO | Name on the button, e.g. `Authelia` |
+| `OIDC_ADMIN_GROUP` | – | Members of this group become admins |
+| `OIDC_USER_GROUP` | – | Members of this group become users |
+| `OIDC_GROUPS_CLAIM` | groups | Claim that holds the groups |
+| `OIDC_SCOPES` | openid profile email groups | Requested scopes |
+
+At the provider, register PlateShelf as a client with the redirect URI
+`https://<your PlateShelf address>/login/oidc/callback`. Example for Authelia:
+
+```yaml
+identity_providers:
+  oidc:
+    clients:
+      - client_id: 'plateshelf'
+        client_name: 'PlateShelf'
+        client_secret: '$pbkdf2-sha512$...'   # hash of the secret, see the Authelia docs
+        authorization_policy: 'two_factor'
+        require_pkce: true
+        pkce_challenge_method: 'S256'
+        redirect_uris:
+          - 'https://plateshelf.example.com/login/oidc/callback'
+        scopes: ['openid', 'profile', 'email', 'groups']
+        token_endpoint_auth_method: 'client_secret_basic'
+```
+
+and in PlateShelf's `.env`:
+
+```env
+OIDC_ISSUER=https://auth.example.com
+OIDC_CLIENT_ID=plateshelf
+OIDC_CLIENT_SECRET=…
+OIDC_NAME=Authelia
+OIDC_ADMIN_GROUP=admins
+OIDC_USER_GROUP=family
+```
+
+**Accounts:** on the first sign-in, PlateShelf links the account with the same user name
+(`preferred_username`) or creates a new one. From then on the account stays linked to the
+person at the provider, even if the name changes there. Accounts created this way have no
+password in PlateShelf; they only sign in with the provider.
+
+**Roles:** with `OIDC_ADMIN_GROUP` and/or `OIDC_USER_GROUP`, the role follows the groups on
+every sign-in: admin group → Admin, user group → User, neither → Read only. Without these
+variables, new accounts start as Read only and admins change the role in PlateShelf. The
+last admin always keeps the role.
+
+**First start:** the first account is created with the setup code as usual, or, if
+`OIDC_ADMIN_GROUP` is set, by a member of the admin group signing in with the provider.
+
+PlateShelf uses the authorization code flow with PKCE, checks the ID token's signature,
+issuer, audience, expiry and nonce, and binds the sign-in to the browser that started it.
+Signing out of PlateShelf does not sign you out of the provider.
+
+If the provider uses a certificate from your own CA, mount the CA certificate into the
+container and point `SSL_CERT_FILE` to it.
+
 ## Secrets
 
 PlateShelf needs the access codes, passwords and API keys of your printers in readable
@@ -152,8 +220,8 @@ settings page points this out. User passwords are always stored as scrypt hashes
 never need the key.
 
 **Secrets as files (Docker secrets):** every sensitive variable can also be read from a
-file by adding `_FILE`: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`, `AUTH_PASSWORD_FILE`
-and `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`. This keeps them out of the
+file by adding `_FILE`: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`, `AUTH_PASSWORD_FILE`,
+`OIDC_CLIENT_SECRET_FILE` and `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`. This keeps them out of the
 `.env` and out of `docker inspect`:
 
 ```yaml

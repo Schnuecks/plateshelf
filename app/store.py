@@ -139,7 +139,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',   -- admin, user oder viewer
     created REAL NOT NULL,
-    last_login REAL
+    last_login REAL,
+    oidc_sub TEXT                       -- Aussteller + sub bei Anmeldung über OIDC, siehe oidc.py
 );
 CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,7 +220,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 4  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 5  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -233,6 +234,7 @@ MIGRATIONS: dict = {
     2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu meldet teils nur die Platte
     3: lambda con: None,  # Benutzerkonten: Tabellen users, sessions, api_tokens (legt SCHEMA an)
     4: lambda con: _migrate_4(con),
+    5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: Anmeldung über OIDC
 }
 
 
@@ -285,6 +287,7 @@ def init_db() -> None:
             log.info("Datenbank auf Schema-Version %d aktualisiert", step)
         # Indizes auf Spalten aus Migrationen erst danach, sonst fehlt die Spalte in alten Datenbanken
         con.execute("CREATE INDEX IF NOT EXISTS idx_files_sha ON files(sha256)")
+        con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc ON users(oidc_sub)")
         con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         # Nach dem Wiederherstellen einer Sicherung fehlen die Vorschaubilder: neu einlesen
         if not THUMB_DIR.exists() and con.execute("SELECT 1 FROM files LIMIT 1").fetchone():

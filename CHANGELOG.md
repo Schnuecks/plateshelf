@@ -4,6 +4,10 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 
 ## Unreleased
 
+- **Single sign-on (OIDC):** sign in with Authelia, Authentik, Keycloak, Pocket ID and other
+  OpenID Connect providers, alongside the password. Accounts are linked by user name on the
+  first sign-in or created; roles can follow groups (`OIDC_ADMIN_GROUP`, `OIDC_USER_GROUP`).
+  Authorization code flow with PKCE and signature check of the ID token. Database schema 5.
 - **iPhone:** the top bar now reaches up under the status bar, so Safari no longer shows a
   blurred strip of the page above it; in landscape nothing hides behind the camera cutout.
   The browser bar takes the colour of the chosen theme even when it differs from the system.

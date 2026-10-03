@@ -59,6 +59,7 @@ weiter.
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Nur für Updates von Versionen ohne Benutzerkonten: werden einmalig zum ersten Admin-Konto |
 | `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Anmelden mit Authelia, Authentik, Keycloak & Co., siehe [Single Sign-on](#single-sign-on-oidc) |
 
 ## Zugriffsschutz
 
@@ -134,6 +135,73 @@ weitergereichte Host (`X-Forwarded-Host`). Skripte ohne Browser (z. B. `curl`) s
 nicht betroffen. Sollen weitere Seiten Änderungen schicken dürfen, trage sie in
 `TRUSTED_ORIGINS` ein, etwa `TRUSTED_ORIGINS=https://dashboard.example.com`.
 
+### Single Sign-on (OIDC)
+
+Neben dem Passwort kann PlateShelf die Anmeldung über einen OpenID-Connect-Anbieter
+erlauben, etwa Authelia, Authentik, Keycloak, Pocket ID oder Kanidm. Die Anmeldeseite zeigt
+dann zusätzlich „Anmelden mit …“; die Anmeldung mit Passwort funktioniert weiter.
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `OIDC_ISSUER` | – | Adresse des Anbieters (Issuer), z. B. `https://auth.example.com`; schaltet OIDC ein |
+| `OIDC_CLIENT_ID` | – | Client-ID, die beim Anbieter eingetragen ist |
+| `OIDC_CLIENT_SECRET` | – | Client-Geheimnis (auch als `OIDC_CLIENT_SECRET_FILE`); leer bei einem öffentlichen Client nur mit PKCE |
+| `OIDC_NAME` | SSO | Name auf dem Knopf, z. B. `Authelia` |
+| `OIDC_ADMIN_GROUP` | – | Mitglieder dieser Gruppe werden Admin |
+| `OIDC_USER_GROUP` | – | Mitglieder dieser Gruppe werden Benutzer |
+| `OIDC_GROUPS_CLAIM` | groups | Claim mit den Gruppen |
+| `OIDC_SCOPES` | openid profile email groups | Angefragte Scopes |
+
+Beim Anbieter trägst du PlateShelf als Client mit der Redirect-URI
+`https://<deine PlateShelf-Adresse>/login/oidc/callback` ein. Beispiel für Authelia:
+
+```yaml
+identity_providers:
+  oidc:
+    clients:
+      - client_id: 'plateshelf'
+        client_name: 'PlateShelf'
+        client_secret: '$pbkdf2-sha512$...'   # Hash des Geheimnisses, siehe Authelia-Doku
+        authorization_policy: 'two_factor'
+        require_pkce: true
+        pkce_challenge_method: 'S256'
+        redirect_uris:
+          - 'https://plateshelf.example.com/login/oidc/callback'
+        scopes: ['openid', 'profile', 'email', 'groups']
+        token_endpoint_auth_method: 'client_secret_basic'
+```
+
+und in der `.env` von PlateShelf:
+
+```env
+OIDC_ISSUER=https://auth.example.com
+OIDC_CLIENT_ID=plateshelf
+OIDC_CLIENT_SECRET=…
+OIDC_NAME=Authelia
+OIDC_ADMIN_GROUP=admins
+OIDC_USER_GROUP=family
+```
+
+**Konten:** Bei der ersten Anmeldung verknüpft PlateShelf das Konto mit gleichem
+Benutzernamen (`preferred_username`) oder legt ein neues an. Danach bleibt das Konto an die
+Person beim Anbieter gebunden, auch wenn sich der Name dort ändert. So angelegte Konten haben
+in PlateShelf kein Passwort; sie melden sich nur über den Anbieter an.
+
+**Rollen:** Mit `OIDC_ADMIN_GROUP` und/oder `OIDC_USER_GROUP` folgt die Rolle bei jeder
+Anmeldung den Gruppen: Admin-Gruppe → Admin, Benutzer-Gruppe → Benutzer, keine von beiden
+→ Nur lesen. Ohne diese Variablen starten neue Konten mit „Nur lesen“, und Admins ändern die
+Rolle in PlateShelf. Der letzte Admin behält seine Rolle immer.
+
+**Erster Start:** Das erste Konto entsteht wie gewohnt mit dem Einrichtungscode oder, wenn
+`OIDC_ADMIN_GROUP` gesetzt ist, durch die Anmeldung eines Mitglieds der Admin-Gruppe.
+
+PlateShelf nutzt den Authorization-Code-Ablauf mit PKCE, prüft Signatur, Aussteller,
+Empfänger, Ablauf und Nonce des ID-Tokens und bindet die Anmeldung an den Browser, der sie
+begonnen hat. Abmelden in PlateShelf meldet nicht beim Anbieter ab.
+
+Nutzt der Anbieter ein Zertifikat einer eigenen CA, binde das CA-Zertifikat in den Container ein und
+setze `SSL_CERT_FILE` auf diese Datei.
+
 ## Geheimnisse
 
 PlateShelf braucht die Zugangscodes, Passwörter und API-Schlüssel deiner Drucker lesbar,
@@ -155,7 +223,7 @@ Passwörter der Benutzer liegen immer als scrypt-Hash vor und brauchen den Schl�
 
 **Geheimnisse als Dateien (Docker-Secrets):** Jede sensible Variable lässt sich mit der
 Endung `_FILE` auch aus einer Datei lesen: `SECRET_KEY_FILE`, `AUTH_PASSWORD_HASH_FILE`,
-`AUTH_PASSWORD_FILE` sowie `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`.
+`AUTH_PASSWORD_FILE`, `OIDC_CLIENT_SECRET_FILE` sowie `PRINTER_<n>_CODE_FILE`, `…_PASSWORD_FILE`, `…_API_KEY_FILE`.
 So stehen sie weder in der `.env` noch in `docker inspect`:
 
 ```yaml
