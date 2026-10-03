@@ -275,7 +275,7 @@ async def settings_save(request: Request):
     if new_name and new_price is not None:
         values[f"filamentpreis:{' '.join(new_name.split())}"] = new_price
     store.save_settings(values)
-    return RedirectResponse("/settings?saved=1", status_code=303)
+    return RedirectResponse("/settings?saved=1#power", status_code=303)
 
 
 # --- Upload -----------------------------------------------------------------
