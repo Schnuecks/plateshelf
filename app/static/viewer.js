@@ -1107,11 +1107,10 @@ function start(data) {
     bedGroup.visible = camera.position.z > rig.position.z;
     if (printer) {
       printer.group.visible = printer.bedParts.visible = bedGroup.visible && printerOn();
-      // Lüfter laufen beim Drucken hoch und danach aus; solange sie drehen, weiterzeichnen
+      // Lüfter drehen nur während der Wiedergabe (kein eigenes Neuzeichnen, das schont schwache Geräte)
       const now = performance.now();
-      const spinning = printer.group.visible && printer.tick(Math.min(0.1, (now - (draw.last || now)) / 1000), playing);
+      if (printer.group.visible) printer.tick(Math.min(0.1, (now - (draw.last || now)) / 1000), playing);
       draw.last = now;
-      if (spinning && !playing) render();
     }
     renderer.render(scene, camera);
     if (!aoActive()) return;

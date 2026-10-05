@@ -198,11 +198,10 @@ export function buildPrinter(kind, bed, renderer) {
   };
   const park = () => setHead(bed - 25, bed + 45);
   park();
-  // Zwischen zwei Bildern: Lüfter laufen beim Drucken hoch und danach aus
+  // Zwischen zwei Bildern: Lüfter laufen beim Drucken hoch, angehalten stehen sie
   const tick = (dt, printing) => {
-    fanSpeed += ((printing ? 1 : 0) - fanSpeed) * Math.min(1, dt * 1.5);
+    fanSpeed = printing ? fanSpeed + (1 - fanSpeed) * Math.min(1, dt * 1.5) : 0;
     fanHub.rotateY(fanSpeed * dt * 45);
-    return fanSpeed > 0.01;
   };
   // Blick durch die Glastür, etwa auf Augenhöhe vor dem Drucker
   const insideView = (camera, controls) => {
