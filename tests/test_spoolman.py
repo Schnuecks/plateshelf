@@ -62,7 +62,7 @@ def connect():
     spoolman.state["at"] = 0
 
 
-def test_matching_by_colour_and_base_material(api):
+def test_matching_by_colour_and_base_material(lib, api):
     connect()
     all_spools = spoolman.spools()
     assert [s["id"] for s in all_spools] == [39, 3, 4]                         # archivierte nicht
