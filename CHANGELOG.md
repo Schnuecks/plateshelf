@@ -10,6 +10,8 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
   left on the spool and whether it is enough. Optionally, usage of finished prints is deducted
   from the spool – only after switching it on, once per print, never guessed: if several
   spools fit, you pick one in the print history. Database schema 7.
+- **Where a price comes from:** the filament table of each plate shows the price per kg and
+  its source – price rule, Spoolman spool, file or default price.
 
 ## 0.8.14
 

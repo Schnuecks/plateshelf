@@ -139,7 +139,8 @@ der zutrifft:
    Bambu Studio, „Kosten“ in PrusaSlicer); Cura speichert keinen,
 4. sonst den **Standardpreis** pro kg.
 
-Ohne all das fehlt der Materialanteil.
+Ohne all das fehlt der Materialanteil. Auf der Projektseite zeigt die Filamenttabelle jeder
+Platte den Preis pro kg und woher er kommt: „Regel …“, „Spoolman #…“, „Datei“ oder „Standard“.
 
 **Preisregeln** legst du unter „Einstellungen“ → „Kosten“ → „Preisregeln“ an: ein Stichwort
 und ein Preis pro kg. Eine Regel gilt für jedes Filament, dessen Profilname oder Material

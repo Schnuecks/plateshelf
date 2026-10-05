@@ -614,7 +614,15 @@ def matching_rule(rules: list[tuple[str, float]], f: dict) -> tuple[str, float] 
 
 
 def filament_price(settings: dict, f: dict, rules: list | None = None, spool_price=None) -> float | None:
-    """€/kg: passende Preisregel, sonst Spoolman (spool_price), sonst der Preis aus der Datei, sonst der Standardpreis.
+    return price_with_source(settings, f, rules, spool_price)[0]
+
+
+def price_with_source(settings: dict, f: dict, rules: list | None = None,
+                      spool_price=None) -> tuple[float | None, str | None, str]:
+    """(€/kg, Herkunft, Angabe dazu): Preisregel, sonst Spoolman, sonst Datei, sonst Standardpreis.
+
+    Herkunft ist "rule", "spoolman", "file" oder "default"; die Angabe nennt das Stichwort bzw.
+    die Spule(n), damit die Projektseite zeigen kann, woher ein Preis kommt.
 
     Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
     Standardpreis haben trotzdem alle Drucke Materialkosten. Mit „Preise aus den Dateien
@@ -622,13 +630,15 @@ def filament_price(settings: dict, f: dict, rules: list | None = None, spool_pri
     """
     rule = matching_rule(price_rules(settings) if rules is None else rules, f)
     if rule:
-        return rule[1]
+        return rule[1], "rule", rule[0]
     if spool_price and (from_spool := spool_price(f)) is not None:
-        return from_spool
+        return from_spool[0], "spoolman", from_spool[1]
     if f.get("cost_per_kg") and not settings.get("dateipreise_ignorieren"):
-        return f["cost_per_kg"]
+        return f["cost_per_kg"], "file", ""
     default = settings.get("filamentpreis_standard")
-    return float(default) if default not in (None, "") else f.get("cost_per_kg")
+    if default not in (None, ""):
+        return float(default), "default", ""
+    return f.get("cost_per_kg"), ("file" if f.get("cost_per_kg") is not None else None), ""
 
 
 def material_cost(settings: dict, filaments: list[dict], rules: list | None = None,

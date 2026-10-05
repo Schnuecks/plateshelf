@@ -254,7 +254,15 @@ def oidc_offered(request: Request) -> bool:
     return oidc.available(request.url.hostname)
 
 
-templates.env.globals.update(spool_label=spoolman.label)
+# Herkunft eines Filamentpreises: (Kurzangabe, Erklärung im Tooltip)
+PRICE_SOURCES = {
+    "rule": ("Regel „{detail}“", "Aus deinen Preisregeln unter Einstellungen → Kosten"),
+    "spoolman": ("Spoolman {detail}", "Preis der passenden Spule in Spoolman"),
+    "file": ("Datei", "Aus dem Filamentprofil im Slicer, steht in der Datei"),
+    "default": ("Standard", "Dein Standardpreis unter Einstellungen → Kosten"),
+    None: ("", ""),
+}
+templates.env.globals.update(spool_label=spoolman.label, PRICE_SOURCES=PRICE_SOURCES)
 templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,

@@ -87,10 +87,12 @@ def test_prices_and_remaining_on_the_project_page(client, lib, sample, api):
         assert round(main.load_projects(con)[0]["plates"][0]["cost"], 3) == round(43.5 * 19.99 / 1000, 3)
     page = client.get(f"/p/{pid}").text
     assert "#39 Polymaker Panchroma Pastell Peanut" in page and "noch 912 g auf der Rolle" in page
-    # Preisregeln gehen weiterhin vor
+    assert 'class="price-source price-spoolman"' in page and "Spoolman #39" in page   # Herkunft des Preises
+    # Preisregeln gehen weiterhin vor, und die Seite sagt es
     store.save_settings({"filamentpreis:PLA": 10})
     with store.connect() as con:
         assert round(main.load_projects(con)[0]["plates"][0]["cost"], 3) == 0.435
+    assert "Regel „PLA“" in client.get(f"/p/{pid}").text
     # Nicht erreichbar: Seite bleibt heil, keine falschen Angaben
     api.down = True
     spoolman.state["at"] = 0

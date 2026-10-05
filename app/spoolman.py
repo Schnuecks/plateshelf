@@ -134,11 +134,19 @@ def spool_price(spool: dict) -> float | None:
 
 
 def price_for(fil: dict, all_spools: list[dict]) -> float | None:
+    found = price_and_spools(fil, all_spools)
+    return found[0] if found else None
+
+
+def price_and_spools(fil: dict, all_spools: list[dict]) -> tuple[float, str] | None:
+    """(€/kg, „#39, #40“): Mittel der Spulenpreise der passenden Spulen."""
     found = match(fil, all_spools)
     if not found:
         return None
-    prices = [p for s in found if (p := spool_price(s)) is not None]
-    return sum(prices) / len(prices) if prices else None
+    priced = [(p, s) for s in found if (p := spool_price(s)) is not None]
+    if not priced:
+        return None
+    return sum(p for p, _ in priced) / len(priced), ", ".join(f"#{s.get('id')}" for _, s in priced)
 
 
 def price_resolver(settings: dict):
@@ -146,7 +154,7 @@ def price_resolver(settings: dict):
     if not url(settings):
         return None
     all_spools = spools(settings)
-    return (lambda fil: price_for(fil, all_spools)) if all_spools else None
+    return (lambda fil: price_and_spools(fil, all_spools)) if all_spools else None
 
 
 def label(spool: dict) -> str:

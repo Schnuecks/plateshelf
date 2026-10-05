@@ -137,7 +137,7 @@
               <a href="/settings#power">{{ _('anpassen') }}</a></p>
             {% if pl.filaments %}
             <table class="filaments">
-              <thead><tr><th scope="col">{{ _('Slot') }}</th><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('Gramm') }}</th><th scope="col" class="r">{{ _('Meter') }}</th></tr></thead>
+              <thead><tr><th scope="col">{{ _('Slot') }}</th><th scope="col">{{ _('Filament') }}</th><th scope="col" class="r">{{ _('Gramm') }}</th><th scope="col" class="r">{{ _('Meter') }}</th><th scope="col" class="r">{{ _('€/kg') }}</th></tr></thead>
               <tbody>
               {% for fi in pl.filaments %}
                 <tr>
@@ -145,6 +145,9 @@
                   <td>{{ fi.type }}{% if fi.name %}<span class="fil-name">{{ fi.name }}</span>{% endif %}</td>
                   <td class="r">{{ fi.used_g|num(2) }}</td>
                   <td class="r">{{ fi.used_m|num(2) }}</td>
+                  <td class="r price-cell">{% if fi.cost_per_kg is not none %}{{ fi.cost_per_kg|num(2) }}
+                    <span class="price-source price-{{ fi.price_source }}" title="{{ _(PRICE_SOURCES[fi.price_source][1]) }}">{{ _(PRICE_SOURCES[fi.price_source][0], detail=fi.price_detail) }}</span>
+                    {%- else %}–{% endif %}</td>
                 </tr>
               {% endfor %}
               </tbody>

@@ -131,7 +131,9 @@ price that applies:
    (“Price” in Bambu Studio, “Cost” in PrusaSlicer); Cura stores none,
 4. otherwise the **default price** per kg.
 
-Without any of these, the material part is missing.
+Without any of these, the material part is missing. On the project page, the filament table of
+each plate shows the price per kg and where it comes from: “Rule …”, “Spoolman #…”, “File” or
+“Default”.
 
 **Price rules** are set under “Settings” → “Costs” → “Price rules”: a keyword and a price
 per kg. A rule applies to every filament whose profile name or material contains the
