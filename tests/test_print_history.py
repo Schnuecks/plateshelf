@@ -534,3 +534,38 @@ def test_single_plate_project_without_plate_number(ready, sample):
     ph.link_pending()
     got = {j["job_key"]: j["local_path"] for j in jobs()}
     assert got == {"stift": local, "stern": other, "p2": None}   # Platte 2 gibt es in der Datei nicht
+
+
+def test_running_print_does_not_take_the_previous_file(ready, sample):
+    """Bug nach 0.8.13: Beim Druckstart ist die neue Datei noch nicht geholt; der laufende Druck
+    landete deshalb beim vorigen Projekt. Jetzt bleibt er offen und wird nach dem Import zugeordnet.
+    Schon falsch zugeordnete Drucke berichtigt link_pending."""
+    now = time.time()
+    folder = ready / "From printer" / "P2S"
+    folder.mkdir(parents=True)
+    old, new = "From printer/P2S/Pencil_Holder.gcode.3mf", "From printer/P2S/Flexi_Star.gcode.3mf"
+    for path in (old, new):
+        sample(ready / path, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    store.scan(wait=True)
+
+    def imported_at(path, at):
+        name = path.rsplit("/", 1)[-1]
+        with store.connect() as con:
+            con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                        "VALUES (?, 'P2S', ?, 'x')", (path, name))
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, "
+                        "printer_name, imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', ?)", (name, path, at))
+    imported_at(old, now - 3600)                      # voriger Druck vor einer Stunde
+    t = ph.BambuTracker(BAMBU)
+    t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "/data/Metadata/plate_1.gcode",
+                        "subtask_name": "0.2mm layer, 2 walls, 15% infill", "task_id": "88"}})
+    assert jobs()[0]["local_path"] is None            # nicht der vorige Druck
+    imported_at(new, now + 5)                          # Import kurz nach dem Start
+    ph.link_pending()
+    assert jobs()[0]["local_path"] == new
+
+    # Alte, falsch geratene Zuordnung (wie mit 0.8.13/0.8.14) wird berichtigt
+    with store.connect() as con:
+        con.execute("UPDATE print_jobs SET local_path = ?", (old,))
+    ph.link_pending()
+    assert jobs()[0]["local_path"] == new
