@@ -60,15 +60,17 @@ export function buildPrinter(kind, bed, renderer) {
   group.name = "printer";
   const mat = (color, extra = {}) =>
     new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.1, envMap, envMapIntensity: 0.8, ...extra });
-  const shell = mat(0x2f3439, { roughness: 0.75 });
-  const shellIn = mat(0x262a2e, { roughness: 0.9, side: THREE.DoubleSide });
+  // Große Flächen matt und einfach beleuchtet (günstig auch ohne Grafikkarte), Spiegelungen
+  // nur bei den kleinen Metallteilen
+  const matte = (color, extra = {}) => new THREE.MeshLambertMaterial({ color, ...extra });
+  const shell = matte(0x2f3439);
+  const shellIn = matte(0x262a2e, { side: THREE.DoubleSide });
   const steel = mat(0xb9c1c8, { metalness: 0.9, roughness: 0.28, envMapIntensity: 1.2 });
   const carbon = mat(0x15181b, { roughness: 0.35, metalness: 0.3 });
   const alu = mat(0x6d757c, { metalness: 0.7, roughness: 0.4 });
   const white = mat(0xe8eaec, { roughness: 0.45 });
-  const glass = new THREE.MeshStandardMaterial({
-    color: 0x9fb7c6, transparent: true, opacity: 0.12, roughness: 0.02, metalness: 0.1,
-    envMap, envMapIntensity: 1.6, depthWrite: false,
+  const glass = new THREE.MeshLambertMaterial({
+    color: 0x9fb7c6, emissive: 0x1a2630, transparent: true, opacity: 0.12, depthWrite: false,
   });
   const add = (parent, geo, m, x, y, z) => {
     const mesh = new THREE.Mesh(geo, m);
@@ -103,7 +105,7 @@ export function buildPrinter(kind, bed, renderer) {
   inner(d, h, x1 - 0.5, my, z0 + h / 2, Math.PI / 2, -Math.PI / 2);
   inner(w, h, mx, y1 - 0.5, z0 + h / 2, Math.PI / 2, 0);
   rb(group, w + 2 * wall, d + 2 * wall, 90, 8, shell, mx, my, z0 - 45);             // Sockel mit Elektronik
-  add(group, new THREE.PlaneGeometry(w, d), mat(0x1c1f22, { roughness: 0.95 }), mx, my, z0 + 0.5); // Kammerboden
+  add(group, new THREE.PlaneGeometry(w, d), matte(0x1c1f22), mx, my, z0 + 0.5); // Kammerboden
   // Deckel: Rahmen mit Glas
   for (const [ww, dd, x, y] of [[w + 2 * wall, wall, mx, y0 - wall / 2], [w + 2 * wall, wall, mx, y1 + wall / 2],
     [wall, d, x0 - wall / 2, my], [wall, d, x1 + wall / 2, my]]) rb(group, ww, dd, 12, 4, shell, x, y, z1 + 6);

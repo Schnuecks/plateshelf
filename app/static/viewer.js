@@ -780,6 +780,8 @@ function start(data) {
   // Bett so weit unten, dass die oberste sichtbare Stelle unter der Düse liegt
   const bedLift = () => (printerOn() ? printer.headLevel - (tipZ ?? layerZ(Number(slider.value)) + 0.6) : 0);
   if (printer) {
+    // Ohne eigene Wahl entscheidet beim Start eine Messung, ob das Gerät den Drucker flüssig schafft
+    printer.auto = store.get("plateshelf-printer", null) === null;
     printer.group.visible = store.get("plateshelf-printer", "1") === "1";
     if (printerToggle) printerToggle.checked = printer.group.visible;
     scene.add(printer.group);
@@ -1244,6 +1246,19 @@ function start(data) {
   };
   new ResizeObserver(resize).observe(canvas);
 
+  if (printer?.auto && printerOn()) {
+    // Was der Drucker pro Bild kostet: mit und ohne ihn messen; zu teuer (etwa schwaches Handy
+    // oder Rechner ohne Grafikkarte), bleibt er aus und lässt sich von Hand einschalten
+    rig.position.z = bedLift();
+    printer.insideView(camera, controls);  // in der Ansicht messen, in der er am meisten Fläche füllt
+    const withPrinter = measure(lines, 2);
+    printer.group.visible = printer.bedParts.visible = false;
+    const without = measure(lines, 2);
+    const fast = withPrinter - without <= TARGET_MS;
+    printer.group.visible = printer.bedParts.visible = fast;
+    if (printerToggle) printerToggle.checked = fast;
+    if (frontBtn) frontBtn.hidden = !fast;
+  }
   if (!restoreCamera()) {
     if (printerOn()) { rig.position.z = bedLift(); printer.insideView(camera, controls); } else resetView();
   }
