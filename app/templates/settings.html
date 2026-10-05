@@ -130,7 +130,6 @@
             </label>
             <label>{{ _('Standardleistung in Watt') }}
               <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
-              <span class="hint">{{ _('für Drucker ohne eigenen Wert') }}</span>
             </label>
           </div>
 
@@ -179,16 +178,15 @@
             </label>
           </div>
           <h4>{{ _('Standardpreis') }}</h4>
+          <p class="hint">{{ _('Gilt für Filamente ohne passende Regel, wenn auch die Datei keinen Preis mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten. Mit „Preise aus den Slicer-Dateien ignorieren“ gilt er für jedes Filament ohne passende Regel, praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           <div class="field-pair">
           <label>{{ _('Standardpreis in € pro kg') }}
             <input type="text" inputmode="decimal" name="filamentpreis_standard"
                    value="{{ s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '' }}">
-            <span class="hint">{{ _('für Filamente ohne passende Regel, wenn auch die Datei keinen Preis mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
           </label>
           </div>
           <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
             {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
-          <p class="hint">{{ _('Dann gilt für jedes Filament ohne passende Regel der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
       </section>
@@ -348,12 +346,12 @@
         {% endif %}
 
         <h3>{{ _('Zurückspielen') }}</h3>
+        <p class="hint">{{ _('Benutzer und Anmeldungen kommen aus der Sicherung; eventuell musst du dich danach neu anmelden. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</p>
         <form method="post" action="/settings/backup/restore#backup" enctype="multipart/form-data" class="token-form"
               data-confirm="{{ _('Den aktuellen Stand durch diese Sicherung ersetzen? Er wird vorher selbst gesichert.') }}">
           <label>{{ _('Sicherung (.sqlite)') }} <input type="file" name="file" accept=".sqlite,.db,application/vnd.sqlite3" required></label>
           <button type="submit">{{ _('Sicherung zurückspielen') }}</button>
         </form>
-        <p class="hint">{{ _('Benutzer und Anmeldungen kommen aus der Sicherung; eventuell musst du dich danach neu anmelden. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</p>
         <details class="settings-help">
           <summary>{{ _('Von Hand zurückspielen') }}</summary>
           <ol class="hint backup-steps">

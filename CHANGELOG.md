@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Settings explained consistently:** explanations now always sit under the heading of a
+  section, never under single fields (before, some fields had a note below and others not).
+
 ## 0.8.14
 
 - **Faster playback in the 3D preview:** besides 1×, 10× and 50× there are now 200× and
