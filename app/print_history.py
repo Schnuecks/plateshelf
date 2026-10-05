@@ -62,6 +62,7 @@ def interval() -> int:
 
 _PLATE_GCODE = re.compile(r"(?:^|/)plate_(\d+)\.gcode$", re.I)
 _PLATE_SUFFIX = re.compile(r"_plate_(\d+)\.gcode\.3mf$", re.I)
+UNNAMED_SLACK = 300  # so lange vor dem Druckstart darf eine Datei ohne Plattennummer geholt worden sein
 _EXT = re.compile(r"(\.gcode)?\.3mf$|\.b?gcode$", re.I)
 
 
@@ -126,7 +127,28 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     if not before:
         return None
     last = max(before, key=lambda r: r["at"] or 0)
-    return last["local_path"] if plate in plates_of(last) else None
+    if plate not in plates_of(last):
+        return None
+    # Datei ohne Plattennummer im Namen (Projekt mit einer Platte): Platte 1 passt auf fast jede
+    # Datei. Nur zuordnen, wenn sie erst zu diesem Druck geholt wurde; sonst wäre es der vorige
+    # Druck (bei Druckstart ist die neue Datei noch nicht importiert, link_pending holt das nach)
+    if not _PLATE_SUFFIX.search(last["local_path"]) and (last["at"] or 0) < started - UNNAMED_SLACK:
+        return None
+    return last["local_path"]
+
+
+def _guessed(con, job) -> bool:
+    """Zuordnung nur über den Importzeitpunkt (weder Name noch Plattennummer passen zur Datei)."""
+    local = job["local_path"] or ""
+    if _PLATE_SUFFIX.search(local):
+        return False
+    base = _norm(local.rsplit("/", 1)[-1])
+    name = job["remote_name"] or ""
+    if name and (_norm(name.rsplit("/", 1)[-1]) == base or con.execute(
+            "SELECT 1 FROM printer_files WHERE printer = ? AND remote_name = ? AND local_path = ?",
+            (job["printer"], name, local)).fetchone()):
+        return False
+    return True
 
 
 def _apply_project_status(con, job) -> None:
@@ -232,8 +254,21 @@ def running_job(printer_id: str):
 
 
 def link_pending() -> None:
-    """Drucke ohne Datei nachträglich zuordnen, sobald der Import sie geholt hat."""
+    """Drucke ohne Datei nachträglich zuordnen, sobald der Import sie geholt hat.
+
+    0.8.13 und 0.8.14 haben laufende Drucke einplattiger Projekte teils der Datei des vorigen
+    Drucks zugeordnet. Solche nur geratenen Zuordnungen werden hier neu geprüft und berichtigt.
+    """
     with _lock, store.connect() as con:
+        for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NOT NULL AND remote_name IS NOT NULL "
+                               "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
+            if not _guessed(con, job):
+                continue
+            local = _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
+                             job["started"])
+            if local != job["local_path"]:
+                log.info("Druck %s: Zuordnung %s -> %s berichtigt", job["id"], job["local_path"], local)
+                con.execute("UPDATE print_jobs SET local_path = ?, applied = 0 WHERE id = ?", (local, job["id"]))
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NULL AND remote_name IS NOT NULL "
                                "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
             if local := _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],

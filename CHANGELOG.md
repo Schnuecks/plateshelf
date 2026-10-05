@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Fix: running print showed the previous project.** When a single-plate print starts, the
+  printer only reports the process profile and plate 1, and its file is fetched seconds later.
+  Since 0.8.13, PlateShelf assigned such prints at start to the previously fetched file, i.e.
+  the previous print, and kept it. Now a file without plate number only counts if it was
+  fetched for this print; until then the print stays open and is assigned after the import.
+  Prints that were assigned wrongly this way are corrected automatically.
+
 ## 0.8.15
 
 - **Settings explained consistently:** explanations now always sit under the heading of a
