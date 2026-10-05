@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Fix: prints of single-plate projects get their project again.** For projects with only
+  one plate, the file from the printer has no “_plate_1” in its name, and Bambu printers may
+  report just the process profile (“0.2mm layer, 2 walls, 15% infill”) as the name. Such
+  prints stayed without a file, project, filament and costs in the history and statistics.
+  PlateShelf now also looks at the plates inside the file; affected prints from the last
+  30 days are linked automatically after the update.
+
 ## 0.8.12
 
 - **Price rules instead of a filament list:** under “Settings” → “Costs” you now add free

@@ -508,3 +508,29 @@ def test_plates_uploaded_one_by_one(ready):
     ph.link_pending()
     got = {j["job_key"]: j["local_path"] for j in jobs()}
     assert got == {"p2": base + "2.gcode.3mf", "p3": base + "3.gcode.3mf", "p1": base + "1.gcode.3mf", "p9": None}
+
+
+def test_single_plate_project_without_plate_number(ready, sample):
+    """Wie am 04.10.: Projekt mit einer Platte heißt lokal ohne „_plate_N“, der Drucker meldet als Namen
+    nur das Prozessprofil („0.2mm layer, 2 walls, 15% infill“) und Platte 1. Zuordnung über den Import."""
+    now = time.time()
+    local = "From printer/P2S/Minimalist_Pencil_Holder.gcode.3mf"
+    other = "From printer/P2S/Flexi_Playful_Star.gcode.3mf"
+    (ready / "From printer" / "P2S").mkdir(parents=True)
+    sample(ready / local, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    sample(ready / other, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    store.scan(wait=True)
+    with store.connect() as con:
+        for path, at in ((local, now - 3600 + 3), (other, now - 600 + 10)):
+            name = path.rsplit("/", 1)[-1]
+            con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                        "VALUES (?, 'P2S', ?, 'x')", (path, name))
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, "
+                        "printer_name, imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', ?)", (name, path, at))
+        for key, plate, start in (("stift", 1, now - 3600), ("stern", 1, now - 600), ("p2", 2, now - 600)):
+            con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, plate, status, "
+                        "started, ended) VALUES ('SER1', 'P2S', ?, '0.2mm layer, 2 walls, 15% infill', ?, "
+                        "'completed', ?, ?)", (key, plate, start, start + 300))
+    ph.link_pending()
+    got = {j["job_key"]: j["local_path"] for j in jobs()}
+    assert got == {"stift": local, "stern": other, "p2": None}   # Platte 2 gibt es in der Datei nicht
