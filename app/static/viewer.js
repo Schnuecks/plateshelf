@@ -523,6 +523,9 @@ function start(data) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 1.5, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(dpr, 2));
   const scene = new THREE.Scene();
+  // Platte und Druck hängen an einer eigenen Gruppe: mit Drucker fährt sie wie das Bett nach unten
+  const rig = new THREE.Group();
+  scene.add(rig);
   const setBg = () => { scene.background = new THREE.Color(cssVar("--viewer-bg")); };
   setBg();
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setBg(); refreshPlate(); render(); });
@@ -539,13 +542,14 @@ function start(data) {
   controls.zoomToCursor = true;
 
   const resetView = () => {
-    controls.target.set(cx, cy, cz);
-    camera.position.set(cx + size * 1.1, cy - size * 1.6, cz + size * 1.1);
+    const lz = rig.position.z;
+    controls.target.set(cx, cy, cz + lz);
+    camera.position.set(cx + size * 1.1, cy - size * 1.6, cz + size * 1.1 + lz);
     controls.update();
   };
   const topView = () => {
-    controls.target.set(cx, cy, 0);
-    camera.position.set(cx, cy - 0.001, size * 2.2);
+    controls.target.set(cx, cy, rig.position.z);
+    camera.position.set(cx, cy - 0.001, size * 2.2 + rig.position.z);
     controls.update();
   };
 
@@ -562,7 +566,7 @@ function start(data) {
   const rim = new THREE.Mesh(new THREE.BoxGeometry(bed + 6, bed + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
   rim.position.set(bed / 2, bed / 2, -2.1);  // etwas tiefer: aus der Ferne sonst Flimmern mit der Platte
   bedGroup.add(rim, plateMesh);
-  scene.add(bedGroup);
+  rig.add(bedGroup);
   const plateNormalMat = new THREE.MeshNormalMaterial();
   const plateBasicMat = plateMesh.material;
   const refreshPlate = () => {
@@ -585,7 +589,7 @@ function start(data) {
     c.mesh = new THREE.Mesh(c.geometry, makeTubeMaterial({ ...uniforms, pointOffset: { value: c.first } }));
     tubes.add(c.mesh);
   }
-  for (const o of [lines, tubes]) { o.visible = false; scene.add(o); }
+  for (const o of [lines, tubes]) { o.visible = false; rig.add(o); }
 
   // --- Leerfahrten, Rückzüge und Nahtstellen -------------------------------------------
   const layerZ = (l) => meta.layers[l] || 0;
@@ -633,7 +637,7 @@ function start(data) {
     obj.renderOrder = 2;
     if (obj.material.uniforms.lift) obj.material.uniforms.lift.value = uniforms.halfWidth.value * 2.5;
     obj.visible = false;
-    scene.add(obj);
+    rig.add(obj);
     const box = document.getElementById(`show-${key}`);
     if (!box) continue;
     box.closest("label").querySelector(".extra-count").textContent = extraCounts[key].toLocaleString(LOCALE);
@@ -652,7 +656,7 @@ function start(data) {
   const lodFor = (step) => {
     if (!lods.has(step)) {
       const o = new THREE.LineSegments(buildLod(meta, polys, geo, step), lineMat);
-      o.frustumCulled = false; o.visible = false; scene.add(o);
+      o.frustumCulled = false; o.visible = false; rig.add(o);
       lods.set(step, o);
     }
     return lods.get(step);
@@ -764,20 +768,24 @@ function start(data) {
   );
   nozzle.rotation.x = -Math.PI / 2;
   nozzle.visible = false;
-  scene.add(nozzle);
+  rig.add(nozzle);
 
   // Drucker um die Platte (vorerst geschlossene CoreXY-Drucker wie der P2S), ein- und ausblendbar
   const kind = printerKind(root.dataset.printer);
-  const printer = kind ? buildPrinter(kind, bed) : null;
+  const printer = kind ? buildPrinter(kind, bed, renderer) : null;
   const printerToggle = document.getElementById("printer-toggle");
   const frontBtn = document.getElementById("view-front");
+  let tipZ = null;  // Höhe der Düse während der Wiedergabe (in Druckkoordinaten)
+  const printerOn = () => !!printer && (printerToggle ? printerToggle.checked : true);
+  // Bett so weit unten, dass die oberste sichtbare Stelle unter der Düse liegt
+  const bedLift = () => (printerOn() ? printer.headLevel - (tipZ ?? layerZ(Number(slider.value)) + 0.6) : 0);
   if (printer) {
-    printer.park(maxz);
     printer.group.visible = store.get("plateshelf-printer", "1") === "1";
+    if (printerToggle) printerToggle.checked = printer.group.visible;
     scene.add(printer.group);
+    rig.add(printer.bedParts);
     if (printerToggle) {
       printerToggle.closest("label").hidden = false;
-      printerToggle.checked = printer.group.visible;
       printerToggle.addEventListener("change", () => {
         printer.group.visible = printerToggle.checked;
         store.set("plateshelf-printer", printerToggle.checked ? "1" : "0");
@@ -787,7 +795,7 @@ function start(data) {
     }
     if (frontBtn) {
       frontBtn.hidden = !printer.group.visible;
-      frontBtn.addEventListener("click", () => { printer.frontView(camera, controls); render(); });
+      frontBtn.addEventListener("click", () => { rig.position.z = bedLift(); printer.insideView(camera, controls); render(); });
     }
   }
 
@@ -804,7 +812,8 @@ function start(data) {
       playDist = null;
       uniforms.cutPoint.value = CUT_ALL;
       nozzle.visible = false;
-      printer?.park(maxz);
+      tipZ = null;
+      printer?.park();
       if (progress) progress.value = progress.max;
       return;
     }
@@ -817,8 +826,9 @@ function start(data) {
       pos[i * 3 + 1] + (pos[j * 3 + 1] - pos[i * 3 + 1]) * f,
       pos[i * 3 + 2] + hw * 5,
     );
-    nozzle.visible = !printer?.group.visible;  // mit Drucker zeigt der Druckkopf die Stelle
-    printer?.setHead(nozzle.position.x, nozzle.position.y, nozzle.position.z - hw * 5);
+    nozzle.visible = !printerOn();  // mit Drucker zeigt der Druckkopf die Stelle
+    tipZ = nozzle.position.z - hw * 5;
+    printer?.setHead(nozzle.position.x, nozzle.position.y);
     if (progress) progress.value = b > a ? Math.round(((playDist - a) / (b - a)) * Number(progress.max)) : progress.max;
   };
   const setPlaying = (on) => {
@@ -1093,8 +1103,16 @@ function start(data) {
     perf.tube * visibleShare() * 2.2 <= REST_MAX_MS;
   function draw() {
     // Von unten (z. B. um die erste Schicht anzusehen) die Platte ausblenden, sie würde alles verdecken
-    bedGroup.visible = camera.position.z > 0;
-    if (printer) printer.group.visible = bedGroup.visible && (printerToggle ? printerToggle.checked : true);
+    rig.position.z = bedLift();
+    bedGroup.visible = camera.position.z > rig.position.z;
+    if (printer) {
+      printer.group.visible = printer.bedParts.visible = bedGroup.visible && printerOn();
+      // Lüfter laufen beim Drucken hoch und danach aus; solange sie drehen, weiterzeichnen
+      const now = performance.now();
+      const spinning = printer.group.visible && printer.tick(Math.min(0.1, (now - (draw.last || now)) / 1000), playing);
+      draw.last = now;
+      if (spinning && !playing) render();
+    }
     renderer.render(scene, camera);
     if (!aoActive()) return;
     renderer.getDrawingBufferSize(bufSize);
@@ -1108,14 +1126,14 @@ function start(data) {
     Object.values(extras).forEach((o) => { o.visible = false; });
     plateMesh.material = plateNormalMat; rim.visible = false; nozzle.visible = false; scene.background = null;
     const printerShown = printer?.group.visible;
-    if (printer) printer.group.visible = false;
+    if (printer) printer.group.visible = printer.bedParts.visible = false;
     uniforms.normalPass.value = 1;
     renderer.setRenderTarget(aoTarget);
     renderer.render(scene, camera);
     uniforms.normalPass.value = 0;
     plateMesh.material = plateBasicMat; rim.visible = true; nozzle.visible = playDist !== null && !printerShown;
     scene.background = bg;
-    if (printer) printer.group.visible = printerShown;
+    if (printer) printer.group.visible = printer.bedParts.visible = printerShown;
     Object.values(extras).forEach((o, i) => { o.visible = extrasShown[i]; });
     // 2. Schattierung in einen eigenen Puffer
     aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
@@ -1222,7 +1240,9 @@ function start(data) {
   };
   new ResizeObserver(resize).observe(canvas);
 
-  if (!restoreCamera()) resetView();
+  if (!restoreCamera()) {
+    if (printerOn()) { rig.position.z = bedLift(); printer.insideView(camera, controls); } else resetView();
+  }
   setMode(store.get("plateshelf-color-mode", "tool"));
   resize();
   loadingText.textContent = t("Darstellung wird abgestimmt");
