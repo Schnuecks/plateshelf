@@ -164,7 +164,7 @@ def test_settings_show_status_and_env_address(client, api, monkeypatch):
     assert "Verbunden: 3 Spulen" in page and 'name="spoolman_buchen"' in page
     monkeypatch.setenv("SPOOLMAN_URL", "http://spoolman:8000")
     page = client.get("/settings").text
-    assert "Gesetzt über SPOOLMAN_URL" in page
+    assert "Adresse gesetzt über <code>SPOOLMAN_URL</code>" in page
     assert client.post("/settings", data={"strompreis": "0,35", "leistung_standard": "100",
                                           "spoolman_url": "ftp://x"}, follow_redirects=False).status_code == 303  # Env gilt
     monkeypatch.delenv("SPOOLMAN_URL")

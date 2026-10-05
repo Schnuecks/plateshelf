@@ -130,7 +130,6 @@
             </label>
             <label>{{ _('Standardleistung in Watt') }}
               <input type="text" inputmode="numeric" name="leistung_standard" value="{{ s.leistung_standard|num(0) }}" required>
-              <span class="hint">{{ _('für Drucker ohne eigenen Wert') }}</span>
             </label>
           </div>
 
@@ -179,33 +178,33 @@
             </label>
           </div>
           <h4>{{ _('Standardpreis') }}</h4>
+          <p class="hint">{{ _('Gilt für Filamente ohne passende Regel, wenn auch die Datei keinen Preis mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten. Mit „Preise aus den Slicer-Dateien ignorieren“ gilt er für jedes Filament ohne passende Regel, praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           <div class="field-pair">
           <label>{{ _('Standardpreis in € pro kg') }}
             <input type="text" inputmode="decimal" name="filamentpreis_standard"
                    value="{{ s.filamentpreis_standard|num(2) if s.filamentpreis_standard is defined else '' }}">
-            <span class="hint">{{ _('für Filamente ohne passende Regel, wenn auch die Datei keinen Preis mitbringt (etwa Cura oder Profile mit 0 €); leer = keine Materialkosten') }}</span>
           </label>
           </div>
           <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
             {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
-          <p class="hint">{{ _('Dann gilt für jedes Filament ohne passende Regel der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
           <h3>{{ _('Spoolman') }}</h3>
-          <p class="hint">{{ _('Optional: PlateShelf liest deine Spulen aus Spoolman, nimmt deren Preise (nach den Preisregeln) und zeigt auf der Projektseite, ob die Rolle reicht. Zugeordnet wird über Farbe und Material.') }}</p>
+          <p class="hint">{{ _('Optional: PlateShelf liest deine Spulen aus Spoolman, nimmt deren Preise (nach den Preisregeln) und zeigt auf der Projektseite, ob die Rolle reicht. Zugeordnet wird über Farbe und Material. Gilt die Adresse nur im Docker-Netz (etwa http://spoolman:8000), trag als Adresse für Links die ein, mit der du Spoolman im Browser öffnest.') }}
+            {%- if spoolman.env %} {{ _('Adresse gesetzt über {var}.', var='<code>SPOOLMAN_URL</code>')|safe }}{% endif %}
+            {%- if spoolman.link_env %} {{ _('Adresse für Links gesetzt über {var}.', var='<code>SPOOLMAN_PUBLIC_URL</code>')|safe }}{% endif %}</p>
           <div class="field-pair">
             <label>{{ _('Adresse von Spoolman') }}
               <input type="url" name="spoolman_url" value="{{ spoolman.url }}" placeholder="http://spoolman:8000" {{ 'disabled' if spoolman.env }}>
-              {% if spoolman.env %}<span class="hint">{{ _('Gesetzt über {var}.', var='SPOOLMAN_URL') }}</span>{% endif %}
             </label>
             <label>{{ _('Adresse für Links im Browser') }}
               <input type="url" name="spoolman_link_url" value="{{ spoolman.link }}" placeholder="https://spool.example.com" {{ 'disabled' if spoolman.link_env }}>
-              <span class="hint">{% if spoolman.link_env %}{{ _('Gesetzt über {var}.', var='SPOOLMAN_PUBLIC_URL') }}{% else %}{{ _('Optional, falls die Adresse links nur im Docker-Netz gilt (etwa http://spoolman:8000). Leer: Links nutzen die Adresse links.') }}{% endif %}</span>
             </label>
           </div>
           {% if spoolman.url %}
           <p class="hint" role="status">{% if spoolman.state.ok %}{{ ngettext('Verbunden: {n} Spule', 'Verbunden: {n} Spulen', spoolman.spools) }}{% else %}{{ _('Nicht erreichbar: {error}', error=spoolman.state.error) }}{% endif %}</p>
+          <h4>{{ _('Verbrauch melden') }}</h4>
+          <p class="hint">{{ _('Bucht ab dem Einschalten das Gewicht jedes fertigen Drucks von der passenden Spule ab. Nicht einschalten, wenn schon etwas anderes bucht, etwa Moonraker bei Klipper oder ein AMS-Tool – sonst wird doppelt abgezogen. Passen mehrere Spulen, wählst du sie im Druckverlauf.') }}</p>
           <label class="check"><input type="checkbox" name="spoolman_buchen" value="1" {{ 'checked' if spoolman.booking }}>
             {{ _('Verbrauch fertiger Drucke an Spoolman melden') }}</label>
-          <p class="hint">{{ _('Bucht ab dem Einschalten das Gewicht jedes fertigen Drucks von der passenden Spule ab. Nicht einschalten, wenn schon etwas anderes bucht, etwa Moonraker bei Klipper oder ein AMS-Tool – sonst wird doppelt abgezogen. Passen mehrere Spulen, wählst du sie im Druckverlauf.') }}</p>
           {% endif %}
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
@@ -366,12 +365,12 @@
         {% endif %}
 
         <h3>{{ _('Zurückspielen') }}</h3>
+        <p class="hint">{{ _('Benutzer und Anmeldungen kommen aus der Sicherung; eventuell musst du dich danach neu anmelden. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</p>
         <form method="post" action="/settings/backup/restore#backup" enctype="multipart/form-data" class="token-form"
               data-confirm="{{ _('Den aktuellen Stand durch diese Sicherung ersetzen? Er wird vorher selbst gesichert.') }}">
           <label>{{ _('Sicherung (.sqlite)') }} <input type="file" name="file" accept=".sqlite,.db,application/vnd.sqlite3" required></label>
           <button type="submit">{{ _('Sicherung zurückspielen') }}</button>
         </form>
-        <p class="hint">{{ _('Benutzer und Anmeldungen kommen aus der Sicherung; eventuell musst du dich danach neu anmelden. Beim Umzug auf einen anderen Rechner denselben {key} in die {env} übernehmen, sonst müssen die Zugangsdaten der Drucker neu eingegeben werden.', key='<code>SECRET_KEY</code>', env='<code>.env</code>')|safe }}</p>
         <details class="settings-help">
           <summary>{{ _('Von Hand zurückspielen') }}</summary>
           <ol class="hint backup-steps">

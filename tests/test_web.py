@@ -313,3 +313,10 @@ def test_backup_download(client, lib, sample, tmp_path):
     finally:
         con.close()
     assert "#backup" in client.get("/settings").text
+
+
+def test_settings_explain_sections_not_single_fields(client):
+    """Einheitlich: Erklärungen stehen unter den Überschriften, nicht unter einzelnen Eingabefeldern."""
+    page = client.get("/settings").text
+    for label in re.findall(r"<label\b.*?</label>", page, re.S):
+        assert 'class="hint"' not in label, label
