@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.13
 
 - **Fix: prints of single-plate projects get their project again.** For projects with only
   one plate, the file from the printer has no “_plate_1” in its name, and Bambu printers may
