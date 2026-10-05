@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Faster playback in the 3D preview:** besides 1×, 10× and 50× there are now 200× and
+  1000×, so large prints play through in reasonable time. At high speed the preview updates
+  once per frame even when several layers pass.
+
 ## 0.8.13
 
 - **Fix: prints of single-plate projects get their project again.** For projects with only

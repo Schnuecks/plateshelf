@@ -256,6 +256,19 @@ def test_viewer_loads_and_all_controls_work(server, page):
     page.wait_for_function("document.getElementById('play').getAttribute('aria-label') === 'Anhalten'")
     page.wait_for_function("Number(document.getElementById('layer-progress').value) < 1000", timeout=10_000)
     page.keyboard.press("Space")
+    # Geschwindigkeit: bis 1000× für große Drucke; damit läuft der ganze Druck in Sekunden durch
+    speed = page.locator("#play-speed")
+    labels = []
+    for _ in range(5):
+        speed.click()
+        labels.append(speed.inner_text())
+    assert labels == ["50×", "200×", "1000×", "1×", "10×"], labels
+    for _ in range(3):  # wieder 1000×
+        speed.click()
+    page.locator("#layer-max").fill("0")
+    page.locator("#play").click()
+    page.wait_for_function("document.getElementById('play').getAttribute('aria-label') === 'Abspielen'", timeout=15_000)
+    assert "12 von 12" in page.locator("#layer-label").inner_text()
 
     # Ansicht, Tiefenschattierung, Bild speichern
     page.locator("#view-top").click()

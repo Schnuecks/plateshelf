@@ -55,7 +55,7 @@ const TARGET_MS = 22;         // Bildzeit, die beim Drehen noch als flüssig gil
 const REST_MAX_MS = 400;      // länger darf ein einzelnes Standbild nicht dauern
 const CUT_ALL = 1e9;          // Wiedergabe aus: oberste Schicht vollständig
 const PLAY_MM_S = 150;        // Wiedergabe bei 1×: etwa übliche Druckgeschwindigkeit
-const PLAY_SPEEDS = [1, 10, 50];
+const PLAY_SPEEDS = [1, 10, 50, 200, 1000];  // große Drucke brauchen mehr als 50×
 
 // Plattenwechsel mit Pfeiltasten, schon während die Vorschau noch lädt
 window.addEventListener("keydown", (e) => {
@@ -819,12 +819,17 @@ function start(data) {
     lastTick = now;
     let dist = (playDist ?? layerLen(Number(slider.value))[0]) + PLAY_MM_S * PLAY_SPEEDS[speedIdx] * dt;
     let l = Number(slider.value);
+    const from = l;
     while (dist >= layerLen(l)[1]) {
-      if (single.checked || l >= nLayers - 1) { setCut(null); setPlaying(false); return; }
+      if (single.checked || l >= nLayers - 1) {
+        if (l !== from) { slider.value = l; applyLayers(true); }
+        setCut(null); setPlaying(false); return;
+      }
       dist = layerLen(l + 1)[0] + (dist - layerLen(l)[1]);
-      slider.value = ++l;
-      applyLayers(true);
+      l++;
     }
+    // Bei hoher Geschwindigkeit mehrere Schichten pro Bild: nur einmal neu aufbauen
+    if (l !== from) { slider.value = l; applyLayers(true); }
     setCut(dist);
     render();
     requestAnimationFrame(tick);
