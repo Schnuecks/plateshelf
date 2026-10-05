@@ -11,7 +11,7 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ["v*", "dev-*"]   # dev-…: Test-Image unter dem Tag „dev“, ohne latest
   pull_request:
 
 env:
@@ -19,7 +19,7 @@ env:
   # Paketversionen, die beim Aufräumen bleiben: pro Release 1 Index + 1 Image je Plattform
   # (2 Plattformen = 3 Versionen), also 5 Releases = 15. Sonst würden die Plattform-Images
   # älterer Releases gelöscht und diese Versionen ließen sich nicht mehr installieren.
-  KEEP_VERSIONS: 15
+  KEEP_VERSIONS: 18   # 5 Releases + 1 Test-Image (dev)
 
 jobs:
   test:
@@ -65,7 +65,10 @@ jobs:
         if: contains(env.PLATFORMS, 'arm')
       - uses: docker/setup-buildx-action@v4
       - id: release
-        run: echo "push=${{ startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "push=${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/dev-') }}" >> "$GITHUB_OUTPUT"
+          echo "latest=${{ startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
+          echo "dev=${{ startsWith(github.ref, 'refs/tags/dev-') }}" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v4
         if: steps.release.outputs.push == 'true'
         with:
@@ -79,7 +82,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ steps.release.outputs.push }}
+            type=raw,value=latest,enable=${{ steps.release.outputs.latest }}
+            type=raw,value=dev,enable=${{ steps.release.outputs.dev }}
       - uses: docker/build-push-action@v7
         with:
           context: .
