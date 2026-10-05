@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import gcode_file, i18n, photos, print_history, printer_import, statistics, store, trash
+from . import gcode_file, i18n, photos, print_history, printer_import, spoolman, statistics, store, trash
 from .i18n import fmt_date, fmt_num, gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
 from .web import ONE_YEAR, STATUSES, _local_target, templates
@@ -156,8 +156,14 @@ def project(request: Request, pid: int):
         dupes = store.duplicates_of(con, list(file_rows))
     for f in file_rows.values():
         f["duplicates"] = dupes.get(f["id"], [])
+    # Spoolman (falls eingerichtet): passende Spulen und Restmenge je Filament des Projekts
+    spool_info = {}
+    if spoolman.url():
+        infos = spoolman.for_filaments(p["filaments"])
+        if spoolman.state.get("ok"):  # nicht erreichbar: lieber nichts als „keine Spule“ anzeigen
+            spool_info = {(fi["color"], fi["type"]): info for fi, info in zip(p["filaments"], infos, strict=True)}
     return templates.TemplateResponse(request, "project.html", {
-        "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
+        "p": p, "files": list(file_rows.values()), "others": others, "designer": designer, "spool_info": spool_info,
         "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
     })
@@ -227,10 +233,26 @@ def photo_delete(pid: int, name: str):
 
 @router.get("/history")
 def history(request: Request):
+    jobs = print_history.recent()
+    bookings = spoolman.bookings_for([j["id"] for j in jobs]) if spoolman.url() else {}
     return templates.TemplateResponse(request, "history.html", {
-        "jobs": print_history.recent(), "enabled": print_history.enabled(),
-        "printers": printer_import.load_printers(),
+        "jobs": jobs, "enabled": print_history.enabled(), "printers": printer_import.load_printers(),
+        "bookings": bookings, "spools": spoolman.spools() if any(
+            b["booked"] is None for rows in bookings.values() for b in rows) else [],
     })
+
+
+@router.post("/history/{job_id}/spoolman")
+async def history_spoolman(request: Request, job_id: int):
+    """Offene Spoolman-Buchungen eines Drucks mit der gewählten Spule nachholen."""
+    form = await request.form()
+    choices = {int(k.split(":", 1)[1]): int(v) for k, v in form.items()
+               if k.startswith("spule:") and str(v).isdigit()}
+    try:
+        spoolman.book_manually(job_id, choices)
+    except OSError as exc:
+        raise HTTPException(502, _("Spoolman ist nicht erreichbar: {error}", error=str(exc))) from None
+    return RedirectResponse("/history", status_code=303)
 
 
 @router.get("/statistics")

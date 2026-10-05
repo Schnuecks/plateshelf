@@ -58,6 +58,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Only for updates from before user accounts: become the first admin account once |
 | `SECRET_KEY` | – | Key for encrypting printer credentials; strongly recommended, see [Secrets](#secrets) |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
+| `SPOOLMAN_URL` | – | Address of Spoolman for spool prices, remaining amounts and optional usage reporting, see [usage](usage.md#spoolman-optional); can also be set in the settings |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Sign in with Authelia, Authentik, Keycloak & co., see [Single sign-on](#single-sign-on-oidc) |
 
 ## Access control

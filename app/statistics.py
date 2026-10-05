@@ -13,7 +13,7 @@ import json
 import time
 from collections import defaultdict
 
-from . import store
+from . import spoolman, store
 
 MONTHS = 12
 
@@ -34,6 +34,7 @@ def _file_facts(con, settings: dict) -> dict[str, dict]:
     """Je Datei: Gewicht, Filamente, Materialkosten und geplante Zeit der geslicten Platten."""
     facts: dict[str, dict] = {}
     rules = store.price_rules(settings)
+    spool_price = spoolman.price_resolver(settings)
     for r in con.execute(
             """SELECT f.path, f.printer, p.weight_g, p.cost, p.prediction_s, p.filaments_json
                FROM plates p JOIN files f ON f.id = p.file_id WHERE p.sliced = 1"""):
@@ -41,7 +42,7 @@ def _file_facts(con, settings: dict) -> dict[str, dict]:
                                             "prediction_s": 0, "filaments": []})
         fact["weight_g"] += r["weight_g"] or 0
         fact["prediction_s"] += r["prediction_s"] or 0
-        cost = store.material_cost(settings, json.loads(r["filaments_json"] or "[]"), rules)
+        cost = store.material_cost(settings, json.loads(r["filaments_json"] or "[]"), rules, spool_price)
         if cost is not None:
             fact["cost"] = (fact["cost"] or 0) + cost
         fact["filaments"] += json.loads(r["filaments_json"] or "[]")

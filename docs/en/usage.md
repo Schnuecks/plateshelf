@@ -126,9 +126,10 @@ Usage per filament (from the file) times its price per kg. PlateShelf takes the 
 price that applies:
 
 1. a **price rule** that matches the filament,
-2. otherwise the **price from the file**, i.e. from the filament profile in the slicer
+2. otherwise the price of the matching spool in **Spoolman**, if connected (see below),
+3. otherwise the **price from the file**, i.e. from the filament profile in the slicer
    (“Price” in Bambu Studio, “Cost” in PrusaSlicer); Cura stores none,
-3. otherwise the **default price** per kg.
+4. otherwise the **default price** per kg.
 
 Without any of these, the material part is missing.
 
@@ -157,6 +158,28 @@ material costs.
 **Ignore prices from slicer files:** handy if you never maintained the prices in your slicer
 profiles (Bambu Studio ships its own example prices). Then only rules and the default price
 count, so “a default price plus a few rules for special filaments” covers everything.
+
+### Spoolman (optional)
+
+If you manage your spools in [Spoolman](https://github.com/Donkie/Spoolman), enter its address
+under “Settings” → “Costs” → “Spoolman” (e.g. `http://spoolman:8000`, or `SPOOLMAN_URL` in the
+`.env`). PlateShelf then only **reads**:
+
+- **Matching:** a filament from a file matches a spool with the **same colour** and the same
+  material. The exact material wins (“PETG HF” to “PETG HF”); otherwise the base material
+  counts (“PLA” from the file matches “PLA Basic” or “PLA Matte” in Spoolman). If spools of
+  several different Spoolman filaments match, PlateShelf does not guess.
+- **Prices:** spool price divided by its filled weight, otherwise the filament price; used
+  after your price rules and before the price from the file.
+- **Is the spool enough?** The project page lists the matching spool(s) next to each filament
+  with the amount left, and warns if it is less than the project needs.
+
+**Reporting usage (only if you switch it on):** with “Report usage of finished prints to
+Spoolman”, every print that finishes **after** switching it on is deducted from its spool, once.
+If several spools fit (e.g. two black PETG), nothing is deducted automatically; the print
+history shows a selection to pick the spool. If Spoolman is unreachable, PlateShelf tries again
+later. **Do not switch this on if something else already deducts usage** – Moonraker's Spoolman
+integration with Klipper, or an AMS tool for Bambu printers – or every print counts twice.
 
 ### Electricity
 

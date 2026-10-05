@@ -134,9 +134,10 @@ Verbrauch pro Filament (aus der Datei) mal Preis pro kg. PlateShelf nimmt den er
 der zutrifft:
 
 1. eine **Preisregel**, die zum Filament passt,
-2. sonst den **Preis aus der Datei**, also aus dem Filamentprofil im Slicer („Preis“ in
+2. sonst den Preis der passenden Spule in **Spoolman**, falls angebunden (siehe unten),
+3. sonst den **Preis aus der Datei**, also aus dem Filamentprofil im Slicer („Preis“ in
    Bambu Studio, „Kosten“ in PrusaSlicer); Cura speichert keinen,
-3. sonst den **Standardpreis** pro kg.
+4. sonst den **Standardpreis** pro kg.
 
 Ohne all das fehlt der Materialanteil.
 
@@ -167,6 +168,29 @@ Materialkosten haben sollen.
 Slicer-Profilen nie gepflegt hast (Bambu Studio bringt eigene Beispielpreise mit). Dann
 zählen nur Regeln und der Standardpreis, und „ein Standardpreis plus ein paar Regeln für
 besondere Filamente“ deckt alles ab.
+
+### Spoolman (optional)
+
+Verwaltest du deine Spulen in [Spoolman](https://github.com/Donkie/Spoolman), trägst du dessen
+Adresse unter „Einstellungen“ → „Kosten“ → „Spoolman“ ein (z. B. `http://spoolman:8000`, oder
+`SPOOLMAN_URL` in der `.env`). PlateShelf **liest** dann nur:
+
+- **Zuordnung:** Ein Filament aus einer Datei passt zu einer Spule mit **gleicher Farbe** und
+  gleichem Material. Das genaue Material geht vor („PETG HF“ zu „PETG HF“), sonst zählt das
+  Grundmaterial („PLA“ aus der Datei passt zu „PLA Basic“ oder „PLA Matte“ in Spoolman). Passen
+  Spulen verschiedener Spoolman-Filamente, rät PlateShelf nicht.
+- **Preise:** Spulenpreis geteilt durch das Füllgewicht, sonst der Filamentpreis; gilt nach
+  deinen Preisregeln und vor dem Preis aus der Datei.
+- **Reicht die Rolle?** Die Projektseite zeigt neben jedem Filament die passende(n) Spule(n)
+  mit Restmenge und warnt, wenn weniger übrig ist, als das Projekt braucht.
+
+**Verbrauch melden (nur wenn du es einschaltest):** Mit „Verbrauch fertiger Drucke an Spoolman
+melden“ wird jeder Druck, der **nach** dem Einschalten fertig wird, einmal von seiner Spule
+abgebucht. Passen mehrere Spulen (etwa zwei schwarze PETG), wird nichts automatisch gebucht;
+der Druckverlauf zeigt dann eine Auswahl für die Spule. Ist Spoolman nicht erreichbar, versucht
+PlateShelf es später erneut. **Nicht einschalten, wenn schon etwas anderes abbucht** – die
+Spoolman-Anbindung von Moonraker bei Klipper oder ein AMS-Tool bei Bambu –, sonst zählt jeder
+Druck doppelt.
 
 ### Strom
 

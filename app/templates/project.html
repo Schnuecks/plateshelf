@@ -303,7 +303,13 @@
         <h2>{{ _('Filament im Projekt') }}</h2>
         <ul>
           {% for fi in p.filaments %}
-          <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
+          <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span>
+            {% set sp = spool_info.get((fi.color, fi.type)) %}
+            {% if sp %}<span class="spool-line{{ '' if sp.enough else ' is-short' }}">
+              {{ sp.spools|map(attribute='label')|join(', ') }} ·
+              {{ _('noch {g} auf der Rolle', g=sp.remaining|num(0, 'g')) if sp.enough else _('nur noch {g} – reicht nicht', g=sp.remaining|num(0, 'g')) }}</span>
+            {% elif spool_info %}<span class="spool-line is-none">{{ _('Spoolman: keine eindeutige Spule') }}</span>{% endif %}
+          </li>
           {% endfor %}
         </ul>
       </section>

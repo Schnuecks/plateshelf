@@ -189,6 +189,20 @@
           <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
             {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
           <p class="hint">{{ _('Dann gilt für jedes Filament ohne passende Regel der Standardpreis. Praktisch, wenn die Preise in den Slicer-Profilen nie angepasst wurden.') }}</p>
+          <h3>{{ _('Spoolman') }}</h3>
+          <p class="hint">{{ _('Optional: PlateShelf liest deine Spulen aus Spoolman, nimmt deren Preise (nach den Preisregeln) und zeigt auf der Projektseite, ob die Rolle reicht. Zugeordnet wird über Farbe und Material.') }}</p>
+          <div class="field-pair">
+            <label>{{ _('Adresse von Spoolman') }}
+              <input type="url" name="spoolman_url" value="{{ spoolman.url }}" placeholder="http://spoolman:8000" {{ 'disabled' if spoolman.env }}>
+              {% if spoolman.env %}<span class="hint">{{ _('Gesetzt über {var}.', var='SPOOLMAN_URL') }}</span>{% endif %}
+            </label>
+          </div>
+          {% if spoolman.url %}
+          <p class="hint" role="status">{% if spoolman.state.ok %}{{ ngettext('Verbunden: {n} Spule', 'Verbunden: {n} Spulen', spoolman.spools) }}{% else %}{{ _('Nicht erreichbar: {error}', error=spoolman.state.error) }}{% endif %}</p>
+          <label class="check"><input type="checkbox" name="spoolman_buchen" value="1" {{ 'checked' if spoolman.booking }}>
+            {{ _('Verbrauch fertiger Drucke an Spoolman melden') }}</label>
+          <p class="hint">{{ _('Bucht ab dem Einschalten das Gewicht jedes fertigen Drucks von der passenden Spule ab. Nicht einschalten, wenn schon etwas anderes bucht, etwa Moonraker bei Klipper oder ein AMS-Tool – sonst wird doppelt abgezogen. Passen mehrere Spulen, wählst du sie im Druckverlauf.') }}</p>
+          {% endif %}
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
       </section>

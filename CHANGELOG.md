@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased (planned for 1.1)
+
+- **Spoolman (optional):** with the address of Spoolman (settings or `SPOOLMAN_URL`),
+  PlateShelf matches spools to the filaments of your files by colour and material, uses their
+  prices (after price rules, before the file price) and shows on the project page how much is
+  left on the spool and whether it is enough. Optionally, usage of finished prints is deducted
+  from the spool – only after switching it on, once per print, never guessed: if several
+  spools fit, you pick one in the print history. Database schema 7.
+
 ## 0.8.14
 
 - **Faster playback in the 3D preview:** besides 1×, 10× and 50× there are now 200× and

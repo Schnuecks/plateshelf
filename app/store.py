@@ -142,6 +142,18 @@ CREATE TABLE IF NOT EXISTS users (
     last_login REAL,
     oidc_sub TEXT                       -- Aussteller + sub bei Anmeldung über OIDC, siehe oidc.py
 );
+CREATE TABLE IF NOT EXISTS spoolman_bookings (   -- Verbrauch, der an Spoolman gemeldet wurde (oder offen ist)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL REFERENCES print_jobs(id) ON DELETE CASCADE,
+    slot INTEGER,
+    spool_id INTEGER,                   -- NULL: noch keine Spule gewählt
+    spool_label TEXT,
+    grams REAL NOT NULL,
+    color TEXT,
+    material TEXT,
+    booked REAL,                        -- Zeitpunkt der Buchung, NULL = offen
+    note TEXT                           -- „mehrdeutig“ oder „keine Spule“
+);
 CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token_hash TEXT NOT NULL UNIQUE,     -- SHA-256 des Cookie-Werts, nie der Wert selbst
@@ -220,7 +232,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 6  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 7  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -236,6 +248,7 @@ MIGRATIONS: dict = {
     4: lambda con: _migrate_4(con),
     5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: Anmeldung über OIDC
     6: lambda con: _rescan_all(),  # 0.8.9: „Vom Drucker“ wieder nach Namen gruppieren
+    7: lambda con: None,  # 1.1: Tabelle spoolman_bookings (legt SCHEMA an)
 }
 
 
@@ -600,8 +613,8 @@ def matching_rule(rules: list[tuple[str, float]], f: dict) -> tuple[str, float] 
     return next((r for r in rules if r[0].lower() in text), None)
 
 
-def filament_price(settings: dict, f: dict, rules: list | None = None) -> float | None:
-    """€/kg: passende Preisregel, sonst der Preis aus der Datei, sonst der Standardpreis.
+def filament_price(settings: dict, f: dict, rules: list | None = None, spool_price=None) -> float | None:
+    """€/kg: passende Preisregel, sonst Spoolman (spool_price), sonst der Preis aus der Datei, sonst der Standardpreis.
 
     Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
     Standardpreis haben trotzdem alle Drucke Materialkosten. Mit „Preise aus den Dateien
@@ -610,16 +623,19 @@ def filament_price(settings: dict, f: dict, rules: list | None = None) -> float 
     rule = matching_rule(price_rules(settings) if rules is None else rules, f)
     if rule:
         return rule[1]
+    if spool_price and (from_spool := spool_price(f)) is not None:
+        return from_spool
     if f.get("cost_per_kg") and not settings.get("dateipreise_ignorieren"):
         return f["cost_per_kg"]
     default = settings.get("filamentpreis_standard")
     return float(default) if default not in (None, "") else f.get("cost_per_kg")
 
 
-def material_cost(settings: dict, filaments: list[dict], rules: list | None = None) -> float | None:
+def material_cost(settings: dict, filaments: list[dict], rules: list | None = None,
+                  spool_price=None) -> float | None:
     rules = price_rules(settings) if rules is None else rules
     costs = [(f.get("used_g") or 0) / 1000 * price for f in filaments
-             if (price := filament_price(settings, f, rules)) is not None]
+             if (price := filament_price(settings, f, rules, spool_price)) is not None]
     return sum(costs) if costs else None
 
 
