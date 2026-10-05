@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
 import { POLY_END, loadPreview } from "plateshelf/geometry";
+import { buildPrinter, printerKind } from "plateshelf/printer";
 
 // Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
 const I18N = (() => {
@@ -559,7 +560,7 @@ function start(data) {
   const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bed, bed), new THREE.MeshBasicMaterial({ map: plateTex }));
   plateMesh.position.set(bed / 2, bed / 2, -0.02);
   const rim = new THREE.Mesh(new THREE.BoxGeometry(bed + 6, bed + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
-  rim.position.set(bed / 2, bed / 2, -1.55);
+  rim.position.set(bed / 2, bed / 2, -2.1);  // etwas tiefer: aus der Ferne sonst Flimmern mit der Platte
   bedGroup.add(rim, plateMesh);
   scene.add(bedGroup);
   const plateNormalMat = new THREE.MeshNormalMaterial();
@@ -765,6 +766,31 @@ function start(data) {
   nozzle.visible = false;
   scene.add(nozzle);
 
+  // Drucker um die Platte (vorerst geschlossene CoreXY-Drucker wie der P2S), ein- und ausblendbar
+  const kind = printerKind(root.dataset.printer);
+  const printer = kind ? buildPrinter(kind, bed) : null;
+  const printerToggle = document.getElementById("printer-toggle");
+  const frontBtn = document.getElementById("view-front");
+  if (printer) {
+    printer.park(maxz);
+    printer.group.visible = store.get("plateshelf-printer", "1") === "1";
+    scene.add(printer.group);
+    if (printerToggle) {
+      printerToggle.closest("label").hidden = false;
+      printerToggle.checked = printer.group.visible;
+      printerToggle.addEventListener("change", () => {
+        printer.group.visible = printerToggle.checked;
+        store.set("plateshelf-printer", printerToggle.checked ? "1" : "0");
+        if (frontBtn) frontBtn.hidden = !printerToggle.checked;
+        render();
+      });
+    }
+    if (frontBtn) {
+      frontBtn.hidden = !printer.group.visible;
+      frontBtn.addEventListener("click", () => { printer.frontView(camera, controls); render(); });
+    }
+  }
+
   const progress = document.getElementById("layer-progress");
   const playBtn = document.getElementById("play");
   const speedBtn = document.getElementById("play-speed");
@@ -778,6 +804,7 @@ function start(data) {
       playDist = null;
       uniforms.cutPoint.value = CUT_ALL;
       nozzle.visible = false;
+      printer?.park(maxz);
       if (progress) progress.value = progress.max;
       return;
     }
@@ -790,7 +817,8 @@ function start(data) {
       pos[i * 3 + 1] + (pos[j * 3 + 1] - pos[i * 3 + 1]) * f,
       pos[i * 3 + 2] + hw * 5,
     );
-    nozzle.visible = true;
+    nozzle.visible = !printer?.group.visible;  // mit Drucker zeigt der Druckkopf die Stelle
+    printer?.setHead(nozzle.position.x, nozzle.position.y, nozzle.position.z - hw * 5);
     if (progress) progress.value = b > a ? Math.round(((playDist - a) / (b - a)) * Number(progress.max)) : progress.max;
   };
   const setPlaying = (on) => {
@@ -1066,6 +1094,7 @@ function start(data) {
   function draw() {
     // Von unten (z. B. um die erste Schicht anzusehen) die Platte ausblenden, sie würde alles verdecken
     bedGroup.visible = camera.position.z > 0;
+    if (printer) printer.group.visible = bedGroup.visible && (printerToggle ? printerToggle.checked : true);
     renderer.render(scene, camera);
     if (!aoActive()) return;
     renderer.getDrawingBufferSize(bufSize);
@@ -1078,11 +1107,15 @@ function start(data) {
     const extrasShown = Object.values(extras).map((o) => o.visible);
     Object.values(extras).forEach((o) => { o.visible = false; });
     plateMesh.material = plateNormalMat; rim.visible = false; nozzle.visible = false; scene.background = null;
+    const printerShown = printer?.group.visible;
+    if (printer) printer.group.visible = false;
     uniforms.normalPass.value = 1;
     renderer.setRenderTarget(aoTarget);
     renderer.render(scene, camera);
     uniforms.normalPass.value = 0;
-    plateMesh.material = plateBasicMat; rim.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
+    plateMesh.material = plateBasicMat; rim.visible = true; nozzle.visible = playDist !== null && !printerShown;
+    scene.background = bg;
+    if (printer) printer.group.visible = printerShown;
     Object.values(extras).forEach((o, i) => { o.visible = extrasShown[i]; });
     // 2. Schattierung in einen eigenen Puffer
     aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
