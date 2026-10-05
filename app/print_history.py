@@ -485,5 +485,10 @@ def loop() -> None:
                 refresh_watchers([])  # ausgeschaltet: MQTT-Verbindungen schließen
         except Exception:  # noqa: BLE001
             log.exception("Druckverlauf fehlgeschlagen")
+        try:
+            from . import spoolman
+            spoolman.book_pending()  # nur wenn in den Einstellungen eingeschaltet
+        except Exception:  # noqa: BLE001
+            log.exception("Spoolman-Buchung fehlgeschlagen")
         _wakeup.wait(interval())
         _wakeup.clear()

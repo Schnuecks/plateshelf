@@ -1,0 +1,6 @@
+{# Spulennummer „#39“ als Link in die Spoolman-Oberfläche (neuer Tab), sonst als Text #}
+{% macro spool_ref(spool_id, text=None) -%}
+{%- set href = spool_link(spool_id) -%}
+{%- if href %}<a href="{{ href }}" target="_blank" rel="noopener" class="spool-ref" title="{{ _('In Spoolman öffnen') }}">{{ text or '#' ~ spool_id }}</a>
+{%- else %}{{ text or '#' ~ spool_id }}{% endif -%}
+{%- endmacro %}

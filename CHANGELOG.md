@@ -2,6 +2,22 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased (planned for 1.1)
+
+- **Spoolman (optional):** with the address of Spoolman (settings or `SPOOLMAN_URL`),
+  PlateShelf matches spools to the filaments of your files by colour and material, uses their
+  prices (after price rules, before the file price) and shows on the project page how much is
+  left on the spool and whether it is enough. Optionally, usage of finished prints is deducted
+  from the spool – only after switching it on, once per print, never guessed: if several
+  spools fit, you pick one in the print history. Database schema 7.
+- **Where a price comes from:** the filament table of each plate shows the price per kg and
+  its source – price rule, Spoolman spool, file or default price.
+- **Usage by spool** in the statistics (with Spoolman): booked prints count for their spool,
+  the others for the matching spool.
+- **Links to Spoolman:** spool numbers link to the spool in Spoolman; for setups where
+  PlateShelf reaches Spoolman only inside Docker, a separate address for links can be set
+  (settings or `SPOOLMAN_PUBLIC_URL`).
+
 ## 0.8.15
 
 - **Settings explained consistently:** explanations now always sit under the heading of a

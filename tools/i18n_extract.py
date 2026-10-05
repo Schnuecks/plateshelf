@@ -57,6 +57,7 @@ def _from_tables() -> set[str]:
     found |= {entry[1] for entry in main.SETTING_LABELS} | set(main.BOOL_WORDS.values())
     found |= {"IP-Adresse", "Seriennummer", "Zugangscode"}  # Feldnamen in Fehlermeldungen
     found |= set(web.ROLE_LABELS.values())
+    found |= {text for pair in web.PRICE_SOURCES.values() for text in pair if text}
     return found
 
 

@@ -335,7 +335,7 @@ summary { cursor: pointer; font-weight: 500; }
 .source { font-size: .9rem; margin-top: -.4rem; }
 .usage h2 { font: var(--h-side); margin: 0 0 .5rem; }
 .usage ul { list-style: none; padding: 0; margin: 0; }
-.usage li { display: flex; align-items: center; padding: .3rem 0; border-bottom: 1px solid var(--line); }
+.usage li { display: flex; flex-wrap: wrap; align-items: center; padding: .3rem 0; border-bottom: 1px solid var(--line); }
 .usage li .r { margin-left: auto; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -816,3 +816,14 @@ a.icon-btn { text-decoration: none; }
 .site-footer a { color: var(--muted); }
 .viewer-footer { margin: auto 0 0; padding-top: 1rem; font-size: .8rem; color: var(--muted); }
 .viewer-footer a { color: var(--muted); }
+/* Spoolman: Spule und Restmenge im Projekt, Buchungen im Verlauf */
+.spool-line { display: block; flex-basis: 100%; font-size: .8rem; color: var(--muted); margin: .1rem 0 0 1.4rem; }
+.spool-line.is-short { color: var(--warn); font-weight: 600; }
+.spool-booked { display: block; font-size: .8rem; color: var(--muted); }
+.spool-choose { display: grid; gap: .35rem; margin-top: .4rem; font-size: .85rem; }
+.spool-choose label { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.spool-choose select { max-width: 16rem; }
+.price-cell { white-space: nowrap; }
+.price-source { display: block; font-size: .72rem; color: var(--muted); }
+.price-source.price-spoolman { color: var(--accent); }
+.spool-ref { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }

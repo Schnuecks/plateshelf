@@ -14,7 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, store
+from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, spoolman, store
 from .i18n import gettext as _
 from .web import APP_VERSION, ONE_YEAR, current_user, templates
 
@@ -56,6 +56,12 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
                    for k, price in sorted(rules, key=lambda r: r[0].lower())]
     return templates.TemplateResponse(request, "settings.html", {
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS, "price_rules": price_rules,
+        "spoolman": {"url": spoolman.url(settings), "env": spoolman.from_env(),
+                     "link": settings.get(spoolman.LINK_KEY) or "",
+                     "link_env": bool(os.environ.get("SPOOLMAN_PUBLIC_URL", "").strip()),
+                     "booking": spoolman.booking_since(settings) is not None,
+                     "spools": len(spoolman.spools(settings, force=True)) if spoolman.url(settings) else 0,
+                     "state": spoolman.state},
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
@@ -269,6 +275,19 @@ async def settings_save(request: Request):
             values[key] = _number(value, 1, 5000)  # leer = Standardleistung verwenden
         elif key.startswith("filamentpreis:") or key == "filamentpreis_standard":
             values[key] = _number(value, 0, 1000)  # leer = Preis entfernen
+    # Spoolman: Adresse (sofern nicht per SPOOLMAN_URL gesetzt) und Buchen ab jetzt
+    if not spoolman.from_env():
+        address = (form.get("spoolman_url") or "").strip().rstrip("/")
+        if address and not address.startswith(("http://", "https://")):
+            raise HTTPException(400, _("Die Spoolman-Adresse muss mit http:// oder https:// beginnen."))
+        values[spoolman.URL_KEY] = address or None
+    if not os.environ.get("SPOOLMAN_PUBLIC_URL", "").strip():
+        link = (form.get("spoolman_link_url") or "").strip().rstrip("/")
+        if link and not link.startswith(("http://", "https://")):
+            raise HTTPException(400, _("Die Spoolman-Adresse muss mit http:// oder https:// beginnen."))
+        values[spoolman.LINK_KEY] = link or None
+    current = store.get_settings().get(spoolman.BOOK_KEY)
+    values[spoolman.BOOK_KEY] = (current or time.time()) if form.get("spoolman_buchen") else None
     keyword = " ".join((form.get("neues_stichwort") or "").split())
     new_price = _number(form.get("neuer_filamentpreis"), 0, 1000)
     if keyword and new_price is not None:

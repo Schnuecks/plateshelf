@@ -187,6 +187,25 @@
           </div>
           <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
             {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
+          <h3>{{ _('Spoolman') }}</h3>
+          <p class="hint">{{ _('Optional: PlateShelf liest deine Spulen aus Spoolman, nimmt deren Preise (nach den Preisregeln) und zeigt auf der Projektseite, ob die Rolle reicht. Zugeordnet wird über Farbe und Material. Gilt die Adresse nur im Docker-Netz (etwa http://spoolman:8000), trag als Adresse für Links die ein, mit der du Spoolman im Browser öffnest.') }}
+            {%- if spoolman.env %} {{ _('Adresse gesetzt über {var}.', var='<code>SPOOLMAN_URL</code>')|safe }}{% endif %}
+            {%- if spoolman.link_env %} {{ _('Adresse für Links gesetzt über {var}.', var='<code>SPOOLMAN_PUBLIC_URL</code>')|safe }}{% endif %}</p>
+          <div class="field-pair">
+            <label>{{ _('Adresse von Spoolman') }}
+              <input type="url" name="spoolman_url" value="{{ spoolman.url }}" placeholder="http://spoolman:8000" {{ 'disabled' if spoolman.env }}>
+            </label>
+            <label>{{ _('Adresse für Links im Browser') }}
+              <input type="url" name="spoolman_link_url" value="{{ spoolman.link }}" placeholder="https://spool.example.com" {{ 'disabled' if spoolman.link_env }}>
+            </label>
+          </div>
+          {% if spoolman.url %}
+          <p class="hint" role="status">{% if spoolman.state.ok %}{{ ngettext('Verbunden: {n} Spule', 'Verbunden: {n} Spulen', spoolman.spools) }}{% else %}{{ _('Nicht erreichbar: {error}', error=spoolman.state.error) }}{% endif %}</p>
+          <h4>{{ _('Verbrauch melden') }}</h4>
+          <p class="hint">{{ _('Bucht ab dem Einschalten das Gewicht jedes fertigen Drucks von der passenden Spule ab. Nicht einschalten, wenn schon etwas anderes bucht, etwa Moonraker bei Klipper oder ein AMS-Tool – sonst wird doppelt abgezogen. Passen mehrere Spulen, wählst du sie im Druckverlauf.') }}</p>
+          <label class="check"><input type="checkbox" name="spoolman_buchen" value="1" {{ 'checked' if spoolman.booking }}>
+            {{ _('Verbrauch fertiger Drucke an Spoolman melden') }}</label>
+          {% endif %}
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
         </form>
       </section>

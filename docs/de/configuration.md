@@ -59,6 +59,8 @@ weiter.
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Nur für Updates von Versionen ohne Benutzerkonten: werden einmalig zum ersten Admin-Konto |
 | `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
+| `SPOOLMAN_URL` | – | Adresse von Spoolman für Spulenpreise, Restmengen und optionales Abbuchen, siehe [Bedienung](usage.md#spoolman-optional); geht auch in den Einstellungen |
+| `SPOOLMAN_PUBLIC_URL` | – | Adresse von Spoolman im Browser für Links zu Spulen, falls `SPOOLMAN_URL` nur im Docker-Netz gilt |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Anmelden mit Authelia, Authentik, Keycloak & Co., siehe [Single Sign-on](#single-sign-on-oidc) |
 
 ## Zugriffsschutz
