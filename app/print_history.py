@@ -102,11 +102,15 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
            FROM printer_imports i JOIN files f ON f.path = i.local_path AND f.missing = 0
            WHERE i.printer_name = ?""", (printer_name,))]
 
-    def plate_of(r):
-        m = _PLATE_SUFFIX.search(r["local_path"])
-        return int(m[1]) if m else None
+    def plates_of(r) -> set[int]:
+        if m := _PLATE_SUFFIX.search(r["local_path"]):
+            return {int(m[1])}
+        # Ohne Nummer im Namen (Projekt mit einer Platte oder alle Platten auf einmal): die
+        # geslicten Platten der Datei
+        return {x["idx"] for x in con.execute("""SELECT p.idx FROM plates p JOIN files f ON f.id = p.file_id
+                                                 WHERE f.path = ? AND p.sliced = 1""", (r["local_path"],))}
 
-    candidates = [r for r in imports if plate_of(r) == plate]
+    candidates = [r for r in imports if plate in plates_of(r)]
     if remote_name:  # Projektname bekannt: dieselbe Platte desselben Projekts, bei mehreren die zeitlich nächste
         wanted = _norm(remote_name)
         named = [r for r in candidates if _norm(r["remote_name"] or "") == wanted
@@ -122,7 +126,7 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     if not before:
         return None
     last = max(before, key=lambda r: r["at"] or 0)
-    return last["local_path"] if plate_of(last) == plate else None
+    return last["local_path"] if plate in plates_of(last) else None
 
 
 def _apply_project_status(con, job) -> None:
