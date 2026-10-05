@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.16
 
 - **Fix: running print showed the previous project.** When a single-plate print starts, the
   printer only reports the process profile and plate 1, and its file is fetched seconds later.
