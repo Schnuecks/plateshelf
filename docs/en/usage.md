@@ -176,6 +176,8 @@ PlateShelf then only **reads**:
   several different Spoolman filaments match, PlateShelf does not guess.
 - **Prices:** spool price divided by its filled weight, otherwise the filament price; used
   after your price rules and before the price from the file.
+- **Usage by spool:** the statistics page shows how much was printed from which spool; booked
+  prints count for their spool, the others for the matching spool.
 - **Is the spool enough?** The project page lists the matching spool(s) next to each filament
   with the amount left, and warns if it is less than the project needs.
 

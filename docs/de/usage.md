@@ -185,6 +185,8 @@ Spule in Spoolman. PlateShelf **liest** dann nur:
   Spulen verschiedener Spoolman-Filamente, rät PlateShelf nicht.
 - **Preise:** Spulenpreis geteilt durch das Füllgewicht, sonst der Filamentpreis; gilt nach
   deinen Preisregeln und vor dem Preis aus der Datei.
+- **Verbrauch nach Spule:** Die Statistik zeigt, wie viel von welcher Spule gedruckt wurde;
+  gebuchte Drucke zählen bei ihrer Spule, die übrigen bei der passenden Spule.
 - **Reicht die Rolle?** Die Projektseite zeigt neben jedem Filament die passende(n) Spule(n)
   mit Restmenge und warnt, wenn weniger übrig ist, als das Projekt braucht.
 

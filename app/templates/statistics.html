@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_spool.html" import spool_ref with context %}
 {% block title %}{{ _('Statistik') }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
@@ -94,6 +95,25 @@
       {% else %}<p class="hint">{{ _('Noch keine fertigen Drucke mit zugeordneter Datei.') }}</p>{% endif %}
     </section>
   </div>
+
+  {% if st.spoolman %}
+  <section class="chart-card">
+    <h2>{{ _('Verbrauch nach Spule') }}</h2>
+    <p class="hint">{{ _('Aus Spoolman: gebuchte Drucke zählen bei ihrer Spule, die übrigen bei der Spule mit gleicher Farbe und gleichem Material.') }}</p>
+    {% if st.spools %}
+    <ul class="bar-list">
+      {% for s in st.spools %}
+      {% set label = s.label or _('Ohne passende Spule') %}
+      <li title="{{ label }}: {{ s.grams|num(0, 'g') }}">
+        <span class="bar-name">{% if s.spool_id %}{{ spool_ref(s.spool_id, s.label) }}{% else %}{{ label }}{% endif %}</span>
+        <span class="bar-track"><span class="bar-fill" style="width: {{ s.grams / st.max_spool * 100 }}%"></span></span>
+        <span class="bar-value">{{ (s.grams / 1000)|num(2, 'kg') if s.grams >= 1000 else s.grams|num(0, 'g') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="hint">{{ _('Noch keine fertigen Drucke mit zugeordneter Datei.') }}</p>{% endif %}
+  </section>
+  {% endif %}
 
   <section class="chart-card">
     <h2>{{ _('Erfolgsquote je Drucker') }}</h2>

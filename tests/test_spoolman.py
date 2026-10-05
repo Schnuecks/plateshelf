@@ -181,3 +181,24 @@ def test_spool_names_from_spoolman_are_escaped(client, lib, sample, api):
                     "VALUES (?, 1, 39, '<img src=x onerror=alert(1)>', 1.0, ?)", (job, time.time()))
     page = client.get("/history").text
     assert "<img src=x" not in page and "&lt;img src=x onerror=alert(1)&gt;" in page
+
+
+def test_usage_by_spool_in_statistics(client, lib, sample, api):
+    from app import statistics
+    assert "Verbrauch nach Spule" not in client.get("/statistics").text      # ohne Spoolman kein Abschnitt
+    connect()
+    add_print(lib, sample, "Hase", "#C29572FF", "PLA", 10.0, time.time())
+    black = add_print(lib, sample, "Schwarz", "#000000FF", "PETG", 12.0, time.time())
+    st = statistics.compute()
+    assert [(s["label"], round(s["grams"], 1)) for s in st["spools"]] == [
+        ("#39 Polymaker Panchroma Pastell Peanut", 10.0), ("", 12.0)]       # schwarz: zwei Filamente, keins
+    page = client.get("/statistics").text
+    assert "Verbrauch nach Spule" in page and "Ohne passende Spule" in page
+    assert 'href="http://spoolman:8000/spool/show/39"' in page
+    # Von Hand gebucht: zählt bei der gewählten Spule
+    with store.connect() as con:
+        con.execute("INSERT INTO spoolman_bookings (job_id, slot, spool_id, spool_label, grams, booked) "
+                    "VALUES (?, 1, 4, '#4 PETG Translucent Black', 12.0, ?)", (black, time.time()))
+    st = statistics.compute()
+    assert {s["label"]: round(s["grams"], 1) for s in st["spools"]} == {
+        "#39 Polymaker Panchroma Pastell Peanut": 10.0, "#4 PETG Translucent Black": 12.0}

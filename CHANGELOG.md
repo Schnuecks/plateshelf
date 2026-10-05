@@ -12,6 +12,8 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
   spools fit, you pick one in the print history. Database schema 7.
 - **Where a price comes from:** the filament table of each plate shows the price per kg and
   its source – price rule, Spoolman spool, file or default price.
+- **Usage by spool** in the statistics (with Spoolman): booked prints count for their spool,
+  the others for the matching spool.
 - **Links to Spoolman:** spool numbers link to the spool in Spoolman; for setups where
   PlateShelf reaches Spoolman only inside Docker, a separate address for links can be set
   (settings or `SPOOLMAN_PUBLIC_URL`).
