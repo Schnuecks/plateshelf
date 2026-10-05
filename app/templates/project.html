@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_job_note.html" import job_note with context %}
+{% from "_spool.html" import spool_ref with context %}
 {% block title %}{{ p.name }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
@@ -146,7 +147,7 @@
                   <td class="r">{{ fi.used_g|num(2) }}</td>
                   <td class="r">{{ fi.used_m|num(2) }}</td>
                   <td class="r price-cell">{% if fi.cost_per_kg is not none %}{{ fi.cost_per_kg|num(2) }}
-                    <span class="price-source price-{{ fi.price_source }}" title="{{ _(PRICE_SOURCES[fi.price_source][1]) }}">{{ _(PRICE_SOURCES[fi.price_source][0], detail=fi.price_detail) }}</span>
+                    <span class="price-source price-{{ fi.price_source }}" title="{{ _(PRICE_SOURCES[fi.price_source][1]) }}">{% if fi.price_source == 'spoolman' %}Spoolman {% for sid in fi.price_detail.split(', ') %}{{ spool_ref(sid.lstrip('#')) }}{{ ', ' if not loop.last }}{% endfor %}{% else %}{{ _(PRICE_SOURCES[fi.price_source][0], detail=fi.price_detail) }}{% endif %}</span>
                     {%- else %}–{% endif %}</td>
                 </tr>
               {% endfor %}
@@ -309,7 +310,7 @@
           <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span>
             {% set sp = spool_info.get((fi.color, fi.type)) %}
             {% if sp %}<span class="spool-line{{ '' if sp.enough else ' is-short' }}">
-              {{ sp.spools|map(attribute='label')|join(', ') }} ·
+              {% for s in sp.spools %}{{ spool_ref(s.id, s.label) }}{{ ', ' if not loop.last }}{% endfor %} ·
               {{ _('noch {g} auf der Rolle', g=sp.remaining|num(0, 'g')) if sp.enough else _('nur noch {g} – reicht nicht', g=sp.remaining|num(0, 'g')) }}</span>
             {% elif spool_info %}<span class="spool-line is-none">{{ _('Spoolman: keine eindeutige Spule') }}</span>{% endif %}
           </li>

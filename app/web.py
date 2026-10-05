@@ -262,7 +262,7 @@ PRICE_SOURCES = {
     "default": ("Standard", "Dein Standardpreis unter Einstellungen → Kosten"),
     None: ("", ""),
 }
-templates.env.globals.update(spool_label=spoolman.label, PRICE_SOURCES=PRICE_SOURCES)
+templates.env.globals.update(spool_label=spoolman.label, spool_link=spoolman.spool_link, PRICE_SOURCES=PRICE_SOURCES)
 templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,

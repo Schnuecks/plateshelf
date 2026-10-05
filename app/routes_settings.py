@@ -57,6 +57,8 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
     return templates.TemplateResponse(request, "settings.html", {
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS, "price_rules": price_rules,
         "spoolman": {"url": spoolman.url(settings), "env": spoolman.from_env(),
+                     "link": settings.get(spoolman.LINK_KEY) or "",
+                     "link_env": bool(os.environ.get("SPOOLMAN_PUBLIC_URL", "").strip()),
                      "booking": spoolman.booking_since(settings) is not None,
                      "spools": len(spoolman.spools(settings, force=True)) if spoolman.url(settings) else 0,
                      "state": spoolman.state},
@@ -279,6 +281,11 @@ async def settings_save(request: Request):
         if address and not address.startswith(("http://", "https://")):
             raise HTTPException(400, _("Die Spoolman-Adresse muss mit http:// oder https:// beginnen."))
         values[spoolman.URL_KEY] = address or None
+    if not os.environ.get("SPOOLMAN_PUBLIC_URL", "").strip():
+        link = (form.get("spoolman_link_url") or "").strip().rstrip("/")
+        if link and not link.startswith(("http://", "https://")):
+            raise HTTPException(400, _("Die Spoolman-Adresse muss mit http:// oder https:// beginnen."))
+        values[spoolman.LINK_KEY] = link or None
     current = store.get_settings().get(spoolman.BOOK_KEY)
     values[spoolman.BOOK_KEY] = (current or time.time()) if form.get("spoolman_buchen") else None
     keyword = " ".join((form.get("neues_stichwort") or "").split())

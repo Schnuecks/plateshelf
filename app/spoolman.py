@@ -27,6 +27,7 @@ from . import store
 log = logging.getLogger("plateshelf")
 
 URL_KEY = "spoolman_url"
+LINK_KEY = "spoolman_link_url"     # Adresse für Links im Browser, falls die obere nur im Docker-Netz gilt
 BOOK_KEY = "spoolman_buchen_seit"   # Zeitpunkt, ab dem fertige Drucke gebucht werden
 CACHE_SECONDS = 60
 TIMEOUT = 8
@@ -43,6 +44,20 @@ def url(settings: dict | None = None) -> str:
         return env.rstrip("/")
     settings = store.get_settings() if settings is None else settings
     return str(settings.get(URL_KEY) or "").strip().rstrip("/")
+
+
+def link_base(settings: dict | None = None) -> str:
+    """Adresse der Spoolman-Oberfläche für Links: SPOOLMAN_PUBLIC_URL, Einstellung, sonst die API-Adresse."""
+    env = os.environ.get("SPOOLMAN_PUBLIC_URL", "").strip()
+    if env:
+        return env.rstrip("/")
+    settings = store.get_settings() if settings is None else settings
+    return str(settings.get(LINK_KEY) or "").strip().rstrip("/") or url(settings)
+
+
+def spool_link(spool_id, settings: dict | None = None) -> str:
+    base = link_base(settings)
+    return f"{base}/spool/show/{int(spool_id)}" if base and str(spool_id).isdigit() else ""
 
 
 def from_env() -> bool:

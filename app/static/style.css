@@ -826,3 +826,4 @@ a.icon-btn { text-decoration: none; }
 .price-cell { white-space: nowrap; }
 .price-source { display: block; font-size: .72rem; color: var(--muted); }
 .price-source.price-spoolman { color: var(--accent); }
+.spool-ref { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }

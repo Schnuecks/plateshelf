@@ -196,6 +196,10 @@
               <input type="url" name="spoolman_url" value="{{ spoolman.url }}" placeholder="http://spoolman:8000" {{ 'disabled' if spoolman.env }}>
               {% if spoolman.env %}<span class="hint">{{ _('Gesetzt über {var}.', var='SPOOLMAN_URL') }}</span>{% endif %}
             </label>
+            <label>{{ _('Adresse für Links im Browser') }}
+              <input type="url" name="spoolman_link_url" value="{{ spoolman.link }}" placeholder="https://spool.example.com" {{ 'disabled' if spoolman.link_env }}>
+              <span class="hint">{% if spoolman.link_env %}{{ _('Gesetzt über {var}.', var='SPOOLMAN_PUBLIC_URL') }}{% else %}{{ _('Optional, falls die Adresse links nur im Docker-Netz gilt (etwa http://spoolman:8000). Leer: Links nutzen die Adresse links.') }}{% endif %}</span>
+            </label>
           </div>
           {% if spoolman.url %}
           <p class="hint" role="status">{% if spoolman.state.ok %}{{ ngettext('Verbunden: {n} Spule', 'Verbunden: {n} Spulen', spoolman.spools) }}{% else %}{{ _('Nicht erreichbar: {error}', error=spoolman.state.error) }}{% endif %}</p>

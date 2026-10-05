@@ -165,7 +165,10 @@ count, so “a default price plus a few rules for special filaments” covers ev
 
 If you manage your spools in [Spoolman](https://github.com/Donkie/Spoolman), enter its address
 under “Settings” → “Costs” → “Spoolman” (e.g. `http://spoolman:8000`, or `SPOOLMAN_URL` in the
-`.env`). PlateShelf then only **reads**:
+`.env`). If that address only works inside the Docker network (e.g. `http://spoolman:8000`), also
+enter the address you open Spoolman with in the browser under “Address for links in the
+browser” (or `SPOOLMAN_PUBLIC_URL`); spool numbers like `#39` then link to the spool in Spoolman.
+PlateShelf then only **reads**:
 
 - **Matching:** a filament from a file matches a spool with the **same colour** and the same
   material. The exact material wins (“PETG HF” to “PETG HF”); otherwise the base material

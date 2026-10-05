@@ -174,7 +174,10 @@ besondere Filamente“ deckt alles ab.
 
 Verwaltest du deine Spulen in [Spoolman](https://github.com/Donkie/Spoolman), trägst du dessen
 Adresse unter „Einstellungen“ → „Kosten“ → „Spoolman“ ein (z. B. `http://spoolman:8000`, oder
-`SPOOLMAN_URL` in der `.env`). PlateShelf **liest** dann nur:
+`SPOOLMAN_URL` in der `.env`). Gilt diese Adresse nur im Docker-Netz (etwa `http://spoolman:8000`),
+trag unter „Adresse für Links im Browser“ zusätzlich die Adresse ein, mit der du Spoolman im
+Browser öffnest (oder `SPOOLMAN_PUBLIC_URL`); Spulennummern wie `#39` verlinken dann auf die
+Spule in Spoolman. PlateShelf **liest** dann nur:
 
 - **Zuordnung:** Ein Filament aus einer Datei passt zu einer Spule mit **gleicher Farbe** und
   gleichem Material. Das genaue Material geht vor („PETG HF“ zu „PETG HF“), sonst zählt das

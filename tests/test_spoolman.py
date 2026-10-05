@@ -87,7 +87,10 @@ def test_prices_and_remaining_on_the_project_page(client, lib, sample, api):
         assert round(main.load_projects(con)[0]["plates"][0]["cost"], 3) == round(43.5 * 19.99 / 1000, 3)
     page = client.get(f"/p/{pid}").text
     assert "#39 Polymaker Panchroma Pastell Peanut" in page and "noch 912 g auf der Rolle" in page
-    assert 'class="price-source price-spoolman"' in page and "Spoolman #39" in page   # Herkunft des Preises
+    assert 'class="price-source price-spoolman"' in page                                # Herkunft des Preises
+    assert page.count('href="http://spoolman:8000/spool/show/39"') == 2                 # Preis und Restmenge
+    store.save_settings({spoolman.LINK_KEY: "https://spool.home.lan"})                  # Links für den Browser
+    assert 'href="https://spool.home.lan/spool/show/39" target="_blank"' in client.get(f"/p/{pid}").text
     # Preisregeln gehen weiterhin vor, und die Seite sagt es
     store.save_settings({"filamentpreis:PLA": 10})
     with store.connect() as con:
@@ -129,7 +132,8 @@ def test_booking_only_when_switched_on_and_only_once(client, lib, sample, api):
 
     # Mehrdeutig: im Verlauf die Spule wählen
     page = client.get("/history").text
-    assert "Spoolman: 43,5 g von #39" in page and f'name="spule:{rows[amb][0]["id"]}"' in page
+    assert 'Spoolman: 43,5 g von <a href="http://spoolman:8000/spool/show/39"' in page
+    assert f'name="spule:{rows[amb][0]["id"]}"' in page
     client.post(f"/history/{amb}/spoolman", data={f"spule:{rows[amb][0]['id']}": "4"})
     assert api.used[-1] == (4, 12.0)
     client.post(f"/history/{amb}/spoolman", data={f"spule:{rows[amb][0]['id']}": "4"})
@@ -166,3 +170,14 @@ def test_settings_show_status_and_env_address(client, api, monkeypatch):
     monkeypatch.delenv("SPOOLMAN_URL")
     assert client.post("/settings", data={"strompreis": "0,35", "leistung_standard": "100",
                                           "spoolman_url": "ftp://x"}).status_code == 400
+
+
+def test_spool_names_from_spoolman_are_escaped(client, lib, sample, api):
+    """Namen kommen von außen: im Verlauf als Text, nie als HTML."""
+    connect()
+    job = add_print(lib, sample, "Xss", "#C29572FF", "PLA", 1.0, time.time())
+    with store.connect() as con:
+        con.execute("INSERT INTO spoolman_bookings (job_id, slot, spool_id, spool_label, grams, booked) "
+                    "VALUES (?, 1, 39, '<img src=x onerror=alert(1)>', 1.0, ?)", (job, time.time()))
+    page = client.get("/history").text
+    assert "<img src=x" not in page and "&lt;img src=x onerror=alert(1)&gt;" in page
