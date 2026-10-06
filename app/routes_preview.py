@@ -18,7 +18,7 @@ router = APIRouter()
 
 def _plate_for_view(fid: int, idx: int):
     with store.connect() as con:
-        f = con.execute("SELECT id, path, project_id, nozzle FROM files WHERE id = ? AND missing = 0", (fid,)).fetchone()
+        f = con.execute("SELECT id, path, project_id, nozzle, printer FROM files WHERE id = ? AND missing = 0", (fid,)).fetchone()
         pl = con.execute("SELECT * FROM plates WHERE file_id = ? AND idx = ? AND sliced = 1", (fid, idx)).fetchone()
         if not f or not pl:
             raise HTTPException(404, _("Platte nicht gefunden oder nicht gesliced"))

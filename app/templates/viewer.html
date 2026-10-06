@@ -3,7 +3,7 @@
 {% block body_class %}page-viewer{% endblock %}
 {% block head %}
 <script type="importmap">
-  {"imports": {"three": "/static/vendor/three.module.min.js", "plateshelf/geometry": "/static/geometry.js?v={{ ASSET_V }}"}}
+  {"imports": {"three": "/static/vendor/three.module.min.js", "plateshelf/geometry": "/static/geometry.js?v={{ ASSET_V }}", "plateshelf/printer": "/static/printer-model.js?v={{ ASSET_V }}"}}
 </script>
 {% endblock %}
 {% block topbar %}
@@ -14,7 +14,7 @@
 {% block footer %}{% endblock %}
 {% block main %}
 <div class="viewer" id="viewer" data-assets="{{ ASSET_V }}" data-name="{{ project.name if project else '' }}"
-     data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
+     data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}" data-printer="{{ file.printer or '' }}">
   <div class="viewer-stage">
     <canvas id="viewer-canvas" aria-label="{{ _('3D-Vorschau der Druckbahnen') }}"></canvas>
     <div class="viewer-loading" id="viewer-loading" role="status">
@@ -75,10 +75,12 @@
     </div>
 
     <label class="check"><input type="checkbox" id="ao-toggle" checked> {{ _('Tiefenschattierung') }}</label>
+    <label class="check" hidden><input type="checkbox" id="printer-toggle" checked> {{ _('Drucker zeigen') }}</label>
 
     <div class="viewer-actions">
       <button type="button" class="quiet" id="view-reset">{{ _('Ansicht zurücksetzen') }}</button>
       <button type="button" class="quiet" id="view-top">{{ _('Von oben') }}</button>
+      <button type="button" class="quiet" id="view-front" hidden>{{ _('Vor dem Drucker') }}</button>
       <button type="button" class="quiet" id="view-full">{{ _('Vollbild') }}</button>
       <button type="button" class="quiet" id="view-png">{{ _('Bild speichern') }}</button>
     </div>
