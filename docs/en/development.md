@@ -76,3 +76,7 @@ credentials, IP addresses, host names or printer names.
   base image weekly and proposes updates as pull requests. Known vulnerabilities are
   reported immediately and fixed automatically via pull request. Such updates reach the
   published image with the next release.
+- The documentation lives in `docs/` and is mirrored into the GitHub wiki
+  (`.github/workflows/wiki.yml`, `tools/wiki_sync.py`) on every release and on demand
+  (Actions → Wiki → Run workflow). Edit `docs/` only: changes made in the wiki are
+  overwritten by the next mirror.

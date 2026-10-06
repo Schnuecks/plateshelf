@@ -1,0 +1,34 @@
+name: Wiki
+
+# Spiegelt docs/ ins GitHub-Wiki: bei jedem Release und auf Knopfdruck (Actions → Wiki → Run).
+# Die Quelle bleibt docs/ im Repo; Änderungen direkt im Wiki werden beim nächsten Lauf überschrieben.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  wiki:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # das Wiki ist ein eigenes Git-Repo, Schreiben braucht dieses Recht
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Wiki holen, Seiten erzeugen, zurückschreiben
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ github.ref_type == 'tag' && github.ref_name || 'main' }}
+        run: |
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki
+          python tools/wiki_sync.py docs wiki --ref "$REF" --repo "${{ github.repository }}"
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Wiki unverändert"; exit 0; fi
+          git commit -m "Doku aus docs/ gespiegelt ($REF)"
+          git push

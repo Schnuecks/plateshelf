@@ -77,3 +77,7 @@ IP-Adressen, Hostnamen oder Druckernamen.
   und das Basisimage und schlägt Aktualisierungen als Pull Request vor. Bekannte
   Schwachstellen werden sofort gemeldet und automatisch als Pull Request behoben. In das
   veröffentlichte Image gelangen solche Aktualisierungen mit dem nächsten Release.
+- Die Dokumentation liegt in `docs/` und wird bei jedem Release und auf Knopfdruck
+  (Actions → Wiki → Run workflow) ins GitHub-Wiki gespiegelt (`.github/workflows/wiki.yml`,
+  `tools/wiki_sync.py`). Bearbeitet wird nur `docs/`: Änderungen im Wiki überschreibt die
+  nächste Spiegelung.

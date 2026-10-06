@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Documentation in the wiki:** the docs from `docs/` are mirrored into the GitHub wiki on
+  every release (with a sidebar for English and German); `docs/` stays the source.
+
 ## 0.8.16
 
 - **Fix: running print showed the previous project.** When a single-plate print starts, the
