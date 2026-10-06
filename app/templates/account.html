@@ -10,7 +10,9 @@
 
   <section class="settings-section">
     <h2>{{ _('Passwort ändern') }}</h2>
-    {% if not has_password %}
+    {% if not password_login %}
+    <p class="hint">{{ _('Die Anmeldung mit Passwort ist abgeschaltet ({env}); du meldest dich mit Passkey oder {name} an.', env='<code>PASSWORD_LOGIN=off</code>', name=oidc_name())|safe }}</p>
+    {% elif not has_password %}
     <p class="hint">{{ _('Du meldest dich über {name} an; dein Passwort änderst du dort.', name=oidc_name()) }}</p>
     {% else %}
     {% if request.query_params.get('password') %}<p class="flash" role="status">{{ _('Passwort geändert. Alle anderen Geräte sind abgemeldet.') }}</p>{% endif %}
@@ -24,6 +26,37 @@
     </form>
     {% endif %}
   </section>
+
+  <section class="settings-section" id="passkeys">
+    <h2>{{ _('Passkeys') }}</h2>
+    <p class="hint">{{ _('Mit einem Passkey meldest du dich ohne Passwort an: per Fingerabdruck, Gesichtserkennung, Geräte-PIN oder Sicherheitsschlüssel. Ein Passkey gilt nur für die Adresse, unter der du ihn anlegst ({host}).', host=request.url.hostname) }}</p>
+    {% if request.query_params.get('passkey') %}<p class="flash" role="status">{{ _('Passkey hinzugefügt.') }}</p>{% endif %}
+    {% if request.query_params.get('passkey_removed') %}<p class="flash" role="status">{{ _('Passkey entfernt.') }}</p>{% endif %}
+    <p class="flash flash-warn" data-passkey-unsupported>{{ _('Hier lassen sich keine Passkeys nutzen: Sie brauchen eine HTTPS-Adresse und einen Browser, der sie unterstützt.') }}</p>
+    {% if passkeys %}
+    <ul class="device-list">
+      {% for k in passkeys %}
+      <li>
+        <span class="device-main">
+          <strong>{{ k.name }}</strong>
+          <span class="hint">{{ _('angelegt {when}', when=k.created|datetime) }}, {% if k.last_used %}{{ _('zuletzt benutzt {ago}', ago=k.last_used|ago) }}{% else %}{{ _('noch nie benutzt') }}{% endif %}</span>
+        </span>
+        <form method="post" action="/account/passkeys/{{ k.id }}/delete" data-confirm="{{ _('Passkey „{name}“ entfernen? Mit ihm kannst du dich dann nicht mehr anmelden.', name=k.name) }}">
+          <button type="submit" class="danger-quiet">{{ _('Entfernen') }}</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <p class="flash flash-warn" role="alert" data-passkey-error hidden
+       data-fallback="{{ _('Der Passkey konnte nicht geprüft werden. Bitte erneut versuchen.') }}"
+       data-cancelled="{{ _('Passkey anlegen abgebrochen oder auf diesem Gerät nicht möglich.') }}"></p>
+    <form class="token-form" data-passkey-register hidden>
+      <label>{{ _('Name') }} <input type="text" name="name" maxlength="60" placeholder="{{ _('z. B. Handy') }}"></label>
+      <button type="submit">{{ _('Passkey hinzufügen') }}</button>
+    </form>
+  </section>
+  <script src="/static/passkeys.js?v={{ ASSET_V }}" defer></script>
 
   <section class="settings-section">
     <h2>{{ _('Angemeldete Geräte') }}</h2>

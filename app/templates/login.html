@@ -7,20 +7,32 @@
   <form method="post" action="/login" class="login-form">
     <h1>{{ _('Anmelden') }}</h1>
     {% if error %}<p class="flash flash-warn" role="alert">{{ error }}</p>{% endif %}
+    {% set pk = passkey_login() %}
+    {% if pk %}
+    <p class="flash flash-warn" role="alert" data-passkey-error hidden
+       data-fallback="{{ _('Der Passkey konnte nicht geprüft werden. Bitte erneut versuchen.') }}"
+       data-cancelled="{{ _('Anmelden mit Passkey abgebrochen oder auf diesem Gerät nicht möglich.') }}"></p>
+    {% endif %}
     <input type="hidden" name="next" value="{{ next }}">
+    {% set pw = password_login() %}
+    {% if pw %}
     <label>{{ _('Benutzername') }}
-      <input type="text" name="user" value="{{ user or '' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required {% if not user %}autofocus{% endif %}>
+      <input type="text" name="user" value="{{ user or '' }}" autocomplete="username webauthn" autocapitalize="none" spellcheck="false" required {% if not user %}autofocus{% endif %}>
     </label>
     <label>{{ _('Passwort') }}
       <input type="password" name="password" autocomplete="current-password" required {% if user %}autofocus{% endif %}>
     </label>
     <button type="submit">{{ _('Anmelden') }}</button>
-  {% if oidc_offered(request) %}
-  <div class="login-sso">
-    <p class="login-or"><span>{{ _('oder') }}</span></p>
-    <a class="button" href="/login/oidc?next={{ (next or '/')|urlencode }}">{{ _('Anmelden mit {name}', name=oidc_name()) }}</a>
-  </div>
-  {% endif %}
+    {% endif %}
+    {% set sso = oidc_offered(request) %}
+    {% if sso or pk %}
+    <div class="login-sso">
+      {% if pw %}<p class="login-or"><span>{{ _('oder') }}</span></p>{% endif %}
+      {% if pk %}<button type="button" class="button" data-passkey-login data-next="{{ next }}" hidden>{{ _('Mit Passkey anmelden') }}</button>{% endif %}
+      {% if sso %}<a class="button" href="/login/oidc?next={{ (next or '/')|urlencode }}">{{ _('Anmelden mit {name}', name=oidc_name()) }}</a>{% endif %}
+    </div>
+    {% endif %}
   </form>
 </section>
+<script src="/static/passkeys.js?v={{ ASSET_V }}" defer></script>
 {% endblock %}

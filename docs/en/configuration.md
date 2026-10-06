@@ -55,6 +55,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 |---|---|---|
 | `AUTH` | on | `off` switches sign-in off, e.g. when the reverse proxy already signs users in |
 | `SESSION_DAYS` | 30 | How long a sign-in lasts in the browser |
+| `PASSWORD_LOGIN` | on | `off` allows signing in only with passkeys or OIDC, see [Passkeys](#passkeys) |
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Only for updates from before user accounts: become the first admin account once |
 | `SECRET_KEY` | – | Key for encrypting printer credentials; strongly recommended, see [Secrets](#secrets) |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
@@ -117,6 +118,26 @@ account with that name is created:
 ```bash
 docker compose exec plateshelf python -m app.auth reset <name>
 ```
+
+**Passkeys:** under “My account” → “Passkeys”, everyone can add passkeys (fingerprint, face
+recognition, device PIN or a security key) and then sign in with “Sign in with a passkey”,
+without user name and password. A passkey belongs to the address where it was created, e.g.
+`plateshelf.example.com`, and needs HTTPS (or `localhost`); on a plain `http://` address the
+page says so. Removing a passkey in “My account” takes effect immediately.
+
+**Only passkeys or SSO:** `PASSWORD_LOGIN=off` switches off signing in with a password, both
+on the sign-in page and via Basic Auth for scripts (API tokens keep working). To prevent a
+lock-out it only takes effect once there is another way in: OIDC is set up or at least one
+passkey exists. To undo it, remove the line from the `.env`.
+
+**Log:** “Settings” → “Log” lists sign-ins (with method: password, passkey or OIDC), failed
+attempts, lock-outs, sign-outs and changes to accounts, roles, passwords, API tokens and
+passkeys, with device and address, for the last 180 days. Failures are highlighted.
+
+**Security headers:** every response carries a strict Content Security Policy (only
+PlateShelf's own scripts and files, no embedding in other sites), plus `X-Frame-Options`,
+`X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`. HSTS is left to the
+reverse proxy that terminates HTTPS.
 
 **Without sign-in:** `AUTH=off` in the `.env` switches all of this off; anyone who can reach
 PlateShelf may then do everything. This only makes sense if the reverse proxy signs users

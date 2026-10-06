@@ -7,3 +7,4 @@ paho-mqtt>=2.1,<3
 cryptography>=50.0.2
 watchfiles>=1.3      # neue Dateien sofort erkennen
 pillow>=12.3.0       # eigene Fotos verkleinern, EXIF entfernen
+webauthn>=3.0.1      # Passkeys prüfen

@@ -142,6 +142,26 @@ CREATE TABLE IF NOT EXISTS users (
     last_login REAL,
     oidc_sub TEXT                       -- Aussteller + sub bei Anmeldung über OIDC, siehe oidc.py
 );
+CREATE TABLE IF NOT EXISTS auth_events (   -- Protokoll: Anmeldungen, Konten, Tokens, Passkeys
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at REAL NOT NULL,
+    kind TEXT NOT NULL,
+    user_name TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    agent TEXT NOT NULL DEFAULT '',
+    detail TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_auth_events_at ON auth_events(at);
+CREATE TABLE IF NOT EXISTS passkeys (      -- Passkeys (WebAuthn) zum Anmelden ohne Passwort
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key BLOB NOT NULL,
+    sign_count INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    created REAL NOT NULL,
+    last_used REAL
+);
 CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token_hash TEXT NOT NULL UNIQUE,     -- SHA-256 des Cookie-Werts, nie der Wert selbst
@@ -220,7 +240,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 6  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 7  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -236,6 +256,7 @@ MIGRATIONS: dict = {
     4: lambda con: _migrate_4(con),
     5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: Anmeldung über OIDC
     6: lambda con: _rescan_all(),  # 0.8.9: „Vom Drucker“ wieder nach Namen gruppieren
+    7: lambda con: None,  # 0.8.17: Tabellen auth_events und passkeys (legt SCHEMA an)
 }
 
 

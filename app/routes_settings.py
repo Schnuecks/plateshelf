@@ -16,7 +16,7 @@ from starlette.background import BackgroundTask
 
 from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, store
 from .i18n import gettext as _
-from .web import APP_VERSION, ONE_YEAR, current_user, templates
+from .web import APP_VERSION, ONE_YEAR, audit, current_user, templates
 
 router = APIRouter()
 
@@ -56,6 +56,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
                    for k, price in sorted(rules, key=lambda r: r[0].lower())]
     return templates.TemplateResponse(request, "settings.html", {
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS, "price_rules": price_rules,
+        "events": auth.events() if auth.enabled() else [], "event_days": auth.EVENT_DAYS,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
@@ -106,6 +107,8 @@ def backup_file(name: str):
 
 
 def _after_restore(request: Request, safety: str) -> RedirectResponse:
+    user = current_user(request)
+    audit(request, "backup_restored", user["name"] if user else "")
     printer_import.init()  # Drucker aus der Sicherung, Zugangsdaten ggf. verschlüsseln
     # Vorschaubilder neu erzeugen; wie „Bibliothek neu einlesen“ im Hintergrund
     if os.environ.get("BACKGROUND_TASKS", "true").lower() not in ("0", "false", "no", "off"):
@@ -197,11 +200,13 @@ def user_add(request: Request, name: str = Form(""), role: str = Form("user"), p
         auth.create_user(name, password, role)
     except i18n.UserError as exc:
         return _render_settings(request, users_error=exc.translated(), status_code=400)
+    audit(request, "user_created", current_user(request)["name"], f"{' '.join(name.split())} ({role})")
     return RedirectResponse("/settings?users=1#users", status_code=303)
 
 
 @router.post("/settings/users/{user_id}")
 def user_save(request: Request, user_id: int, role: str = Form(""), password: str = Form("")):
+    target = auth.get_user(user_id)
     try:
         if role:
             auth.set_role(user_id, role)
@@ -209,15 +214,22 @@ def user_save(request: Request, user_id: int, role: str = Form(""), password: st
             auth.set_password(user_id, password, keep_session=request.cookies.get(auth.COOKIE))
     except i18n.UserError as exc:
         return _render_settings(request, users_error=exc.translated(), status_code=400)
+    if target and role and role != target["role"]:
+        audit(request, "role_changed", current_user(request)["name"], f"{target['name']}: {target['role']} → {role}")
+    if target and password:
+        audit(request, "password_reset", current_user(request)["name"], target["name"])
     return RedirectResponse("/settings?users=1#users", status_code=303)
 
 
 @router.post("/settings/users/{user_id}/delete")
 def user_delete(request: Request, user_id: int):
+    target = auth.get_user(user_id)
     try:
         auth.delete_user(user_id, current_user(request)["id"])
     except i18n.UserError as exc:
         return _render_settings(request, users_error=exc.translated(), status_code=400)
+    if target:
+        audit(request, "user_deleted", current_user(request)["name"], target["name"])
     return RedirectResponse("/settings?users=1#users", status_code=303)
 
 
@@ -227,6 +239,7 @@ def token_add(request: Request, name: str = Form("")):
         token = auth.create_token(name, current_user(request)["name"])
     except i18n.UserError as exc:
         return _render_settings(request, tokens_error=exc.translated(), status_code=400)
+    audit(request, "token_created", current_user(request)["name"], " ".join(name.split()))
     # Nur jetzt sichtbar, deshalb keine Weiterleitung; der Browser darf die Seite nicht zwischenspeichern
     response = _render_settings(request, new_token=token)
     response.headers["Cache-Control"] = "no-store"
@@ -234,8 +247,10 @@ def token_add(request: Request, name: str = Form("")):
 
 
 @router.post("/settings/tokens/{token_id}/delete")
-def token_delete(token_id: int):
+def token_delete(request: Request, token_id: int):
+    name = next((t["name"] for t in auth.list_tokens() if t["id"] == token_id), "")
     auth.delete_token(token_id)
+    audit(request, "token_revoked", current_user(request)["name"], name)
     return RedirectResponse("/settings?tokens=1#tokens", status_code=303)
 
 

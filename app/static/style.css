@@ -816,3 +816,5 @@ a.icon-btn { text-decoration: none; }
 .site-footer a { color: var(--muted); }
 .viewer-footer { margin: auto 0 0; padding-top: 1rem; font-size: .8rem; color: var(--muted); }
 .viewer-footer a { color: var(--muted); }
+.event-log td { vertical-align: top; }
+.event-log tr.is-warn td:nth-child(2) { color: var(--warn); font-weight: 600; }

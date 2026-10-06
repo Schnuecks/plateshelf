@@ -55,6 +55,7 @@
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
       <a href="#users"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.5 3.5 5.2"/></svg>{{ _('Benutzer') }}</a>
       <a href="#tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>{{ _('API-Tokens') }}</a>
+      <a href="#log"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4"/></svg>{{ _('Protokoll') }}</a>
       <a href="#backup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4-4 4 4 4-4M5 19h14"/></svg>{{ _('Sicherung') }}</a>
       <a href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>{{ _('Diagnose') }}</a>
     </nav>
@@ -306,6 +307,32 @@
           <label>{{ _('Name') }} <input type="text" name="name" maxlength="64" placeholder="{{ _('z. B. Homepage') }}" required></label>
           <button type="submit">{{ _('Token anlegen') }}</button>
         </form>
+        {% endif %}
+      </section>
+
+      <section class="settings-section" id="log" data-section>
+        <h2>{{ _('Protokoll') }}</h2>
+        {% if not auth_enabled() %}
+        <p class="hint">{{ _('Die Anmeldung ist mit {env} ausgeschaltet; es gibt nichts zu protokollieren.', env='<code>AUTH=off</code>')|safe }}</p>
+        {% else %}
+        <p class="hint">{{ _('Anmeldungen, Fehlversuche und Änderungen an Konten, API-Tokens und Passkeys der letzten {n} Tage, die neuesten zuerst.', n=event_days) }}</p>
+        {% if events %}
+        <div class="table-scroll">
+        <table class="event-log">
+          <thead><tr><th scope="col">{{ _('Zeit') }}</th><th scope="col">{{ _('Ereignis') }}</th><th scope="col">{{ _('Benutzer') }}</th><th scope="col">{{ _('Gerät') }}</th></tr></thead>
+          <tbody>
+          {% for e in events %}
+            <tr{% if e.kind in EVENT_WARN %} class="is-warn"{% endif %}>
+              <td class="nowrap">{{ e.at|datetime }}</td>
+              <td>{{ _(EVENT_LABELS.get(e.kind, e.kind)) }}{% if e.detail %} <span class="hint">· {{ e.detail }}</span>{% endif %}</td>
+              <td>{{ e.user_name or '–' }}</td>
+              <td class="hint">{{ device_label(e.agent) if e.agent else '' }}{% if e.address %} · {{ e.address }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}<p class="hint">{{ _('Noch keine Einträge.') }}</p>{% endif %}
         {% endif %}
       </section>
 
