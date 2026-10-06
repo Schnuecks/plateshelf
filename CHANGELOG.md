@@ -2,12 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.17
 
 - **Documentation in the wiki:** the docs from `docs/` are mirrored into the GitHub wiki on
   every release (with a sidebar for English and German); `docs/` stays the source.
 
-## Unreleased
+## 0.8.17
 
 - **Passkeys:** sign in without a password using a fingerprint, face recognition, device PIN or
   security key. Passkeys are added and removed under “My account”; signing in works without a
