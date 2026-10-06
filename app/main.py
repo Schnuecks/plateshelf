@@ -6,6 +6,8 @@ Die Seiten selbst liegen in routes_*.py, Gemeinsames in web.py und projects.py.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import logging
 import mimetypes
 import os
@@ -20,7 +22,8 @@ from fastapi.staticfiles import StaticFiles
 from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, routes_account, \
     routes_library, routes_preview, routes_settings, routes_system, store, trash
 from .i18n import gettext as _
-from .web import APP_NAME, BASE, SAFE_METHODS, allowed, current_url, current_user, is_public
+from .web import APP_NAME, BASE, EARLY_SCRIPT, IMPORTMAP, SAFE_METHODS, allowed, current_url, current_user, \
+    is_public
 # Für Tests und Werkzeuge, die diese Namen bisher aus main holten
 from .i18n import fmt_printer_date  # noqa: F401
 from .projects import BOOL_WORDS, SETTING_LABELS, load_projects  # noqa: F401
@@ -57,6 +60,45 @@ async def lifespan(_app):
 
 
 app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
+# --- Sicherheits-Header ------------------------------------------------------
+# Die Content-Security-Policy erlaubt nur eigene Dateien; die zwei kleinen Skripte direkt in
+# der Seite (Klasse „js“ und Importmap der 3D-Vorschau) per Hash. Eingeschleuster Code liefe
+# damit selbst bei einer Lücke nicht. Stile direkt am Element (Farbfelder, Balken) bleiben
+# erlaubt. form-action auch https:, weil ein Reverse-Proxy mit Anmeldeseite (z. B. Authelia)
+# Formulare nach Ablauf seiner Sitzung dorthin umleitet; sonst bliebe das Absenden still hängen.
+def _sha256(text: str) -> str:
+    return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
+
+
+CSP = "; ".join((
+    "default-src 'self'",
+    f"script-src 'self' {_sha256(EARLY_SCRIPT)} {_sha256(IMPORTMAP)}",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "worker-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'self' https:",
+    "object-src 'none'",
+))
+SECURITY_HEADERS = {
+    "Content-Security-Policy": CSP,
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
 
 
 @app.middleware("http")

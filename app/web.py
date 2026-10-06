@@ -230,6 +230,11 @@ def _asset_version() -> str:
 
 
 templates.env.globals["ASSET_V"] = _asset_version()
+# Importmap der 3D-Vorschau: als fester Text, damit die Content-Security-Policy ihn per Hash erlaubt
+IMPORTMAP = ('{"imports": {"three": "/static/vendor/three.module.min.js", '
+             f'"plateshelf/geometry": "/static/geometry.js?v={templates.env.globals["ASSET_V"]}"}}}}')
+EARLY_SCRIPT = 'document.documentElement.classList.add("js")'
+templates.env.globals.update(IMPORTMAP=IMPORTMAP, EARLY_SCRIPT=EARLY_SCRIPT)
 
 
 THEME_LABELS = {"system": "Wie das System", "light": "Hell", "dark": "Dunkel"}
