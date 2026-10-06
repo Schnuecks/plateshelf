@@ -7,6 +7,18 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
 - **Documentation in the wiki:** the docs from `docs/` are mirrored into the GitHub wiki on
   every release (with a sidebar for English and German); `docs/` stays the source.
 
+## Unreleased
+
+- **Passkeys:** sign in without a password using a fingerprint, face recognition, device PIN or
+  security key. Passkeys are added and removed under “My account”; signing in works without a
+  user name. Needs HTTPS (or localhost). New dependency `webauthn`.
+- **Only passkeys or SSO:** `PASSWORD_LOGIN=off` switches off password sign-in (form and Basic
+  Auth); it only takes effect once OIDC is set up or a passkey exists, so nobody gets locked out.
+- **Log:** “Settings” → “Log” lists sign-ins, failed attempts, lock-outs and changes to accounts,
+  roles, passwords, API tokens and passkeys for 180 days. Database schema 7.
+- **Security headers:** strict Content Security Policy, no embedding in other sites,
+  `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy` on every response.
+
 ## 0.8.16
 
 - **Fix: running print showed the previous project.** When a single-plate print starts, the

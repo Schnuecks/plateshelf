@@ -58,6 +58,40 @@ _basic_ok: dict[str, tuple[int, str, float]] = {}   # Hash der Kopfzeile -> (Ben
 _DUMMY_HASH = ""
 
 
+EVENT_DAYS = 180   # so lange bleibt das Protokoll
+
+
+def password_login_wanted_off() -> bool:
+    return os.environ.get("PASSWORD_LOGIN", "").strip().lower() in ("off", "false", "0", "no")
+
+
+def password_login() -> bool:
+    """Anmeldung mit Passwort (Formular und Basic Auth). PASSWORD_LOGIN=off schaltet sie ab, aber
+    nur, wenn es einen anderen Weg gibt (OIDC eingerichtet oder ein Passkey vorhanden) – sonst
+    wäre niemand mehr hereingekommen."""
+    if not password_login_wanted_off():
+        return True
+    from . import oidc  # oidc nutzt auth; erst hier laden
+    if oidc.enabled():
+        return False
+    with store.connect() as con:
+        return con.execute("SELECT 1 FROM passkeys LIMIT 1").fetchone() is None
+
+
+def log_event(kind: str, user_name: str = "", address: str = "", agent: str = "", detail: str = "") -> None:
+    """Eintrag im Protokoll (Einstellungen → Protokoll); ältere als EVENT_DAYS fallen weg."""
+    now = time.time()
+    with store.connect() as con:
+        con.execute("INSERT INTO auth_events (at, kind, user_name, address, agent, detail) VALUES (?, ?, ?, ?, ?, ?)",
+                    (now, kind, user_name[:64], address[:64], agent[:200], detail[:200]))
+        con.execute("DELETE FROM auth_events WHERE at < ?", (now - EVENT_DAYS * 86400,))
+
+
+def events(limit: int = 300) -> list[dict]:
+    with store.connect() as con:
+        return [dict(r) for r in con.execute("SELECT * FROM auth_events ORDER BY at DESC, id DESC LIMIT ?", (limit,))]
+
+
 def enabled() -> bool:
     """Anmeldung aktiv, außer AUTH=off (bzw. false, 0, no)."""
     return os.environ.get("AUTH", "").strip().lower() not in ("off", "false", "0", "no")
@@ -203,6 +237,8 @@ def delete_user(user_id: int, acting_id: int | None = None) -> None:
 def authenticate(name: str, password: str) -> dict | None:
     """Benutzer bei richtigem Passwort, sonst None; gleiche Laufzeit, ob es den Namen gibt oder nicht."""
     global _DUMMY_HASH
+    if not password_login():
+        return None
     with store.connect() as con:
         row = con.execute("SELECT id, name, role, password_hash FROM users WHERE name = ?",
                           (" ".join(name.split()),)).fetchone()
@@ -351,7 +387,7 @@ def end_other_sessions(user_id: int, keep_id: int | None) -> None:
 
 
 def basic_auth_user(header: str | None) -> dict | None:
-    if not header or not header.lower().startswith("basic "):
+    if not header or not header.lower().startswith("basic ") or not password_login():
         return None
     cache_key = _digest(header)
     now = time.time()

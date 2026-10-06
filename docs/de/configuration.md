@@ -56,6 +56,7 @@ weiter.
 |---|---|---|
 | `AUTH` | an | `off` schaltet die Anmeldung aus, etwa wenn schon der Reverse-Proxy anmeldet |
 | `SESSION_DAYS` | 30 | Wie lange eine Anmeldung im Browser gilt |
+| `PASSWORD_LOGIN` | an | `off` erlaubt die Anmeldung nur noch mit Passkeys oder OIDC, siehe [Passkeys](#passkeys) |
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Nur für Updates von Versionen ohne Benutzerkonten: werden einmalig zum ersten Admin-Konto |
 | `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
@@ -119,6 +120,28 @@ ein Admin-Konto mit diesem Namen:
 ```bash
 docker compose exec plateshelf python -m app.auth reset <name>
 ```
+
+**Passkeys:** Unter „Mein Konto“ → „Passkeys“ legt jeder Passkeys an (Fingerabdruck,
+Gesichtserkennung, Geräte-PIN oder Sicherheitsschlüssel) und meldet sich danach mit „Mit
+Passkey anmelden“ an, ohne Benutzername und Passwort. Ein Passkey gehört zu der Adresse, unter
+der er angelegt wurde, etwa `plateshelf.example.com`, und braucht HTTPS (oder `localhost`);
+unter einer reinen `http://`-Adresse sagt die Seite das. Einen Passkey in „Mein Konto“ zu
+entfernen, wirkt sofort.
+
+**Nur Passkeys oder SSO:** `PASSWORD_LOGIN=off` schaltet die Anmeldung mit Passwort ab, auf
+der Anmeldeseite und per Basic Auth für Skripte (API-Tokens funktionieren weiter). Damit sich
+niemand aussperrt, greift das erst, wenn es einen anderen Weg gibt: OIDC ist eingerichtet oder
+mindestens ein Passkey vorhanden. Rückgängig: die Zeile aus der `.env` entfernen.
+
+**Protokoll:** „Einstellungen“ → „Protokoll“ zeigt Anmeldungen (mit Weg: Passwort, Passkey
+oder OIDC), Fehlversuche, Sperren, Abmeldungen und Änderungen an Konten, Rollen, Passwörtern,
+API-Tokens und Passkeys, mit Gerät und Adresse, für die letzten 180 Tage. Fehlschläge sind
+hervorgehoben.
+
+**Sicherheits-Header:** Jede Antwort trägt eine strenge Content-Security-Policy (nur eigene
+Skripte und Dateien, kein Einbetten in fremde Seiten) sowie `X-Frame-Options`,
+`X-Content-Type-Options`, `Referrer-Policy` und `Permissions-Policy`. HSTS setzt der
+Reverse-Proxy, der HTTPS bereitstellt.
 
 **Ohne Anmeldung:** `AUTH=off` in der `.env` schaltet all das ab; dann darf jeder, der
 PlateShelf erreicht, alles. Das ist nur sinnvoll, wenn schon der Reverse-Proxy anmeldet

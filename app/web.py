@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-from . import auth, i18n, oidc, print_history, store
+from . import auth, i18n, oidc, passkeys, print_history, store
 from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, ngettext
 
 BASE = Path(__file__).parent
@@ -33,7 +33,8 @@ STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fe
 
 
 PUBLIC_PREFIXES = ("/static/",)
-PUBLIC_PATHS = {"/login", "/login/oidc", "/login/oidc/callback", "/setup", "/healthz", "/appearance"}
+PUBLIC_PATHS = {"/login", "/login/oidc", "/login/oidc/callback", "/login/passkey/options", "/login/passkey",
+                "/setup", "/healthz", "/appearance"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 NOBODY = {"id": None, "name": "", "role": "admin", "session_id": None}  # mit AUTH=off darf jeder alles
 _UNSET = object()
@@ -41,6 +42,37 @@ _UNSET = object()
 
 def is_public(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+
+
+# Ereignisse im Protokoll (Einstellungen → Protokoll); Fehlschläge werden hervorgehoben
+EVENT_LABELS = {
+    "login": "Angemeldet",
+    "login_failed": "Anmeldung fehlgeschlagen",
+    "locked": "Gesperrt nach Fehlversuchen",
+    "logout": "Abgemeldet",
+    "setup": "Admin-Konto eingerichtet",
+    "setup_failed": "Falscher Einrichtungscode",
+    "password_changed": "Eigenes Passwort geändert",
+    "password_failed": "Falsches bisheriges Passwort",
+    "password_reset": "Passwort durch Admin gesetzt",
+    "sessions_ended": "Andere Geräte abgemeldet",
+    "user_created": "Benutzer angelegt",
+    "user_deleted": "Benutzer gelöscht",
+    "role_changed": "Rolle geändert",
+    "token_created": "API-Token angelegt",
+    "token_revoked": "API-Token widerrufen",
+    "passkey_added": "Passkey hinzugefügt",
+    "passkey_removed": "Passkey entfernt",
+    "backup_restored": "Sicherung zurückgespielt",
+}
+EVENT_WARN = {"login_failed", "locked", "setup_failed", "password_failed"}
+
+
+def audit(request: Request, kind: str, user_name: str = "", detail: str = "") -> None:
+    """Ereignis ins Protokoll schreiben, mit Adresse und Gerät der Anfrage."""
+    if auth.enabled():
+        auth.log_event(kind, user_name, request.client.host if request.client else "",
+                       request.headers.get("user-agent", ""), detail)
 
 
 def current_user(request: Request) -> dict | None:
@@ -230,6 +262,11 @@ def _asset_version() -> str:
 
 
 templates.env.globals["ASSET_V"] = _asset_version()
+# Importmap der 3D-Vorschau: als fester Text, damit die Content-Security-Policy ihn per Hash erlaubt
+IMPORTMAP = ('{"imports": {"three": "/static/vendor/three.module.min.js", '
+             f'"plateshelf/geometry": "/static/geometry.js?v={templates.env.globals["ASSET_V"]}"}}}}')
+EARLY_SCRIPT = 'document.documentElement.classList.add("js")'
+templates.env.globals.update(IMPORTMAP=IMPORTMAP, EARLY_SCRIPT=EARLY_SCRIPT)
 
 
 THEME_LABELS = {"system": "Wie das System", "light": "Hell", "dark": "Dunkel"}
@@ -249,11 +286,13 @@ def current_url(request: Request) -> str:
 
 templates.env.globals.update(auth_enabled=auth.enabled, history_enabled=print_history.enabled,
                              current_user=current_user, can_edit=can_edit, is_admin=is_admin,
-                             device_label=device_label, ROLE_LABELS=ROLE_LABELS)
+                             device_label=device_label, ROLE_LABELS=ROLE_LABELS, EVENT_LABELS=EVENT_LABELS,
+                             EVENT_WARN=EVENT_WARN)
 def oidc_offered(request: Request) -> bool:
     return oidc.available(request.url.hostname)
 
 
+templates.env.globals.update(password_login=auth.password_login, passkey_login=passkeys.any_registered)
 templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,

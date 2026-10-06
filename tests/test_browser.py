@@ -113,7 +113,9 @@ def browser():
 @pytest.fixture
 def page(browser):
     """Neue Seite; sammelt JavaScript-Fehler und Fehlermeldungen der Konsole."""
-    context = browser.new_context(viewport={"width": 1280, "height": 800}, locale="de-DE")
+    # Die Tests spielen selbst Skripte ein (axe-core, Warten per Funktion); die strenge
+    # Content-Security-Policy der App würde das blocken. Sie prüft test_pages_run_under_csp.
+    context = browser.new_context(viewport={"width": 1280, "height": 800}, locale="de-DE", bypass_csp=True)
     pg = context.new_page()
     pg.errors = []
     pg.on("pageerror", lambda exc: pg.errors.append(f"Fehler: {exc}"))
@@ -460,3 +462,20 @@ def test_plate_versions_can_be_filtered(server, page):
     finally:
         shutil.rmtree(folder)
         store.scan(wait=True)
+
+
+def test_pages_run_under_csp(server, browser):
+    """Alle Seiten samt 3D-Vorschau laufen mit der Content-Security-Policy ohne einen Verstoß."""
+    context = browser.new_context(viewport={"width": 1280, "height": 800}, locale="de-DE")
+    pg = context.new_page()
+    problems = []
+    pg.on("console", lambda m: problems.append(m.text) if m.type == "error" else None)
+    pg.on("pageerror", lambda e: problems.append(str(e)))
+    for path in ("/", "/p/{pid}", "/settings", "/history", "/statistics", "/upload", "/about"):
+        response = pg.goto(server["url"] + path.format(**server))
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+        assert response.headers["x-content-type-options"] == "nosniff"
+    pg.goto(f"{server['url']}/view/{server['fid']}/1")
+    pg.wait_for_selector("#viewer-panel:not([hidden])", timeout=60_000)   # Importmap, Module, Worker, WebGL
+    context.close()
+    assert problems == [], problems

@@ -2,9 +2,7 @@
 {% block title %}{{ _('3D-Vorschau') }} {{ project.name if project else '' }} – {{ APP_NAME }}{% endblock %}
 {% block body_class %}page-viewer{% endblock %}
 {% block head %}
-<script type="importmap">
-  {"imports": {"three": "/static/vendor/three.module.min.js", "plateshelf/geometry": "/static/geometry.js?v={{ ASSET_V }}"}}
-</script>
+<script type="importmap">{{ IMPORTMAP|safe }}</script>
 {% endblock %}
 {% block topbar %}
 <span class="viewer-title">{{ _('Platte {n}', n=plate.idx) }}{% if plate.name %}: {{ plate.name }}{% endif %}</span>
