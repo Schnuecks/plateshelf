@@ -1,6 +1,9 @@
 # Dependabot: meldet Schwachstellen in Abhängigkeiten und schlägt Aktualisierungen
-# als Pull Request vor. Jeder Vorschlag durchläuft die CI (Python-, Browsertest und
-# Image-Build für alle Plattformen), bevor er übernommen wird.
+# als Pull Request vor. Jeder Vorschlag durchläuft die CI; Patch- und Minor-Updates
+# übernimmt danach der Job dependabot-merge in ci.yml selbst, Major-Updates bleiben
+# für eine Prüfung von Hand offen. Durch die Wartezeit (cooldown) werden nur Versionen
+# vorgeschlagen, die schon eine Woche alt sind: eine gekaperte Version, die nach wenigen
+# Tagen zurückgezogen wird, kommt so nie an. Sicherheitsupdates werden nicht verzögert.
 version: 2
 updates:
   # Python-Pakete (requirements*.txt)
@@ -9,10 +12,13 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     groups:
       python:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "Abhängigkeiten"
 
@@ -22,9 +28,12 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     groups:
       actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "CI"
 
@@ -34,5 +43,7 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "Docker"
