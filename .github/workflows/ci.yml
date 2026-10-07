@@ -122,6 +122,25 @@ jobs:
           exit-code: "1"
           skip-setup-trivy: true
 
+  dependabot-merge:
+    # Übernimmt Dependabot-Vorschläge für Patch- und Minor-Updates selbst, sobald alle
+    # Prüfungen oben grün sind. Major-Updates bleiben offen und werden von Hand geprüft.
+    needs: [test, browser, image]
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v3
+      - name: Patch- und Minor-Updates übernehmen
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --squash "$PR_URL"
+
   cleanup:
     # Nach einem Release ältere Image-Versionen entfernen
     needs: image
