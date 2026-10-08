@@ -106,6 +106,9 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
   const params = new URLSearchParams(location.search);
   const fresh = () => { params.delete("printers"); return location.pathname + (params.size ? "?" + params : ""); };
   let fastUntil = params.has("printers") || marker.dataset.syncRunning ? Date.now() + 180000 : 0;
+  // Nach „Von Druckern holen“ auch dann neu laden, wenn nichts Neues kam: Knopf und Hinweis zeigen sonst
+  // weiter „wird abgefragt“
+  let watchSync = fastUntil > 0;
   const busy = () => document.querySelector("[data-bulk-item]:checked") ||
     /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
   banner?.querySelector("[data-library-reload]")?.addEventListener("click", (e) => {
@@ -119,8 +122,10 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
         if (r.ok) {
           const data = await r.json();
           if (data.sync_running) fastUntil = Math.max(fastUntil, Date.now() + 30000);
+          const synced = watchSync && !data.sync_running && String(data.last_sync ?? "") !== marker.dataset.lastSync;
+          if ((data.version !== version || synced) && !busy()) { location.replace(fresh()); return; }
+          if (synced) watchSync = false;
           if (data.version !== version) {
-            if (!busy()) { location.replace(fresh()); return; }
             version = data.version;
             if (banner) banner.hidden = false;
           }
@@ -130,6 +135,27 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
     setTimeout(tick, Date.now() < fastUntil ? 3000 : 20000);
   };
   setTimeout(tick, fastUntil ? 3000 : 20000);
+});
+
+// Einstellungen nach dem Speichern der Drucker: neu laden, sobald der Abgleich durch ist, damit der
+// Status (grün/rot) gleich zu sehen ist
+document.querySelectorAll("[data-sync-watch]").forEach((note) => {
+  const until = Date.now() + 180000;
+  const tick = async () => {
+    try {
+      const r = await fetch("/api/library", { headers: { Accept: "application/json" } });
+      if (r.ok) {
+        const data = await r.json();
+        const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
+        if (!data.sync_running && String(data.last_sync ?? "") !== note.dataset.lastSync && !typing) {
+          location.replace(location.pathname + "#printers");
+          return;
+        }
+      }
+    } catch { /* offline: beim nächsten Mal */ }
+    if (Date.now() < until) setTimeout(tick, 2000);
+  };
+  setTimeout(tick, 2000);
 });
 
 // Diagnose kopieren (Zwischenablage, sonst Text markieren)

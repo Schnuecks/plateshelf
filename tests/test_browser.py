@@ -481,6 +481,23 @@ def test_pages_run_under_csp(server, browser):
     assert problems == [], problems
 
 
+def test_pages_notice_when_printer_sync_is_done(server, page):
+    """Nach „Von Druckern holen“ oder dem Speichern der Drucker lädt die Seite neu, sobald der Abgleich
+    fertig ist, auch ohne neue Dateien (sonst bliebe „wird abgefragt“ stehen bzw. der Status grau)."""
+    import time
+
+    from app import printer_import
+    before = printer_import.state["last_run"]
+    try:
+        for path in ("/?printers=1", "/settings?printers=1#printers"):
+            page.goto(server["url"] + path)
+            printer_import.state["last_run"] = time.time() + 5     # Abgleich durch, nichts Neues
+            page.wait_for_url(lambda url: "printers=1" not in url, timeout=15_000)
+            printer_import.state["last_run"] = before
+    finally:
+        printer_import.state["last_run"] = before
+
+
 def test_overview_shows_new_files_by_itself(server, page):
     """Neue Drucke vom Drucker (hier: neue Datei + Einlesen) erscheinen ohne Neuladen von Hand;
     ist gerade etwas markiert, kommt nur ein Hinweis."""

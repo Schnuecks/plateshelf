@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Printer status right after saving:** after saving the printers in the settings, the page
+  reloads as soon as they have been checked, so the dot turns green or red straight away instead
+  of staying grey.
+- **“Fetch from printers” finishes visibly:** the overview now also reloads when the fetch is done
+  but brought nothing new, so “Asking the printers …” no longer stays on screen.
+
 ## 0.9.0
 
 - **Shorter entries for dashboards:** `/api/printing` now also returns `short` (“P2S: Benchy ·
