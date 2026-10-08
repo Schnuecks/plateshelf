@@ -76,6 +76,20 @@ Titelbild“ kehrt zur Slicer-Vorschau zurück.
   kommen seine Fotos beim Wiederherstellen mit zurück; wird es endgültig gelöscht,
   verschwinden sie ebenfalls.
 
+## Vorschaubilder
+
+Jeder Slicer legt andere Bilder in seine Dateien: PrusaSlicer zeichnet das Druckbett mit,
+Bambu Studio nicht, Cura oft gar kein Bild. Damit die Übersicht einheitlich aussieht, zeichnet
+PlateShelf eigene Vorschaubilder aus den Druckbahnen, alle im selben Stil: schräg von vorn und
+von oben, in den Filamentfarben, auf einer Platte in der Größe des Druckers.
+
+- Die Bilder entstehen im Hintergrund zusammen mit der 3D-Vorschau (etwa 1–2 Sekunden je
+  Platte). Bis dahin zeigt PlateShelf das Bild vom Slicer. Ist `PREVIEW_PREBUILD=false`
+  gesetzt, entstehen sie erst beim ersten Öffnen der 3D-Vorschau.
+- Unter „Einstellungen“ → „Vorschaubilder“ wählst du: eigene Bilder mit Druckplatte
+  (Standard), eigene Bilder ohne Druckplatte oder wieder die Bilder vom Slicer.
+- Auch Dateien ohne eigenes Vorschaubild, etwa aus Cura, bekommen so ein Bild.
+
 ## 3D-Vorschau
 
 Eine geslicte Datei enthält kein 3D-Modell mehr, sondern den fertigen G-Code. Die

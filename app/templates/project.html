@@ -110,8 +110,8 @@
         <div class="plate" id="platte-{{ f.id }}-{{ pl.idx }}">
           <figure class="bed bed-large" data-thumbs>
             {% if pl.has_thumb %}
-              <img src="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}" data-iso="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ f.v }}"
-                   {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ f.v }}"{% endif %} alt="{{ _('Platte {n}', n=pl.idx) }}">
+              <img src="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ pl.v }}" data-iso="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ pl.v }}"
+                   {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ pl.v }}"{% endif %} alt="{{ _('Platte {n}', n=pl.idx) }}">
             {% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
             {% if pl.has_thumb and pl.has_top %}
             <div class="view-toggle" role="group" aria-label="{{ _('Ansicht') }}">

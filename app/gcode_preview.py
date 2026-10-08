@@ -472,6 +472,10 @@ def _run_job(key, job, src_path, plate, out_base):
     try:
         convert(src_path, plate, out_base, job)
         job["state"] = "ready"
+        fid, _sep, idx = out_base.name.partition("_")
+        if fid.isdigit() and idx.isdigit():  # Vorschaubild gleich mitzeichnen (Aufruf aus dem Viewer)
+            from . import render
+            render.ensure(int(fid), int(idx))
     except Exception as exc:  # noqa: BLE001
         job.update(state="error", error=str(exc))
     finally:

@@ -20,7 +20,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import gcode_file, i18n, photos, print_history, printer_import, statistics, store, trash
+from . import gcode_file, i18n, photos, print_history, printer_import, render, statistics, store, trash
 from .i18n import fmt_date, fmt_num, gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
 from .web import ONE_YEAR, STATUSES, _local_target, templates
@@ -118,7 +118,7 @@ def project(request: Request, pid: int):
     for f in file_rows.values():
         source = (f["model"].get("title") or "").strip().lower()
         for pl in f["all_plates"]:
-            strip.append({**pl, "fid": f["id"], "v": f["v"], "file_name": f["path"].split("/")[-1],
+            strip.append({**pl, "fid": f["id"], "v": pl.get("v", f["v"]), "file_name": f["path"].split("/")[-1],
                           "_sort": (source, pl["idx"], -(f["mtime"] or 0), natural_key(f["path"])),
                           "_version": (f["mtime"], f["layer_height"])})
     strip.sort(key=lambda x: x["_sort"])
@@ -535,7 +535,8 @@ def rescan(force: int = Form(0)):
 def thumb(fid: int, kind: str, idx: int):
     if kind not in ("plate", "top"):
         raise HTTPException(404)
-    path = store.THUMB_DIR / str(fid) / f"{kind}_{idx}.png"
+    path = (render.rendered(fid, idx, render.mode(), "iso" if kind == "plate" else "top")
+            or store.THUMB_DIR / str(fid) / f"{kind}_{idx}.png")
     if not path.exists():
         raise HTTPException(404)
     with open(path, "rb") as fh:  # Vorschaubilder aus G-Code können auch JPEG sein
