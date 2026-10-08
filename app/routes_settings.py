@@ -58,6 +58,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "s": settings, "printers": rows, "defaults": store.SETTING_DEFAULTS, "price_rules": price_rules,
         "events": auth.events() if auth.enabled() else [], "event_days": auth.EVENT_DAYS,
         "import_printers": form_rows if form_rows is not None else _printer_rows(),
+        "psync_last": printer_import.state.get("last_run"),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),

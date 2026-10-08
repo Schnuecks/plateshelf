@@ -64,7 +64,7 @@
       <section class="settings-section" id="printers" data-section>
         <h2>{{ _('Drucker für den Direktimport') }}</h2>
         <p class="hint">{{ _('{app} holt geslicte Drucke direkt vom Drucker, alle {minutes} Minuten oder über „Von Druckern holen“ in der Übersicht. Sie landen unter {folder} in der Bibliothek.', app=APP_NAME, minutes=sync_minutes, folder='<code>%s/&lt;Name&gt;/</code>'|format(import_dir|e))|safe }}</p>
-        {% if request.query_params.get('printers') %}<p class="flash" role="status">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
+        {% if request.query_params.get('printers') %}<p class="flash" role="status" data-sync-watch data-last-sync="{{ psync_last|int if psync_last else '' }}">{{ _('Gespeichert. Die Drucker werden jetzt abgefragt.') }}</p>{% endif %}
         {% if key.set and not plaintext_codes %}<p class="hint key-ok">{{ _('Zugangscodes, Passwörter und API-Schlüssel werden verschlüsselt gespeichert.') }}</p>{% endif %}
         {% if printer_error %}<p class="flash flash-warn" role="alert">{{ printer_error }}</p>{% endif %}
 

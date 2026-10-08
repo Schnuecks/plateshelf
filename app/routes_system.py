@@ -23,7 +23,13 @@ def api_printing():
 @router.get("/api/library")
 def api_library():
     """Stand der Bibliothek, damit die Übersicht neue Drucke von selbst zeigt (static/app.js)."""
-    return {"version": store.library_version(), "sync_running": bool(printer_import.state.get("running"))}
+    return {"version": store.library_version(), "sync_running": bool(printer_import.state.get("running")),
+            "last_sync": last_sync()}
+
+
+def last_sync() -> int | None:
+    """Ende des letzten Drucker-Abgleichs (ganze Sekunden), damit Seiten sein Ende erkennen."""
+    return int(printer_import.state["last_run"]) if printer_import.state.get("last_run") else None
 
 
 @router.get("/api/stats")

@@ -43,7 +43,7 @@
 {% endblock %}
 
 {% block main %}
-<div data-library-version="{{ library_version }}" data-sync-running="{{ '1' if psync.running else '' }}" hidden></div>
+<div data-library-version="{{ library_version }}" data-sync-running="{{ '1' if psync.running else '' }}" data-last-sync="{{ psync.last_run|int if psync.last_run else '' }}" hidden></div>
 <p class="flash" role="status" data-library-changed hidden>{{ _('Es gibt neue oder geänderte Dateien.') }} <a href="" data-library-reload>{{ _('Aktualisieren') }}</a></p>
 {% if request.query_params.get('printers') %}
 <p class="flash" role="status">{{ _('Die Drucker werden abgefragt. Neue Drucke erscheinen in ein paar Minuten, je nach Anzahl und Größe.') }}</p>
