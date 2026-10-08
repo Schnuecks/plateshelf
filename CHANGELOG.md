@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.10.0
 
 - **Own thumbnails:** PlateShelf now draws its own thumbnails from the toolpaths, all in the
   same style (at an angle and from above, in the filament colours, on a plate the size of the
