@@ -65,7 +65,11 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
 | `short` | “P2S: Benchy · 32 min”: without percent, long names shortened |
 | `progress` | Progress in % |
 | `printer`, `name`, `remaining_min` | Printer, project or file, remaining minutes |
+| `remaining` | Remaining time as text, e.g. “1 h 35 min” (empty if unknown) |
 | `url` | Link to the project, e.g. `/p/12#history` |
+
+With `?idle_placeholder=1` the list returns an entry “No print running” (field
+`idle: true`) when idle instead of being empty; otherwise Homepage shows “No items found”.
 
 ```yaml
     widget:

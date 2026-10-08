@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Dashboard: placeholder when idle:** `/api/printing?idle_placeholder=1` returns an entry
+  “No print running” instead of an empty list (Homepage otherwise shows “No items found”).
+  Each running print also has `remaining` as ready-made text (“1 h 35 min”).
+
 ## 0.10.0
 
 - **Own thumbnails:** PlateShelf now draws its own thumbnails from the toolpaths, all in the

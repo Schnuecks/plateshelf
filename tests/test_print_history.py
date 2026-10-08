@@ -321,7 +321,8 @@ def test_printing_now_and_pages(ready, monkeypatch):
         items = client.get("/api/printing").json()["items"]
         assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "short": "P2S: Live · 32 min",
                           "url": f"/p/{job['project_id']}#history", "progress": 45, "printer": "P2S",
-                          "name": "Live", "remaining_min": 32}]
+                          "name": "Live", "remaining_min": 32, "remaining": "32 min"}]
+        assert client.get("/api/printing?idle_placeholder=1").json()["items"] == items  # nur im Leerlauf
         page = client.get("/").text
         assert "P2S: Live · 45 % · noch 32 min" in page and 'class="bed-live">Druckt 45 %' in page
         stats = client.get("/api/stats").json()
@@ -329,6 +330,8 @@ def test_printing_now_and_pages(ready, monkeypatch):
                 stats["printing_remaining_min"]) == ("Live", "P2S", 45, 32)
         monkeypatch.setenv("PRINT_HISTORY", "false")
         assert client.get("/api/printing").json() == {"items": []}
+        (idle,) = client.get("/api/printing?idle_placeholder=1").json()["items"]
+        assert idle["name"] == idle["short"] == "Kein Druck aktiv" and idle["remaining"] == "" and idle["idle"]
         assert "data-live-print" not in client.get("/").text
 
 

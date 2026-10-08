@@ -9,15 +9,25 @@ from fastapi import APIRouter, Request
 
 from . import auth, print_history, printer_import, store
 from .projects import load_projects
+from .i18n import gettext as _
 from .web import live_prints, APP_REPO, APP_VERSION, signed_in, templates
 
 router = APIRouter()
 
 
 @router.get("/api/printing")
-def api_printing():
-    """Laufende Drucke als fertiger Text, für die Anzeige in der Titelleiste."""
-    return {"items": live_prints() if print_history.enabled() else []}
+def api_printing(idle_placeholder: bool = False):
+    """Laufende Drucke als fertiger Text, für die Anzeige in der Titelleiste und Dashboards.
+
+    Mit ?idle_placeholder=1 kommt im Leerlauf ein Eintrag „Kein Druck aktiv“ statt einer leeren
+    Liste: Homepage zeigt bei leerer Liste sonst fest „No items found“.
+    """
+    items = live_prints() if print_history.enabled() else []
+    if not items and idle_placeholder:
+        idle = _("Kein Druck aktiv")
+        items = [{"text": idle, "short": idle, "name": idle, "url": "/", "progress": None, "printer": None,
+                  "remaining_min": None, "remaining": "", "idle": True}]
+    return {"items": items}
 
 
 @router.get("/api/library")
