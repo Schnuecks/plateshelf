@@ -66,6 +66,7 @@ def prusa_gcode():
         "; total filament used [g] = 3.98",
         "; estimated printing time (normal mode) = 1h 2m 3s",
         "; prusaslicer_config = begin",
+        "; bed_shape = 0x-4,250x-4,250x210,0x210",
         "; bed_temperature = 60,90",
         "; fill_density = 15%",
         "; filament_colour = #FF8000;#39B2B2",
@@ -224,3 +225,13 @@ def test_scan_and_names(lib, tmp_path):
     assert tuple(plate) == (1, 1, 3723)
     assert (store.THUMB_DIR / str(row["id"]) / "plate_1.png").read_bytes().startswith(b"\x89PNG")
     assert store.unique_path(lib, "Benchy_0.2mm_PLA_MK4S_1h2m.gcode").name == "Benchy_0.2mm_PLA_MK4S_1h2m (2).gcode"
+
+
+def test_bed_area_for_the_viewer(tmp_path):
+    from app.gcode_file import bed_area, bed_rect
+    assert bed_rect("0x0,180x0,180x180,0x180") == [0, 0, 180, 180]           # PrusaSlicer, MINI
+    assert bed_rect(["0x0", "256x0", "256x256", "0x256"]) == [0, 0, 256, 256]  # Bambu Studio (Liste)
+    assert bed_rect("") is None and bed_rect("0x0,5x0,5x5") is None and bed_rect("ax0,1x1,2x2") is None
+    path = tmp_path / "Benchy.gcode"
+    path.write_text(prusa_gcode())
+    assert bed_area(path) == [0, -4, 250, 210]

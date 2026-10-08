@@ -289,6 +289,7 @@ def test_viewer_for_plain_gcode(server, page):
     page.goto(f"{server['url']}/view/{server['gcode_fid']}/1")
     page.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
     assert "2 von 2" in page.locator("#layer-label").inner_text()
+    assert page.locator("#viewer").get_attribute("data-bed") == "0.0,-4.0,250.0,210.0"  # Platte des MK4S
     page.locator('[data-mode="feature"]').click()
     assert "Außenwand" in page.locator("#viewer-panel").inner_text()
     assert page.errors == []

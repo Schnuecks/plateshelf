@@ -476,37 +476,36 @@ function makeAoBlurMaterial(depthTexture, aoTexture) {
 }
 
 // Textur der Druckplatte: feine Struktur, Linien alle 10 mm, kräftiger alle 50 mm, Rand
-function makePlateCanvas(bed) {
+function makePlateCanvas(bw, bh) {
   const px = 8; // Pixel pro mm
-  const size = Math.min(4096, bed * px);
-  const s = size / bed;
+  const s = Math.min(px, 4096 / Math.max(bw, bh));
+  const w = Math.round(bw * s), h = Math.round(bh * s);
   const c = document.createElement("canvas");
-  c.width = c.height = size;
+  c.width = w;
+  c.height = h;
   const g = c.getContext("2d");
   const base = new THREE.Color(cssVar("--bed"));
   const hex = (col, f) => `#${col.clone().offsetHSL(0, 0, f).getHexString()}`;
   g.fillStyle = hex(base, 0.02);
-  g.fillRect(0, 0, size, size);
+  g.fillRect(0, 0, w, h);
   // Struktur wie bei einer texturierten PEI-Platte: viele kleine, leicht hellere Punkte
   let seed = 7;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   g.fillStyle = hex(base, 0.06);
-  for (let i = 0; i < size * size / 90; i++) g.fillRect(rnd() * size, rnd() * size, 1.4, 1.4);
+  for (let i = 0; i < w * h / 90; i++) g.fillRect(rnd() * w, rnd() * h, 1.4, 1.4);
   const line = (mm, width, color) => {
     g.strokeStyle = color;
     g.lineWidth = width;
     g.beginPath();
-    for (let v = mm; v < bed; v += mm) {
-      g.moveTo(v * s, 0); g.lineTo(v * s, size);
-      g.moveTo(0, v * s); g.lineTo(size, v * s);
-    }
+    for (let v = mm; v < bw; v += mm) { g.moveTo(v * s, 0); g.lineTo(v * s, h); }
+    for (let v = mm; v < bh; v += mm) { g.moveTo(0, h - v * s); g.lineTo(w, h - v * s); }
     g.stroke();
   };
   line(10, 1.2, hex(base, 0.07));
   line(50, 2.2, hex(base, 0.13));
   g.strokeStyle = hex(base, 0.2);
   g.lineWidth = 3 * s;
-  g.strokeRect(1.5 * s, 1.5 * s, size - 3 * s, size - 3 * s);
+  g.strokeRect(1.5 * s, 1.5 * s, w - 3 * s, h - 3 * s);
   return c;
 }
 
@@ -551,21 +550,27 @@ function start(data) {
   // Druckplatte mit strukturierter Oberfläche, 10-mm- und 50-mm-Linien und Rand.
   // Sie wird in der Tiefenschattierung mitgerechnet: das Modell wirft einen weichen
   // Kontaktschatten auf die Platte.
-  const bed = Math.ceil(Math.max(256, maxx + 10, maxy + 10) / 10) * 10;
-  const plateTex = new THREE.CanvasTexture(makePlateCanvas(bed));
+  // Größe aus den Slicer-Einstellungen (data-bed: x0,y0,x1,y1), sonst 256 mm wie bei Bambu
+  let [bx0, by0, bx1, by1] = (root.dataset.bed || "").split(",").map(Number);
+  if (!(bx1 > bx0 && by1 > by0)) {
+    bx0 = by0 = 0;
+    bx1 = by1 = Math.ceil(Math.max(256, maxx + 10, maxy + 10) / 10) * 10;
+  }
+  const bw = bx1 - bx0, bh = by1 - by0;
+  const plateTex = new THREE.CanvasTexture(makePlateCanvas(bw, bh));
   plateTex.colorSpace = THREE.SRGBColorSpace;
   plateTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
   const bedGroup = new THREE.Group();
-  const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bed, bed), new THREE.MeshBasicMaterial({ map: plateTex }));
-  plateMesh.position.set(bed / 2, bed / 2, -0.02);
-  const rim = new THREE.Mesh(new THREE.BoxGeometry(bed + 6, bed + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
-  rim.position.set(bed / 2, bed / 2, -1.55);
+  const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: plateTex }));
+  plateMesh.position.set(bx0 + bw / 2, by0 + bh / 2, -0.02);
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(bw + 6, bh + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
+  rim.position.set(bx0 + bw / 2, by0 + bh / 2, -1.55);
   bedGroup.add(rim, plateMesh);
   scene.add(bedGroup);
   const plateNormalMat = new THREE.MeshNormalMaterial();
   const plateBasicMat = plateMesh.material;
   const refreshPlate = () => {
-    plateTex.image = makePlateCanvas(bed);
+    plateTex.image = makePlateCanvas(bw, bh);
     plateTex.needsUpdate = true;
     rim.material.color.set(cssVar("--bed"));
   };
