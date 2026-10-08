@@ -564,7 +564,9 @@ function start(data) {
   const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: plateTex }));
   plateMesh.position.set(bx0 + bw / 2, by0 + bh / 2, -0.02);
   const rim = new THREE.Mesh(new THREE.BoxGeometry(bw + 6, bh + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
-  rim.position.set(bx0 + bw / 2, by0 + bh / 2, -1.55);
+  // Oberkante des Rands 1 mm unter der Platte: liegen beide fast gleich hoch, kann die Tiefe aus der
+  // Ferne nicht mehr unterschieden werden und der dunkle Rand scheint streifig durch die Platte
+  rim.position.set(bx0 + bw / 2, by0 + bh / 2, -2.5);
   bedGroup.add(rim, plateMesh);
   scene.add(bedGroup);
   const plateNormalMat = new THREE.MeshNormalMaterial();

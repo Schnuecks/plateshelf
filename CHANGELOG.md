@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **No more dark stripes on the plate:** in the 3D preview, the dark edge of the plate no longer
+  shows through the plate as stripes when looking at it from further away.
+
 ## 0.9.1
 
 - **3D preview with the right plate size:** the plate now has the size of the printer the file
