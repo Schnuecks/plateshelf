@@ -54,6 +54,32 @@ For [Homepage](https://gethomepage.dev), the built-in `customapi` widget in your
   `url`, e.g. `http://plateshelf:8000/api/stats`. This also works if PlateShelf sits
   behind a sign-in at the proxy from the outside.
 
+## Running prints as a list
+
+`/api/printing` returns every running print as its own entry, suited to the Homepage widget
+`customapi` with `display: dynamic-list`:
+
+| Field | Meaning |
+|---|---|
+| `text` | “P2S: Benchy · 45 % · 32 min left”, as in the title bar |
+| `short` | “P2S: Benchy · 32 min”: without percent, long names shortened |
+| `progress` | Progress in % |
+| `printer`, `name`, `remaining_min` | Printer, project or file, remaining minutes |
+| `url` | Link to the project, e.g. `/p/12#history` |
+
+```yaml
+    widget:
+      type: customapi
+      url: http://<server>:8000/api/printing
+      display: dynamic-list
+      mappings:
+        items: items
+        name: short
+        label: progress
+        format: percent
+        target: http://<server>:8000{url}
+```
+
 ## API tokens
 
 Dashboards should not know your password. Under “Settings” → “API tokens”, an admin

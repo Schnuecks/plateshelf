@@ -319,8 +319,9 @@ def test_printing_now_and_pages(ready, monkeypatch):
     from app import main
     with TestClient(main.app) as client:
         items = client.get("/api/printing").json()["items"]
-        assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "url": f"/p/{job['project_id']}#history",
-                          "progress": 45}]
+        assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "short": "P2S: Live · 32 min",
+                          "url": f"/p/{job['project_id']}#history", "progress": 45, "printer": "P2S",
+                          "name": "Live", "remaining_min": 32}]
         page = client.get("/").text
         assert "P2S: Live · 45 % · noch 32 min" in page and 'class="bed-live">Druckt 45 %' in page
         stats = client.get("/api/stats").json()
@@ -329,6 +330,17 @@ def test_printing_now_and_pages(ready, monkeypatch):
         monkeypatch.setenv("PRINT_HISTORY", "false")
         assert client.get("/api/printing").json() == {"items": []}
         assert "data-live-print" not in client.get("/").text
+
+
+def test_short_live_text_drops_progress_and_shortens_name():
+    from app.web import live_text
+    job = {"printer_name": "P2S", "project_name": "Sehr langer Modellname mit vielen Teilen und Varianten",
+           "progress": 83.0, "remaining_s": 95 * 60}
+    assert "83 %" in live_text(job)
+    short = live_text(job, short=True)
+    assert "%" not in short and short.endswith("· 1 h 35 min")
+    assert short.startswith("P2S: Sehr langer Modellname") and "…" in short and "Varianten" not in short
+    assert live_text({"printer_name": "P2S", "remote_name": "a/b.gcode", "progress": None}, short=True) == "P2S: b.gcode"
 
 
 def test_sort_and_filter_by_prints(ready, sample, monkeypatch):

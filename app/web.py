@@ -230,21 +230,35 @@ def month_label(month: dict, with_year: bool = False, january_year: bool = True)
 templates.env.filters["month_label"] = month_label
 
 
-def live_text(job: dict) -> str:
-    """„P2S: Benchy · 45 % · noch 32 min“ für einen laufenden Druck."""
-    name = job.get("project_name") or (job.get("remote_name") or "").rsplit("/", 1)[-1]
+SHORT_NAME = 40  # Zeichen für den Namen in der Kurzfassung
+
+
+def live_name(job: dict) -> str:
+    return job.get("project_name") or (job.get("remote_name") or "").rsplit("/", 1)[-1]
+
+
+def live_text(job: dict, short: bool = False) -> str:
+    """„P2S: Benchy · 45 % · noch 32 min“ für einen laufenden Druck. Die Kurzfassung „P2S: Benchy · 32 min“
+    lässt den Fortschritt weg (zeigt das Dashboard als Balken) und kürzt lange Namen."""
+    name = live_name(job)
+    if short and len(name) > SHORT_NAME:
+        name = name[:SHORT_NAME - 1].rstrip() + "…"
     parts = [_("{printer}: {name}", printer=job["printer_name"], name=name) if name else job["printer_name"]]
-    if job.get("progress") is not None:
+    if job.get("progress") is not None and not short:
         parts.append(f"{fmt_num(job['progress'], 0)} %")
     if job.get("remaining_s"):
-        parts.append(_("noch {time}", time=fmt_duration(job["remaining_s"])))
+        time_left = fmt_duration(job["remaining_s"])
+        parts.append(time_left if short else _("noch {time}", time=time_left))
     return " · ".join(parts)
 
 
 def live_prints() -> list[dict]:
-    """Laufende Drucke für die Titelleiste: Text und Ziel des Links."""
-    return [{"text": live_text(j), "url": f"/p/{j['project_id']}#history" if j.get("project_id") else "/history",
-             "progress": j.get("progress")} for j in print_history.printing_now()]
+    """Laufende Drucke für die Titelleiste und /api/printing: Text, Ziel des Links und Einzelwerte."""
+    return [{"text": live_text(j), "short": live_text(j, short=True),
+             "url": f"/p/{j['project_id']}#history" if j.get("project_id") else "/history",
+             "progress": j.get("progress"), "printer": j["printer_name"], "name": live_name(j) or None,
+             "remaining_min": round(j["remaining_s"] / 60) if j.get("remaining_s") else None}
+            for j in print_history.printing_now()]
 
 
 templates.env.globals["live_prints"] = live_prints
