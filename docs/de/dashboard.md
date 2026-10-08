@@ -65,7 +65,11 @@ Homepage-Widget `customapi` mit `display: dynamic-list`:
 | `short` | „P2S: Benchy · 32 min“: ohne Prozent, lange Namen gekürzt |
 | `progress` | Fortschritt in % |
 | `printer`, `name`, `remaining_min` | Drucker, Projekt oder Datei, Restminuten |
+| `remaining` | Restzeit als Text, z. B. „1 h 35 min“ (leer, wenn unbekannt) |
 | `url` | Link auf das Projekt, z. B. `/p/12#history` |
+
+Mit `?idle_placeholder=1` liefert die Liste im Leerlauf einen Eintrag „Kein Druck aktiv“
+(Feld `idle: true`) statt leer zu sein; Homepage zeigt bei leerer Liste sonst „No items found“.
 
 ```yaml
     widget:

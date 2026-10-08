@@ -282,6 +282,7 @@
  "Innenwand": "Inner wall",
  "Jeden Tag legt {app} eine Sicherung im Datenordner unter {folder} an und behält die letzten {n}.": "Every day {app} creates a backup in the data folder under {folder} and keeps the last {n}.",
  "Jeder Status": "Any status",
+ "Kein Druck aktiv": "No print running",
  "Kein Projekt passt zu diesen Filtern.": "No project matches these filters.",
  "Kein Vorschaubild": "No preview image",
  "Keine Angabe": "Not stated",
