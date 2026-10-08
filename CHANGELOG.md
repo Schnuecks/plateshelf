@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.10.1
 
 - **Dashboard: placeholder when idle:** `/api/printing?idle_placeholder=1` returns an entry
   “No print running” instead of an empty list (Homepage otherwise shows “No items found”).
