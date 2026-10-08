@@ -93,6 +93,30 @@ def diameters(path: Path) -> dict[int, float]:
     return out
 
 
+def bed_rect(shape) -> list[float] | None:
+    """Druckfläche [x0, y0, x1, y1] aus "0x0,180x0,180x180,0x180" (bed_shape bei PrusaSlicer,
+    printable_area bei Bambu Studio und Orca; dort auch als Liste)."""
+    points = shape if isinstance(shape, list) else re.split(r"[;,]", str(shape or ""))
+    xs, ys = [], []
+    for p in points:
+        x, _sep, y = str(p).strip().strip('"').partition("x")
+        x, y = _to_float(x), _to_float(y)
+        if x is None or y is None:
+            return None
+        xs.append(x)
+        ys.append(y)
+    if len(xs) < 3 or not 50 <= max(xs) - min(xs) <= 2000 or not 50 <= max(ys) - min(ys) <= 2000:
+        return None
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def bed_area(path: Path) -> list[float] | None:
+    """Druckfläche aus den Slicer-Einstellungen einer G-Code-Datei, für die 3D-Vorschau."""
+    head, tail, _thumb = _texts(path)
+    config = read_config(head + "\n" + tail)
+    return bed_rect(config.get("bed_shape") or config.get("printable_area"))
+
+
 # --- Vorschaubilder -----------------------------------------------------------
 
 def _png(width: int, height: int, rgba: bytes) -> bytes:

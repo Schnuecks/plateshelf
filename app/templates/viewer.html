@@ -12,7 +12,7 @@
 {% block footer %}{% endblock %}
 {% block main %}
 <div class="viewer" id="viewer" data-assets="{{ ASSET_V }}" data-name="{{ project.name if project else '' }}"
-     data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}">
+     data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}"{% if bed %} data-bed="{{ bed|join(',') }}"{% endif %}>
   <div class="viewer-stage">
     <canvas id="viewer-canvas" aria-label="{{ _('3D-Vorschau der Druckbahnen') }}"></canvas>
     <div class="viewer-loading" id="viewer-loading" role="status">

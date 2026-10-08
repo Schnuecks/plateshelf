@@ -3,12 +3,14 @@
 """3D-Vorschau: Seite und die Daten für den Viewer."""
 from __future__ import annotations
 
+import json
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from . import gcode_preview, store
+from . import gcode_file, gcode_preview, store
 from .i18n import gettext as _
 from .projects import _plate_dict, natural_key
 from .web import templates
@@ -29,13 +31,26 @@ def _plate_for_view(fid: int, idx: int):
     return f, _plate_dict(pl), proj, path
 
 
+def bed_area(path: Path) -> list[float] | None:
+    """Druckfläche des Druckers, für den die Datei gesliced ist (sonst zeigt der Viewer eine
+    256-mm-Platte)."""
+    try:
+        if gcode_file.is_gcode(path.name):
+            return gcode_file.bed_area(path)
+        with zipfile.ZipFile(path) as z:
+            settings = json.loads(z.read("Metadata/project_settings.config"))
+        return gcode_file.bed_rect(settings.get("printable_area"))
+    except (OSError, KeyError, ValueError, zipfile.BadZipFile):
+        return None
+
+
 def _preview_base(fid: int, idx: int) -> Path:
     return store.DATA_DIR / "preview" / f"{fid}_{idx}"
 
 
 @router.get("/view/{fid}/{idx}")
 def viewer(request: Request, fid: int, idx: int):
-    f, pl, proj, _path = _plate_for_view(fid, idx)
+    f, pl, proj, path = _plate_for_view(fid, idx)
     siblings = []
     if proj:
         with store.connect() as con:
@@ -50,7 +65,7 @@ def viewer(request: Request, fid: int, idx: int):
         "next": siblings[pos + 1] if pos + 1 < len(siblings) else None,
     }
     return templates.TemplateResponse(request, "viewer.html", {
-        "nav": nav,
+        "nav": nav, "bed": bed_area(path),
         "file": dict(f), "plate": pl, "project": dict(proj) if proj else None,
         "filaments": [{"slot": x["slot"], "color": x["color"], "type": x["type"], "name": x.get("name", "")}
                       for x in pl["filaments"]],
