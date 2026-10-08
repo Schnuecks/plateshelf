@@ -14,7 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, store
+from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, render, store
 from .i18n import gettext as _
 from .web import APP_VERSION, ONE_YEAR, audit, current_user, templates
 
@@ -61,6 +61,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "psync_last": printer_import.state.get("last_run"),
         "printer_error": error, "psync": printer_import.state, "sync_minutes": printer_import.SYNC_INTERVAL // 60,
         "import_dir": printer_import.import_dir(),
+        "thumbs_mode": render.mode(settings),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
         "diagnostics": diagnostics.report(APP_VERSION),
         "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
@@ -145,6 +146,15 @@ def backup_restore_file(request: Request, name: str):
     except i18n.UserError as exc:
         return _render_settings(request, backup_error=exc.translated(), status_code=400)
     return _after_restore(request, safety)
+
+
+@router.post("/settings/thumbnails")
+def thumbnails_save(vorschaubilder: str = Form("")):
+    if vorschaubilder in render.MODES:
+        store.save_settings({"vorschaubilder": vorschaubilder})
+        if store.PREBUILD and vorschaubilder != "slicer":
+            store.request_prebuild()  # fehlende Bilder für die neue Wahl zeichnen
+    return RedirectResponse("/settings?thumbs=1#thumbs", status_code=303)
 
 
 @router.post("/settings/history")

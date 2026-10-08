@@ -52,6 +52,7 @@
     <nav class="settings-nav" aria-label="{{ _('Bereiche') }}">
       <a href="#printers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M7 14h10v6H7z"/></svg>{{ _('Drucker') }}</a>
       <a href="#power"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></svg>{{ _('Kosten') }}</a>
+      <a href="#thumbs"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="9" r="1.5"/></svg>{{ _('Vorschaubilder') }}</a>
       <a href="#history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l3 2M3.5 12a8.5 8.5 0 1 0 2.5-6M3 4v4h4"/></svg>{{ _('Druckverlauf') }}</a>
       <a href="#users"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.8 3 2.5 3.5 5.2"/></svg>{{ _('Benutzer') }}</a>
       <a href="#tokens"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>{{ _('API-Tokens') }}</a>
@@ -189,6 +190,18 @@
           <label class="check"><input type="checkbox" name="dateipreise_ignorieren" value="1" {{ 'checked' if s.dateipreise_ignorieren is defined and s.dateipreise_ignorieren }}>
             {{ _('Preise aus den Slicer-Dateien ignorieren') }}</label>
           <div class="section-foot"><button type="submit">{{ _('Kosten speichern') }}</button></div>
+        </form>
+      </section>
+
+      <section class="settings-section" id="thumbs" data-section>
+        <h2>{{ _('Vorschaubilder') }}</h2>
+        <p class="hint">{{ _('Die Slicer legen unterschiedliche Bilder in die Dateien: PrusaSlicer mit Druckbett, Bambu Studio ohne, Cura oft gar keins. PlateShelf kann stattdessen eigene Bilder aus den Druckbahnen zeichnen, alle im selben Stil, schräg und von oben. Sie entstehen im Hintergrund zusammen mit der 3D-Vorschau; bis dahin bleibt das Bild des Slicers stehen.') }}</p>
+        {% if request.query_params.get('thumbs') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        <form method="post" action="/settings/thumbnails" class="choice-form">
+          <label class="check"><input type="radio" name="vorschaubilder" value="eigene" {{ 'checked' if thumbs_mode == 'eigene' }}> {{ _('Eigene Bilder mit Druckplatte') }}</label>
+          <label class="check"><input type="radio" name="vorschaubilder" value="ohne_platte" {{ 'checked' if thumbs_mode == 'ohne_platte' }}> {{ _('Eigene Bilder ohne Druckplatte') }}</label>
+          <label class="check"><input type="radio" name="vorschaubilder" value="slicer" {{ 'checked' if thumbs_mode == 'slicer' }}> {{ _('Bilder vom Slicer') }}</label>
+          <div class="section-foot"><button type="submit">{{ _('Vorschaubilder speichern') }}</button></div>
         </form>
       </section>
 

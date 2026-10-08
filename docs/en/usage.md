@@ -71,6 +71,20 @@ cover” goes back to the slicer preview.
   part of your library backup. If a project goes to the trash, its photos come back with it;
   once it is deleted permanently, they are removed as well.
 
+## Thumbnails
+
+Every slicer puts different images into its files: PrusaSlicer draws the print bed, Bambu
+Studio doesn’t, Cura often adds no image at all. To keep the overview consistent, PlateShelf
+draws its own thumbnails from the toolpaths, all in the same style: at an angle from the front
+and from above, in the filament colours, on a plate the size of the printer.
+
+- The images are created in the background together with the 3D preview (about 1–2 seconds
+  per plate). Until then PlateShelf shows the slicer’s image. With `PREVIEW_PREBUILD=false`
+  they are only created when the 3D preview is first opened.
+- Under “Settings” → “Thumbnails” you choose: own images with print plate (default), own
+  images without print plate, or the images from the slicer again.
+- Files without a thumbnail of their own, for example from Cura, get an image this way.
+
 ## 3D preview
 
 A sliced file no longer contains a 3D model but the finished G-code. The 3D preview

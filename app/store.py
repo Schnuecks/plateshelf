@@ -699,6 +699,7 @@ def request_prebuild() -> None:
 
 def prebuild_loop() -> None:
     """Erstellt fehlende 3D-Vorschauen nacheinander im Hintergrund."""
+    from . import render
     from .gcode_preview import status as preview_status
     while True:
         _prebuild_wakeup.wait()
@@ -710,10 +711,13 @@ def prebuild_loop() -> None:
                        WHERE p.sliced = 1 AND f.missing = 0 AND f.sliced = 1
                        ORDER BY f.added DESC"""
                 ).fetchall()
+            current = render.mode()
             for r in rows:
                 path = LIBRARY_DIR / r["path"]
                 if path.exists():
-                    preview_status(path, r["idx"], DATA_DIR / "preview" / f"{r['id']}_{r['idx']}", background=False)
+                    st = preview_status(path, r["idx"], DATA_DIR / "preview" / f"{r['id']}_{r['idx']}", background=False)
+                    if st["state"] == "ready":
+                        render.ensure(r["id"], r["idx"], current)  # eigenes Vorschaubild
         except Exception:
             log.exception("Vorberechnung der 3D-Vorschau fehlgeschlagen")
 

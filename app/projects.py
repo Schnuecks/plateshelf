@@ -8,7 +8,7 @@ import re
 import threading
 import time
 
-from . import print_history, store
+from . import print_history, render, store
 from .i18n import gettext as _
 
 def plate_source(model_json: str | None) -> str:
@@ -104,6 +104,7 @@ def _mark_printed_plates(p: dict, by_plate: dict) -> None:
 
 def _build(con) -> list[dict]:
     settings = store.get_settings(con)
+    thumbs = render.mode(settings)
     projects = {r["id"]: {**dict(r), "files": [], "plates": [], "extra_plates": []}
                 for r in con.execute("SELECT * FROM projects")}
     files = {}
@@ -121,6 +122,7 @@ def _build(con) -> list[dict]:
             pd = _plate_dict(r)
             pd["file_id"] = f["id"]
             pd["v"] = file_stamp(f)
+            render.apply(pd, thumbs)
             # Material: Preise aus der Datei, sonst Ersatzpreise aus den Einstellungen
             for fil in pd["filaments"]:
                 fil["cost_per_kg"] = store.filament_price(settings, fil, rules)

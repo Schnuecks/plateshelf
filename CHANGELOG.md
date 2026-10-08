@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Own thumbnails:** PlateShelf now draws its own thumbnails from the toolpaths, all in the
+  same style (at an angle and from above, in the filament colours, on a plate the size of the
+  printer), instead of mixing the very different images from PrusaSlicer, Bambu Studio and
+  Cura. They are created in the background with the 3D preview; until then the slicer image
+  stays. Files without a thumbnail (e.g. from Cura) now get one too. Under “Settings” →
+  “Thumbnails” you can choose images without a plate or go back to the slicer images.
+
 ## 0.9.2
 
 - **No more dark stripes on the plate:** in the 3D preview, the dark edge of the plate no longer
