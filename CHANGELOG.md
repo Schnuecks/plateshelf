@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.9.0
 
 - **Shorter entries for dashboards:** `/api/printing` now also returns `short` (“P2S: Benchy ·
   32 min”, without the percentage and with long names shortened), plus `printer`, `name` and
