@@ -2,8 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.9.1
 
+- **3D preview with the right plate size:** the plate now has the size of the printer the file
+  was sliced for (taken from the slicer settings, e.g. 180 × 180 mm for the Prusa MINI) instead
+  of always 256 mm, so the model sits where it will be printed.
 - **Printer status right after saving:** after saving the printers in the settings, the page
   reloads as soon as they have been checked, so the dot turns green or red straight away instead
   of staying grey.
