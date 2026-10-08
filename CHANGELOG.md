@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Shorter entries for dashboards:** `/api/printing` now also returns `short` (“P2S: Benchy ·
+  32 min”, without the percentage and with long names shortened), plus `printer`, `name` and
+  `remaining_min` as separate fields. `text` stays as before. Useful for Homepage’s
+  `dynamic-list`, where the progress already shows as its own value.
+
 ## 0.8.18
 
 - **Overview updates by itself:** new prints fetched from the printers (or other changes to the

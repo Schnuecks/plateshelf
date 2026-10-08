@@ -54,6 +54,32 @@ Für [Homepage](https://gethomepage.dev) genügt das eingebaute Widget `customap
   Adresse, z. B. `http://plateshelf:8000/api/stats`. Das funktioniert auch, wenn das
   PlateShelf nach außen hinter einer Anmeldung am Proxy liegt.
 
+## Laufende Drucke als Liste
+
+`/api/printing` liefert jeden laufenden Druck als eigenen Eintrag, passend für das
+Homepage-Widget `customapi` mit `display: dynamic-list`:
+
+| Feld | Bedeutung |
+|---|---|
+| `text` | „P2S: Benchy · 45 % · noch 32 min“, wie in der Titelleiste |
+| `short` | „P2S: Benchy · 32 min“: ohne Prozent, lange Namen gekürzt |
+| `progress` | Fortschritt in % |
+| `printer`, `name`, `remaining_min` | Drucker, Projekt oder Datei, Restminuten |
+| `url` | Link auf das Projekt, z. B. `/p/12#history` |
+
+```yaml
+    widget:
+      type: customapi
+      url: http://<server>:8000/api/printing
+      display: dynamic-list
+      mappings:
+        items: items
+        name: short
+        label: progress
+        format: percent
+        target: http://<server>:8000{url}
+```
+
 ## API-Tokens
 
 Dashboards sollen dein Passwort nicht kennen. Unter „Einstellungen“ → „API-Tokens“ legt
