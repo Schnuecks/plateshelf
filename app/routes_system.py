@@ -20,6 +20,12 @@ def api_printing():
     return {"items": live_prints() if print_history.enabled() else []}
 
 
+@router.get("/api/library")
+def api_library():
+    """Stand der Bibliothek, damit die Übersicht neue Drucke von selbst zeigt (static/app.js)."""
+    return {"version": store.library_version(), "sync_running": bool(printer_import.state.get("running"))}
+
+
 @router.get("/api/stats")
 def api_stats():
     """Kennzahlen für Dashboards wie Homepage (Widget „customapi“).

@@ -97,6 +97,41 @@ document.querySelectorAll("[data-live-print]").forEach((pill) => {
   setInterval(refresh, 30000);
 });
 
+// Übersicht: neue Drucke vom Drucker (oder andere Änderungen) von selbst zeigen. Gefragt wird
+// alle 20 s, während eines Drucker-Abgleichs alle 3 s. Ist gerade etwas markiert oder ein Feld
+// in Bearbeitung, erscheint nur ein Hinweis, damit nichts verloren geht.
+document.querySelectorAll("[data-library-version]").forEach((marker) => {
+  let version = marker.dataset.libraryVersion;
+  const banner = document.querySelector("[data-library-changed]");
+  const params = new URLSearchParams(location.search);
+  const fresh = () => { params.delete("printers"); return location.pathname + (params.size ? "?" + params : ""); };
+  let fastUntil = params.has("printers") || marker.dataset.syncRunning ? Date.now() + 180000 : 0;
+  const busy = () => document.querySelector("[data-bulk-item]:checked") ||
+    /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
+  banner?.querySelector("[data-library-reload]")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    location.replace(fresh());
+  });
+  const tick = async () => {
+    if (!document.hidden) {
+      try {
+        const r = await fetch("/api/library", { headers: { Accept: "application/json" } });
+        if (r.ok) {
+          const data = await r.json();
+          if (data.sync_running) fastUntil = Math.max(fastUntil, Date.now() + 30000);
+          if (data.version !== version) {
+            if (!busy()) { location.replace(fresh()); return; }
+            version = data.version;
+            if (banner) banner.hidden = false;
+          }
+        }
+      } catch { /* offline: beim nächsten Mal */ }
+    }
+    setTimeout(tick, Date.now() < fastUntil ? 3000 : 20000);
+  };
+  setTimeout(tick, fastUntil ? 3000 : 20000);
+});
+
 // Diagnose kopieren (Zwischenablage, sonst Text markieren)
 document.querySelectorAll("[data-copy]").forEach((button) => {
   const section = button.closest("section");

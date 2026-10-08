@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Overview updates by itself:** new prints fetched from the printers (or other changes to the
+  library) now appear without reloading the page by hand – quickly after “Fetch from printers”,
+  otherwise within about 20 seconds. If projects are selected or a field is being edited, a short
+  notice with “Refresh” appears instead, so nothing gets lost.
+
 ## 0.8.17
 
 - **Documentation in the wiki:** the docs from `docs/` are mirrored into the GitHub wiki on
