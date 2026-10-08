@@ -152,7 +152,7 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
 
     # Strichbreite: Bahnbreite, aber mindestens so breit, dass übereinanderliegende Schichten
     # ohne Lücke zu einer Fläche werden
-    heights = [b - a for a, b in zip(layers, layers[1:]) if b > a]
+    heights = [b - a for a, b in zip(layers, layers[1:], strict=False) if b > a]
     layer_h = sorted(heights)[len(heights) // 2] if heights else 0.2
     width = max(1, round(max(nozzle * 1.1, layer_h * view.ce * 1.25) * k))
 
