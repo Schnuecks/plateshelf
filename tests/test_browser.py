@@ -479,3 +479,27 @@ def test_pages_run_under_csp(server, browser):
     pg.wait_for_selector("#viewer-panel:not([hidden])", timeout=60_000)   # Importmap, Module, Worker, WebGL
     context.close()
     assert problems == [], problems
+
+
+def test_overview_shows_new_files_by_itself(server, page):
+    """Neue Drucke vom Drucker (hier: neue Datei + Einlesen) erscheinen ohne Neuladen von Hand;
+    ist gerade etwas markiert, kommt nur ein Hinweis."""
+    from make_sample import make
+
+    from app import store
+    page.goto(server["url"] + "/?printers=1")                    # nach „Von Druckern holen“: schnell nachsehen
+    new = store.LIBRARY_DIR / "Frisch_vom_Drucker.gcode.3mf"
+    make(new, [{"idx": 1, "sec": 300, "layers": 3, "fil": [(1, "#3A7BD5FF", 2.0)]}])
+    try:
+        store.scan(wait=True)
+        page.wait_for_selector("text=Frisch vom Drucker", timeout=15_000)
+        assert "printers=1" not in page.url                       # Hinweis „wird abgefragt“ verschwindet
+        page.goto(server["url"] + "/?printers=1")
+        page.locator("[data-bulk-item]").first.check()            # Auswahl darf nicht verloren gehen
+        new.unlink()
+        store.scan(wait=True)
+        page.wait_for_selector("[data-library-changed]:not([hidden])", timeout=15_000)
+        assert page.locator("[data-bulk-item]").first.is_checked()
+    finally:
+        new.unlink(missing_ok=True)
+        store.scan(wait=True)

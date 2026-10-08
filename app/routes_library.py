@@ -73,7 +73,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         "more_url": "/?" + urlencode(more) if more else None, "totals": totals, "q": q, "material": material, "printer": printer,
         "status": status, "tag": tag, "sort": sort, "printed": printed, "all_materials": all_materials,
         "all_printers": all_printers, "all_tags": all_tags, "scan": store.last_scan,
-        "psync": printer_import.state,
+        "psync": printer_import.state, "library_version": store.library_version(),
     })
 
 

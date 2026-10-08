@@ -201,6 +201,16 @@ def db_signature() -> tuple:
     return tuple(sig)
 
 
+def library_version() -> str:
+    """Stand der Bibliothek für die Übersicht: ändert sich bei neuen, geänderten oder entfernten
+    Dateien und bei Projekten, nicht aber bei Sitzungen oder dem Fortschritt laufender Drucke."""
+    with connect() as con:
+        f = con.execute("SELECT COUNT(*), COALESCE(MAX(id), 0), COALESCE(MAX(mtime), 0), COALESCE(SUM(size), 0) "
+                        "FROM files WHERE missing = 0").fetchone()
+        p = con.execute("SELECT COUNT(*), COALESCE(MAX(updated), 0) FROM projects").fetchone()
+    return f"{f[0]}-{f[1]}-{f[2]:.0f}-{f[3]}-{p[0]}-{p[1]:.0f}"
+
+
 def connect() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH, timeout=30)
