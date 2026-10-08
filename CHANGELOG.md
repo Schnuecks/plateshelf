@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.8.18
 
 - **Overview updates by itself:** new prints fetched from the printers (or other changes to the
   library) now appear without reloading the page by hand – quickly after “Fetch from printers”,
