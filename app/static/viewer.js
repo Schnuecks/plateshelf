@@ -302,8 +302,9 @@ function makeTubeMaterial(uniforms) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
         }
+        d /= len;  // erst normieren: gekürzt wäre d sonst 1/cut lang und das Band ragte weit über
+                   // beide Enden hinaus (Striche durch die Düse beim Abspielen)
         if (cut < 1.0) { e.xyz = mix(s.xyz, e.xyz, cut); len *= cut; }
-        d /= len;
         // Band quer zur Blickrichtung aufspannen, Enden um die halbe Breite verlängern
         vec2 corner = position.xy;
         vec3 mid = mix(s.xyz, e.xyz, corner.x);
