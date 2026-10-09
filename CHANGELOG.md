@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.11.4
 
 - **Printer addresses shown alike:** the settings list now shows just the address for every
   printer type – without `http://` and without the default port – and for Prusa and Klipper
