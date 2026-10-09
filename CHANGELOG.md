@@ -2,6 +2,16 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Live progress on the project tiles:** the “Printing … %” badge in the overview now follows
+  the running print every 15 seconds instead of staying at the value from when the page was
+  loaded. `/api/printing` also returns the project id of each print (`project`).
+- **Prusa: missed print ends are closed:** if a PrusaLink printer was switched off before it
+  reported the end of a print, that print no longer stays “running” forever. It is closed when
+  the printer reports no print or a new one – as finished if it was almost done, otherwise as
+  cancelled.
+
 ## 0.11.1
 
 - **No more stray lines during playback:** the path segment being printed right now could be

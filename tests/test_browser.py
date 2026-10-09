@@ -530,6 +530,32 @@ def test_pages_notice_when_printer_sync_is_done(server, page):
         printer_import.state["last_run"] = before
 
 
+def test_overview_tile_shows_print_progress(server, page, monkeypatch):
+    """Die Prozente des laufenden Drucks auf der Kachel gehen ohne Neuladen weiter."""
+    import time
+
+    from app import print_history, store
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    printer = {"name": "P1S", "id": "S", "kind": "bambu"}
+    with store.connect() as con:
+        con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                    "imported) VALUES ('S', 'Zylinder.gcode.3mf', 1, '', 'Zylinder.gcode.3mf', 'P1S', ?)", (time.time(),))
+    try:
+        print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=10)
+        page.clock.install()
+        page.goto(server["url"] + "/")
+        badge = page.locator("[data-live-project]")
+        assert "10 %" in badge.inner_text()
+        print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=55)
+        page.clock.run_for(16_000)
+        page.wait_for_function("document.querySelector('[data-live-project]').textContent.includes('55')",
+                               timeout=5_000)
+    finally:
+        with store.connect() as con:
+            con.execute("DELETE FROM print_jobs WHERE job_key = 'live1'")
+            con.execute("DELETE FROM printer_files WHERE remote_name = 'Zylinder.gcode.3mf' AND printer = 'S'")
+
+
 def test_overview_shows_new_files_by_itself(server, page):
     """Neue Drucke vom Drucker (hier: neue Datei + Einlesen) erscheinen ohne Neuladen von Hand;
     ist gerade etwas markiert, kommt nur ein Hinweis."""

@@ -97,6 +97,27 @@ document.querySelectorAll("[data-live-print]").forEach((pill) => {
   setInterval(refresh, 30000);
 });
 
+// Fortschritt laufender Drucke auf den Projektkacheln: alle 15 s auffrischen. Beginn und Ende
+// eines Drucks lädt die Übersicht ohnehin neu (siehe unten), hier geht es nur um die Prozente.
+const liveBadges = document.querySelectorAll("[data-live-project]");
+if (liveBadges.length) {
+  const fmtPct = (v) => Math.round(v).toLocaleString(document.documentElement.lang || undefined);
+  setInterval(() => {
+    if (document.hidden) return;
+    fetch("/api/printing", { headers: { Accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const byProject = new Map((data.items || []).filter((i) => i.project != null).map((i) => [String(i.project), i]));
+        liveBadges.forEach((badge) => {
+          const item = byProject.get(badge.dataset.liveProject);
+          if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
+        });
+      })
+      .catch(() => {});
+  }, 15000);
+}
+
 // Übersicht: neue Drucke vom Drucker (oder andere Änderungen) von selbst zeigen. Gefragt wird
 // alle 20 s, während eines Drucker-Abgleichs alle 3 s. Ist gerade etwas markiert oder ein Feld
 // in Bearbeitung, erscheint nur ein Hinweis, damit nichts verloren geht.
