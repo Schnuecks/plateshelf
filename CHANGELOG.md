@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.10.2
 
 - **Overview also updates for prints and thumbnails:** it now reloads by itself when a print
   starts, finishes or gets assigned to a project, and when PlateShelf has drawn new thumbnails –
