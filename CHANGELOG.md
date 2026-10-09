@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **No more switching between tubes and lines during playback:** the 3D preview picks one display
+  for the whole playback (based on the largest range that will be visible) instead of
+  re-deciding on every layer change, so the model no longer flips to thin lines and back.
+
 ## 0.10.3
 
 - **Own thumbnails without wipe tower and supports:** like the slicer images, PlateShelf’s own

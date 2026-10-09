@@ -683,10 +683,11 @@ function start(data) {
     applyRange(obj);
   };
   // Anteil der sichtbaren Bahnen, um die Messwerte auf den Schichtbereich umzurechnen
-  const visibleShare = () => {
+  const shareOf = (lo, hi) => {
     const ls = geo.userData.layerStart;
-    return Math.max(0.001, (ls[range.hi + 1] - ls[range.lo]) / Math.max(1, ls[ls.length - 1]));
+    return Math.max(0.001, (ls[hi + 1] - ls[lo]) / Math.max(1, ls[ls.length - 1]));
   };
+  const visibleShare = () => shareOf(range.lo, range.hi);
 
   // Farben: Werkzeug t = Filament-Slot t + 1. Ohne Werkzeugwechsel gilt das einzige Filament.
   const bySlot = Object.fromEntries(filaments.map((f) => [f.slot, f]));
@@ -728,7 +729,7 @@ function start(data) {
     mat.uniforms.minLayer.value = lo;
     range = { lo, hi: v };
     // Nur den sichtbaren Schichtbereich an die Grafikkarte schicken
-    show(playing ? motionObject() : restObject());
+    show(playing ? playObject : restObject());
     label.textContent = t("{n} von {total} ({mm} mm)", { n: v + 1, total: nLayers, mm: fmt(meta.layers[v] || 0) });
     render();
   };
@@ -788,6 +789,7 @@ function start(data) {
   const speedBtn = document.getElementById("play-speed");
   let playDist = null; // null: Schicht vollständig
   let playing = false;
+  let playObject = null;
   let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("plateshelf-play-speed", 10))));
   const setCut = (dist) => {
     const l = Number(slider.value);
@@ -820,7 +822,11 @@ function start(data) {
       playBtn.title = playBtn.getAttribute("aria-label");
     }
     if (on) {
+      // Darstellung für die ganze Wiedergabe festlegen, nach dem größten Bereich, der sichtbar wird:
+      // sonst wechselt sie beim Schichtwechsel zwischen Röhren und Linien hin und her
       const l = Number(slider.value);
+      playObject = motionObject(single.checked ? shareOf(l, l) : shareOf(0, nLayers - 1));
+      show(playObject);
       if (playDist === null) {
         // Vom Ende aus neu starten: bei der untersten sichtbaren Schicht beginnen
         if (l >= nLayers - 1 || single.checked) { slider.value = single.checked ? l : 0; applyLayers(true); }
@@ -828,6 +834,8 @@ function start(data) {
       }
       lastTick = 0;
       requestAnimationFrame(tick);
+    } else {
+      show(restObject());
     }
     render();
   };
@@ -1139,8 +1147,7 @@ function start(data) {
   const perf = { tube: null, line: null };
   const restObject = () =>
     perf.tube === null || perf.tube * visibleShare() <= REST_MAX_MS ? tubes : lines;
-  const motionObject = () => {
-    const share = visibleShare();
+  const motionObject = (share = visibleShare()) => {
     if (perf.tube !== null && perf.tube * share <= TARGET_MS) return tubes;
     if (perf.line === null || perf.line * share <= TARGET_MS) return lines;
     const step = Math.min(64, 2 ** Math.ceil(Math.log2((perf.line * share) / TARGET_MS)));
@@ -1198,7 +1205,7 @@ function start(data) {
   let idleTimer = 0;
   controls.addEventListener("change", () => {
     saveCamera();
-    const obj = motionObject();
+    const obj = playing ? playObject : motionObject();
     if (!moving || !obj.visible) show(obj);
     moving = true;
     trackFrame(obj);
@@ -1206,7 +1213,7 @@ function start(data) {
     idleTimer = setTimeout(() => {
       moving = false;
       lastFrame = 0;
-      show(restObject());
+      show(playing ? playObject : restObject());
       render();
     }, IDLE_MS);
     render();
