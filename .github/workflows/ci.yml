@@ -1,10 +1,11 @@
 name: CI
 
-# Tests bei jedem Push und Pull Request: Linter (Ruff), Python-Tests und ein Browsertest
-# (Playwright). Das fertige Image prüft Trivy auf bekannte Sicherheitslücken.
-# Das Docker-Image wird bei Pull Requests und Pushes auf main für alle Plattformen nur
-# probeweise gebaut (nicht hochgeladen), damit Speicher und Datenvolumen des kostenlosen
-# Plans geschont werden und ein Fehler auf einer Plattform vor dem Release auffällt.
+# Pull Requests und Versions-Tags durchlaufen alles: Linter (Ruff), Python-Tests, Browsertest
+# (Playwright), Image-Bau für alle Plattformen und Trivy-Scan auf bekannte Sicherheitslücken.
+# Ein Push auf main ist fast immer der Squash eines eben geprüften PRs: dort laufen nur Linter
+# und Python-Tests als Sicherheitsnetz, Browsertest und Image-Bau wären doppelt.
+# Bei Pull Requests wird das Image nur probeweise gebaut (nicht hochgeladen), damit Speicher
+# und Datenvolumen geschont werden und ein Fehler auf einer Plattform vor dem Release auffällt.
 # Hochgeladen wird es nur bei einem Versions-Tag (v1.2.3); danach bleiben die
 # letzten fünf Releases erhalten (KEEP_VERSIONS), ältere werden gelöscht.
 
@@ -39,6 +40,7 @@ jobs:
 
   browser:
     # Seiten und 3D-Vorschau in echtem Chromium (Software-WebGL), ohne JavaScript-Fehler
+    if: github.event_name != 'push' || github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -55,6 +57,7 @@ jobs:
 
   image:
     needs: [test, browser]
+    if: github.event_name != 'push' || github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
