@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.11.3
 
 - **Prusa: missed print ends are really closed:** 0.11.2 only looked at the newest running print
   of a printer, which is usually the current one, so an older print whose end was missed stayed
