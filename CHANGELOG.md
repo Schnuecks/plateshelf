@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.10.3
 
 - **Own thumbnails without wipe tower and supports:** like the slicer images, PlateShelf’s own
   thumbnails now leave out the prime tower, skirt and supports, and centre the model itself.
