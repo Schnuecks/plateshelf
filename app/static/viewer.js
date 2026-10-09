@@ -302,8 +302,9 @@ function makeTubeMaterial(uniforms) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
         }
+        d /= len;  // erst normieren: gekürzt wäre d sonst 1/cut lang und das Band ragte weit über
+                   // beide Enden hinaus (Striche durch die Düse beim Abspielen)
         if (cut < 1.0) { e.xyz = mix(s.xyz, e.xyz, cut); len *= cut; }
-        d /= len;
         // Band quer zur Blickrichtung aufspannen, Enden um die halbe Breite verlängern
         vec2 corner = position.xy;
         vec3 mid = mix(s.xyz, e.xyz, corner.x);
@@ -790,22 +791,6 @@ function start(data) {
   let playDist = null; // null: Schicht vollständig
   let playing = false;
   let playObject = null;
-  // Wahlweise immer Röhren beim Abspielen: schöner, auf langsamen Geräten aber ruckelig
-  const playQualityBox = document.getElementById("play-quality");
-  let playQuality = store.get("plateshelf-play-quality", "0") === "1";
-  if (playQualityBox) {
-    playQualityBox.checked = playQuality;
-    playQualityBox.addEventListener("change", () => {
-      playQuality = playQualityBox.checked;
-      store.set("plateshelf-play-quality", playQuality ? "1" : "0");
-      if (playing) {
-        const l = Number(slider.value);
-        playObject = playQuality ? tubes : motionObject(single.checked ? shareOf(l, l) : shareOf(0, nLayers - 1));
-        show(playObject);
-        render();
-      }
-    });
-  }
   let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("plateshelf-play-speed", 10))));
   const setCut = (dist) => {
     const l = Number(slider.value);
@@ -841,7 +826,7 @@ function start(data) {
       // Darstellung für die ganze Wiedergabe festlegen, nach dem größten Bereich, der sichtbar wird:
       // sonst wechselt sie beim Schichtwechsel zwischen Röhren und Linien hin und her
       const l = Number(slider.value);
-      playObject = playQuality ? tubes : motionObject(single.checked ? shareOf(l, l) : shareOf(0, nLayers - 1));
+      playObject = motionObject(single.checked ? shareOf(l, l) : shareOf(0, nLayers - 1));
       show(playObject);
       if (playDist === null) {
         // Vom Ende aus neu starten: bei der untersten sichtbaren Schicht beginnen

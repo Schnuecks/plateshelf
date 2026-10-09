@@ -276,11 +276,6 @@ def test_viewer_loads_and_all_controls_work(server, page):
     page.locator("#view-top").click()
     page.locator("#ao-toggle").uncheck()
     page.locator("#ao-toggle").check()
-    page.locator("#play-quality").check()                      # Abspielen in voller Qualität
-    page.locator("#play").click()
-    page.wait_for_timeout(300)
-    page.locator("#play").click()
-    page.locator("#play-quality").uncheck()
     page.locator("#view-reset").click()
     with page.expect_download() as download:
         page.locator("#view-png").click()
@@ -288,6 +283,37 @@ def test_viewer_loads_and_all_controls_work(server, page):
 
     page.wait_for_timeout(500)  # verzögerte Fehler (z. B. im Zeichenaufruf) mitnehmen
     assert page.errors == []
+
+
+def test_viewer_playback_draws_nothing_outside_the_print(server, page):
+    """Beim Abspielen endet das gerade gedruckte Bahnstück an der Düse: früher ragte es bei kleinem
+    Fortschritt als langer Strich über die Bahn hinaus, auch weit neben das Modell."""
+    import io
+
+    from PIL import Image
+
+    page.set_viewport_size({"width": 1000, "height": 800})
+    page.goto(f"{server['url']}/view/{server['fid']}/1")
+    page.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
+    page.locator("#view-top").click()
+    page.locator("#layer-single").check()
+    page.locator("#layer-max").fill("5")
+    page.locator("#layer-max").dispatch_event("input")
+    canvas = page.locator("#viewer-canvas")
+
+    def orange_columns(value):
+        page.locator("#layer-progress").fill(str(value))
+        page.locator("#layer-progress").dispatch_event("input")
+        page.wait_for_timeout(60)
+        img = Image.open(io.BytesIO(canvas.screenshot())).convert("RGB").resize((200, 160))
+        px = img.load()
+        return {x for x in range(200) for y in range(160) if px[x, y][0] > 170 and px[x, y][2] < 110}
+
+    full = orange_columns(1000)
+    lo, hi = min(full), max(full)
+    for value in range(760, 1000, 6):  # Infill-Bahnen am Ende der Schicht, kurz nach ihrem Anfang
+        cols = orange_columns(value)
+        assert not cols or (min(cols) >= lo - 3 and max(cols) <= hi + 3), value
 
 
 def test_viewer_for_plain_gcode(server, page):

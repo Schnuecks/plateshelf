@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **No more stray lines during playback:** the path segment being printed right now could be
+  drawn as a long line through the nozzle, far beyond the model, whenever the nozzle had just
+  started a new segment. It now ends exactly at the nozzle. This was the actual cause of the
+  lines, so the “Full quality playback” option from 0.11.0 is gone again.
+
 ## 0.11.0
 
 - **Better own thumbnails:** top surfaces are solid again (lower layers no longer show through
