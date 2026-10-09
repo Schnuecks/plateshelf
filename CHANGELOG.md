@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Own thumbnails without wipe tower and supports:** like the slicer images, PlateShelf’s own
+  thumbnails now leave out the prime tower, skirt and supports, and centre the model itself.
+  Existing thumbnails are redrawn once in the background.
+- **Smoother nozzle in the 3D preview:** during playback the nozzle no longer jumps from the end
+  of one path to the start of the next; it travels there like a printer, then printing continues.
+
 ## 0.10.2
 
 - **Overview also updates for prints and thumbnails:** it now reloads by itself when a print
