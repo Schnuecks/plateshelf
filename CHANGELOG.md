@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Better own thumbnails:** top surfaces are solid again (lower layers no longer show through
+  as a grid pattern, e.g. on PrusaSlicer files), and the image is framed on the model itself, so
+  flat or star-shaped models fill the picture. Existing thumbnails are redrawn once.
+- **“Full quality playback”:** a new option in the 3D preview always shows tubes during playback,
+  even on devices where PlateShelf would otherwise switch to thin lines to keep it smooth.
+
 ## 0.10.4
 
 - **No more switching between tubes and lines during playback:** the 3D preview picks one display

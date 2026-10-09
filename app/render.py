@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 log = logging.getLogger(__name__)
 
-VERSION = 2  # neue Nummer = alte Bilder werden neu gezeichnet
+VERSION = 3  # neue Nummer = alte Bilder werden neu gezeichnet
 SIZE = 512          # wie die Bilder von Bambu Studio
 SUPERSAMPLE = 2     # doppelt so groß zeichnen und verkleinern: glatte Kanten
 MARGIN = 0.07
@@ -137,25 +137,26 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     n_polys = len(polys) // 5
     shown = [i for i in range(n_polys) if polys[i * 5 + 4] not in hidden] or list(range(n_polys))
 
-    # Bildausschnitt aus den gezeichneten Bahnen (ohne Reinigungsturm), alle acht Ecken projiziert
-    lo_x = lo_y = 65535
-    hi_x = hi_y = 0
-    maxz = 0.0
+    # Bildausschnitt aus den gezeichneten Bahnen selbst (ohne Reinigungsturm): jeden Punkt projizieren,
+    # bei großen Drucken nur jeden n-ten. Eine Box um das Modell wäre bei Sternen oder runden
+    # Teilen in der Schrägansicht viel zu groß, das Modell wirkte dann klein.
+    total_pts = sum(polys[i * 5 + 1] for i in shown)
+    stride = max(1, total_pts // 200_000)
+    xs, ys = [], []
     for i in shown:
         start, count, layer = polys[i * 5], polys[i * 5 + 1], polys[i * 5 + 2]
-        px_, py_ = pts[2 * start:2 * (start + count):2], pts[2 * start + 1:2 * (start + count):2]
-        lo_x, hi_x = min(lo_x, min(px_)), max(hi_x, max(px_))
-        lo_y, hi_y = min(lo_y, min(py_)), max(hi_y, max(py_))
-        maxz = max(maxz, layers[layer] if layer < len(layers) else layers[-1])
-    minx, maxx, miny, maxy = lo_x / scale - off, hi_x / scale - off, lo_y / scale - off, hi_y / scale - off
-    corners = [(x, y, z) for x in (minx, maxx) for y in (miny, maxy) for z in (0.0, maxz)]
-    xs = [view.sx(x, y) for x, y, _z in corners]
-    ys = [view.sy(x, y, z) for x, y, z in corners]
+        z = layers[layer] if layer < len(layers) else layers[-1]
+        for j in (*range(start, start + count, stride), start + count - 1):
+            x, y = pts[2 * j] / scale - off, pts[2 * j + 1] / scale - off
+            xs.append(view.sx(x, y))
+            ys.append(view.sy(x, y, z))
     span = max(max(xs) - min(xs), max(ys) - min(ys), 5.0)
     px = SIZE * SUPERSAMPLE
     k = px * (1 - 2 * MARGIN) / span
     ox = px / 2 - (min(xs) + max(xs)) / 2 * k
     oy = px / 2 - (min(ys) + max(ys)) / 2 * k
+    minx, maxx = min(pts[0::2]) / scale - off, max(pts[0::2]) / scale - off  # nur für die Ersatzplatte
+    miny, maxy = min(pts[1::2]) / scale - off, max(pts[1::2]) / scale - off
 
     def to_px(x, y, z=0.0):
         return view.sx(x, y) * k + ox, view.sy(x, y, z) * k + oy
@@ -169,7 +170,8 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     # ohne Lücke zu einer Fläche werden
     heights = [b - a for a, b in zip(layers, layers[1:], strict=False) if b > a]
     layer_h = sorted(heights)[len(heights) // 2] if heights else 0.2
-    width = max(1, round(max(nozzle * 1.1, layer_h * view.ce * 1.25) * k))
+    # Etwas breiter als die Düse: sonst bleiben auf glatten Oberflächen Lücken zwischen den Bahnen
+    width = max(1, round(max(nozzle * 1.3, layer_h * view.ce * 1.25) * k))
 
     total = sum(polys[i * 5 + 1] - 1 for i in shown)
     step = max(1, math.ceil(total / MAX_SEGMENTS))
@@ -206,7 +208,10 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
                     bx, by = x0 + dx * (m + 1) / parts, y0 + dy * (m + 1) / parts
                     seg_xy.extend((sx(ax, ay) * k + ox, sy(ax, ay, z) * k + oy,
                                    sx(bx, by) * k + ox, sy(bx, by, z) * k + oy))
-                    depth.append(dp((ax + bx) / 2, (ay + by) / 2, z))
+                    # Erst nach Höhe, dann nach Abstand: von schräg oben verdeckt nur, was höher liegt.
+                    # Nur nach Abstand sortiert, malten breite Striche der Schicht darunter über die
+                    # Oberfläche und ließen ein Gittermuster durchscheinen.
+                    depth.append(z * 10_000 + dp((ax + bx) / 2, (ay + by) / 2, z))
                     color.append(c)
             x0, y0 = x1, y1
     line = draw.line
