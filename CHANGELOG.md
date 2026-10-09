@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.11.0
 
 - **Better own thumbnails:** top surfaces are solid again (lower layers no longer show through
   as a grid pattern, e.g. on PrusaSlicer files), and the image is framed on the model itself, so
