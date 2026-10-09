@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.11.2
 
 - **Live progress on the project tiles:** the “Printing … %” badge in the overview now follows
   the running print every 15 seconds instead of staying at the value from when the page was
