@@ -584,3 +584,20 @@ def test_running_print_does_not_take_the_previous_file(ready, sample):
         con.execute("UPDATE print_jobs SET local_path = ?", (old,))
     ph.link_pending()
     assert jobs()[0]["local_path"] == new
+
+
+def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
+    """Die Übersicht lädt neu, wenn ein Druck beginnt oder endet, nicht bei jedem Prozent."""
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    imported(ready, BAMBU, "Live.gcode.3mf", "From printer/P2S/Live.gcode.3mf")
+    before = store.library_version()
+    ph.record(BAMBU, "v1", "running", remote_name="Live.gcode.3mf", progress=5)
+    started = store.library_version()
+    assert started != before
+    ph.record(BAMBU, "v1", "running", remote_name="Live.gcode.3mf", progress=60, remaining_s=600)
+    assert store.library_version() == started
+    ph.record(BAMBU, "v1", "completed", remote_name="Live.gcode.3mf", progress=100)
+    done = store.library_version()
+    assert done != started
+    store.save_settings({"vorschaubilder_stand": "1.1"})  # neues eigenes Vorschaubild gezeichnet
+    assert store.library_version() != done

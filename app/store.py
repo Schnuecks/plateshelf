@@ -202,13 +202,19 @@ def db_signature() -> tuple:
 
 
 def library_version() -> str:
-    """Stand der Bibliothek für die Übersicht: ändert sich bei neuen, geänderten oder entfernten
-    Dateien und bei Projekten, nicht aber bei Sitzungen oder dem Fortschritt laufender Drucke."""
+    """Stand der Übersicht: ändert sich bei neuen, geänderten oder entfernten Dateien, bei Projekten,
+    wenn ein Druck beginnt, endet oder zugeordnet wird, und wenn neue Vorschaubilder gezeichnet sind –
+    nicht aber bei Sitzungen oder dem Fortschritt laufender Drucke."""
     with connect() as con:
         f = con.execute("SELECT COUNT(*), COALESCE(MAX(id), 0), COALESCE(MAX(mtime), 0), COALESCE(SUM(size), 0) "
                         "FROM files WHERE missing = 0").fetchone()
         p = con.execute("SELECT COUNT(*), COALESCE(MAX(updated), 0) FROM projects").fetchone()
-    return f"{f[0]}-{f[1]}-{f[2]:.0f}-{f[3]}-{p[0]}-{p[1]:.0f}"
+        j = con.execute("SELECT COUNT(*), COALESCE(SUM(status = 'running'), 0), COALESCE(SUM(status = 'completed'), 0), "
+                        "COUNT(local_path), COALESCE(MAX(ended), 0) FROM print_jobs WHERE hidden = 0").fetchone()
+        t = con.execute("SELECT GROUP_CONCAT(value, '/') FROM settings "
+                        "WHERE key IN ('vorschaubilder', 'vorschaubilder_stand')").fetchone()
+    return (f"{f[0]}-{f[1]}-{f[2]:.0f}-{f[3]}-{p[0]}-{p[1]:.0f}"
+            f"-{j[0]}.{j[1]}.{j[2]}.{j[3]}.{j[4]:.0f}-{t[0] or ''}")
 
 
 def connect() -> sqlite3.Connection:

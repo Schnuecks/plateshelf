@@ -442,9 +442,16 @@ class PrusaLinkSource:
         self.downloads: dict[str, str] = {}
 
     def _get(self, path: str):
-        request = urllib.request.Request(urllib.parse.urljoin(self.base + "/", path.lstrip("/")),
-                                         headers={"X-Api-Key": self.secret, "Accept": "application/json"})
-        return self.opener.open(request, timeout=TIMEOUT)
+        url = urllib.parse.urljoin(self.base + "/", path.lstrip("/"))
+        request = urllib.request.Request(url, headers={"X-Api-Key": self.secret, "Accept": "application/json"})
+        try:
+            return self.opener.open(request, timeout=TIMEOUT)
+        except ValueError as exc:
+            # Firmware im API-Schlüssel-Modus lehnt mit „WWW-Authenticate: ApiKey“ ab; urllib kennt
+            # das Verfahren nicht und wirft ValueError statt 401
+            if "scheme" in str(exc):
+                raise urllib.error.HTTPError(url, 401, "Unauthorized", None, None) from exc
+            raise
 
     def _json(self, path: str) -> dict:
         with self._get(path) as resp:
@@ -477,8 +484,13 @@ class PrusaLinkSource:
 
     def fetch(self, name: str, fh) -> None:
         with self._get(self.downloads[name]) as resp:
+            expected = int(resp.headers.get("Content-Length") or 0)
+            got = 0
             while block := resp.read(256 * 1024):
                 fh.write(block)
+                got += len(block)
+        if expected and got != expected:
+            raise OSError(f"unvollständig ({got} von {expected} Byte)")
 
     def close(self) -> None:
         pass
@@ -561,7 +573,8 @@ def sync_printer(printer: dict, connect=None) -> dict:
             try:
                 with open(tmp, "wb") as fh:
                     source.fetch(f["name"], fh)
-                if tmp.stat().st_size != f["size"]:
+                # Manche Drucker (Prusa MINI) nennen in der Liste keine Größe: dann prüft die Quelle selbst
+                if f["size"] and tmp.stat().st_size != f["size"]:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")
                 final = target_dir / _plate_file_name(f["name"], tmp)
                 os.replace(tmp, final)

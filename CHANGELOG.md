@@ -2,6 +2,16 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Overview also updates for prints and thumbnails:** it now reloads by itself when a print
+  starts, finishes or gets assigned to a project, and when PlateShelf has drawn new thumbnails –
+  not just when files change. The progress of a running print still doesn’t cause reloads.
+- **Direct import from the Prusa MINI works:** the MINI lists its files without a size, so every
+  download was rejected as “incomplete”. PlateShelf now checks the length of the download itself.
+  A printer in API-key mode that rejects the credentials now shows “check password” instead of a
+  technical error.
+
 ## 0.10.1
 
 - **Dashboard: placeholder when idle:** `/api/printing?idle_placeholder=1` returns an entry
