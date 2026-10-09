@@ -276,6 +276,11 @@ def test_viewer_loads_and_all_controls_work(server, page):
     page.locator("#view-top").click()
     page.locator("#ao-toggle").uncheck()
     page.locator("#ao-toggle").check()
+    page.locator("#play-quality").check()                      # Abspielen in voller Qualität
+    page.locator("#play").click()
+    page.wait_for_timeout(300)
+    page.locator("#play").click()
+    page.locator("#play-quality").uncheck()
     page.locator("#view-reset").click()
     with page.expect_download() as download:
         page.locator("#view-png").click()
