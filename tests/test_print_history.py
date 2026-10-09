@@ -170,6 +170,22 @@ def test_prusalink_job(ready, prusalink):
     assert job["status"] == "completed" and job["duration_s"] == 1800
 
 
+def test_prusalink_closes_a_print_whose_end_was_missed(ready, prusalink):
+    """Drucker aus, bevor das Ende gemeldet wurde: der alte Druck bleibt nicht ewig „läuft“."""
+    printer = {"name": "MINI", "id": "prusalink:m", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
+    prusalink["state"]["job"] = {"id": 2, "state": "PRINTING", "progress": 90.0, "time_printing": 500,
+                                 "time_remaining": 0, "file": {"display_name": "Zylinder.bgcode"}}
+    ph.poll_prusalink(printer)
+    prusalink["state"]["job"] = {"id": 3, "state": "PRINTING", "progress": 5.0, "time_printing": 60,
+                                 "file": {"display_name": "Seestern.bgcode"}}
+    ph.poll_prusalink(printer)  # neuer Druck: der vorige war fast fertig
+    by_key = {j["job_key"]: j for j in jobs()}
+    assert by_key["2"]["status"] == "completed" and by_key["3"]["status"] == "running"
+    prusalink["state"]["job"] = None
+    ph.poll_prusalink(printer)  # kein Druck mehr, bei 5 % verschwunden: abgebrochen
+    assert {j["job_key"]: j["status"] for j in jobs()}["3"] == "cancelled"
+
+
 def test_pages_and_stats(ready, monkeypatch):
     imported(ready, BAMBU, "F.gcode.3mf", "From printer/P2S/F.gcode.3mf")
     ph.record(BAMBU, "a", "completed", remote_name="F.gcode.3mf", started=time.time() - 3600, ended=time.time())
@@ -321,10 +337,11 @@ def test_printing_now_and_pages(ready, monkeypatch):
         items = client.get("/api/printing").json()["items"]
         assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "short": "P2S: Live · 32 min",
                           "url": f"/p/{job['project_id']}#history", "progress": 45, "printer": "P2S",
-                          "name": "Live", "remaining_min": 32, "remaining": "32 min"}]
+                          "name": "Live", "remaining_min": 32, "remaining": "32 min",
+                          "project": job["project_id"]}]
         assert client.get("/api/printing?idle_placeholder=1").json()["items"] == items  # nur im Leerlauf
         page = client.get("/").text
-        assert "P2S: Live · 45 % · noch 32 min" in page and 'class="bed-live">Druckt 45 %' in page
+        assert "P2S: Live · 45 % · noch 32 min" in page and 'data-label="Druckt">Druckt 45 %' in page
         stats = client.get("/api/stats").json()
         assert (stats["printing_name"], stats["printing_printer"], stats["printing_progress"],
                 stats["printing_remaining_min"]) == ("Live", "P2S", 45, 32)

@@ -257,6 +257,7 @@ def live_prints() -> list[dict]:
     return [{"text": live_text(j), "short": live_text(j, short=True),
              "url": f"/p/{j['project_id']}#history" if j.get("project_id") else "/history",
              "progress": j.get("progress"), "printer": j["printer_name"], "name": live_name(j) or None,
+             "project": j.get("project_id"),
              "remaining_min": round(j["remaining_s"] / 60) if j.get("remaining_s") else None,
              "remaining": fmt_duration(j["remaining_s"]) if j.get("remaining_s") else ""}
             for j in print_history.printing_now()]

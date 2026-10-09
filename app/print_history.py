@@ -349,17 +349,30 @@ PRUSALINK_STATUS = {"PRINTING": "running", "PAUSED": "running", "FINISHED": "com
                     "STOPPED": "cancelled", "ERROR": "failed"}
 
 
+def _close_lost_prusalink_job(printer: dict, current_key: str | None) -> None:
+    """Druck abschließen, dessen Ende PrusaLink nicht mehr gemeldet hat (Drucker vorher aus,
+    neuer Druck gestartet). Fast fertig gilt als fertig, sonst als abgebrochen."""
+    row = running_job(printer["id"])
+    if not row or row["job_key"] == current_key:
+        return
+    done = (row["progress"] or 0) >= 99 or (row["remaining_s"] == 0 and (row["progress"] or 0) >= 80)
+    record(printer, row["job_key"], "completed" if done else "cancelled",
+           ended=row["updated"] or time.time(), progress=row["progress"])
+
+
 def poll_prusalink(printer: dict, source=None) -> None:
     """Aktuellen Druck abfragen; ohne Druck antwortet PrusaLink mit 204 und leerem Inhalt."""
     source = source or printer_import.PrusaLinkSource(printer)
     with source._get("/api/v1/job") as resp:
         body = resp.read()
     if not body.strip():
+        _close_lost_prusalink_job(printer, None)
         return
     job = json.loads(body)
     status = PRUSALINK_STATUS.get(str(job.get("state") or "").upper())
     if not status or job.get("id") is None:
         return
+    _close_lost_prusalink_job(printer, str(job["id"]))
     file = job.get("file") or {}
     name = file.get("display_name") or file.get("name")
     printing = job.get("time_printing")
