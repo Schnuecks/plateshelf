@@ -350,14 +350,15 @@ PRUSALINK_STATUS = {"PRINTING": "running", "PAUSED": "running", "FINISHED": "com
 
 
 def _close_lost_prusalink_job(printer: dict, current_key: str | None) -> None:
-    """Druck abschließen, dessen Ende PrusaLink nicht mehr gemeldet hat (Drucker vorher aus,
+    """Drucke abschließen, deren Ende PrusaLink nicht mehr gemeldet hat (Drucker vorher aus,
     neuer Druck gestartet). Fast fertig gilt als fertig, sonst als abgebrochen."""
-    row = running_job(printer["id"])
-    if not row or row["job_key"] == current_key:
-        return
-    done = (row["progress"] or 0) >= 99 or (row["remaining_s"] == 0 and (row["progress"] or 0) >= 80)
-    record(printer, row["job_key"], "completed" if done else "cancelled",
-           ended=row["updated"] or time.time(), progress=row["progress"])
+    with store.connect() as con:
+        rows = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' AND job_key != ?",
+                           (printer["id"], current_key or "")).fetchall()
+    for row in rows:  # alle älteren, nicht nur den jüngsten: der jüngste ist meist der laufende
+        done = (row["progress"] or 0) >= 99 or (row["remaining_s"] == 0 and (row["progress"] or 0) >= 80)
+        record(printer, row["job_key"], "completed" if done else "cancelled",
+               ended=row["updated"] or time.time(), progress=row["progress"])
 
 
 def poll_prusalink(printer: dict, source=None) -> None:

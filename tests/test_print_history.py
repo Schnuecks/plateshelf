@@ -178,7 +178,9 @@ def test_prusalink_closes_a_print_whose_end_was_missed(ready, prusalink):
     ph.poll_prusalink(printer)
     prusalink["state"]["job"] = {"id": 3, "state": "PRINTING", "progress": 5.0, "time_printing": 60,
                                  "file": {"display_name": "Seestern.bgcode"}}
+    ph.record(printer, "3", "running", remote_name="Seestern.bgcode", progress=4.0)  # vor dem Update erfasst
     ph.poll_prusalink(printer)  # neuer Druck: der vorige war fast fertig
+    ph.poll_prusalink(printer)  # auch, wenn der neue schon vorher erfasst war (Update mitten im Druck)
     by_key = {j["job_key"]: j for j in jobs()}
     assert by_key["2"]["status"] == "completed" and by_key["3"]["status"] == "running"
     prusalink["state"]["job"] = None
