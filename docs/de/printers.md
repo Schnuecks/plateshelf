@@ -18,11 +18,13 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
   aus dem G-Code-Ordner des Druckers.
 
 **Einrichten in der Oberfläche:** Trage deine Drucker unter „Einstellungen“ →
-„Drucker für den Direktimport“ ein und wähle den Typ:
+„Drucker für den Direktimport“ ein und wähle den Typ. Statt der IP-Adresse geht auch ein
+Hostname wie `drucker.local` oder `mini.fritz.box`, sofern PlateShelf ihn auflösen kann
+(im Docker-Container nicht immer bei `.local`-Namen).
 
-- *Bambu Lab:* Name, IP-Adresse, Seriennummer und Zugangscode. Die Angaben findest du
+- *Bambu Lab:* Name, IP-Adresse oder Hostname, Seriennummer und Zugangscode. Die Angaben findest du
   am Drucker in den Netzwerkeinstellungen.
-- *Prusa (PrusaLink):* Name, IP-Adresse und das PrusaLink-Passwort. Du findest es am
+- *Prusa (PrusaLink):* Name, IP-Adresse oder Hostname und das PrusaLink-Passwort. Du findest es am
   Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist `maker`.
   Ältere Firmware nutzt stattdessen einen API-Schlüssel: Trag ihn als Passwort ein.
 - *Klipper (Moonraker):* Name und Adresse des Druckers. Ohne Portangabe nutzt

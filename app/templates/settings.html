@@ -13,7 +13,8 @@
           <span class="printer-main">
             <strong class="printer-name">{{ pr.name or _('Drucker') }}</strong>
             <span class="printer-kind">{{ KIND_LABELS.get(pr.kind or 'bambu', 'Bambu Lab') }}</span>
-            <span class="printer-addr">{{ pr.url or pr.ip }}</span>
+            {% set web = pr.url.replace(':7125', '') if pr.kind == 'moonraker' and pr.url else pr.url %}
+            {% if web %}<a class="printer-addr" href="{{ web }}" target="_blank" rel="noopener" title="{{ _('Weboberfläche des Druckers öffnen') }}">{{ pr.address or pr.ip }}</a>{% else %}<span class="printer-addr">{{ pr.address or pr.ip }}</span>{% endif %}
           </span>
           {% if pr.status %}<span class="printer-status {{ 'is-error' if pr.status.error else 'is-ok' }}">{{ status_text(pr.status) }}</span>{% endif %}
 {% endmacro %}
@@ -26,7 +27,7 @@
               <option value="prusalink" {{ 'selected' if pr.kind == 'prusalink' }}>Prusa (PrusaLink)</option>
             </select></label>
           <label>{{ _('Name') }} <input type="text" name="name" value="{{ pr.name or '' }}" placeholder="{{ _('z. B. P1S Werkstatt') }}"></label>
-          <label>{{ _('IP-Adresse') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" placeholder="192.168.1.20"></label>
+          <label>{{ _('IP-Adresse oder Hostname') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" autocapitalize="none" spellcheck="false" placeholder="192.168.1.20 / drucker.local"></label>
           <label data-kind-only="bambu">{{ _('Seriennummer') }} <input type="text" name="serial" value="{{ pr.serial or '' }}" autocomplete="off" spellcheck="false"></label>
           <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span>
             <input type="password" name="code" value="" autocomplete="new-password"

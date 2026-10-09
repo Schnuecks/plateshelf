@@ -211,6 +211,15 @@ def test_import_folder(lib, monkeypatch):
 
 # --- Klipper (Moonraker) -------------------------------------------------------
 
+def test_printer_address_for_display():
+    assert pi.printer_address("prusalink", "192.0.2.22") == "192.0.2.22"
+    assert pi.printer_address("prusalink", "http://mini.fritz.box") == "mini.fritz.box"
+    assert pi.printer_address("prusalink", "mini.local:8080") == "mini.local:8080"
+    assert pi.printer_address("moonraker", "192.0.2.21") == "192.0.2.21"
+    assert pi.printer_address("moonraker", "k1.local:4408") == "k1.local:4408"
+    assert pi.printer_address("bambu", "p2s.fritz.box") == "p2s.fritz.box"
+
+
 def test_moonraker_url():
     assert pi.moonraker_url("192.0.2.21") == "http://192.0.2.21:7125"
     assert pi.moonraker_url("k1.local:4408/") == "http://k1.local:4408"
