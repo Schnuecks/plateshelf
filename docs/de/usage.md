@@ -128,9 +128,6 @@ Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
 - Die Tiefenschattierung dunkelt Rillen zwischen Bahnen und Schichten ab und lässt das
   Modell plastischer wirken. Sie ist nur im Stillstand aktiv, schaltet sich auf
   langsamen Geräten automatisch ab und lässt sich auch von Hand abschalten.
-- Beim Abspielen wählt die Vorschau eine Darstellung, die auf dem Gerät flüssig läuft; bei
-  großen Modellen sind das dünne Linien statt Röhren. „Abspielen in voller Qualität“ zeigt
-  immer Röhren, auch wenn es dann ruckelt.
 
 **Leistung:** Der G-Code wird nach dem Einlesen einmalig im Hintergrund aufbereitet und
 im Datenordner zwischengespeichert. Bei sehr großen Drucken (100 MB G-Code) dauert das

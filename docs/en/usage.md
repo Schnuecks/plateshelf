@@ -121,9 +121,6 @@ for Bambu Studio, OrcaSlicer, PrusaSlicer and Cura.
 - Ambient occlusion darkens the grooves between lines and layers and makes the model look
   more three-dimensional. It is only active while the view is still, switches off
   automatically on slow devices and can be turned off by hand.
-- During playback the preview picks a display that runs smoothly on the device; for large
-  models that means thin lines instead of tubes. “Full quality playback” always shows tubes,
-  even if it stutters.
 
 **Performance:** After a file is read, its G-code is processed once in the background
 and cached in the data folder. For very large prints (100 MB of G-code) this takes about

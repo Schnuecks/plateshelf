@@ -276,11 +276,6 @@ def test_viewer_loads_and_all_controls_work(server, page):
     page.locator("#view-top").click()
     page.locator("#ao-toggle").uncheck()
     page.locator("#ao-toggle").check()
-    page.locator("#play-quality").check()                      # Abspielen in voller Qualität
-    page.locator("#play").click()
-    page.wait_for_timeout(300)
-    page.locator("#play").click()
-    page.locator("#play-quality").uncheck()
     page.locator("#view-reset").click()
     with page.expect_download() as download:
         page.locator("#view-png").click()
@@ -300,7 +295,6 @@ def test_viewer_playback_draws_nothing_outside_the_print(server, page):
     page.set_viewport_size({"width": 1000, "height": 800})
     page.goto(f"{server['url']}/view/{server['fid']}/1")
     page.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
-    page.locator("#play-quality").check()
     page.locator("#view-top").click()
     page.locator("#layer-single").check()
     page.locator("#layer-max").fill("5")
