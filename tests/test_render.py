@@ -10,11 +10,11 @@ from test_gcode_preview import GCODE
 RED, GREEN = "#FF2020", "#20E020"
 
 
-def _preview(tmp_path):
-    src = tmp_path / "t.gcode.3mf"
+def _preview(tmp_path, gcode=GCODE, name="1_1"):
+    src = tmp_path / f"{name}.gcode.3mf"
     with zipfile.ZipFile(src, "w") as z:
-        z.writestr("Metadata/plate_1.gcode", GCODE)
-    base = tmp_path / "preview" / "1_1"
+        z.writestr("Metadata/plate_1.gcode", gcode)
+    base = tmp_path / "preview" / name
     convert(src, 1, base)
     return base
 
@@ -35,13 +35,22 @@ def test_render_draws_toolpaths_in_filament_colors(tmp_path):
     with Image.open(out) as img:
         assert img.size == (render.SIZE, render.SIZE) and img.mode == "RGBA"
     colors = _colors(out)
-    assert _has(colors, lambda r, g, b, a: a == 255 and r > 150 and g < 90)      # Werkzeug 0: rot
     assert _has(colors, lambda r, g, b, a: a == 255 and g > 150 and r < 90)      # Werkzeug 1: grün
+    assert not _has(colors, lambda r, g, b, a: a == 255 and r > 150 and g < 90)  # Stützen (Werkzeug 0) fehlen
     assert (*render.PLATE, 255) in colors                                       # Druckplatte
     render.render(base, out, {0: RED, 1: GREEN}, None, top=True, plate=False)
     with Image.open(out) as img:
         assert img.convert("RGBA").getpixel((0, 0))[3] == 0                     # ohne Platte: durchsichtig
     assert (*render.PLATE, 255) not in _colors(out)
+
+
+def test_render_leaves_out_the_wipe_tower(tmp_path):
+    """Wie die Slicer-Bilder: kein Reinigungsturm, und das Modell bleibt mittig im Bild."""
+    tower = GCODE + "; FEATURE: Prime tower\nG1 X200 Y200\nG1 X215 Y200 E1\nG1 X215 Y215 E1\n"
+    plain, with_tower = tmp_path / "a.png", tmp_path / "b.png"
+    render.render(_preview(tmp_path), plain, {0: RED, 1: GREEN}, None, plate=False)
+    render.render(_preview(tmp_path, tower, "2_1"), with_tower, {0: RED, 1: GREEN}, None, plate=False)
+    assert plain.read_bytes() == with_tower.read_bytes()
 
 
 def test_own_thumbnails_replace_the_slicer_image(lib, sample, monkeypatch):

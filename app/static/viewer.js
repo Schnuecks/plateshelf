@@ -771,6 +771,17 @@ function start(data) {
   nozzle.rotation.x = -Math.PI / 2;
   nozzle.visible = false;
   scene.add(nozzle);
+  // Leerfahrten zählen nicht zur Bahnlänge: ohne Ausgleich springt die Düse beim Abspielen von
+  // einem Bahnende zum nächsten Anfang. Sie fährt deshalb wie ein Drucker dorthin, schneller als
+  // beim Drucken (3×); auf der Bahn selbst und beim Schieben am Regler sitzt sie genau am Ende.
+  const nozzleTarget = new THREE.Vector3();
+  const TRAVEL_FACTOR = 3;
+  const moveNozzle = (dt) => {
+    const gap = nozzle.position.distanceTo(nozzleTarget);
+    const step = PLAY_MM_S * PLAY_SPEEDS[speedIdx] * TRAVEL_FACTOR * dt;
+    if (!dt || gap <= step) nozzle.position.copy(nozzleTarget);
+    else nozzle.position.lerp(nozzleTarget, step / gap);
+  };
 
   const progress = document.getElementById("layer-progress");
   const playBtn = document.getElementById("play");
@@ -792,11 +803,12 @@ function start(data) {
     const c = cutFor(l, playDist);
     uniforms.cutPoint.value = c;
     const i = Math.floor(c), f = c - i, j = Math.min(i + 1, nPts - 1);
-    nozzle.position.set(
+    nozzleTarget.set(
       pos[i * 3] + (pos[j * 3] - pos[i * 3]) * f,
       pos[i * 3 + 1] + (pos[j * 3 + 1] - pos[i * 3 + 1]) * f,
       pos[i * 3 + 2] + hw * 5,
     );
+    if (!playing || !nozzle.visible) moveNozzle(0);  // Regler oder Start: direkt an die Stelle
     nozzle.visible = true;
     if (progress) progress.value = b > a ? Math.round(((playDist - a) / (b - a)) * Number(progress.max)) : progress.max;
   };
@@ -824,6 +836,12 @@ function start(data) {
     if (!playing) return;
     const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
     lastTick = now;
+    if (nozzle.visible && nozzle.position.distanceToSquared(nozzleTarget) > 1e-6) {
+      moveNozzle(dt);  // Leerfahrt: erst ankommen, dann weiterdrucken
+      render();
+      requestAnimationFrame(tick);
+      return;
+    }
     let dist = (playDist ?? layerLen(Number(slider.value))[0]) + PLAY_MM_S * PLAY_SPEEDS[speedIdx] * dt;
     let l = Number(slider.value);
     const from = l;
@@ -838,6 +856,7 @@ function start(data) {
     // Bei hoher Geschwindigkeit mehrere Schichten pro Bild: nur einmal neu aufbauen
     if (l !== from) { slider.value = l; applyLayers(true); }
     setCut(dist);
+    moveNozzle(dt);
     render();
     requestAnimationFrame(tick);
   };

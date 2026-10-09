@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 log = logging.getLogger(__name__)
 
-VERSION = 1
+VERSION = 2  # neue Nummer = alte Bilder werden neu gezeichnet
 SIZE = 512          # wie die Bilder von Bambu Studio
 SUPERSAMPLE = 2     # doppelt so groß zeichnen und verkleinern: glatte Kanten
 MARGIN = 0.07
@@ -31,6 +31,8 @@ GRID = (74, 79, 86)
 GRID_STRONG = (92, 98, 106)
 EDGE = (110, 117, 126)
 DEFAULT_COLOR = "#E0E0E0"
+# Wie die Bilder der Slicer: ohne Reinigungsturm, Skirt und Stützen, die gehören nicht zum Modell
+HIDDEN_FEATURES = {"Reinigungsturm", "Skirt", "Stützen", "Stützen-Kontakt", "Stützen-Übergang"}
 # Blickrichtung wie „Ansicht zurücksetzen“ in der 3D-Vorschau (Kamera vorn rechts, leicht von oben)
 _CAM = (1.1, -1.6, 1.1)
 
@@ -131,8 +133,21 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     palette = {t: _hex(colors.get(t, first if not meta.get("tools") else DEFAULT_COLOR))
                for t in range(32)}
 
-    # Bildausschnitt aus der Bounding-Box des Modells (alle acht Ecken projiziert)
-    minx, miny, maxx, maxy, maxz = meta["bbox"]
+    hidden = {i for i, name in enumerate(meta.get("features") or []) if name in HIDDEN_FEATURES}
+    n_polys = len(polys) // 5
+    shown = [i for i in range(n_polys) if polys[i * 5 + 4] not in hidden] or list(range(n_polys))
+
+    # Bildausschnitt aus den gezeichneten Bahnen (ohne Reinigungsturm), alle acht Ecken projiziert
+    lo_x = lo_y = 65535
+    hi_x = hi_y = 0
+    maxz = 0.0
+    for i in shown:
+        start, count, layer = polys[i * 5], polys[i * 5 + 1], polys[i * 5 + 2]
+        px_, py_ = pts[2 * start:2 * (start + count):2], pts[2 * start + 1:2 * (start + count):2]
+        lo_x, hi_x = min(lo_x, min(px_)), max(hi_x, max(px_))
+        lo_y, hi_y = min(lo_y, min(py_)), max(hi_y, max(py_))
+        maxz = max(maxz, layers[layer] if layer < len(layers) else layers[-1])
+    minx, maxx, miny, maxy = lo_x / scale - off, hi_x / scale - off, lo_y / scale - off, hi_y / scale - off
     corners = [(x, y, z) for x in (minx, maxx) for y in (miny, maxy) for z in (0.0, maxz)]
     xs = [view.sx(x, y) for x, y, _z in corners]
     ys = [view.sy(x, y, z) for x, y, z in corners]
@@ -156,8 +171,7 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     layer_h = sorted(heights)[len(heights) // 2] if heights else 0.2
     width = max(1, round(max(nozzle * 1.1, layer_h * view.ce * 1.25) * k))
 
-    n_polys = len(polys) // 5
-    total = sum(polys[i * 5 + 1] - 1 for i in range(n_polys))
+    total = sum(polys[i * 5 + 1] - 1 for i in shown)
     step = max(1, math.ceil(total / MAX_SEGMENTS))
     # Licht von vorn links oben, in der Ebene: Wände, die zum Licht zeigen, sind heller
     lx, ly = -0.45, -0.89
@@ -167,7 +181,7 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     shades: dict[tuple, int] = {}
     shade_list: list[tuple] = []
     sx, sy, dp = view.sx, view.sy, view.depth
-    for i in range(n_polys):
+    for i in shown:
         start, count, layer, tool, _feat = polys[i * 5:i * 5 + 5]
         z = layers[layer] if layer < len(layers) else layers[-1]
         rgb = palette.get(tool, palette[0])
