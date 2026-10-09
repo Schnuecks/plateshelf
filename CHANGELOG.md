@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Printer addresses shown alike:** the settings list now shows just the address for every
+  printer type – without `http://` and without the default port – and for Prusa and Klipper
+  it links to the printer’s web interface. The field is now called “IP address or hostname”:
+  names such as `mini.fritz.box` work for all printer types.
+
 ## 0.11.3
 
 - **Prusa: missed print ends are really closed:** 0.11.2 only looked at the newest running print

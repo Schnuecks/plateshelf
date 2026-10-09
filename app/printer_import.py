@@ -116,6 +116,18 @@ def printer_url(kind: str, ip: str) -> str:
     return moonraker_url(ip, MOONRAKER_PORT if kind == "moonraker" else None)
 
 
+def printer_address(kind: str, ip: str) -> str:
+    """Kurze Anzeige ohne http:// und ohne Standardport: „192.0.2.21“ oder „k1.local:8080“."""
+    if kind == "bambu":
+        return ip.strip()
+    parts = urllib.parse.urlsplit(printer_url(kind, ip))
+    default = MOONRAKER_PORT if kind == "moonraker" else (443 if parts.scheme == "https" else 80)
+    host = parts.hostname or ip.strip()
+    if ":" in host:  # IPv6
+        host = f"[{host}]"
+    return host if parts.port in (None, default) else f"{host}:{parts.port}"
+
+
 def printer_id(kind: str, ip: str, serial: str) -> str:
     """Eindeutige Kennung: Seriennummer bei Bambu, sonst Art und Adresse."""
     return serial if kind == "bambu" else f"{kind}:{printer_url(kind, ip)}"

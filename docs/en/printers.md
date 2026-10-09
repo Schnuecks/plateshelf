@@ -18,11 +18,13 @@ PlateShelf can fetch sliced prints from your printers itself:
   printer’s G-code folder.
 
 **Set up in the interface:** Add your printers under “Settings” → “Printers for direct
-import” and pick the type:
+import” and pick the type. Instead of the IP address you can also enter a hostname such as
+`printer.local` or `mini.fritz.box`, as long as PlateShelf can resolve it (inside the Docker
+container this does not always work for `.local` names).
 
-- *Bambu Lab:* name, IP address, serial number and access code. You find these in the
+- *Bambu Lab:* name, IP address or hostname, serial number and access code. You find these in the
   network settings on the printer.
-- *Prusa (PrusaLink):* name, IP address and the PrusaLink password. You find it on the
+- *Prusa (PrusaLink):* name, IP address or hostname and the PrusaLink password. You find it on the
   printer under Settings → Network → PrusaLink; the user name is `maker`. Older firmware
   that uses an API key instead: enter the key as password.
 - *Klipper (Moonraker):* name and address of the printer. Without a port, PlateShelf

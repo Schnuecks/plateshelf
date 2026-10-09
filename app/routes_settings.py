@@ -33,6 +33,7 @@ def _printer_rows() -> list[dict]:
         rows.append({"db_id": p.get("db_id"), "kind": p["kind"], "name": p["name"], "ip": p["ip"],
                      "serial": p["id"] if p["kind"] == "bambu" else "",
                      "url": printer_import.printer_url(p["kind"], p["ip"]) if p["kind"] != "bambu" else "",
+                     "address": printer_import.printer_address(p["kind"], p["ip"]),
                      "source": p["source"], "status": status})
     return rows
 
