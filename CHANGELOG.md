@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.11.1
 
 - **No more stray lines during playback:** the path segment being printed right now could be
   drawn as a long line through the nozzle, far beyond the model, whenever the nozzle had just
