@@ -381,7 +381,8 @@ def prusalink():
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     realm, nonce = "Printer API", "abc123"
-    st = {"password": "geheim", "files": {}, "requests": [], "job": None}  # files: Pfad -> (Inhalt, Zeit)
+    st = {"password": "geheim", "files": {}, "requests": [], "job": None,  # files: Pfad -> (Inhalt, Zeit)
+          "no_size": False, "auth": "Digest"}  # wie Prusa MINI: Größe 0 in der Liste; ApiKey-Modus
 
     def md5(text):
         return hashlib.md5(text.encode()).hexdigest()
@@ -402,7 +403,9 @@ def prusalink():
 
         def _send(self, code, body=b"", ctype="application/json"):
             self.send_response(code)
-            if code == 401:
+            if code == 401 and st["auth"] == "ApiKey":
+                self.send_header("WWW-Authenticate", f'ApiKey realm="{realm}"')
+            elif code == 401:
                 self.send_header("WWW-Authenticate", f'Digest realm="{realm}", nonce="{nonce}", qop="auth"')
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
@@ -427,7 +430,7 @@ def prusalink():
                     if folder == sub:
                         short = name.upper()[:6] + "~1." + name.rsplit(".", 1)[1].upper()[:3]
                         children.append({"name": short, "display_name": name, "type": "PRINT_FILE",
-                                         "size": len(content), "m_timestamp": ts,
+                                         "size": 0 if st["no_size"] else len(content), "m_timestamp": ts,
                                          "refs": {"download": f"/usb/{(sub + '/') if sub else ''}{short}"}})
                     elif folder.startswith(sub) and folder != sub:
                         folders.add(folder[len(sub):].strip("/").split("/")[0])
@@ -475,3 +478,22 @@ def test_prusalink_wrong_password(lib, prusalink):
     printer = {"name": "MK4S", "id": "prusalink:y", "code": "falsch", "ip": prusalink["address"], "kind": "prusalink"}
     res = pi.sync_printer(printer)
     assert res["auth_failed"] and res["error"].startswith("Anmeldung abgelehnt, Passwort prüfen")
+
+
+def test_prusalink_mini_lists_no_sizes(lib, prusalink):
+    """Der Prusa MINI nennt in der Dateiliste die Größe 0: trotzdem holen, Länge aus der Antwort prüfen."""
+    prusalink["state"]["no_size"] = True
+    prusalink["state"]["files"]["Seestern_PLA_MINIIS.gcode"] = (b"G1 X1 Y1 E1\n" * 50, 1_700_000_000)
+    printer = {"name": "MINI", "id": "prusalink:m", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
+    pi.init()
+    res = pi.sync_printer(printer)
+    assert res["ok"] and res["new"] == 1, res
+    assert (lib / "From printer" / "MINI" / "Seestern_PLA_MINIIS.gcode").stat().st_size == 600
+    assert pi.sync_printer(printer)["new"] == 0  # nicht bei jedem Abgleich neu holen
+
+
+def test_prusalink_api_key_mode_is_an_auth_error(lib, prusalink):
+    prusalink["state"]["auth"] = "ApiKey"
+    printer = {"name": "MINI", "id": "prusalink:k", "code": "falsch", "ip": prusalink["address"], "kind": "prusalink"}
+    res = pi.sync_printer(printer)
+    assert res["auth_failed"] and res["error"].startswith("Anmeldung abgelehnt, Passwort prüfen"), res
