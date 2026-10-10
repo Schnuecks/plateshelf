@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  <aside class="viewer-panel">
+  <aside class="viewer-panel" id="viewer-side">
     {% if nav.total > 1 %}
     <nav class="plate-pager" aria-label="{{ _('Platten des Projekts') }}">
       {% if nav.prev %}<a class="pager-btn" href="/view/{{ nav.prev.fid }}/{{ nav.prev.idx }}" data-pager="prev" aria-label="{{ _('Vorige Platte') }}">‹</a>{% else %}<span class="pager-btn is-off" aria-hidden="true">‹</span>{% endif %}
@@ -31,6 +31,8 @@
     </nav>
     {% endif %}
   <div class="viewer-controls" id="viewer-panel" hidden>
+    <button type="button" class="quiet options-toggle" id="options-toggle" aria-expanded="false" aria-controls="viewer-side"
+            data-open="{{ _('Optionen') }}" data-close="{{ _('Fertig') }}">{{ _('Optionen') }}</button>
 
     <div class="seg" role="group" aria-label="{{ _('Einfärbung') }}">
       <button type="button" data-mode="tool" aria-pressed="true">{{ _('Filament') }}</button>

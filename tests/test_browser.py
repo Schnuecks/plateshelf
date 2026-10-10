@@ -217,6 +217,25 @@ def test_viewer_loading_on_phone(server, browser):
     assert m["gap"] >= 8 and m["left"] >= 8 and m["right"] >= 8 and not m["wide"], m
 
 
+def test_viewer_on_phone_keeps_layer_controls_in_view(server, browser):
+    """Handy: die Seite scrollt nicht, Schicht- und Wiedergaberegler sind sofort sichtbar,
+    die übrigen Einstellungen öffnen sich mit „Optionen“."""
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
+                                  locale="de-DE", bypass_csp=True)
+    pg = context.new_page()
+    pg.goto(f"{server['url']}/view/{server['fid']}/1")
+    pg.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
+    assert pg.evaluate("document.documentElement.scrollHeight - innerHeight") <= 1
+    for sel in ("#layer-max", "#play", "#options-toggle"):
+        assert pg.locator(sel).is_visible() and pg.locator(sel).bounding_box()["y"] < 844, sel
+    assert not pg.locator("#legend").is_visible()
+    pg.locator("#options-toggle").click()
+    assert pg.locator("#legend").is_visible() and pg.locator("#options-toggle").inner_text() == "Fertig"
+    pg.locator("#options-toggle").click()
+    assert not pg.locator("#legend").is_visible()
+    context.close()
+
+
 def test_viewer_loads_and_all_controls_work(server, page):
     page.goto(f"{server['url']}/view/{server['fid']}/1")
     # Vorschau fertig: Ladehinweis weg, Bedienfeld da, Schichtanzeige gesetzt.

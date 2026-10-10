@@ -457,16 +457,30 @@ summary { cursor: pointer; font-weight: 500; }
 .viewer-actions { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
 .viewer:fullscreen { height: 100vh; background: var(--bg); }
 .viewer-help { margin: 0; }
+.options-toggle { display: none; }
 @media (max-width: 800px) {
-  /* Vorschau füllt den Bildschirm unter der Kopfzeile; oben schaut die Bedienung heraus,
-     damit klar ist, dass es darunter weitergeht (Wischen auf der Vorschau dreht das Modell) */
-  .viewer { grid-template-columns: 1fr; height: auto;
-    grid-template-rows: max(16rem, calc(100dvh - var(--topbar-h, 7rem) - 6.25rem)) auto; }
+  /* Handy: die Seite scrollt nicht (Wischen auf der Vorschau dreht das Modell). Oben die Vorschau,
+     darunter immer sichtbar Schicht und Wiedergabe; alles Weitere öffnet „Optionen“ als Blatt von unten. */
+  .viewer { grid-template-columns: 1fr; height: calc(100dvh - var(--topbar-h, 7rem));
+    grid-template-rows: minmax(12rem, 1fr) auto; }
+  .viewer-panel { padding: .6rem .9rem .8rem; gap: .6rem; overflow: visible; }
+  .viewer-panel:not(.is-open) > :not(.viewer-controls) { display: none; }
+  .viewer-panel:not(.is-open) .viewer-controls { gap: .5rem; }
+  .viewer-panel:not(.is-open) .viewer-controls > :not(.layer-ctrl):not(.play-ctrl):not(.options-toggle) { display: none; }
+  .viewer-panel .options-toggle { display: block; order: 10; align-self: stretch; padding: .45rem 1rem; text-decoration: none;
+    border: 1px solid var(--line); border-radius: 999px; font-weight: 600; }
+  .layer-ctrl { order: 1; } .play-ctrl { order: 2; }
+  .viewer-panel.is-open .layer-ctrl, .viewer-panel.is-open .play-ctrl { display: none; }  /* bleiben unten sichtbar */
+  .viewer-panel.is-open { position: fixed; inset: auto 0 0 0; max-height: 68dvh; overflow-y: auto; z-index: 30;
+    border-top: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
+    box-shadow: 0 -8px 30px rgb(0 0 0 / .35); padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+  .viewer-panel.is-open .options-toggle { order: -1; position: sticky; top: 0; z-index: 1; background: var(--surface); }
   /* Mit Abstand zur Kopfleiste und abgerundet, wie die Kästen der übrigen Seiten */
   .viewer-stage { margin: .75rem .75rem 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
   .viewer:fullscreen .viewer-stage { margin: 0; border: 0; border-radius: 0; }
   .viewer-panel { border-left: 0; border-top: 0; }
   .viewer-help { display: none; }
+  .viewer-footer { padding-top: .5rem; }
 }
 
 /* Löschen */

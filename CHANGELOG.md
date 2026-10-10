@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.12.0
+
+- **3D preview on the phone:** the page no longer scrolls (swiping on the model turned it
+  instead of scrolling, so the layer controls were hard to reach). The preview fills the top,
+  the layer slider and playback stay visible underneath, and everything else – colouring,
+  filaments, extras, view buttons – opens with “Options” as a sheet from the bottom.
+
 ## 0.11.4
 
 - **Printer addresses shown alike:** the settings list now shows just the address for every
