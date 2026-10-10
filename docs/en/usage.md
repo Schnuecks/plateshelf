@@ -116,6 +116,8 @@ for Bambu Studio, OrcaSlicer, PrusaSlicer and Cura.
   the mouse wheel; on touch devices with one or two fingers
 - Double-click or double-tap resets the view; the camera position is remembered per plate.
 - Full screen (also key F) and “Save image” as PNG
+- On a phone the layer slider and playback always stay visible below the preview;
+  colouring, filaments, extras and the view buttons open with “Options”.
 - The model stands on a build plate with 10 and 50 mm lines. Seen from below, the plate
   is hidden so the first layer stays visible.
 - Ambient occlusion darkens the grooves between lines and layers and makes the model look

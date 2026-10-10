@@ -21,6 +21,16 @@ const loading = document.getElementById("viewer-loading");
 const loadingText = document.getElementById("viewer-loading-text");
 const loadingBar = document.getElementById("viewer-loading-bar");
 const panel = document.getElementById("viewer-panel");
+// Handy: „Optionen“ öffnet die übrigen Einstellungen als Blatt von unten, „Fertig“ schließt es
+const side = document.getElementById("viewer-side");
+const optionsBtn = document.getElementById("options-toggle");
+const setOptions = (open) => {
+  side.classList.toggle("is-open", open);
+  optionsBtn.setAttribute("aria-expanded", String(open));
+  optionsBtn.textContent = open ? optionsBtn.dataset.close : optionsBtn.dataset.open;
+};
+optionsBtn?.addEventListener("click", () => setOptions(!side.classList.contains("is-open")));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && side.classList.contains("is-open")) setOptions(false); });
 
 // Farben der Linientypen, angelehnt an die Slicer-Vorschau
 const FEATURE_COLORS = {

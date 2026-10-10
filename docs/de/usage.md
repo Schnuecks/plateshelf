@@ -123,6 +123,8 @@ Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
 - Doppelklick oder Doppeltipp setzt die Ansicht zurück, die Kameraposition wird pro
   Platte gemerkt.
 - Vollbild (auch Taste F) und „Bild speichern“ als PNG
+- Auf dem Handy bleiben Schichtregler und Wiedergabe unter der Vorschau immer sichtbar;
+  Einfärbung, Filamente, Einblenden und die Ansicht-Knöpfe öffnet „Optionen“.
 - Das Modell steht auf einer Druckplatte mit 10- und 50-mm-Linien. Von unten gesehen
   wird die Platte ausgeblendet, damit die erste Schicht sichtbar bleibt.
 - Die Tiefenschattierung dunkelt Rillen zwischen Bahnen und Schichten ab und lässt das
