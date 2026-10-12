@@ -506,3 +506,23 @@ def test_prusalink_api_key_mode_is_an_auth_error(lib, prusalink):
     printer = {"name": "MINI", "id": "prusalink:k", "code": "falsch", "ip": prusalink["address"], "kind": "prusalink"}
     res = pi.sync_printer(printer)
     assert res["auth_failed"] and res["error"].startswith("Anmeldung abgelehnt, Passwort prüfen"), res
+
+
+def test_reachability_probe_and_resync(lib, prusalink, monkeypatch):
+    """Schnelle Prüfung für die Einstellungsseite; ein zurückgekehrter Drucker löst einen Abgleich aus."""
+    synced = []
+    monkeypatch.setattr(pi, "request_sync", lambda: synced.append(1))
+    monkeypatch.setattr(pi, "_last_resync", 0.0)
+    pi._probe_cache.update(at=0.0, result={})
+    pi.save_printers([{"db_id": None, "kind": "prusalink", "name": "MINI", "ip": prusalink["address"], "code": "geheim"},
+                      {"db_id": None, "kind": "prusalink", "name": "Weg", "ip": "127.0.0.1:1", "code": "x"}])
+    ids = {p["name"]: p["id"] for p in pi.load_printers()}
+    pi.state["printers"][ids["MINI"]] = {"error": "nicht erreichbar"}
+    synced.clear()                                # Speichern stößt selbst schon einen Abgleich an
+    result = pi.reachability()
+    assert result == {ids["MINI"]: True, ids["Weg"]: False}
+    assert synced == [1]                          # MINI ist wieder da: gleich abgleichen
+    pi._probe_cache.update(at=0.0)
+    pi.reachability()
+    assert synced == [1]                          # nicht bei jeder Abfrage erneut
+    pi.state["printers"].clear()

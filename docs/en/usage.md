@@ -81,8 +81,8 @@ and from above, in the filament colours, on a plate the size of the printer.
 - The images are created in the background together with the 3D preview (about 1–2 seconds
   per plate). Until then PlateShelf shows the slicer’s image. With `PREVIEW_PREBUILD=false`
   they are only created when the 3D preview is first opened.
-- Under “Settings” → “Thumbnails” you choose: own images with print plate (default), own
-  images without print plate, or the images from the slicer again.
+- Under “Settings” → “Thumbnails” you choose: “With print plate”
+  (default), “Without print plate” or “From the slicer”.
 - Files without a thumbnail of their own, for example from Cura, get an image this way.
 
 ## 3D preview

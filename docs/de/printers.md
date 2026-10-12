@@ -34,6 +34,10 @@ Hostname wie `drucker.local` oder `mini.fritz.box`, sofern PlateShelf ihn auflö
   findest du in Mainsail oder Fluidd oder von einem vertrauenswürdigen Gerät aus unter
   `http://<drucker>:7125/access/api_key`.
 
+Der Punkt vor jedem Drucker in den Einstellungen zeigt alle paar Sekunden, ob er
+erreichbar ist. Kommt ein Drucker wieder, holt PlateShelf seine Dateien sofort.
+
+
 Zugangscodes und API-Schlüssel werden gespeichert, aber nie wieder angezeigt; lässt du
 das Feld beim Ändern leer, bleiben sie erhalten. Nach dem Speichern werden die Drucker
 sofort abgefragt, das Ergebnis steht bei jedem Drucker.

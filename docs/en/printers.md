@@ -33,6 +33,10 @@ container this does not always work for `.local` names).
   PlateShelf host under `trusted_clients`. You find the key in Mainsail or Fluidd, or
   via `http://<printer>:7125/access/api_key` from a trusted device.
 
+The dot in front of each printer in the settings shows every few seconds whether it is
+reachable. When a printer comes back, PlateShelf fetches its files right away.
+
+
 Access codes and API keys are stored but never shown again; leave the field empty when
 editing to keep them. After saving, the printers are queried right away and the result
 is shown next to each printer.

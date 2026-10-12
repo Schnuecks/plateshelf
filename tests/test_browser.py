@@ -345,6 +345,28 @@ def test_viewer_for_plain_gcode(server, page):
     assert page.errors == []
 
 
+def test_settings_printer_dots_update_by_themselves(server, page):
+    """Der Punkt vor dem Drucker zeigt ohne Neuladen, ob er gerade erreichbar ist."""
+    import socket
+
+    from app import printer_import as pi
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen()
+    pi.save_printers([{"db_id": None, "kind": "prusalink", "name": "MINI",
+                       "ip": f"127.0.0.1:{listener.getsockname()[1]}", "code": "x"}])
+    pi._probe_cache.update(at=0.0, result={})
+    try:
+        page.goto(server["url"] + "/settings#printers")
+        page.wait_for_selector("[data-printer-dot].is-ok", timeout=10_000)
+        listener.close()                          # Drucker aus
+        pi._probe_cache.update(at=0.0)
+        page.wait_for_selector("[data-printer-dot].is-error", timeout=15_000)
+    finally:
+        listener.close()
+        pi.save_printers([])
+
+
 def test_printer_type_switches_fields(server, page):
     page.goto(server["url"] + "/settings")
     row = page.locator(".printer-new [data-printer]")

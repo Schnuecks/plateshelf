@@ -30,6 +30,13 @@ def api_printing(idle_placeholder: bool = False):
     return {"items": items}
 
 
+@router.get("/api/printers/status")
+def api_printer_status():
+    """Erreichbarkeit der Drucker für die Einstellungsseite, die damit den Punkt alle paar Sekunden auffrischt."""
+    return {"printers": printer_import.reachability(), "sync_running": bool(printer_import.state.get("running")),
+            "last_sync": last_sync()}
+
+
 @router.get("/api/library")
 def api_library():
     """Stand der Bibliothek, damit die Übersicht neue Drucke von selbst zeigt (static/app.js)."""

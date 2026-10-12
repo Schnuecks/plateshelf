@@ -9,7 +9,8 @@
 {%- endmacro %}
 
 {% macro printer_line(pr) %}
-          <span class="printer-dot {{ 'is-error' if pr.status and pr.status.error else ('is-ok' if pr.status else 'is-unknown') }}" aria-hidden="true"></span>
+          <span class="printer-dot {{ 'is-error' if pr.status and pr.status.error else ('is-ok' if pr.status else 'is-unknown') }}" aria-hidden="true"
+                data-printer-dot="{{ pr.id }}" data-online="{{ _('Erreichbar') }}" data-offline="{{ _('Nicht erreichbar') }}"></span>
           <span class="printer-main">
             <strong class="printer-name">{{ pr.name or _('Drucker') }}</strong>
             <span class="printer-kind">{{ KIND_LABELS.get(pr.kind or 'bambu', 'Bambu Lab') }}</span>
@@ -72,7 +73,7 @@
 
         <form method="post" action="/settings/printers" class="printer-form">
           {% if import_printers %}
-          <ul class="printer-list">
+          <ul class="printer-list" data-printer-live data-last-sync="{{ psync_last|int if psync_last else '' }}">
             {% for pr in import_printers %}
             <li>
               {% if pr.source == 'env' %}
@@ -199,9 +200,9 @@
         <p class="hint">{{ _('Die Slicer legen unterschiedliche Bilder in die Dateien: PrusaSlicer mit Druckbett, Bambu Studio ohne, Cura oft gar keins. PlateShelf kann stattdessen eigene Bilder aus den Druckbahnen zeichnen, alle im selben Stil, schräg und von oben. Sie entstehen im Hintergrund zusammen mit der 3D-Vorschau; bis dahin bleibt das Bild des Slicers stehen.') }}</p>
         {% if request.query_params.get('thumbs') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
         <form method="post" action="/settings/thumbnails" class="choice-form">
-          <label class="check"><input type="radio" name="vorschaubilder" value="eigene" {{ 'checked' if thumbs_mode == 'eigene' }}> {{ _('Eigene Bilder mit Druckplatte') }}</label>
-          <label class="check"><input type="radio" name="vorschaubilder" value="ohne_platte" {{ 'checked' if thumbs_mode == 'ohne_platte' }}> {{ _('Eigene Bilder ohne Druckplatte') }}</label>
-          <label class="check"><input type="radio" name="vorschaubilder" value="slicer" {{ 'checked' if thumbs_mode == 'slicer' }}> {{ _('Bilder vom Slicer') }}</label>
+          <label class="check"><input type="radio" name="vorschaubilder" value="eigene" {{ 'checked' if thumbs_mode == 'eigene' }}> {{ _('Mit Druckplatte') }}</label>
+          <label class="check"><input type="radio" name="vorschaubilder" value="ohne_platte" {{ 'checked' if thumbs_mode == 'ohne_platte' }}> {{ _('Ohne Druckplatte') }}</label>
+          <label class="check"><input type="radio" name="vorschaubilder" value="slicer" {{ 'checked' if thumbs_mode == 'slicer' }}> {{ _('Vom Slicer') }}</label>
           <div class="section-foot"><button type="submit">{{ _('Vorschaubilder speichern') }}</button></div>
         </form>
       </section>
