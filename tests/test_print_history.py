@@ -152,6 +152,30 @@ def test_moonraker_history(ready, moonraker):
     assert len(jobs()) == 3
 
 
+def test_moonraker_live_print_without_history(ready, moonraker):
+    """Klipper druckt, aber Moonrakers Verlauf kennt den Druck nicht (z. B. nach einem Neustart):
+    der Druck erscheint trotzdem als laufend, mit Projekt und Fortschritt, und endet sauber."""
+    printer = {"name": "K1", "id": "moonraker:k", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
+    imported(ready, printer, "Wuerfel.gcode", "From printer/K1/Wuerfel.gcode")
+    moonraker["state"]["history"] = [
+        {"job_id": "000001", "filename": "Wuerfel.gcode", "status": "klippy_shutdown", "start_time": time.time() - 600,
+         "end_time": time.time() - 590, "print_duration": 0, "filament_used": 0}]
+    moonraker["state"]["objects"] = {
+        "print_stats": {"filename": "Wuerfel.gcode", "state": "printing", "total_duration": 170, "print_duration": 65},
+        "virtual_sdcard": {"progress": 0.69}}
+    ph.poll_moonraker(printer)
+    ph.poll_moonraker(printer)  # derselbe Druck, kein zweiter Eintrag
+    (live,) = [j for j in jobs() if j["status"] == "running"]
+    assert live["job_key"].startswith(ph.LIVE_KEY) and live["progress"] == 69.0
+    assert live["local_path"] == "From printer/K1/Wuerfel.gcode"
+    (now,) = ph.printing_now()
+    assert now["project_name"] and now["progress"] == 69.0
+    moonraker["state"]["objects"]["print_stats"]["state"] = "complete"
+    ph.poll_moonraker(printer)
+    assert {j["job_key"]: j["status"] for j in jobs()}[live["job_key"]] == "completed"
+    assert ph.printing_now() == []
+
+
 def test_prusalink_job(ready, prusalink):
     printer = {"name": "MK4S", "id": "prusalink:x", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
     ph.poll_prusalink(printer)  # kein Druck: 204

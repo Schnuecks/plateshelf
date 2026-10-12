@@ -311,29 +311,44 @@ def recent(limit: int = 200) -> list[dict]:
 MOONRAKER_STATUS = {"completed": "completed", "cancelled": "cancelled", "in_progress": "running"}
 
 
+LIVE_KEY = "live:"  # Druck, den nur Klippers print_stats kennt, nicht der Verlauf von Moonraker
+KLIPPER_END = {"complete": "completed", "cancelled": "cancelled", "error": "failed"}
+
+
 def poll_moonraker(printer: dict, source=None) -> int:
-    """Übernimmt die letzten Einträge aus dem Verlauf von Moonraker."""
+    """Übernimmt die letzten Einträge aus dem Verlauf von Moonraker und den laufenden Druck.
+
+    Ist die Verlaufs-Komponente aus oder hat sie den Druck (noch) nicht erfasst, etwa nach einem
+    Neustart von Klipper, kommt der laufende Druck aus print_stats; er bekommt dann eine eigene
+    Kennung und wird abgeschlossen, sobald Klipper nicht mehr druckt.
+    """
     source = source or printer_import.MoonrakerSource(printer)
     with source._get("/server/history/list?limit=50&order=desc") as resp:
         jobs = (json.load(resp).get("result") or {}).get("jobs") or []
-    live = {}
-    if any(job.get("status") == "in_progress" for job in jobs):
-        live = _moonraker_progress(source)
+    status = _moonraker_status(source)
+    live = _moonraker_progress(status)
+    in_history = any(job.get("status") == "in_progress" for job in jobs)
     for job in jobs:
         running = job.get("status") == "in_progress"
         record(printer, str(job.get("job_id")), MOONRAKER_STATUS.get(job.get("status"), "failed"),
                remote_name=job.get("filename"), started=job.get("start_time"), ended=job.get("end_time"),
                duration_s=job.get("print_duration"), filament_mm=job.get("filament_used"),
                **(live if running else {}))
+    _track_klipper_live(printer, status, live, in_history)
     return len(jobs)
 
 
-def _moonraker_progress(source) -> dict:
-    """Fortschritt und geschätzte Restzeit des laufenden Drucks aus Klipper."""
+def _moonraker_status(source) -> dict:
     try:
         with source._get("/printer/objects/query?virtual_sdcard&print_stats") as resp:
-            status = (json.load(resp).get("result") or {}).get("status") or {}
+            return (json.load(resp).get("result") or {}).get("status") or {}
     except (OSError, ValueError):
+        return {}
+
+
+def _moonraker_progress(status: dict) -> dict:
+    """Fortschritt und geschätzte Restzeit des laufenden Drucks aus Klipper."""
+    if not status:
         return {}
     fraction = float((status.get("virtual_sdcard") or {}).get("progress") or 0)
     printed = float((status.get("print_stats") or {}).get("print_duration") or 0)
@@ -341,6 +356,32 @@ def _moonraker_progress(source) -> dict:
     if fraction >= 0.02 and printed > 0:  # am Anfang ist die Hochrechnung zu ungenau
         out["remaining_s"] = printed / fraction - printed
     return out
+
+
+def _track_klipper_live(printer: dict, status: dict, live: dict, in_history: bool) -> None:
+    stats = status.get("print_stats") or {}
+    state, filename = stats.get("state"), stats.get("filename")
+    with store.connect() as con:
+        rows = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' AND job_key LIKE ?",
+                           (printer["id"], LIVE_KEY + "%")).fetchall()
+    if in_history:  # Moonraker führt den Druck jetzt selbst: eigenen Eintrag ausblenden
+        with store.connect() as con:
+            con.executemany("UPDATE print_jobs SET hidden = 1, status = 'cancelled' WHERE id = ?",
+                            [(r["id"],) for r in rows])
+        return
+    current = next((r for r in rows if r["remote_name"] == filename), None)
+    if state in ("printing", "paused") and filename:
+        key = current["job_key"] if current else             f"{LIVE_KEY}{int(time.time() - float(stats.get('total_duration') or 0))}"
+        record(printer, key, "running", remote_name=filename, duration_s=stats.get("print_duration"),
+               started=None if current else time.time() - float(stats.get("total_duration") or 0),
+               filament_mm=stats.get("filament_used"), **live)
+        rows = [r for r in rows if r["job_key"] != key]
+    for row in rows:  # Klipper druckt nicht mehr (oder etwas anderes): abschließen
+        end = KLIPPER_END.get(state) if row["remote_name"] == filename else None
+        if end is None:
+            end = "completed" if (row["progress"] or 0) >= 99 else "cancelled"
+        record(printer, row["job_key"], end, ended=row["updated"] or time.time(),
+               progress=100.0 if end == "completed" else row["progress"])
 
 
 # --- Prusa (PrusaLink) ----------------------------------------------------------
