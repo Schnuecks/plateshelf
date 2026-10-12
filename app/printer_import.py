@@ -26,6 +26,7 @@ import json
 import logging
 import os
 import re
+import socket
 import ssl
 import threading
 import time
@@ -126,6 +127,61 @@ def printer_address(kind: str, ip: str) -> str:
     if ":" in host:  # IPv6
         host = f"[{host}]"
     return host if parts.port in (None, default) else f"{host}:{parts.port}"
+
+
+PROBE_TIMEOUT = 2.0
+PROBE_CACHE_SECONDS = 5
+_probe_cache: dict = {"at": 0.0, "result": {}}
+_probe_lock = threading.Lock()
+_last_resync = 0.0
+
+
+def _probe_target(printer: dict) -> tuple[str, int]:
+    """Host und Port für die schnelle Erreichbarkeitsprüfung: FTPS bei Bambu, sonst die HTTP-Schnittstelle."""
+    if printer.get("kind", "bambu") == "bambu":
+        return printer["ip"].strip(), 990
+    parts = urllib.parse.urlsplit(printer_url(printer["kind"], printer["ip"]))
+    return parts.hostname or "", parts.port or (443 if parts.scheme == "https" else 80)
+
+
+def probe(printer: dict) -> bool:
+    """Antwortet der Drucker? Nur ein Verbindungsaufbau, ohne Anmeldung – dauert höchstens zwei Sekunden."""
+    host, port = _probe_target(printer)
+    if not host:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=PROBE_TIMEOUT):
+            return True
+    except OSError:
+        return False
+
+
+def reachability() -> dict[str, bool]:
+    """Erreichbarkeit aller Drucker, parallel geprüft und kurz zwischengespeichert (Einstellungsseite
+    fragt alle paar Sekunden). Kommt ein Drucker wieder, der beim letzten Abruf fehlte, wird gleich
+    abgeglichen, damit Status und Dateien nicht bis zum nächsten Intervall warten."""
+    global _last_resync
+    with _probe_lock:
+        if time.time() - _probe_cache["at"] < PROBE_CACHE_SECONDS:
+            return dict(_probe_cache["result"])
+        printers = load_printers()
+        result: dict[str, bool] = {}
+
+        def check(p):
+            result[p["id"]] = probe(p)
+
+        threads = [threading.Thread(target=check, args=(p,), daemon=True) for p in printers]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(PROBE_TIMEOUT + 1)
+        _probe_cache.update(at=time.time(), result=dict(result))
+    back = [pid for pid, ok in result.items()
+            if ok and (state["printers"].get(pid) or {}).get("error")]
+    if back and not state["running"] and time.time() - _last_resync > 30:
+        _last_resync = time.time()
+        request_sync()
+    return result
 
 
 def printer_id(kind: str, ip: str, serial: str) -> str:

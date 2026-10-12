@@ -9,7 +9,8 @@
 {%- endmacro %}
 
 {% macro printer_line(pr) %}
-          <span class="printer-dot {{ 'is-error' if pr.status and pr.status.error else ('is-ok' if pr.status else 'is-unknown') }}" aria-hidden="true"></span>
+          <span class="printer-dot {{ 'is-error' if pr.status and pr.status.error else ('is-ok' if pr.status else 'is-unknown') }}" aria-hidden="true"
+                data-printer-dot="{{ pr.id }}" data-online="{{ _('Erreichbar') }}" data-offline="{{ _('Nicht erreichbar') }}"></span>
           <span class="printer-main">
             <strong class="printer-name">{{ pr.name or _('Drucker') }}</strong>
             <span class="printer-kind">{{ KIND_LABELS.get(pr.kind or 'bambu', 'Bambu Lab') }}</span>
@@ -72,7 +73,7 @@
 
         <form method="post" action="/settings/printers" class="printer-form">
           {% if import_printers %}
-          <ul class="printer-list">
+          <ul class="printer-list" data-printer-live data-last-sync="{{ psync_last|int if psync_last else '' }}">
             {% for pr in import_printers %}
             <li>
               {% if pr.source == 'env' %}

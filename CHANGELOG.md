@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Printer status live in the settings:** the dot in front of each printer now shows within a
+  few seconds whether it is reachable – switch a printer on and it turns green without reloading.
+  When a printer comes back, PlateShelf fetches its files right away instead of waiting for the
+  next interval. New endpoint `/api/printers/status`.
+
 ## 0.12.0
 
 - **3D preview on the phone:** the page no longer scrolls (swiping on the model turned it

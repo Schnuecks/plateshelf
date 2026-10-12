@@ -158,6 +158,42 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
   setTimeout(tick, fastUntil ? 3000 : 20000);
 });
 
+// Einstellungen: Punkt vor jedem Drucker alle 5 s auffrischen, damit man beim Einschalten gleich
+// sieht, ob er da ist. Kommt einer zurück, gleicht der Server ab; danach lädt die Seite mit den
+// neuen Angaben (Dateien, Fehlertext) neu.
+document.querySelectorAll("[data-printer-live]").forEach((list) => {
+  let seen = list.dataset.lastSync;
+  let changed = false;  // nur neu laden, wenn sich an einem Drucker etwas getan hat
+  const tick = async () => {
+    if (!document.hidden) {
+      try {
+        const r = await fetch("/api/printers/status", { headers: { Accept: "application/json" } });
+        if (r.ok) {
+          const data = await r.json();
+          list.querySelectorAll("[data-printer-dot]").forEach((dot) => {
+            const online = data.printers?.[dot.dataset.printerDot];
+            if (online === undefined) return;
+            if (dot.classList.contains(online ? "is-error" : "is-ok") || dot.classList.contains("is-unknown")) changed = true;
+            dot.classList.toggle("is-ok", online);
+            dot.classList.toggle("is-error", !online);
+            dot.classList.remove("is-unknown");
+            dot.title = online ? dot.dataset.online : dot.dataset.offline;
+          });
+          const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
+            list.querySelector("details[open]");
+          const last = String(data.last_sync ?? "");
+          if (!data.sync_running && last !== seen) {
+            if (changed && !typing) { location.replace(location.pathname + "#printers"); return; }
+            seen = last;
+          }
+        }
+      } catch { /* offline: beim nächsten Mal */ }
+    }
+    setTimeout(tick, 5000);
+  };
+  setTimeout(tick, 1500);
+});
+
 // Einstellungen nach dem Speichern der Drucker: neu laden, sobald der Abgleich durch ist, damit der
 // Status (grün/rot) gleich zu sehen ist
 document.querySelectorAll("[data-sync-watch]").forEach((note) => {
