@@ -8,6 +8,7 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
   few seconds whether it is reachable – switch a printer on and it turns green without reloading.
   When a printer comes back, PlateShelf fetches its files right away instead of waiting for the
   next interval. New endpoint `/api/printers/status`.
+- **Shorter thumbnail options:** “With print plate”, “Without print plate” and “From the slicer”.
 
 ## 0.12.0
 

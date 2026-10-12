@@ -86,8 +86,8 @@ von oben, in den Filamentfarben, auf einer Platte in der Größe des Druckers.
 - Die Bilder entstehen im Hintergrund zusammen mit der 3D-Vorschau (etwa 1–2 Sekunden je
   Platte). Bis dahin zeigt PlateShelf das Bild vom Slicer. Ist `PREVIEW_PREBUILD=false`
   gesetzt, entstehen sie erst beim ersten Öffnen der 3D-Vorschau.
-- Unter „Einstellungen“ → „Vorschaubilder“ wählst du: eigene Bilder mit Druckplatte
-  (Standard), eigene Bilder ohne Druckplatte oder wieder die Bilder vom Slicer.
+- Unter „Einstellungen“ → „Vorschaubilder“ wählst du: „Mit Druckplatte“
+  (Standard), „Ohne Druckplatte“ oder „Vom Slicer“.
 - Auch Dateien ohne eigenes Vorschaubild, etwa aus Cura, bekommen so ein Bild.
 
 ## 3D-Vorschau
