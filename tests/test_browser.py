@@ -357,12 +357,18 @@ def test_settings_printer_dots_update_by_themselves(server, page):
                        "ip": f"127.0.0.1:{listener.getsockname()[1]}", "code": "x"}])
     pi._probe_cache.update(at=0.0, result={})
     try:
+        pi.state["printers"][pi.load_printers()[0]["id"]] = {"error": "x", "error_msg": "nicht erreichbar, ausgeschaltet oder im Standby? ({detail})",
+                                                             "error_args": {"detail": "gaierror"}, "kind": "prusalink"}
         page.goto(server["url"] + "/settings#printers")
+        assert "gaierror" in page.locator("[data-printer-status]").inner_text()
         page.wait_for_selector("[data-printer-dot].is-ok", timeout=10_000)
+        assert "Wieder erreichbar" in page.locator("[data-printer-status]").inner_text()   # Text folgt dem Punkt
         listener.close()                          # Drucker aus
         pi._probe_cache.update(at=0.0)
         page.wait_for_selector("[data-printer-dot].is-error", timeout=15_000)
+        assert "Nicht erreichbar" in page.locator("[data-printer-status]").inner_text()
     finally:
+        pi.state["printers"].clear()
         listener.close()
         pi.save_printers([])
 

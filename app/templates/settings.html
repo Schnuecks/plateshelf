@@ -17,7 +17,9 @@
             {% set web = pr.url.replace(':7125', '') if pr.kind == 'moonraker' and pr.url else pr.url %}
             {% if web %}<a class="printer-addr" href="{{ web }}" target="_blank" rel="noopener" title="{{ _('Weboberfläche des Druckers öffnen') }}">{{ pr.address or pr.ip }}</a>{% else %}<span class="printer-addr">{{ pr.address or pr.ip }}</span>{% endif %}
           </span>
-          {% if pr.status %}<span class="printer-status {{ 'is-error' if pr.status.error else 'is-ok' }}">{{ status_text(pr.status) }}</span>{% endif %}
+          <span class="printer-status {{ 'is-error' if pr.status and pr.status.error else 'is-ok' }}" data-printer-status="{{ pr.id }}"
+                data-back="{{ _('Wieder erreichbar, Dateien werden abgefragt …') }}" data-gone="{{ _('Nicht erreichbar, ausgeschaltet oder im Standby?') }}"
+                {% if not pr.status %}hidden{% endif %}>{{ status_text(pr.status) if pr.status else '' }}</span>
 {% endmacro %}
 
 {% macro printer_fields(pr) %}
