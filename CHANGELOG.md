@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.13.1
+
+- **Klipper: running print shown even without Moonraker history:** if Moonraker’s job history
+  doesn’t list the current print (for example after a Klipper restart, or with the history
+  component switched off), PlateShelf now takes it from Klipper’s print status – with project,
+  progress and remaining time – and closes it when the printer finishes.
+
 ## 0.13.0
 
 - **Printer status live in the settings:** the dot in front of each printer now shows within a
