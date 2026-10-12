@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 log = logging.getLogger(__name__)
 
-VERSION = 3  # neue Nummer = alte Bilder werden neu gezeichnet
+VERSION = 4  # neue Nummer = alte Bilder werden neu gezeichnet
 SIZE = 512          # wie die Bilder von Bambu Studio
 SUPERSAMPLE = 2     # doppelt so groß zeichnen und verkleinern: glatte Kanten
 MARGIN = 0.07
@@ -31,8 +31,10 @@ GRID = (74, 79, 86)
 GRID_STRONG = (92, 98, 106)
 EDGE = (110, 117, 126)
 DEFAULT_COLOR = "#E0E0E0"
-# Wie die Bilder der Slicer: ohne Reinigungsturm, Skirt und Stützen, die gehören nicht zum Modell
-HIDDEN_FEATURES = {"Reinigungsturm", "Skirt", "Stützen", "Stützen-Kontakt", "Stützen-Übergang"}
+# Wie die Bilder der Slicer: ohne Reinigungsturm, Skirt und Stützen, die gehören nicht zum Modell.
+# Lockeres Infill liegt immer innen unter Wänden und Deckschichten; weglassen spart bei großen
+# Drucken den Großteil der Strecken.
+HIDDEN_FEATURES = {"Reinigungsturm", "Skirt", "Stützen", "Stützen-Kontakt", "Stützen-Übergang", "Infill"}
 # Blickrichtung wie „Ansicht zurücksetzen“ in der 3D-Vorschau (Kamera vorn rechts, leicht von oben)
 _CAM = (1.1, -1.6, 1.1)
 
@@ -173,8 +175,15 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     # Etwas breiter als die Düse: sonst bleiben auf glatten Oberflächen Lücken zwischen den Bahnen
     width = max(1, round(max(nozzle * 1.3, layer_h * view.ce * 1.25) * k))
 
-    total = sum(polys[i * 5 + 1] - 1 for i in shown)
-    step = max(1, math.ceil(total / MAX_SEGMENTS))
+    draw_polys = shown
+    # Zu viele Strecken? Dann nur jede n-te Schicht zeichnen (die oberen immer), statt Punkte
+    # auszulassen: ausgelassene Punkte schneiden Rundungen ab, durch die Lücken schaut das Innere
+    total = sum(polys[i * 5 + 1] - 1 for i in draw_polys)
+    layer_step = max(1, math.ceil(total / MAX_SEGMENTS))
+    if layer_step > 1:
+        top = len(layers) - layer_step
+        draw_polys = [i for i in draw_polys if polys[i * 5 + 2] % layer_step == 0 or polys[i * 5 + 2] >= top]
+        width = max(width, round(layer_h * layer_step * view.ce * 1.15 * k))
     # Licht von vorn links oben, in der Ebene: Wände, die zum Licht zeigen, sind heller
     lx, ly = -0.45, -0.89
     # Strecken kompakt in Arrays (Bildpunkte, Tiefe, Farbe), sortiert wird nur eine Indexliste:
@@ -183,12 +192,12 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     shades: dict[tuple, int] = {}
     shade_list: list[tuple] = []
     sx, sy, dp = view.sx, view.sy, view.depth
-    for i in shown:
+    for i in draw_polys:
         start, count, layer, tool, _feat = polys[i * 5:i * 5 + 5]
         z = layers[layer] if layer < len(layers) else layers[-1]
         rgb = palette.get(tool, palette[0])
         last = start + count - 1
-        idx = list(range(start, last, step)) + [last]
+        idx = range(start, last + 1)
         x0, y0 = pts[idx[0] * 2] / scale - off, pts[idx[0] * 2 + 1] / scale - off
         for j in idx[1:]:
             x1, y1 = pts[j * 2] / scale - off, pts[j * 2 + 1] / scale - off

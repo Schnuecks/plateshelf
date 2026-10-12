@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.14.3
+
+- **Clean thumbnails for large prints:** PlateShelf’s own thumbnails no longer show the inside of
+  big models through gaps in the walls. Sparse infill (always hidden inside) is left out, and very
+  large prints are thinned out by layers instead of by points, so walls stay closed. Existing
+  thumbnails are redrawn once.
+
 ## 0.14.2
 
 - **Printer status text follows the dot:** in the settings, the text under a printer now changes

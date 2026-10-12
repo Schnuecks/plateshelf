@@ -53,6 +53,20 @@ def test_render_leaves_out_the_wipe_tower(tmp_path):
     assert plain.read_bytes() == with_tower.read_bytes()
 
 
+def test_render_leaves_out_sparse_infill_and_thins_by_layers(tmp_path, monkeypatch):
+    """Lockeres Infill liegt immer innen und wird nicht gezeichnet; bei sehr großen Drucken wird
+    nach Schichten statt nach Punkten ausgedünnt, damit Wände geschlossen bleiben."""
+    infill = GCODE.replace("; FEATURE: Sparse infill", "; FEATURE: Sparse infill\nG1 X50 Y50\nG1 X90 Y90 E2")
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    render.render(_preview(tmp_path), a, {0: RED, 1: GREEN}, None, plate=False)
+    render.render(_preview(tmp_path, infill, "3_1"), b, {0: RED, 1: GREEN}, None, plate=False)
+    assert a.read_bytes() != b"" and _colors(a) == _colors(b)   # Infill-Strecke ändert nichts am Bild
+    monkeypatch.setattr(render, "MAX_SEGMENTS", 2)                 # zwingt zum Ausdünnen
+    c = tmp_path / "c.png"
+    render.render(_preview(tmp_path), c, {0: RED, 1: GREEN}, None, plate=False)
+    assert _has(_colors(c), lambda r, g, bb, al: al == 255 and g > 150 and r < 90)  # oberste Schicht da
+
+
 def test_own_thumbnails_replace_the_slicer_image(lib, sample, monkeypatch):
     from fastapi.testclient import TestClient
 
