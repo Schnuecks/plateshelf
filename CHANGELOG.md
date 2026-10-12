@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.13.3
+
+- **Print progress in the browser tab:** while a print is running, the tab title starts with its
+  progress (“45 % · …”), so you can follow it without switching tabs. The progress in the title
+  bar now updates every 15 seconds instead of every 30.
+
 ## 0.13.2
 
 - **Live progress on the project page and in the history:** the percentage of a running print

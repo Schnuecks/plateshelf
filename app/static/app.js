@@ -73,17 +73,23 @@ document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   input.addEventListener("change", () => input.form.requestSubmit());
 });
 
-// Laufender Druck in der Titelleiste: jede halbe Minute auffrischen
+// Laufender Druck in der Titelleiste und im Titel des Browser-Tabs („45 % · …“): alle 15 s auffrischen.
+// Auch bei verstecktem Tab, damit man den Fortschritt in der Tableiste sieht.
+const baseTitle = document.title;
+const tabTitle = (items) => {
+  const p = items.find((i) => i.progress != null);
+  document.title = p ? `${Math.round(p.progress)} % · ${baseTitle}` : baseTitle;
+};
 document.querySelectorAll("[data-live-print]").forEach((pill) => {
   const text = pill.querySelector("[data-live-text]");
   const more = pill.querySelector("[data-live-more]");
   const refresh = () => {
-    if (document.hidden) return;
     fetch("/api/printing", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
         const items = data.items || [];
+        tabTitle(items);
         pill.hidden = items.length === 0;
         if (!items.length) return;
         text.textContent = items[0].text;
@@ -94,7 +100,8 @@ document.querySelectorAll("[data-live-print]").forEach((pill) => {
       })
       .catch(() => {});
   };
-  setInterval(refresh, 30000);
+  refresh();
+  setInterval(refresh, 15000);
 });
 
 // Fortschritt laufender Drucke alle 15 s auffrischen: auf den Projektkacheln der Übersicht und in

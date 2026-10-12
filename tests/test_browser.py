@@ -587,6 +587,7 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
         page.goto(server["url"] + "/")
         badge = page.locator("[data-live-project]")
         assert "10 %" in badge.inner_text()
+        page.wait_for_function("document.title.startsWith('10 % · ')", timeout=5_000)  # auch im Tab
         print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=55)
         page.clock.run_for(16_000)
         page.wait_for_function("document.querySelector('[data-live-project]').textContent.includes('55')",
