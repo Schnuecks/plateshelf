@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.13.4
+
+- **Clearer printer status dots:** reachable printers now show a green dot and unreachable ones a
+  red dot, in fixed colours instead of the accent and warning colours – which could look almost
+  the same, for example when a browser extension changes the page colours.
+
 ## 0.13.3
 
 - **Print progress in the browser tab:** while a print is running, the tab title starts with its

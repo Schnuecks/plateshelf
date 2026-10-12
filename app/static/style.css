@@ -43,6 +43,8 @@
   --bed: #2A2F35;
   --bed-grain: #33393F;
   --warn: #9A5B00;
+  --status-ok: #1E8E4E;   /* Ampelfarben für Erreichbarkeit, unabhängig von der Akzentfarbe */
+  --status-bad: #C0392B;
   --chart-ok: #0E8A7A;   /* Diagramme: fertig; geprüft auf Farbsehschwäche und Kontrast */
   --chart-bad: #B8690A;  /* Diagramme: abgebrochen oder fehlgeschlagen */
   --viewer-bg: #E4E7EA;
@@ -65,6 +67,8 @@
     --bed: #0E1114;
     --bed-grain: #161A1E;
     --warn: #E0A64A;
+    --status-ok: #4CC38A;
+    --status-bad: #F07070;
     --chart-ok: #1FA08C;
     --chart-bad: #C57F12;
     --viewer-bg: #111417;
@@ -84,6 +88,8 @@
   --bed: #0E1114;
   --bed-grain: #161A1E;
   --warn: #E0A64A;
+  --status-ok: #4CC38A;
+  --status-bad: #F07070;
   --chart-ok: #1FA08C;
   --chart-bad: #C57F12;
   --viewer-bg: #111417;
@@ -567,8 +573,8 @@ button.danger-quiet:hover { color: var(--ink); }
   gap: .15rem .75rem; padding: .75rem .9rem; }
 .printer-item > summary:hover { background: var(--bg); }
 .printer-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--line); }
-.printer-dot.is-ok { background: var(--accent); }
-.printer-dot.is-error { background: var(--warn); }
+.printer-dot.is-ok { background: var(--status-ok); }
+.printer-dot.is-error { background: var(--status-bad); }
 .printer-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; min-width: 0; }
 .printer-name { font-weight: 600; }
 .printer-kind { font-size: .75rem; font-weight: 600; padding: .05rem .45rem; border-radius: 3px; background: var(--bg); color: var(--muted); }
