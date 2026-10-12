@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.13.2
 
 - **Live progress on the project page and in the history:** the percentage of a running print
   now follows the printer every 15 seconds there too, like on the overview tiles, instead of
