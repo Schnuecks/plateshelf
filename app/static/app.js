@@ -97,9 +97,10 @@ document.querySelectorAll("[data-live-print]").forEach((pill) => {
   setInterval(refresh, 30000);
 });
 
-// Fortschritt laufender Drucke auf den Projektkacheln: alle 15 s auffrischen. Beginn und Ende
-// eines Drucks lädt die Übersicht ohnehin neu (siehe unten), hier geht es nur um die Prozente.
-const liveBadges = document.querySelectorAll("[data-live-project]");
+// Fortschritt laufender Drucke alle 15 s auffrischen: auf den Projektkacheln der Übersicht und in
+// den Drucklisten (Projektseite, Verlauf). Beginn und Ende eines Drucks lädt die Übersicht ohnehin
+// neu (siehe unten), hier geht es nur um die Prozente.
+const liveBadges = document.querySelectorAll("[data-live-project], [data-live-job]");
 if (liveBadges.length) {
   const fmtPct = (v) => Math.round(v).toLocaleString(document.documentElement.lang || undefined);
   setInterval(() => {
@@ -108,9 +109,11 @@ if (liveBadges.length) {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data) return;
-        const byProject = new Map((data.items || []).filter((i) => i.project != null).map((i) => [String(i.project), i]));
+        const items = data.items || [];
+        const byProject = new Map(items.filter((i) => i.project != null).map((i) => [String(i.project), i]));
+        const byJob = new Map(items.filter((i) => i.job != null).map((i) => [String(i.job), i]));
         liveBadges.forEach((badge) => {
-          const item = byProject.get(badge.dataset.liveProject);
+          const item = badge.dataset.liveJob ? byJob.get(badge.dataset.liveJob) : byProject.get(badge.dataset.liveProject);
           if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
         });
       })

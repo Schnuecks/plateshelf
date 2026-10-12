@@ -364,7 +364,7 @@ def test_printing_now_and_pages(ready, monkeypatch):
         assert items == [{"text": "P2S: Live · 45 % · noch 32 min", "short": "P2S: Live · 32 min",
                           "url": f"/p/{job['project_id']}#history", "progress": 45, "printer": "P2S",
                           "name": "Live", "remaining_min": 32, "remaining": "32 min",
-                          "project": job["project_id"]}]
+                          "project": job["project_id"], "job": job["id"]}]
         assert client.get("/api/printing?idle_placeholder=1").json()["items"] == items  # nur im Leerlauf
         page = client.get("/").text
         assert "P2S: Live · 45 % · noch 32 min" in page and 'data-label="Druckt">Druckt 45 %' in page
