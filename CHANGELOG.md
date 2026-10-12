@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.14.1
+
+- **New prints fetched right away for all printers:** when a Klipper, Prusa or OctoPrint printer
+  starts a file PlateShelf doesn’t have yet, it fetches it immediately and links the print to its
+  project – like Bambu printers already did – instead of waiting for the next 10-minute round or
+  “Fetch from printers”.
+
 ## 0.14.0
 
 - **OctoPrint:** printers running OctoPrint (for example OctoPi on an Ender, Anycubic or

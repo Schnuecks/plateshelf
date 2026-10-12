@@ -646,6 +646,20 @@ def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     assert store.library_version() != done
 
 
+def test_new_print_of_unknown_file_fetches_it_right_away(ready, monkeypatch):
+    """Druckt ein Drucker eine Datei, die PlateShelf noch nicht hat, wird sofort abgeglichen."""
+    calls = []
+    monkeypatch.setattr(pi, "request_sync", lambda: calls.append(1))
+    octo = {"name": "Ender", "id": "octoprint:x", "kind": "octoprint"}
+    ph.record(octo, "octo:1", "running", remote_name="Neu.gcode", progress=1)
+    assert calls == [1]
+    ph.record(octo, "octo:1", "running", remote_name="Neu.gcode", progress=5)   # derselbe Druck: kein zweites Mal
+    ph.record(octo, "octo:0", "completed", remote_name="Alt.gcode")            # alter Verlaufseintrag: nicht
+    imported(ready, octo, "Bekannt.gcode", "From printer/Ender/Bekannt.gcode")
+    ph.record(octo, "octo:2", "running", remote_name="Bekannt.gcode")          # Datei schon da: nicht
+    assert calls == [1]
+
+
 def test_octoprint_job(ready, octoprint):
     """OctoPrint ohne Verlauf: laufender Druck aus /api/job, Ende fertig, abgebrochen oder Fehler."""
     printer = {"name": "Ender", "id": "octoprint:x", "code": "geheim", "ip": octoprint["address"], "kind": "octoprint"}

@@ -202,6 +202,10 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
         job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
         _apply_project_status(con, job)
+    if not row and not local and status == "running" and remote_name:
+        # Neuer Druck einer Datei, die noch nicht in der Bibliothek liegt: gleich holen, damit er
+        # seinem Projekt zugeordnet wird (sonst erst beim nächsten Abgleich, bis zu 10 Minuten)
+        printer_import.request_sync()
 
 
 def delete(job_id: int) -> None:
