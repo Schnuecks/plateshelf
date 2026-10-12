@@ -33,8 +33,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Hochladen** per Drag & Drop, **Papierkorb** mit Wiederherstellen, mehrere Projekte auf
   einmal bearbeiten und Projekte als ZIP
 - **Tägliche automatische Sicherungen**, Zurückspielen in der Oberfläche
-- **Direktimport von Druckern:** Bambu Lab, Prusa über PrusaLink und Klipper-Drucker über
-  Moonraker (etwa Creality K1/K2, Sovol SV08, Qidi, Voron)
+- **Direktimport von Druckern:** Bambu Lab, Prusa über PrusaLink, Klipper-Drucker über
+  Moonraker (etwa Creality K1/K2, Sovol SV08, Qidi, Voron) und OctoPrint
 - **Druckverlauf und Statistik:** was wann auf welchem Drucker gedruckt wurde und ob der
   Druck durchlief, mit Notiz und Bewertung pro Druck
 - **Benutzerkonten** mit Rollen (Admin, Benutzer, Nur lesen), Geräteliste und API-Tokens;

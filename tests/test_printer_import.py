@@ -526,3 +526,97 @@ def test_reachability_probe_and_resync(lib, prusalink, monkeypatch):
     pi.reachability()
     assert synced == [1]                          # nicht bei jeder Abfrage erneut
     pi.state["printers"].clear()
+
+
+# --- OctoPrint --------------------------------------------------------------------
+
+@pytest.fixture
+def octoprint():
+    """HTTP-Server mit den OctoPrint-Aufrufen, die PlateShelf nutzt (X-Api-Key)."""
+    import json
+    import urllib.parse
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    st = {"key": "geheim", "files": {}, "job": {"state": "Operational", "job": {"file": {}}, "progress": {}}}
+
+    def tree(prefix=""):
+        out, folders = [], set()
+        for path, (content, ts) in st["files"].items():
+            rest = path[len(prefix):] if path.startswith(prefix) else None
+            if rest is None:
+                continue
+            if "/" in rest:
+                folders.add(rest.split("/")[0])
+            else:
+                out.append({"name": rest, "path": path, "type": "machinecode", "size": len(content), "date": ts,
+                            "origin": "local", "refs": {"download": "http://elsewhere/downloads/files/local/" + path}})
+        for f in sorted(folders):
+            out.append({"name": f, "path": prefix + f, "type": "folder", "children": tree(prefix + f + "/")})
+        return out
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            if self.headers.get("X-Api-Key") != st["key"]:
+                self.send_response(403)
+                self.end_headers()
+                return
+            if self.path == "/api/files/local?recursive=true":
+                body = json.dumps({"files": tree(), "free": 1}).encode()
+            elif self.path == "/api/job":
+                body = json.dumps(st["job"]).encode()
+            elif self.path.startswith("/downloads/files/local/"):
+                name = urllib.parse.unquote(self.path[len("/downloads/files/local/"):])
+                if name not in st["files"]:
+                    self.send_response(404)
+                    self.end_headers()
+                    return
+                body = st["files"][name][0]
+            else:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield {"address": f"127.0.0.1:{server.server_address[1]}", "state": st}
+    server.shutdown()
+
+
+def test_env_and_save_octoprint_printer(lib):
+    env = {"PRINTER_1_TYPE": "octoprint", "PRINTER_1_NAME": "Ender", "PRINTER_1_IP": "192.0.2.23",
+           "PRINTER_1_API_KEY": "k", "PRINTER_2_TYPE": "octoprint", "PRINTER_2_IP": "192.0.2.24"}  # ohne Schlüssel
+    (p,) = pi.env_printers(env)
+    assert (p["kind"], p["id"], p["code"]) == ("octoprint", "octoprint:http://192.0.2.23", "k")
+    from app.i18n import UserError
+    with pytest.raises(UserError):
+        pi.save_printers([{"db_id": None, "kind": "octoprint", "name": "Ender", "ip": "octoprint", "code": ""}])
+    pi.save_printers([{"db_id": None, "kind": "octoprint", "name": "Ender", "ip": "octoprint", "code": "k"}])
+    (saved,) = pi.load_printers()
+    assert (saved["kind"], saved["id"], saved["code"]) == ("octoprint", "octoprint:http://octoprint", "k")
+    assert pi.printer_address("octoprint", "octoprint") == "octoprint"
+
+
+def test_octoprint_sync(lib, octoprint):
+    from test_gcode_file import prusa_gcode
+    now = time.time()
+    octoprint["state"]["files"].update({
+        "Benchy_PLA_1h2m.gcode": (prusa_gcode().encode(), now - 60),
+        "Kunden/Halter.gcode": (b"G1 X1 Y1 E1\n", now - 30),
+        "Kunden/notiz.txt": (b"x", now),
+        ".versteckt/alt.gcode": (b"G1", now),
+    })
+    printer = {"name": "Ender", "id": "octoprint:x", "code": "geheim", "ip": octoprint["address"], "kind": "octoprint"}
+    res = pi.sync_printer(printer)
+    assert res["ok"] and res["new"] == 2 and res["files"] == 2, res
+    target = lib / "From printer" / "Ender"
+    assert sorted(os.listdir(target)) == ["Benchy_PLA_1h2m.gcode", "Kunden_Halter.gcode"]
+    assert pi.sync_printer(printer)["new"] == 0
+    wrong = pi.sync_printer({**printer, "code": "falsch"})
+    assert wrong["auth_failed"] and wrong["error"].startswith("Anmeldung abgelehnt, API-Schlüssel prüfen")

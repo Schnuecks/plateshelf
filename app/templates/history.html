@@ -12,7 +12,7 @@
   </nav>
   {% if request.query_params.get('job_deleted') %}<p class="flash" role="status">{{ _('Druck aus dem Verlauf entfernt.') }}</p>{% endif %}
   <p class="hint">
-    {{ _('{app} schreibt mit, was deine Drucker drucken: Bambu-Drucker melden jeden Druck sofort, Klipper-Drucker liefern ihren eigenen Verlauf, Prusa-Drucker werden jede Minute abgefragt. Jeder Druck wird der vom Drucker geholten Datei und damit ihrem Projekt zugeordnet.', app=APP_NAME) }}
+    {{ _('{app} schreibt mit, was deine Drucker drucken: Bambu-Drucker melden jeden Druck sofort, Klipper-Drucker liefern ihren eigenen Verlauf, Prusa- und OctoPrint-Drucker werden jede Minute abgefragt. Jeder Druck wird der vom Drucker geholten Datei und damit ihrem Projekt zugeordnet.', app=APP_NAME) }}
     {{ _('Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.') }}
   </p>
   {% if not enabled %}

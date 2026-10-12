@@ -32,8 +32,8 @@ print settings and a 3D preview of the actual toolpaths.
 - **Upload** by drag & drop, a **trash** with restore, editing several projects at once
   and projects as ZIP
 - **Daily automatic backups**, restore in the interface
-- **Direct import from printers:** Bambu Lab, Prusa via PrusaLink and Klipper printers via
-  Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron)
+- **Direct import from printers:** Bambu Lab, Prusa via PrusaLink, Klipper printers via
+  Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron) and OctoPrint
 - **Print history and statistics:** what was printed when, on which printer, and whether it
   finished, with a note and rating per print
 - **User accounts** with roles (admin, user, read only), device list and read-only API tokens;

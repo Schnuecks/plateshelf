@@ -597,7 +597,8 @@ button.danger-quiet:hover { color: var(--ink); }
 .printer-new > .printer-row { border: 1px solid var(--line); border-radius: 6px; margin-top: .4rem; }
 [data-kind="bambu"] [data-kind-only]:not([data-kind-only~="bambu"]),
 [data-kind="moonraker"] [data-kind-only]:not([data-kind-only~="moonraker"]),
-[data-kind="prusalink"] [data-kind-only]:not([data-kind-only~="prusalink"]) { display: none; }
+[data-kind="prusalink"] [data-kind-only]:not([data-kind-only~="prusalink"]),
+[data-kind="octoprint"] [data-kind-only]:not([data-kind-only~="octoprint"]) { display: none; }
 .settings-help > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 .settings-help .hint { margin: .5rem 0 0; font-size: .85rem; }
 

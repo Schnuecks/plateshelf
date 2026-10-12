@@ -13,11 +13,15 @@ ist nur nötig, wenn Moonraker die Adresse von PlateShelf nicht als vertrauensw�
 Prusa (PrusaLink): per HTTP vom USB-Stick oder internen Speicher, bei MK4, MK3.9,
 XL, Mini und Core One. Anmeldung mit Benutzer "maker" und dem PrusaLink-Passwort.
 
+OctoPrint: per HTTP aus dem Dateispeicher von OctoPrint (z. B. OctoPi am Ender, Anycubic
+oder Prusa MK3). Anmeldung mit einem Application Key aus den OctoPrint-Einstellungen.
+
 Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
 Umgebungsvariablen vorgegeben:
     PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
     PRINTER_2_TYPE=moonraker  PRINTER_2_NAME=K1  PRINTER_2_IP=192.0.2.21  PRINTER_2_API_KEY=<optional>
     PRINTER_3_TYPE=prusalink  PRINTER_3_NAME=MK4S  PRINTER_3_IP=192.0.2.22  PRINTER_3_PASSWORD=<Passwort>
+    PRINTER_4_TYPE=octoprint  PRINTER_4_NAME=Ender  PRINTER_4_IP=192.0.2.23  PRINTER_4_API_KEY=<Schlüssel>
 """
 from __future__ import annotations
 
@@ -97,7 +101,7 @@ class ImplicitFTPS(ftplib.FTP_TLS):
 
 
 _ENV_KEY = re.compile(r"PRINTER_(\d+)_(NAME|IP|SERIAL|CODE|TYPE|API_KEY|PASSWORD)(_FILE)?")
-KINDS = ("bambu", "moonraker", "prusalink")
+KINDS = ("bambu", "moonraker", "prusalink", "octoprint")
 MOONRAKER_PORT = 7125
 
 
@@ -209,13 +213,14 @@ def env_printers(environ=None) -> list[dict]:
         if kind not in KINDS:
             log.warning("PRINTER_%d_TYPE=%s unbekannt, möglich sind %s", n, kind, ", ".join(KINDS))
             continue
-        needed = {"bambu": ("ip", "serial", "code"), "moonraker": ("ip",), "prusalink": ("ip", "password")}[kind]
+        needed = {"bambu": ("ip", "serial", "code"), "moonraker": ("ip",), "prusalink": ("ip", "password"),
+                  "octoprint": ("ip", "api_key")}[kind]
         missing = [k for k in needed if not p.get(k)]
         if missing:
             log.warning("PRINTER_%d unvollständig, es fehlt %s", n, ", ".join(f"PRINTER_{n}_{k.upper()}" for k in missing))
             continue
         pid = printer_id(kind, p["ip"], p.get("serial", ""))
-        code = p.get({"bambu": "code", "moonraker": "api_key", "prusalink": "password"}[kind], "")
+        code = p.get({"bambu": "code", "moonraker": "api_key", "prusalink": "password", "octoprint": "api_key"}[kind], "")
         printers.append({"name": p.get("name") or p.get("serial") or p["ip"], "id": pid, "code": code,
                          "ip": p["ip"], "kind": kind, "source": "env"})
     return printers
@@ -276,6 +281,7 @@ def save_printers(rows: list[dict]) -> None:
                 "bambu": (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)),
                 "moonraker": (("IP-Adresse", ip),),
                 "prusalink": (("IP-Adresse", ip), ("Passwort", code)),
+                "octoprint": (("IP-Adresse", ip), ("API-Schlüssel", code)),
             }[kind]
             for field, value in needed:
                 if not value:
@@ -564,7 +570,51 @@ class PrusaLinkSource:
         pass
 
 
-SOURCES = {"moonraker": MoonrakerSource, "prusalink": PrusaLinkSource}
+class OctoPrintSource:
+    """Dateiliste und Download aus dem lokalen Dateispeicher von OctoPrint (Application Key)."""
+
+    def __init__(self, printer: dict, opener=urllib.request.urlopen):
+        self.base = printer_url("octoprint", printer["ip"])
+        self.key = printer.get("code") or ""
+        self.opener = opener
+
+    def _get(self, path: str):
+        request = urllib.request.Request(self.base + path, headers={"X-Api-Key": self.key, "Accept": "application/json"})
+        return self.opener(request, timeout=TIMEOUT)
+
+    def list(self) -> list[dict]:
+        with self._get("/api/files/local?recursive=true") as resp:
+            data = json.load(resp)
+        out: list[dict] = []
+        self._walk(data.get("files") or [], out)
+        return out
+
+    def _walk(self, items: list, out: list) -> None:
+        for item in items:
+            path = str(item.get("path") or "")
+            if not path or any(part.startswith(".") for part in path.split("/")):
+                continue
+            if item.get("type") == "folder":
+                self._walk(item.get("children") or [], out)
+            elif is_gcode(path):
+                out.append({"name": path, "size": int(item.get("size") or 0),
+                            "date": _remote_date(float(item.get("date") or 0))})
+
+    def fetch(self, name: str, fh) -> None:
+        with self._get("/downloads/files/local/" + urllib.parse.quote(name)) as resp:
+            expected = int(resp.headers.get("Content-Length") or 0)
+            got = 0
+            while block := resp.read(256 * 1024):
+                fh.write(block)
+                got += len(block)
+        if expected and got != expected:
+            raise OSError(f"unvollständig ({got} von {expected} Byte)")
+
+    def close(self) -> None:
+        pass
+
+
+SOURCES = {"moonraker": MoonrakerSource, "prusalink": PrusaLinkSource, "octoprint": OctoPrintSource}
 
 
 def sync_printer(printer: dict, connect=None) -> dict:
@@ -578,7 +628,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
         result.update(error=msg.format(**kwargs), error_msg=msg, error_args=kwargs)
 
     def auth_failed(exc) -> None:
-        if kind == "moonraker":
+        if kind in ("moonraker", "octoprint"):
             fail("Anmeldung abgelehnt, API-Schlüssel prüfen ({detail})", detail=exc)
         elif kind == "prusalink":
             fail("Anmeldung abgelehnt, Passwort prüfen ({detail})", detail=exc)

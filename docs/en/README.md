@@ -8,8 +8,8 @@
   Docker secrets
 - [Usage](usage.md): library and projects, uploading, 3D preview, costs, trash,
   language and theme
-- [Printers and print history](printers.md): direct import from Bambu Lab, Prusa and
-  Klipper printers, print history and statistics
+- [Printers and print history](printers.md): direct import from Bambu Lab, Prusa,
+  Klipper and OctoPrint printers, print history and statistics
 - [Dashboard widget](dashboard.md): key figures as JSON, e.g. for Homepage
 - [Development](development.md): running locally, tests, translations, releases
 

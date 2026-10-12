@@ -423,6 +423,52 @@ def poll_prusalink(printer: dict, source=None) -> None:
            progress=job.get("progress"), remaining_s=job.get("time_remaining"))
 
 
+# --- OctoPrint -------------------------------------------------------------------
+
+OCTO_KEY = "octo:"  # OctoPrint führt ohne Plugin keinen Verlauf: Kennung aus dem Startzeitpunkt
+OCTO_RUNNING = ("printing", "paused", "pausing", "resuming", "starting", "cancelling", "finishing")
+OCTO_UNKNOWN = ("offline", "closed", "connecting", "opening serial connection", "detecting serial connection")
+
+
+def poll_octoprint(printer: dict, source=None) -> None:
+    """Aktuellen Druck aus /api/job. Läuft einer, wird er angelegt oder fortgeschrieben; läuft keiner
+    mehr, wird der zuletzt gesehene abgeschlossen (fertig bei 100 %, Fehler bei „Error“, sonst
+    abgebrochen). Ist OctoPrint gerade nicht mit dem Drucker verbunden, bleibt alles, wie es ist."""
+    source = source or printer_import.OctoPrintSource(printer)
+    with source._get("/api/job") as resp:
+        data = json.load(resp)
+    state = str(data.get("state") or "").lower()
+    file = ((data.get("job") or {}).get("file") or {})
+    name = file.get("path") or file.get("name")
+    prog = data.get("progress") or {}
+    completion = prog.get("completion")
+    with store.connect() as con:
+        rows = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' AND job_key LIKE ?",
+                           (printer["id"], OCTO_KEY + "%")).fetchall()
+    if state.startswith(OCTO_RUNNING) and name:
+        current = next((r for r in rows if r["remote_name"] == name), None)
+        printed = float(prog.get("printTime") or 0)
+        key = current["job_key"] if current else f"{OCTO_KEY}{int(time.time() - printed)}"
+        record(printer, key, "running", remote_name=name, duration_s=printed or None,
+               started=None if current else time.time() - printed,
+               progress=round(float(completion), 1) if completion is not None else None,
+               remaining_s=prog.get("printTimeLeft"))
+        rows = [r for r in rows if r["job_key"] != key]
+    elif state.startswith(OCTO_UNKNOWN):
+        return
+    for row in rows:
+        same = row["remote_name"] == name
+        if state.startswith("error"):
+            end = "failed"
+        elif (same and (completion or 0) >= 99.9) or (row["progress"] or 0) >= 99:
+            end = "completed"
+        else:
+            end = "cancelled"
+        record(printer, row["job_key"], end, ended=time.time(),
+               progress=100.0 if end == "completed" else (completion if same and completion is not None
+                                                          else row["progress"]))
+
+
 # --- Bambu Lab (MQTT) -----------------------------------------------------------
 
 BAMBU_ACTIVE = ("PREPARE", "RUNNING", "PAUSE", "SLICING")
@@ -562,6 +608,8 @@ def poll_once() -> None:
                 poll_moonraker(p)
             elif p["kind"] == "prusalink":
                 poll_prusalink(p)
+            elif p["kind"] == "octoprint":
+                poll_octoprint(p)
         except Exception as exc:  # noqa: BLE001  (nicht erreichbar: der Import meldet das schon)
             log.debug("%s: Verlauf nicht abrufbar: %s", p["name"], exc)
 
