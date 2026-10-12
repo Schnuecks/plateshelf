@@ -188,6 +188,15 @@ document.querySelectorAll("[data-printer-live]").forEach((list) => {
             dot.classList.toggle("is-error", !online);
             dot.classList.remove("is-unknown");
             dot.title = online ? dot.dataset.online : dot.dataset.offline;
+            // Text darunter stammt vom letzten Abgleich: passt er nicht mehr zum Punkt, vorläufig ersetzen,
+            // bis der Abgleich die genauen Angaben liefert
+            const text = list.querySelector(`[data-printer-status="${CSS.escape(dot.dataset.printerDot)}"]`);
+            if (text && text.classList.contains(online ? "is-error" : "is-ok")) {
+              text.textContent = online ? text.dataset.back : text.dataset.gone;
+              text.classList.toggle("is-ok", online);
+              text.classList.toggle("is-error", !online);
+              text.hidden = false;
+            }
           });
           const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
             list.querySelector("details[open]");

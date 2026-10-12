@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.14.2
+
+- **Printer status text follows the dot:** in the settings, the text under a printer now changes
+  together with the live dot (“Reachable again, fetching files …” / “Not reachable …”) instead of
+  showing the result of the last fetch until it runs again.
+
 ## 0.14.1
 
 - **New prints fetched right away for all printers:** when a Klipper, Prusa or OctoPrint printer
