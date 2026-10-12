@@ -16,6 +16,8 @@ PlateShelf can fetch sliced prints from your printers itself:
   behind Mainsail and Fluidd. This covers for example Creality K1 and K2, Sovol SV08,
   Qidi, Elegoo Neptune 4 and Voron. PlateShelf fetches the `.gcode` files from the
   printer’s G-code folder.
+- **OctoPrint**, for example OctoPi on an Ender, on Anycubic printers or on a Prusa MK3.
+  PlateShelf fetches the `.gcode` files from OctoPrint’s file storage.
 
 **Set up in the interface:** Add your printers under “Settings” → “Printers for direct
 import” and pick the type. Instead of the IP address you can also enter a hostname such as
@@ -32,6 +34,9 @@ container this does not always work for `.local` names).
   `http://192.0.2.21:7125`. An API key is only needed if Moonraker does not list the
   PlateShelf host under `trusted_clients`. You find the key in Mainsail or Fluidd, or
   via `http://<printer>:7125/access/api_key` from a trusted device.
+- *OctoPrint:* name, address and an API key. Create the key in OctoPrint under Settings →
+  Application Keys, for example named “PlateShelf”. Without a port, port 80 is used, as
+  with OctoPi.
 
 The dot in front of each printer in the settings shows every few seconds whether it is
 reachable. When a printer comes back, PlateShelf fetches its files right away.
@@ -56,10 +61,14 @@ PRINTER_3_TYPE=prusalink
 PRINTER_3_NAME=MK4S
 PRINTER_3_IP=192.0.2.22
 PRINTER_3_PASSWORD=<PrusaLink password>
+PRINTER_4_TYPE=octoprint
+PRINTER_4_NAME=Ender
+PRINTER_4_IP=192.0.2.23
+PRINTER_4_API_KEY=<application key>
 # …
 ```
 
-`PRINTER_<n>_TYPE` is `bambu` (default), `prusalink` or `moonraker`. Printers set up this way appear
+`PRINTER_<n>_TYPE` is `bambu` (default), `prusalink`, `moonraker` or `octoprint`. Printers set up this way appear
 read-only in the settings. If a printer is set in both places, the `.env` wins.
 
 **How it works:**
@@ -102,6 +111,8 @@ progress so far.
 - **Klipper:** Moonraker keeps its own history, which PlateShelf reads every minute.
 - **Prusa:** PrusaLink only knows the current print; PlateShelf queries it every minute
   and records it.
+- **OctoPrint:** keeps no history without an extra plugin; PlateShelf queries the current
+  print every minute. If it ends at 100 % it counts as finished, otherwise as cancelled.
 
 A print is matched to the file fetched from the printer, and thus to its project. If the
 file is not in the library yet, PlateShelf fetches it right away and links the print

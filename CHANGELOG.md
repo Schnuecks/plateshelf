@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **OctoPrint:** printers running OctoPrint (for example OctoPi on an Ender, Anycubic or
+  Prusa MK3) can now be added as a fourth printer type. PlateShelf fetches the G-code files
+  from OctoPrint’s storage and records prints with progress and remaining time. Sign-in uses
+  an application key; set up in the settings or with `PRINTER_<n>_TYPE=octoprint` and
+  `PRINTER_<n>_API_KEY`.
+
 ## 0.13.4
 
 - **Clearer printer status dots:** reachable printers now show a green dot and unreachable ones a

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app import print_history as ph
 from app import printer_import as pi
 from app import store
-from test_printer_import import moonraker, prusalink  # noqa: F401  (Fixtures)
+from test_printer_import import moonraker, octoprint, prusalink  # noqa: F401  (Fixtures)
 
 BAMBU = {"name": "P2S", "id": "SER1", "code": "x", "ip": "x", "kind": "bambu"}
 
@@ -644,3 +644,34 @@ def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     assert done != started
     store.save_settings({"vorschaubilder_stand": "1.1"})  # neues eigenes Vorschaubild gezeichnet
     assert store.library_version() != done
+
+
+def test_octoprint_job(ready, octoprint):
+    """OctoPrint ohne Verlauf: laufender Druck aus /api/job, Ende fertig, abgebrochen oder Fehler."""
+    printer = {"name": "Ender", "id": "octoprint:x", "code": "geheim", "ip": octoprint["address"], "kind": "octoprint"}
+    imported(ready, printer, "Kunden/Halter.gcode", "From printer/Ender/Kunden_Halter.gcode")
+    st = octoprint["state"]
+    ph.poll_octoprint(printer)
+    assert jobs() == []                                                 # nichts gedruckt
+    st["job"] = {"state": "Printing", "job": {"file": {"name": "Halter.gcode", "path": "Kunden/Halter.gcode"}},
+                 "progress": {"completion": 12.5, "printTime": 120, "printTimeLeft": 840}}
+    ph.poll_octoprint(printer)
+    st["job"]["progress"].update(completion=40.0, printTime=400, printTimeLeft=600)
+    ph.poll_octoprint(printer)
+    (job,) = jobs()
+    assert job["job_key"].startswith(ph.OCTO_KEY) and job["status"] == "running"
+    assert (job["progress"], job["remaining_s"], job["local_path"]) == (40.0, 600, "From printer/Ender/Kunden_Halter.gcode")
+    (live,) = ph.printing_now()
+    assert live["project_name"]
+    st["job"]["state"] = "Offline"                                      # Verbindung weg: nichts beenden
+    ph.poll_octoprint(printer)
+    assert jobs()[0]["status"] == "running"
+    st["job"].update(state="Operational", progress={"completion": 100.0, "printTime": 1000, "printTimeLeft": 0})
+    ph.poll_octoprint(printer)
+    assert jobs()[0]["status"] == "completed"
+    st["job"] = {"state": "Printing", "job": {"file": {"path": "Kunden/Halter.gcode"}},
+                 "progress": {"completion": 5.0, "printTime": 30}}
+    ph.poll_octoprint(printer)
+    st["job"].update(state="Operational", progress={"completion": 7.0})
+    ph.poll_octoprint(printer)
+    assert sorted(j["status"] for j in jobs()) == ["cancelled", "completed"]

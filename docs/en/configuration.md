@@ -34,13 +34,13 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | Variable | Default | Meaning |
 |---|---|---|
 | `PRINTER_<n>_NAME`, `_IP`, `_SERIAL`, `_CODE` | – | Bambu printers for the direct import (optional) |
-| `PRINTER_<n>_TYPE` | `bambu` | `prusalink` for Prusa, `moonraker` for Klipper printers |
+| `PRINTER_<n>_TYPE` | `bambu` | `prusalink` for Prusa, `moonraker` for Klipper printers, `octoprint` for OctoPrint |
 | `PRINTER_<n>_PASSWORD` | – | PrusaLink password (Prusa) |
-| `PRINTER_<n>_API_KEY` | – | Moonraker API key, only if required (Klipper) |
+| `PRINTER_<n>_API_KEY` | – | Moonraker API key, only if required (Klipper); application key (OctoPrint) |
 | `PRINTER_SYNC_INTERVAL` | 600 | Seconds between two printer queries |
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
 | `PRINT_HISTORY` | – | `true` or `false` fixes the print history; unset, the switch in the settings applies (default on) |
-| `PRINT_HISTORY_INTERVAL` | 60 | Seconds between two queries of Klipper and Prusa printers |
+| `PRINT_HISTORY_INTERVAL` | 60 | Seconds between two queries of Klipper, Prusa and OctoPrint printers |
 
 **Interface**
 

@@ -16,6 +16,8 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
   Schnittstelle hinter Mainsail und Fluidd. Dazu gehören etwa Creality K1 und K2,
   Sovol SV08, Qidi, Elegoo Neptune 4 und Voron. PlateShelf holt die `.gcode`-Dateien
   aus dem G-Code-Ordner des Druckers.
+- **OctoPrint**, etwa OctoPi am Ender, an Anycubic-Druckern oder an der Prusa MK3.
+  PlateShelf holt die `.gcode`-Dateien aus dem Dateispeicher von OctoPrint.
 
 **Einrichten in der Oberfläche:** Trage deine Drucker unter „Einstellungen“ →
 „Drucker für den Direktimport“ ein und wähle den Typ. Statt der IP-Adresse geht auch ein
@@ -33,6 +35,9 @@ Hostname wie `drucker.local` oder `mini.fritz.box`, sofern PlateShelf ihn auflö
   Moonraker den PlateShelf-Rechner nicht unter `trusted_clients` führt. Den Schlüssel
   findest du in Mainsail oder Fluidd oder von einem vertrauenswürdigen Gerät aus unter
   `http://<drucker>:7125/access/api_key`.
+- *OctoPrint:* Name, Adresse und ein API-Schlüssel. Den Schlüssel legst du in OctoPrint
+  unter Einstellungen → Application Keys an, etwa mit dem Namen „PlateShelf“. Ohne
+  Portangabe gilt Port 80, wie bei OctoPi.
 
 Der Punkt vor jedem Drucker in den Einstellungen zeigt alle paar Sekunden, ob er
 erreichbar ist. Kommt ein Drucker wieder, holt PlateShelf seine Dateien sofort.
@@ -57,10 +62,14 @@ PRINTER_3_TYPE=prusalink
 PRINTER_3_NAME=MK4S
 PRINTER_3_IP=192.0.2.22
 PRINTER_3_PASSWORD=<PrusaLink-Passwort>
+PRINTER_4_TYPE=octoprint
+PRINTER_4_NAME=Ender
+PRINTER_4_IP=192.0.2.23
+PRINTER_4_API_KEY=<Application Key>
 # …
 ```
 
-`PRINTER_<n>_TYPE` ist `bambu` (Standard), `prusalink` oder `moonraker`. So eingerichtete Drucker
+`PRINTER_<n>_TYPE` ist `bambu` (Standard), `prusalink`, `moonraker` oder `octoprint`. So eingerichtete Drucker
 erscheinen in den Einstellungen schreibgeschützt. Ist ein Drucker an beiden Stellen
 eingetragen, hat die `.env` Vorrang.
 
@@ -108,6 +117,8 @@ dem bisherigen Fortschritt geschätzt.
 - **Klipper:** Moonraker führt selbst einen Verlauf, den PlateShelf jede Minute abruft.
 - **Prusa:** PrusaLink kennt nur den aktuellen Druck; PlateShelf fragt ihn jede Minute ab
   und schreibt ihn mit.
+- **OctoPrint:** führt ohne Zusatz-Plugin keinen Verlauf; PlateShelf fragt den aktuellen
+  Druck jede Minute ab. Endet er bei 100 %, gilt er als fertig, sonst als abgebrochen.
 
 Ein Druck wird der vom Drucker geholten Datei zugeordnet und damit ihrem Projekt. Liegt
 die Datei noch nicht in der Bibliothek, holt PlateShelf sie sofort und ordnet den Druck

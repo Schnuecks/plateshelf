@@ -8,8 +8,8 @@
   Geheimnisse und Docker-Secrets
 - [Bedienung](usage.md): Bibliothek und Projekte, Hochladen, 3D-Vorschau, Kosten,
   Papierkorb, Sprache und Design
-- [Drucker und Druckverlauf](printers.md): Direktimport von Bambu-Lab-, Prusa- und
-  Klipper-Druckern, Druckverlauf und Statistik
+- [Drucker und Druckverlauf](printers.md): Direktimport von Bambu-Lab-, Prusa-,
+  Klipper- und OctoPrint-Druckern, Druckverlauf und Statistik
 - [Dashboard-Widget](dashboard.md): Kennzahlen als JSON, z. B. für Homepage
 - [Entwicklung](development.md): lokal starten, Tests, Übersetzungen, Releases
 

@@ -2,10 +2,10 @@
 {% block title %}{{ _('Einstellungen') }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
-{% set KIND_LABELS = {'bambu': 'Bambu Lab', 'moonraker': 'Klipper', 'prusalink': 'Prusa'} %}
+{% set KIND_LABELS = {'bambu': 'Bambu Lab', 'moonraker': 'Klipper', 'prusalink': 'Prusa', 'octoprint': 'OctoPrint'} %}
 
 {% macro status_text(st) -%}
-{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind in ('moonraker', 'prusalink') %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}
+{% if st.error_msg %}{{ _(st.error_msg, **st.error_args) }}{% elif st.kind in ('moonraker', 'prusalink', 'octoprint') %}{{ ngettext('Erreichbar, {n} G-Code-Datei auf dem Drucker ({ago})', 'Erreichbar, {n} G-Code-Dateien auf dem Drucker ({ago})', st.files, ago=st.at|ago) }}{% else %}{{ ngettext('Erreichbar, {n} Datei auf der SD-Karte ({ago})', 'Erreichbar, {n} Dateien auf der SD-Karte ({ago})', st.files, ago=st.at|ago) }}{% endif %}
 {%- endmacro %}
 
 {% macro printer_line(pr) %}
@@ -23,18 +23,20 @@
 {% macro printer_fields(pr) %}
           <label>{{ _('Typ') }}
             <select name="kind" data-printer-kind>
-              <option value="bambu" {{ 'selected' if pr.kind not in ('moonraker', 'prusalink') }}>Bambu Lab</option>
+              <option value="bambu" {{ 'selected' if pr.kind not in ('moonraker', 'prusalink', 'octoprint') }}>Bambu Lab</option>
               <option value="moonraker" {{ 'selected' if pr.kind == 'moonraker' }}>Klipper (Moonraker)</option>
               <option value="prusalink" {{ 'selected' if pr.kind == 'prusalink' }}>Prusa (PrusaLink)</option>
+              <option value="octoprint" {{ 'selected' if pr.kind == 'octoprint' }}>OctoPrint</option>
             </select></label>
           <label>{{ _('Name') }} <input type="text" name="name" value="{{ pr.name or '' }}" placeholder="{{ _('z. B. P1S Werkstatt') }}"></label>
           <label>{{ _('IP-Adresse oder Hostname') }} <input type="text" name="ip" value="{{ pr.ip or '' }}" {{ 'required' if pr.db_id }} inputmode="url" autocapitalize="none" spellcheck="false" placeholder="192.168.1.20 / drucker.local"></label>
           <label data-kind-only="bambu">{{ _('Seriennummer') }} <input type="text" name="serial" value="{{ pr.serial or '' }}" autocomplete="off" spellcheck="false"></label>
-          <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span>
+          <label><span data-kind-only="bambu">{{ _('Zugangscode') }}</span><span data-kind-only="moonraker">{{ _('API-Schlüssel (optional)') }}</span><span data-kind-only="prusalink">{{ _('Passwort') }}</span><span data-kind-only="octoprint">{{ _('API-Schlüssel') }}</span>
             <input type="password" name="code" value="" autocomplete="new-password"
                  placeholder="{{ '••••••••' if pr.db_id else '' }}" {% if pr.db_id %}title="{{ _('Gespeichert. Leer lassen, um ihn zu behalten.') }}"{% endif %}></label>
           <p class="hint printer-help" data-kind-only="bambu">{{ _('per FTPS von der SD-Karte. IP-Adresse, Seriennummer und Zugangscode findest du am Drucker unter Einstellungen → WLAN bzw. Netzwerk.') }}</p>
           <p class="hint printer-help" data-kind-only="moonraker">{{ _('G-Code-Dateien vom Drucker, zum Beispiel bei Creality K1 und K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ohne Portangabe gilt Port {port}. Einen API-Schlüssel brauchst du nur, wenn Moonraker {app} nicht als vertrauenswürdig kennt.', port='<code>7125</code>', app=APP_NAME)|safe }}</p>
+          <p class="hint printer-help" data-kind-only="octoprint">{{ _('G-Code-Dateien aus OctoPrint, zum Beispiel OctoPi am Ender, Anycubic oder Prusa MK3. Den API-Schlüssel legst du in OctoPrint unter Einstellungen → Application Keys an.') }}</p>
           <p class="hint printer-help" data-kind-only="prusalink">{{ _('G-Code-Dateien vom USB-Stick oder internen Speicher, bei MK4, MK3.9, XL, Mini und Core One. Das Passwort findest du am Drucker unter Einstellungen → Netzwerk → PrusaLink, der Benutzername ist {user}.', user='<code>maker</code>')|safe }}</p>
           {% if pr.db_id %}<p class="hint printer-help">{{ _('Gespeicherte Zugangscodes werden nicht angezeigt; lass das Feld leer, um ihn zu behalten.') }}</p>{% endif %}
 {% endmacro %}
@@ -119,7 +121,8 @@
           <summary>{{ _('Drucker über die .env einrichten') }}</summary>
           <p class="hint">{{ _('Alternativ lassen sich Drucker in der {env} vorgeben: {vars}, für weitere Drucker {more} usw.', env='<code>.env</code>', vars='<code>PRINTER_1_NAME</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_SERIAL</code>, <code>PRINTER_1_CODE</code>', more='<code>PRINTER_2_…</code>')|safe }}
             {{ _('Für Klipper-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=moonraker</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}
-            {{ _('Für Prusa-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=prusalink</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_PASSWORD</code>')|safe }}</p>
+            {{ _('Für Prusa-Drucker: {vars}.', vars='<code>PRINTER_1_TYPE=prusalink</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_PASSWORD</code>')|safe }}
+            {{ _('Für OctoPrint: {vars}.', vars='<code>PRINTER_1_TYPE=octoprint</code>, <code>PRINTER_1_IP</code>, <code>PRINTER_1_API_KEY</code>')|safe }}</p>
         </details>
       </section>
 
@@ -209,7 +212,7 @@
 
       <section class="settings-section" id="history" data-section>
         <h2>{{ _('Druckverlauf') }}</h2>
-        <p class="hint">{{ _('Schreibt mit, was die Drucker aus dem Direktimport drucken, und ordnet jeden Druck seinem Projekt zu. Bambu-Drucker bekommen dafür eine dauerhafte MQTT-Verbindung, Klipper- und Prusa-Drucker werden jede Minute abgefragt.') }}</p>
+        <p class="hint">{{ _('Schreibt mit, was die Drucker aus dem Direktimport drucken, und ordnet jeden Druck seinem Projekt zu. Bambu-Drucker bekommen dafür eine dauerhafte MQTT-Verbindung, Klipper-, Prusa- und OctoPrint-Drucker werden jede Minute abgefragt.') }}</p>
         {% if request.query_params.get('history') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
         {% if history_env is not none %}
         <p class="hint">{{ _('Über die Umgebungsvariable {env} festgelegt: {state}.', env='<code>PRINT_HISTORY</code>', state=_('eingeschaltet') if history_env else _('ausgeschaltet'))|safe }}</p>
