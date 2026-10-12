@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.13.0
 
 - **Printer status live in the settings:** the dot in front of each printer now shows within a
   few seconds whether it is reachable – switch a printer on and it turns green without reloading.
