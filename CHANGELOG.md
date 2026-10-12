@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.14.0
 
 - **OctoPrint:** printers running OctoPrint (for example OctoPi on an Ender, Anycubic or
   Prusa MK3) can now be added as a fourth printer type. PlateShelf fetches the G-code files
