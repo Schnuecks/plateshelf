@@ -591,6 +591,13 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
         page.clock.run_for(16_000)
         page.wait_for_function("document.querySelector('[data-live-project]').textContent.includes('55')",
                                timeout=5_000)
+        pid = page.locator("[data-live-project]").get_attribute("data-live-project")
+        page.goto(f"{server['url']}/p/{pid}")                      # Projektseite: Druckliste
+        assert "55 %" in page.locator("[data-live-job]").inner_text()
+        print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=70)
+        page.clock.run_for(16_000)
+        page.wait_for_function("document.querySelector('[data-live-job]').textContent.includes('70')",
+                               timeout=5_000)
     finally:
         with store.connect() as con:
             con.execute("DELETE FROM print_jobs WHERE job_key = 'live1'")

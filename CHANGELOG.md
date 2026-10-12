@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.13.2
+
+- **Live progress on the project page and in the history:** the percentage of a running print
+  now follows the printer every 15 seconds there too, like on the overview tiles, instead of
+  staying at the value from when the page was loaded. `/api/printing` also returns the id of
+  each print (`job`).
+
 ## 0.13.1
 
 - **Klipper: running print shown even without Moonraker history:** if Moonraker’s job history
