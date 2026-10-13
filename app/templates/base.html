@@ -55,6 +55,7 @@
         <details class="lang-menu" data-menu>
           <summary class="icon-btn" title="{{ _('Sprache: {language}', language=LANGUAGES[lang()]) }}" aria-label="{{ _('Sprache: {language}', language=LANGUAGES[lang()]) }}">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
+            <span class="pref-label">{{ _('Sprache') }}</span>
             <span class="lang-code">{{ lang()|upper }}</span>
           </summary>
           <div class="menu" role="menu">
@@ -71,23 +72,25 @@
           {% if t == 'light' %}<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           {% elif t == 'dark' %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
           {% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>{% endif %}
+          <span class="pref-label">{{ _('Design') }}</span>
+          <span class="pref-value">{{ _(THEME_LABELS[t]) }}</span>
         </button>
       </form>
       {% block nav_links %}
-      {% if can_edit(request) %}<a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>{% endif %}
+      {% if can_edit(request) %}<a class="upload-link" href="/upload"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>{{ _('Hochladen') }}</a>{% endif %}
       {# Used less often: behind a menu button, so the header has room for running prints.
          On phones everything is shown directly in the expanded menu. #}
       <div class="nav-menu" data-nav-menu>
         <button type="button" class="icon-btn nav-menu-btn" aria-expanded="false" aria-controls="nav-menu-list"
                 title="{{ _('Menü') }}" aria-label="{{ _('Menü') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
         <div class="menu nav-menu-list" id="nav-menu-list">
-          {% if history_enabled() %}<a class="settings-link" href="/history">{{ _('Verlauf') }}</a>{% endif %}
-          {% if can_edit(request) %}<a class="settings-link" href="/trash">{{ _('Papierkorb') }}</a>{% endif %}
-          {% if is_admin(request) %}<a class="settings-link" href="/settings">{{ _('Einstellungen') }}</a>{% endif %}
+          {% if history_enabled() %}<a class="settings-link" href="/history"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg>{{ _('Verlauf') }}</a>{% endif %}
+          {% if can_edit(request) %}<a class="settings-link" href="/trash"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>{{ _('Papierkorb') }}</a>{% endif %}
+          {% if is_admin(request) %}<a class="settings-link" href="/settings"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>{{ _('Einstellungen') }}</a>{% endif %}
           {% if me %}
-          <a class="settings-link account-link" href="/account">{{ _('Konto: {name}', name=me.name) }}</a>
+          <a class="settings-link account-link" href="/account"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>{{ _('Konto: {name}', name=me.name) }}</a>
           <form method="post" action="/logout" class="nav-logout">
-            <button type="submit" class="settings-link">{{ _('Abmelden') }}</button>
+            <button type="submit" class="settings-link"><svg class="nav-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>{{ _('Abmelden') }}</button>
           </form>
           {% endif %}
         </div>

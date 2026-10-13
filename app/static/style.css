@@ -395,19 +395,39 @@ summary { cursor: pointer; font-weight: 500; }
   .js .topbar > .menu-toggle { display: inline-flex; grid-column: 2; grid-row: 1; align-self: center; }
   .js .topbar > .nav-back { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center;
     max-width: none; padding-block: .35rem; }
-  .js .topbar > .tb-right { display: none; grid-column: 1 / -1; }
-  .js .topbar.menu-open > .tb-right { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
-  .js .topbar.menu-open > .tb-right > a { padding: .7rem .25rem; border-top: 1px solid var(--line); text-align: left; }
-  .js .topbar.menu-open > .tb-right > .tb-prefs { padding: .5rem 0 0; border-top: 1px solid var(--line);
-    justify-content: flex-start; }
-  /* Phones: the menu is already expanded, the entries are stacked like the other links */
-  .js .topbar.menu-open .nav-menu { display: contents; }
+  .js .topbar > .tb-right { display: none; }
+  /* Phones: the menu opens as a panel above the page, the page behind is dimmed */
+  .js .topbar { position: relative; }
+  .js .topbar.menu-open::after { content: ""; position: fixed; inset: var(--topbar-h, 4rem) 0 0; z-index: 35;
+    background: rgb(0 0 0 / .35); }
+  .js .topbar.menu-open > .tb-right { display: flex; flex-direction: column; align-items: stretch; gap: .1rem;
+    position: absolute; top: calc(100% + .35rem); left: .75rem; right: .75rem; z-index: 40; padding: .4rem;
+    grid-column: 1 / -1; justify-self: stretch;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgb(0 0 0 / .25); max-height: calc(100dvh - var(--topbar-h, 4rem) - 1rem); overflow-y: auto; }
+  .js .topbar.menu-open .nav-menu, .js .topbar.menu-open .nav-menu-list { display: contents; }
   .js .topbar.menu-open .nav-menu-btn { display: none; }
-  .js .topbar.menu-open .nav-menu-list { display: contents; }
-  .js .topbar.menu-open .nav-menu-list .settings-link { padding: .7rem .25rem; border: 0; border-top: 1px solid var(--line);
-    border-radius: 0; margin: 0; color: var(--muted); }
-  .js .topbar.menu-open > .tb-right > .upload-link { order: 2; }
-  .js .topbar.menu-open > .tb-right > .tb-prefs { order: 3; }
+  .js .topbar.menu-open > .tb-right > .upload-link { order: 1; }
+  .js .topbar.menu-open .nav-menu-list > * { order: 2; }
+  .js .topbar.menu-open > .tb-right > .tb-prefs { order: 3; flex-direction: column; align-items: stretch; gap: .1rem;
+    margin-top: .3rem; padding-top: .3rem; border-top: 1px solid var(--line); }
+  /* One full-width row per entry: icon, label and (for language/theme) the current value on the right */
+  .js .topbar.menu-open :is(.upload-link, .settings-link, .tb-prefs .icon-btn) { display: flex; align-items: center;
+    gap: .8rem; width: 100%; height: auto; min-height: 2.9rem; padding: .6rem .75rem; margin: 0; border: 0; border-radius: 6px;
+    background: none; color: var(--ink); font: inherit; font-size: 1rem; font-weight: 500; text-align: left;
+    text-decoration: none; justify-content: flex-start; }
+  .js .topbar.menu-open :is(.upload-link, .settings-link, .tb-prefs .icon-btn):hover { background: var(--bg); }
+  .js .topbar.menu-open > .tb-right > .upload-link { color: var(--accent); font-weight: 600; }
+  .js .topbar.menu-open .upload-link .nav-ico { display: block; color: inherit; }
+  .js .topbar.menu-open .account-link { margin-top: .3rem; border-top: 1px solid var(--line); border-radius: 0 0 6px 6px;
+    color: var(--muted); }
+  .js .topbar.menu-open .nav-logout { margin: 0; }
+  .js .topbar.menu-open :is(.nav-ico, .tb-prefs .icon-btn svg) { width: 1.25rem; height: 1.25rem; flex: none; }
+  .js .topbar.menu-open .pref-label { display: inline; }
+  .js .topbar.menu-open :is(.lang-code, .pref-value) { display: inline; margin-left: auto; color: var(--muted);
+    font-weight: 400; }
+  .js .topbar.menu-open .lang-menu .menu { position: static; min-width: 0; margin: 0 0 .3rem 2.8rem; box-shadow: none;
+    border: 0; border-left: 2px solid var(--line); border-radius: 0; padding: 0 0 0 .5rem; }
   .js .topbar .tb-left { gap: .5rem .75rem; }
 }
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
@@ -418,7 +438,10 @@ summary { cursor: pointer; font-weight: 500; }
   display: none; flex-direction: column; padding: .3rem; background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
 .nav-menu.is-open .nav-menu-list { display: flex; }
-.nav-menu-list .settings-link { display: block; width: 100%; padding: .5rem .65rem; border-radius: 4px; color: var(--ink);
+.nav-ico { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+.upload-link .nav-ico, .pref-label, .pref-value { display: none; }
+.nav-menu-list .settings-link { display: flex; align-items: center; gap: .6rem; width: 100%; padding: .5rem .65rem; border-radius: 4px; color: var(--ink);
   background: none; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
 .nav-menu-list .settings-link:hover { background: var(--bg); }
 .nav-menu-list .account-link { border-top: 1px solid var(--line); border-radius: 0 0 4px 4px; margin-top: .2rem; padding-top: .6rem;
