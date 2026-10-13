@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.16.2
+
+- **Home-screen app on iOS stays up to date:** when you come back to the app after more than a
+  minute (or iOS shows the page from its cache), the page reloads; after a short pause the running
+  prints and the library are fetched right away instead of on the next timer. Pages where something
+  may be being edited (settings, upload, account) are not reloaded. Pages and API answers are also
+  sent with `Cache-Control: no-cache`, so no old state is shown from a cache.
+
 ## 0.16.1
 
 - **Menu on phones:** the menu now opens as a panel above the page (the page behind is dimmed, a tap

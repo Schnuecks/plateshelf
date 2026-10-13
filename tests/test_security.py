@@ -95,6 +95,10 @@ def test_security_headers_everywhere(client):
         assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
         assert r.headers["referrer-policy"] == "same-origin"
     assert "'unsafe-inline'" not in client.get("/login").headers["content-security-policy"].split("style-src")[0]
+    # Pages and API answers are never taken from a cache (iOS home-screen app), static files are
+    assert client.get("/login").headers["cache-control"] == "no-cache"
+    assert client.get("/healthz").headers["cache-control"] == "no-cache"
+    assert "no-cache" not in client.get("/static/style.css").headers.get("cache-control", "")
 
 
 def test_passkey_register_login_and_remove(client):
