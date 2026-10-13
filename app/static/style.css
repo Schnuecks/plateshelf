@@ -141,16 +141,27 @@ th.r, td.r, .r { text-align: right; }
 }
 .nav-back::before { content: "‹"; font-size: 1.3em; line-height: 1; margin-top: -.1em; }
 .nav-back:hover { border-color: var(--accent); color: var(--accent); }
-/* Suche mit Filtern: lieber als eigene Zeile unter Logo und laufendem Druck als zusammengequetscht */
-.search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 36rem; }
-.search input[type=search] { flex: 1 1 16rem; }
+/* Suche: in der Kopfzeile nur Suchfeld und „Filter“, die Auswahlfelder klappen darunter auf.
+   So bleibt die Kopfzeile auch mit laufenden Drucken einzeilig. Ohne JavaScript stehen sie daneben. */
+.search { position: relative; display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 18rem; min-width: 0; }
+.search input[type=search] { flex: 1 1 12rem; min-width: 0; }
+.filter-panel { display: contents; }
 .filter-toggle { display: none; }
+.js .search { flex-wrap: nowrap; max-width: 34rem; }
+.js .filter-toggle { display: inline-flex; flex: none; }
+.js .filter-panel { display: none; }
+.js .search.filters-open .filter-panel { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(2, minmax(11rem, 1fr)); gap: .5rem; padding: .6rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.js .search.filters-open .filter-toggle { border-color: var(--accent); }
 @media (max-width: 640px) {
-  /* Auf dem Handy: Suche bleibt sichtbar, die Auswahlfelder erst nach „Filter“ */
+  /* Handy: Auswahlfelder klappen in der Kopfzeile auf statt als schwebendes Feld */
+  .js .search { flex-wrap: wrap; max-width: none; }
   .js .search input[type=search] { flex: 1 1 8rem; }
-  .js .filter-toggle { display: inline-flex; }
-  .js .search:not(.filters-open) select { display: none; }
-  .js .search.filters-open select { flex: 1 1 calc(50% - .5rem); min-width: 0; }
+  .js .search.filters-open .filter-panel { position: static; flex: 1 1 100%; box-shadow: none; padding: 0; border: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .js .search.filters-open .filter-panel select { min-width: 0; }
 }
 
 input, select, textarea, button, .button {

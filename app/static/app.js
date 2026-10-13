@@ -356,10 +356,11 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
 
 // Filter sofort anwenden: Auswahlfelder beim Ändern, Suche nach kurzer Tipppause
 document.querySelectorAll("[data-filter-toggle]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const open = button.form.classList.toggle("filters-open");
-    button.setAttribute("aria-expanded", String(open));
-  });
+  const form = button.form;
+  const set = (open) => { form.classList.toggle("filters-open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(!form.classList.contains("filters-open")));
+  document.addEventListener("click", (e) => { if (!form.contains(e.target)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
 });
 
 document.querySelectorAll("[data-autofilter]").forEach((form) => {

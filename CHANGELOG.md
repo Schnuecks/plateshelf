@@ -9,8 +9,8 @@ Entries up to version 0.6.0 (when the project was still called Druckarchiv) are 
   only linked to the existing file, and duplicates already imported are removed once (their prints
   move to the original).
 - **More room in the top bar:** History, trash, settings, account and sign-out moved into a menu
-  (☰) on the right; upload, language and theme stay visible. The search with its filters now wraps
-  into its own row instead of being squeezed into a narrow column next to the running prints.
+  (☰) on the right; upload, language and theme stay visible. The search shows only the field and a
+  "Filter" button; the filters open as a dropdown, so the top bar stays on one row.
 - **Newest files first:** when a printer has many files to fetch (e.g. the first import of the cache
   folder), the newest come first, so the running print is linked to its project quickly.
 
