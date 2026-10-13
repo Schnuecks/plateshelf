@@ -29,12 +29,17 @@
     <div class="tb-left">
       <a class="brand" href="/"><img src="/static/logo.svg?v={{ ASSET_V }}" alt="" width="26" height="26">{{ APP_NAME }}</a>
       {% if history_enabled() %}{% set live = live_prints() %}
-      <a class="live-print" href="{{ live[0].url if live else '/history' }}" data-live-print {% if not live %}hidden{% endif %}
-         title="{{ live|map(attribute='text')|join(' | ') }}">
-        <span class="live-dot" aria-hidden="true"></span>
-        <span data-live-text>{{ live[0].text if live }}</span>
-        <span class="live-more" data-live-more {% if live|length < 2 %}hidden{% endif %}>+{{ live|length - 1 }}</span>
-      </a>{% endif %}
+      <div class="live-wrap" data-live-print {% if not live %}hidden{% endif %}>
+        <a class="live-print" href="{{ live[0].url if live else '/history' }}" data-live-link>
+          <span class="live-dot" aria-hidden="true"></span>
+          <span data-live-text>{{ live[0].text if live }}</span>
+        </a>
+        <button type="button" class="live-more" data-live-more aria-expanded="false" aria-controls="live-list"
+                title="{{ _('Alle laufenden Drucke') }}" {% if live|length < 2 %}hidden{% endif %}>+{{ live|length - 1 }}</button>
+        <ul class="live-list" id="live-list" data-live-list hidden>
+          {% for j in live %}<li><a href="{{ j.url }}">{{ j.text }}</a></li>{% endfor %}
+        </ul>
+      </div>{% endif %}
       {% block topbar %}{% endblock %}
     </div>
     {% block back %}{% endblock %}

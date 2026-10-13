@@ -239,7 +239,8 @@ LIVE_MAX_AGE = 30 * 60  # ohne Meldung seit 30 Minuten gilt ein Druck nicht mehr
 
 
 def printing_now() -> list[dict]:
-    """Laufende Drucke mit frischer Meldung, für Titelleiste, Übersicht und Dashboard."""
+    """Laufende Drucke mit frischer Meldung, für Titelleiste, Übersicht und Dashboard; der Druck, der
+    als Nächstes fertig wird, zuerst (ohne bekannte Restzeit ans Ende)."""
     with store.connect() as con:
         return [dict(r) for r in con.execute(
             """SELECT j.id, j.printer_name, j.remote_name, j.progress, j.remaining_s, j.started, j.local_path,
@@ -248,7 +249,7 @@ def printing_now() -> list[dict]:
                LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
                LEFT JOIN projects p ON p.id = f.project_id
                WHERE j.status = 'running' AND j.hidden = 0 AND COALESCE(j.updated, j.started) > ?
-               ORDER BY j.started""", (time.time() - LIVE_MAX_AGE,))]
+               ORDER BY j.remaining_s IS NULL, j.remaining_s, j.started""", (time.time() - LIVE_MAX_AGE,))]
 
 
 def running_job(printer_id: str):
@@ -601,21 +602,27 @@ def refresh_watchers(printers: list[dict]) -> None:
             _watchers[pid] = ((p["ip"], p["code"], p["name"]), watcher)
 
 
+POLLERS = {"moonraker": "poll_moonraker", "prusalink": "poll_prusalink", "octoprint": "poll_octoprint"}
+
+
+def _poll(p: dict) -> None:
+    try:
+        globals()[POLLERS[p["kind"]]](p)
+    except Exception as exc:  # noqa: BLE001  (nicht erreichbar: der Import meldet das schon)
+        log.debug("%s: Verlauf nicht abrufbar: %s", p["name"], exc)
+
+
 def poll_once() -> None:
+    """Alle abzufragenden Drucker gleichzeitig: ein ausgeschalteter bremst die anderen nicht aus.
+    Drucker mit unlesbaren Zugangsdaten bleiben außen vor, der Import meldet das in den Einstellungen."""
     printers = printer_import.load_printers()
     refresh_watchers(printers)
-    for p in printers:
-        if p.get("code_error"):
-            continue  # Zugangsdaten nicht lesbar, der Import meldet das in den Einstellungen
-        try:
-            if p["kind"] == "moonraker":
-                poll_moonraker(p)
-            elif p["kind"] == "prusalink":
-                poll_prusalink(p)
-            elif p["kind"] == "octoprint":
-                poll_octoprint(p)
-        except Exception as exc:  # noqa: BLE001  (nicht erreichbar: der Import meldet das schon)
-            log.debug("%s: Verlauf nicht abrufbar: %s", p["name"], exc)
+    todo = [p for p in printers if p["kind"] in POLLERS and not p.get("code_error")]
+    threads = [threading.Thread(target=_poll, args=(p,), daemon=True) for p in todo]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(printer_import.TIMEOUT + 5)
 
 
 def loop() -> None:

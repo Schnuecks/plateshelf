@@ -109,7 +109,7 @@
       <div class="bed">
         {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy"{% if p.cover_is_photo %} class="is-photo"{% endif %}>{% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
         {% if p.plates|length > 1 %}<span class="bed-count">{{ _('{n} Platten', n=p.plates|length) }}</span>{% endif %}
-        {% if p.printing %}<span class="bed-live" data-live-project="{{ p.id }}" data-label="{{ _('Druckt') }}">{{ _('Druckt') }}{% if p.printing.progress is not none %} {{ p.printing.progress|num(0) }} %{% endif %}</span>{% endif %}
+        {% if p.printing %}<span class="bed-live" data-live-project="{{ p.id }}" data-label="{{ _('Druckt') }}">{{ _('Druckt') }}{% if p.printings|length > 1 %} {{ p.printings|length }}×{% endif %}{% for j in p.printings if j.progress is not none %} {{ j.progress|num(0) }} %{{ ' /' if not loop.last }}{% endfor %}</span>{% endif %}
       </div>
       <div class="strand" style="background: {{ p.filaments|strand }}"></div>
       <div class="card-body">

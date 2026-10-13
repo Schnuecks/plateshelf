@@ -581,6 +581,40 @@ def test_pages_notice_when_printer_sync_is_done(server, page):
         printer_import.state["last_run"] = before
 
 
+def test_several_prints_at_once(server, page, monkeypatch):
+    """Mehrere gleichzeitige Drucke: Titelleiste zeigt den, der als Nächstes fertig wird, „+1“ klappt
+    die Liste auf, der Tab nennt die Zahl, die Kachel zeigt beide Drucke desselben Projekts."""
+    import time
+
+    from app import print_history, store
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    a = {"name": "P1S", "id": "S", "kind": "bambu"}
+    b = {"name": "K1", "id": "moonraker:k1", "kind": "moonraker"}
+    with store.connect() as con:
+        for pr, name in (("S", "P1S"), ("moonraker:k1", "K1")):
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                        "imported) VALUES (?, 'Zylinder.gcode.3mf', 1, '', 'Zylinder.gcode.3mf', ?, ?)",
+                        (pr, name, time.time()))
+    try:
+        print_history.record(a, "m1", "running", remote_name="Zylinder.gcode.3mf", progress=20, remaining_s=3600)
+        print_history.record(b, "m2", "running", remote_name="Zylinder.gcode.3mf", progress=80, remaining_s=300)
+        page.goto(server["url"] + "/")
+        assert page.locator("[data-live-text]").inner_text().startswith("K1")       # wird zuerst fertig
+        badge = page.locator("[data-live-project]").inner_text()
+        assert "2×" in badge and "80 %" in badge and "20 %" in badge
+        page.wait_for_function("document.title.startsWith('2 Drucke · nächster 80 %')", timeout=5_000)
+        assert not page.locator("[data-live-list]").is_visible()
+        page.locator("[data-live-more]").click()
+        items = page.locator("[data-live-list] a")
+        assert items.count() == 2 and items.nth(1).inner_text().startswith("P1S")
+        page.keyboard.press("Escape")
+        assert not page.locator("[data-live-list]").is_visible()
+    finally:
+        with store.connect() as con:
+            con.execute("DELETE FROM print_jobs WHERE job_key IN ('m1', 'm2')")
+            con.execute("DELETE FROM printer_files WHERE remote_name = 'Zylinder.gcode.3mf' AND printer IN ('S', 'moonraker:k1')")
+
+
 def test_overview_tile_shows_print_progress(server, page, monkeypatch):
     """Die Prozente des laufenden Drucks auf der Kachel gehen ohne Neuladen weiter."""
     import time
