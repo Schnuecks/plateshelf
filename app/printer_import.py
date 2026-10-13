@@ -248,6 +248,21 @@ def stored_plaintext() -> int:
         return sum(1 for (code,) in con.execute("SELECT code FROM printers") if code and not crypto.is_encrypted(code))
 
 
+def printer_labels(con) -> dict[str, str]:
+    """Library path -> name of the printer the file was fetched from, as set in the settings.
+
+    Shown instead of the slicer profile ("Original Prusa MINI & MINI+ Input Shaper"); files that were
+    uploaded keep the profile name.
+    """
+    names = {p["id"]: p["name"] for p in load_printers()}
+    labels: dict[str, str] = {}
+    for r in con.execute("SELECT printer, printer_name, local_path FROM printer_files "
+                         "WHERE local_path IS NOT NULL ORDER BY imported"):
+        if name := names.get(r["printer"]) or r["printer_name"]:
+            labels.setdefault(r["local_path"], name)
+    return labels
+
+
 def load_printers() -> list[dict]:
     """All printers; for the same serial number the environment variable wins."""
     env = env_printers()
