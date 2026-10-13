@@ -32,6 +32,15 @@ document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
   sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
 });
 
+// Menü rechts in der Kopfzeile (Verlauf, Papierkorb, Einstellungen, Konto, Abmelden)
+document.querySelectorAll("[data-nav-menu]").forEach((menu) => {
+  const button = menu.querySelector(".nav-menu-btn");
+  const set = (open) => { menu.classList.toggle("is-open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(!menu.classList.contains("is-open")));
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+});
+
 // Kopfzeile auf dem Handy: Menü auf- und zuklappen; Höhe der Kopfzeile für die 3D-Vorschau merken
 document.querySelectorAll("[data-menu-toggle]").forEach((button) => {
   const bar = button.closest(".topbar");
@@ -347,10 +356,11 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
 
 // Filter sofort anwenden: Auswahlfelder beim Ändern, Suche nach kurzer Tipppause
 document.querySelectorAll("[data-filter-toggle]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const open = button.form.classList.toggle("filters-open");
-    button.setAttribute("aria-expanded", String(open));
-  });
+  const form = button.form;
+  const set = (open) => { form.classList.toggle("filters-open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(!form.classList.contains("filters-open")));
+  document.addEventListener("click", (e) => { if (!form.contains(e.target)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
 });
 
 document.querySelectorAll("[data-autofilter]").forEach((form) => {
