@@ -11,7 +11,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from starlette.background import BackgroundTask
 
 from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, render, store
@@ -98,6 +98,14 @@ def backup_download():
     backup.write(target)
     return FileResponse(target, filename=f"plateshelf-backup-{time.strftime('%Y-%m-%d')}.sqlite",
                         media_type="application/vnd.sqlite3", background=BackgroundTask(target.unlink))
+
+
+@router.get("/settings/diagnostics.zip")
+def diagnostics_zip():
+    """Diagnostics with log and the last printer answers as a file for a bug report."""
+    name = f"plateshelf-diagnostics-{time.strftime('%Y%m%d-%H%M')}.zip"
+    return Response(diagnostics.bundle(APP_VERSION), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @router.get("/settings/backup/file/{name}")

@@ -416,8 +416,19 @@
         <div class="section-foot diag-actions">
           <span class="hint" data-copy-done hidden role="status">{{ _('Kopiert.') }}</span>
           <a href="{{ APP_REPO }}/issues/new/choose" target="_blank" rel="noopener">{{ _('Fehler auf GitHub melden') }}</a>
+          <a class="button" href="/settings/diagnostics.zip" download>{{ _('Als Datei herunterladen') }}</a>
           <button type="button" data-copy>{{ _('Kopieren') }}</button>
         </div>
+        <details class="diag-contents">
+          <summary>{{ _('Was steht in der Datei?') }}</summary>
+          <ul class="hint">
+            <li>{{ _('Der Diagnosetext von oben: Version, System und welche Einstellungen gesetzt sind.') }}</li>
+            <li>{{ _('Die letzten 500 Protokollzeilen seit dem Start: zeigen, was beim Abgleich und bei den Druckerabfragen passiert ist.') }}</li>
+            <li>{{ _('Je Drucker der Typ, das Ergebnis des letzten Abgleichs, die Dateiliste auf dem Drucker und die letzte Antwort auf die Statusabfrage: zeigen, was der Drucker wirklich meldet, wenn Status, Fortschritt oder Projekt nicht stimmen.') }}</li>
+            <li>{{ _('Nicht enthalten: Zugangsdaten, Seriennummern, IP-Adressen, Hostnamen und Druckernamen (sie heißen dort „printer 1“ usw.). Dateinamen bleiben drin, weil sie für die Zuordnung der Drucke wichtig sind.') }}</li>
+            <li>{{ _('Die Antworten liegen nur im Arbeitsspeicher, die Datei entsteht erst beim Herunterladen. Verschickt wird nichts; du entscheidest, ob du sie teilst.') }}</li>
+          </ul>
+        </details>
       </section>
     </div>
   </div>

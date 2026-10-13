@@ -10,17 +10,21 @@ The text is in English so that it is understandable in any issue.
 from __future__ import annotations
 
 import collections
+import io
+import json
 import logging
 import os
 import platform
 import re
-
 import time
+import zipfile
 
-from . import auth, crypto, i18n, print_history, printer_import, store
+from . import auth, captures, crypto, i18n, print_history, printer_import, store
 
 LOG_LINES = 30
+FULL_LOG_LINES = 500  # for the download: also info messages
 _log: collections.deque = collections.deque(maxlen=LOG_LINES)
+_full_log: collections.deque = collections.deque(maxlen=FULL_LOG_LINES)
 _IPV4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 _URL = re.compile(r"\b(https?://)[^\s/:]+")
 ENV_NAMES = ("TZ", "LOG_LEVEL", "SCAN_INTERVAL", "MAX_UPLOAD_MB", "PREVIEW_PREBUILD", "TRASH_DAYS",
@@ -35,12 +39,16 @@ def mask(text: str) -> str:
 
 
 class _Recent(logging.Handler):
-    """Remembers the latest warnings and errors without writing them."""
+    """Remembers the latest log messages without writing them: warnings for the text,
+    info messages as well for the download."""
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            when = time.strftime("%Y-%m-%d %H:%M", time.localtime(record.created))
-            _log.append(f"{when} {record.levelname} {record.name}: {mask(record.getMessage())}"[:300])
+            when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(record.created))
+            line = f"{when} {record.levelname} {record.name}: {mask(record.getMessage())}"
+            _full_log.append(line[:1000])
+            if record.levelno >= logging.WARNING:
+                _log.append(line[:300])
         except Exception:  # noqa: BLE001  (diagnostics must never interfere itself)
             pass
 
@@ -48,7 +56,7 @@ class _Recent(logging.Handler):
 def install() -> None:
     root = logging.getLogger()
     if not any(isinstance(h, _Recent) for h in root.handlers):
-        handler = _Recent(level=logging.WARNING)
+        handler = _Recent(level=logging.INFO)
         root.addHandler(handler)
 
 
@@ -118,3 +126,63 @@ def report(version: str) -> str:
     lines += [f"  {line}" for line in _log]
     lines.append(f"Generated {time.strftime('%Y-%m-%d %H:%M')}")
     return "\n".join(lines)
+
+
+# --- Download -------------------------------------------------------------------
+
+# Keys in printer answers whose values are removed (exact names, lower case)
+_SECRET_KEYS = {"sn", "dev_id", "ip", "host", "hostname", "ssid", "mac", "net", "user", "username", "owner", "user_id", "uid",
+                "code", "password", "token", "key", "apikey", "api_key", "access_code", "url", "ipcam"}
+_SECRET_PARTS = ("serial", "passw", "token", "secret", "wifi", "access_code")
+
+
+def _scrub(value, hide):
+    """Remove secret keys and replace names/addresses in all strings."""
+    if isinstance(value, dict):
+        return {k: "<removed>" if k.lower() in _SECRET_KEYS or any(p in k.lower() for p in _SECRET_PARTS)
+                else _scrub(v, hide) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_scrub(v, hide) for v in value]
+    if isinstance(value, str):
+        return hide(value)
+    return value
+
+
+def _hider(printers: list[dict]):
+    """Replaces serial numbers, addresses, access codes and names of the printers."""
+    swaps: list[tuple[str, str]] = []
+    for i, p in enumerate(printers, 1):
+        for field, label in (("code", "<removed>"), ("id", f"<printer {i} id>"), ("ip", "<host>"),
+                             ("name", f"printer {i}")):
+            value = str(p.get(field) or "").strip()
+            if len(value) >= 2:
+                swaps.append((value, label))
+    swaps.sort(key=lambda s: -len(s[0]))
+
+    def hide(text: str) -> str:
+        for value, label in swaps:
+            text = text.replace(value, label)
+        return mask(text)
+    return hide
+
+
+def bundle(version: str) -> bytes:
+    """ZIP for a bug report: the diagnostics text, the last log messages and per printer
+    its state and the last raw answers. Without credentials, addresses and printer names."""
+    printers = printer_import.load_printers()
+    hide = _hider(printers)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("diagnostics.txt", hide(report(version)))
+        z.writestr("log.txt", "\n".join(hide(line) for line in _full_log) or "(no messages since the start)")
+        for i, p in enumerate(printers, 1):
+            data = {
+                "printer": f"printer {i}", "kind": p.get("kind", "bambu"), "configured via": p.get("source"),
+                "sync state": printer_import.state["printers"].get(p["id"]),
+                "last answers": {label: {"at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(a["at"])),
+                                         "data": a["data"]}
+                                 for label, a in captures.answers(p["id"]).items()},
+            }
+            z.writestr(f"printer-{i}-{p.get('kind', 'bambu')}.json",
+                       json.dumps(_scrub(data, hide), indent=2, ensure_ascii=False, default=str))
+    return out.getvalue()
