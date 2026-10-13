@@ -215,7 +215,7 @@ const SHARED_GLSL = /* glsl */ `
   uniform vec3 toolColors[32]; uniform vec3 featureColors[32];
   uniform uint toolMask; uniform uint featureMask;
   uniform vec3 uniColor;
-  uniform float cutPoint; // Wiedergabe: oberste Schicht nur bis zu diesem Punkt (mit Bruchteil)
+  uniform float cutPoint; // playback: top layer only up to this point (with fraction)
   bool visibleFor(vec4 inf) {
     int f = int(inf.y); int t = int(inf.z);
     return inf.x >= minLayer && inf.x <= maxLayer
@@ -229,7 +229,7 @@ const SHARED_GLSL = /* glsl */ `
     return mix(ramp[i], ramp[i + 1], x - float(i));
   }
   vec3 baseColor(vec4 inf, vec4 met) {
-    // Genau ein return: sonst warnt der Shader-Compiler unter Windows (ANGLE/D3D)
+    // Exactly one return: otherwise the shader compiler warns on Windows (ANGLE/D3D)
     vec3 c = featureColors[int(inf.y)];
     if (mode >= 3) {
       int k = mode - 3;
@@ -269,10 +269,10 @@ function makeLineMaterial(uniforms) {
       ${SHARED_GLSL}
       varying vec3 vColor; varying float vIdx; varying float vTop;
       void main() {
-        vIdx = float(gl_VertexID); // beim indexierten Zeichnen der Punktindex
+        vIdx = float(gl_VertexID); // the vertex index when drawing indexed
         vTop = info.x == maxLayer ? 1.0 : 0.0;
         if (!visibleFor(info)) {
-          // Außerhalb des Sichtbereichs legen: die Linie wird verworfen, bevor sie gerastert wird
+          // Move outside the view volume: the line is discarded before it is rasterized
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           vColor = vec3(0.0);
           return;
@@ -312,10 +312,10 @@ function makeTubeMaterial(uniforms) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
         }
-        d /= len;  // erst normieren: gekürzt wäre d sonst 1/cut lang und das Band ragte weit über
-                   // beide Enden hinaus (Striche durch die Düse beim Abspielen)
+        d /= len;  // normalize first: once shortened, d would be 1/cut long and the band would stick far out past
+                   // both ends (streaks through the nozzle during playback)
         if (cut < 1.0) { e.xyz = mix(s.xyz, e.xyz, cut); len *= cut; }
-        // Band quer zur Blickrichtung aufspannen, Enden um die halbe Breite verlängern
+        // Span the band across the view direction, extend the ends by half the width
         vec2 corner = position.xy;
         vec3 mid = mix(s.xyz, e.xyz, corner.x);
         vec3 toCam = normalize(-mid);
@@ -332,14 +332,14 @@ function makeTubeMaterial(uniforms) {
       uniform int normalPass;
       varying vec3 vColor; varying float vSide; varying vec3 vPerp; varying vec3 vToCam;
       void main() {
-        // Querschnitt einer Röhre: Normale aus der Position quer über das Band
+        // Cross-section of a tube: normal from the position across the band
         float c = sqrt(max(0.0, 1.0 - vSide * vSide));
         vec3 n = normalize(vPerp * vSide + vToCam * c);
         if (normalPass == 1) { gl_FragColor = vec4(n * 0.5 + 0.5, 1.0); return; }
         vec3 L = normalize(vec3(0.35, 0.55, 0.75));
         float diff = max(dot(n, L), 0.0);
         float spec = pow(max(dot(reflect(-L, n), vToCam), 0.0), 20.0) * 0.28;
-        // Dunkle Filamente an beleuchteten Stellen etwas aufhellen, sonst verschwinden die Schichten
+        // Brighten dark filaments a little where lit, otherwise the layers disappear
         float luma = dot(vColor, vec3(0.2126, 0.7152, 0.0722));
         vec3 col = vColor * (0.22 + 0.78 * diff) + vec3(0.06 * (1.0 - luma) * diff * diff) + spec * 0.7;
         gl_FragColor = vec4(col, 1.0);
@@ -425,13 +425,13 @@ function makeAoMaterial(depthTexture, normalTexture) {
       void main() {
         if (texture2D(tDepth, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
         vec3 p = viewPos(vUv);
-        // Suchradius in Pixeln: zu klein gibt nur Moiré auf den feinen Rillen, dann keine Schattierung
+        // Search radius in pixels: too small only gives moiré on the fine grooves, so no shading then
         float fade = smoothstep(10.0, 24.0, radius * pxScale / max(-p.z, 1e-3));
         if (fade <= 0.0) { gl_FragColor = vec4(1.0); return; }
         vec3 n = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
         vec3 tg = normalize(cross(n, abs(n.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
         vec3 bt = cross(n, tg);
-        // Pro Pixel gedrehtes Muster (Interleaved Gradient Noise); das Rauschen glättet der Weichzeichner
+        // Pattern rotated per pixel (interleaved gradient noise); the blur smooths out the noise
         float ang = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
         float bias = 0.002 * abs(p.z);
         float occ = 0.0;

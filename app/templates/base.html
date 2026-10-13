@@ -48,12 +48,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
     <nav class="tb-right" id="site-nav">
-      {% block nav_links %}
-      {% if history_enabled() %}<a class="settings-link" href="/history">{{ _('Verlauf') }}</a>{% endif %}
-      {% if can_edit(request) %}<a class="settings-link" href="/trash">{{ _('Papierkorb') }}</a>{% endif %}
-      {% if is_admin(request) %}<a class="settings-link" href="/settings">{{ _('Einstellungen') }}</a>{% endif %}
-      {% if can_edit(request) %}<a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>{% endif %}
-      {% endblock %}
+      {% set me = current_user(request) if auth_enabled() else none %}
       <form method="post" action="/appearance" class="tb-prefs">
         <input type="hidden" name="next" value="{{ current_url(request) }}">
         {% set chosen = language_choice(request) %}
@@ -78,17 +73,26 @@
           {% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>{% endif %}
         </button>
       </form>
-      {% set me = current_user(request) if auth_enabled() else none %}
-      {% if me and self.nav_links() | trim %}
-      <a class="icon-btn account-link" href="/account" title="{{ _('Konto: {name}', name=me.name) }}" aria-label="{{ _('Konto: {name}', name=me.name) }}">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
-      </a>
-      <form method="post" action="/logout" class="tb-prefs">
-        <button type="submit" class="icon-btn" title="{{ _('Abmelden') }}" aria-label="{{ _('Abmelden') }}">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>
-        </button>
-      </form>
-      {% endif %}
+      {% block nav_links %}
+      {% if can_edit(request) %}<a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>{% endif %}
+      {# Used less often: behind a menu button, so the header has room for running prints.
+         On phones everything is shown directly in the expanded menu. #}
+      <div class="nav-menu" data-nav-menu>
+        <button type="button" class="icon-btn nav-menu-btn" aria-expanded="false" aria-controls="nav-menu-list"
+                title="{{ _('Menü') }}" aria-label="{{ _('Menü') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div class="menu nav-menu-list" id="nav-menu-list">
+          {% if history_enabled() %}<a class="settings-link" href="/history">{{ _('Verlauf') }}</a>{% endif %}
+          {% if can_edit(request) %}<a class="settings-link" href="/trash">{{ _('Papierkorb') }}</a>{% endif %}
+          {% if is_admin(request) %}<a class="settings-link" href="/settings">{{ _('Einstellungen') }}</a>{% endif %}
+          {% if me %}
+          <a class="settings-link account-link" href="/account">{{ _('Konto: {name}', name=me.name) }}</a>
+          <form method="post" action="/logout" class="nav-logout">
+            <button type="submit" class="settings-link">{{ _('Abmelden') }}</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endblock %}
     </nav>
   </header>
   <main>{% block main %}{% endblock %}</main>

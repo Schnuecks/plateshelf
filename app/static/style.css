@@ -141,15 +141,27 @@ th.r, td.r, .r { text-align: right; }
 }
 .nav-back::before { content: "‹"; font-size: 1.3em; line-height: 1; margin-top: -.1em; }
 .nav-back:hover { border-color: var(--accent); color: var(--accent); }
-.search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1; }
-.search input[type=search] { flex: 1 1 16rem; }
+/* Search: only the field and "Filter" in the header, the select fields drop down below.
+   This keeps the header on one row even with running prints. Without JavaScript they sit next to it. */
+.search { position: relative; display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 18rem; min-width: 0; }
+.search input[type=search] { flex: 1 1 12rem; min-width: 0; }
+.filter-panel { display: contents; }
 .filter-toggle { display: none; }
+.js .search { flex-wrap: nowrap; max-width: 34rem; }
+.js .filter-toggle { display: inline-flex; flex: none; }
+.js .filter-panel { display: none; }
+.js .search.filters-open .filter-panel { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 20;
+  display: grid; grid-template-columns: repeat(2, minmax(11rem, 1fr)); gap: .5rem; padding: .6rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.js .search.filters-open .filter-toggle { border-color: var(--accent); }
 @media (max-width: 640px) {
-  /* On phones: search stays visible, the select fields only after „Filter“ */
+  /* Phones: the select fields expand inside the header instead of as a floating panel */
+  .js .search { flex-wrap: wrap; max-width: none; }
   .js .search input[type=search] { flex: 1 1 8rem; }
-  .js .filter-toggle { display: inline-flex; }
-  .js .search:not(.filters-open) select { display: none; }
-  .js .search.filters-open select { flex: 1 1 calc(50% - .5rem); min-width: 0; }
+  .js .search.filters-open .filter-panel { position: static; flex: 1 1 100%; box-shadow: none; padding: 0; border: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .js .search.filters-open .filter-panel select { min-width: 0; }
 }
 
 input, select, textarea, button, .button {
@@ -388,9 +400,31 @@ summary { cursor: pointer; font-weight: 500; }
   .js .topbar.menu-open > .tb-right > a { padding: .7rem .25rem; border-top: 1px solid var(--line); text-align: left; }
   .js .topbar.menu-open > .tb-right > .tb-prefs { padding: .5rem 0 0; border-top: 1px solid var(--line);
     justify-content: flex-start; }
+  /* Phones: the menu is already expanded, the entries are stacked like the other links */
+  .js .topbar.menu-open .nav-menu { display: contents; }
+  .js .topbar.menu-open .nav-menu-btn { display: none; }
+  .js .topbar.menu-open .nav-menu-list { display: contents; }
+  .js .topbar.menu-open .nav-menu-list .settings-link { padding: .7rem .25rem; border: 0; border-top: 1px solid var(--line);
+    border-radius: 0; margin: 0; color: var(--muted); }
+  .js .topbar.menu-open > .tb-right > .upload-link { order: 2; }
+  .js .topbar.menu-open > .tb-right > .tb-prefs { order: 3; }
   .js .topbar .tb-left { gap: .5rem .75rem; }
 }
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
+.tb-right > .upload-link { order: -1; }  /* before language and theme */
+/* Top-bar menu on the right: history, trash, settings, account, sign out */
+.nav-menu { position: relative; display: flex; }
+.nav-menu-list { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 20; min-width: 12rem;
+  display: none; flex-direction: column; padding: .3rem; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.nav-menu.is-open .nav-menu-list { display: flex; }
+.nav-menu-list .settings-link { display: block; width: 100%; padding: .5rem .65rem; border-radius: 4px; color: var(--ink);
+  background: none; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
+.nav-menu-list .settings-link:hover { background: var(--bg); }
+.nav-menu-list .account-link { border-top: 1px solid var(--line); border-radius: 0 0 4px 4px; margin-top: .2rem; padding-top: .6rem;
+  color: var(--muted); }
+.nav-logout { margin: 0; }
+.nav-menu-btn[aria-expanded="true"] { color: var(--ink); background: var(--bg); }
 .settings-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
 .settings-link:hover { color: var(--ink); }
 .upload { max-width: var(--page-narrow); margin-inline: auto; }

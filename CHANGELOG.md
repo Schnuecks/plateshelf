@@ -2,6 +2,18 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.15.3
+
+- **No duplicates from the Bambu cache folder:** the P2S keeps the same file in the main folder and
+  in `cache`; 0.15.2 imported both, so prints showed up twice. Copies with identical content are now
+  only linked to the existing file, and duplicates already imported are removed once (their prints
+  move to the original).
+- **More room in the top bar:** History, trash, settings, account and sign-out moved into a menu
+  (☰) on the right; upload, language and theme stay visible. The search shows only the field and a
+  "Filter" button; the filters open as a dropdown, so the top bar stays on one row.
+- **Newest files first:** when a printer has many files to fetch (e.g. the first import of the cache
+  folder), the newest come first, so the running print is linked to its project quickly.
+
 ## 0.15.2
 
 - **Bambu P1 and A1 series:** prints sent from Bambu Studio or the cloud are stored by these

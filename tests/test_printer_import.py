@@ -112,6 +112,56 @@ def test_sync_takes_sliced_projects_from_the_cache_folder(lib, sample, tmp_path)
     assert pi.sync_printer(PRINTER, connect=FakePrinter({"Root.gcode.3mf": (sliced, "Jan 18  2026")}))["files"] == 1
 
 
+def test_cache_copy_of_a_known_file_is_only_linked(lib, sample, tmp_path):
+    """The P2S keeps the same file in the main folder and in /cache: no second project."""
+    src = tmp_path / "Leuchtturm.gcode.3mf"
+    sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    pi.init()
+    assert pi.sync_printer(PRINTER, connect=FakePrinter({"Leuchtturm.gcode.3mf": (src, "Jan 18  2026")}))["new"] == 1
+    store.scan(wait=True)
+    fake = FakePrinter({"Leuchtturm.gcode.3mf": (src, "Jan 18  2026"), "cache/Roter Leuchtturm.3mf": (src, "Jan 18  2026")})
+    assert pi.sync_printer(PRINTER, connect=fake)["new"] == 0
+    assert os.listdir(lib / "From printer" / "P2S") == ["Leuchtturm.gcode.3mf"]
+    from app import print_history as ph
+    with store.connect() as con:  # a print by its cache name goes to the existing project
+        assert ph._resolve(con, "SER1", "Roter Leuchtturm.3mf") == "From printer/P2S/Leuchtturm.gcode.3mf"
+
+
+def test_dedupe_cache_imports_from_0_15_2(lib, sample, tmp_path):
+    src = tmp_path / "A.gcode.3mf"
+    sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    target = lib / "From printer" / "P2S"
+    target.mkdir(parents=True)
+    import shutil as _sh
+    _sh.copy(src, target / "A.gcode.3mf")
+    _sh.copy(src, target / "Profil.gcode.3mf")      # this is how 0.15.2 stored the copy from /cache
+    store.scan(wait=True)
+    from app import print_history as ph
+    with store.connect() as con:
+        for remote, local in (("A.gcode.3mf", "A.gcode.3mf"), ("cache/Profil.3mf", "Profil.gcode.3mf")):
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                        "imported) VALUES ('SER1', ?, 1, '', ?, 'P2S', 0)", (remote, f"From printer/P2S/{local}"))
+    ph.record({"name": "P2S", "id": "SER1", "kind": "bambu"}, "j1", "completed", remote_name="cache/Profil.3mf")
+    assert pi.dedupe_cache_imports() == 1
+    assert os.listdir(target) == ["A.gcode.3mf"]
+    with store.connect() as con:
+        assert con.execute("SELECT local_path FROM print_jobs").fetchone()[0] == "From printer/P2S/A.gcode.3mf"
+    assert pi.dedupe_cache_imports() == 0
+
+
+def test_newest_files_are_fetched_first(lib, sample, tmp_path):
+    src = tmp_path / "x.gcode.3mf"
+    sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    order = []
+    fake = FakePrinter({"alt.gcode.3mf": (src, "Jan 18  2024"), "neu.gcode.3mf": (src, "Jan 18  2026"),
+                        "mitte.gcode.3mf": (src, "Jan 18  2025")})
+    original = fake.retrbinary
+    fake.retrbinary = lambda cmd, cb, blocksize=8192: (order.append(cmd[6:]), original(cmd, cb))
+    pi.init()
+    pi.sync_printer(PRINTER, connect=fake)
+    assert order == ["neu.gcode.3mf", "mitte.gcode.3mf", "alt.gcode.3mf"]
+
+
 def test_older_listing_format_is_not_a_new_file(lib, sample, tmp_path):
     """After about six months the printer shows the year instead of the time; it's the same file."""
     src = tmp_path / "bunny.gcode.3mf"

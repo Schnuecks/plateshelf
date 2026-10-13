@@ -427,7 +427,8 @@ def test_mobile_layout(server, browser):
             assert pg.locator(".topbar").bounding_box()["height"] < 130, path
         assert not pg.locator("#site-nav").is_visible()
         pg.locator("[data-menu-toggle]").click()
-        assert pg.get_by_role("link", name="Einstellungen").is_visible()
+        assert pg.get_by_role("link", name="Einstellungen").is_visible()   # phone: no second menu
+        assert not pg.locator(".nav-menu-btn").is_visible()
         pg.goto(server["url"] + "/")
         assert not pg.locator("select[name=material]").is_visible()
         pg.locator("[data-filter-toggle]").click()
@@ -468,6 +469,7 @@ def test_language_and_theme_from_topbar(server, page):
     page.locator('.lang-menu button[value="en"]').click()
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("lang") == "en"
+    page.locator(".nav-menu-btn").click()
     assert page.get_by_role("link", name="Settings").is_visible()
     page.locator(".theme-btn").click()  # system -> light
     page.wait_for_load_state("load")
@@ -503,9 +505,12 @@ def _login_flow(server, page):
     page.wait_for_url("**/settings")
     page.click('a[href="#users"]')
     assert page.locator("#users .printer-name", has_text="tester").is_visible()
+    assert not page.locator(".account-link").is_visible()   # inside the menu on the right
+    page.click(".nav-menu-btn")
     page.click(".account-link")
     page.wait_for_url("**/account")
     assert page.locator(".device-current").is_visible()
+    page.click(".nav-menu-btn")
     page.click('form[action="/logout"] button')
     page.wait_for_url("**/login")
     assert page.errors == []
