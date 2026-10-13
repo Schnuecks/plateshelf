@@ -81,6 +81,13 @@ Aktualisieren: `docker compose pull && docker compose up -d`.
 
 Was sich in einer Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) (auf Englisch).
 
+## Wie es entsteht
+
+PlateShelf entsteht mit Unterstützung eines KI-Assistenten. Funktionen und Verhalten lege ich
+fest, prüfe die Änderungen und teste sie an meinen eigenen Druckern und Testumgebungen (Bambu
+Lab, Prusa, Klipper, OctoPrint). Veröffentlicht wird nur, was die automatischen Prüfungen
+besteht: Python-Tests, Browsertests und ein Sicherheitsscan des Containers.
+
 ## Unterstützen
 
 PlateShelf ist kostenlos und bleibt es. Wenn es dir Zeit spart, kannst du mir einen Kaffee

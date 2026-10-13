@@ -76,6 +76,13 @@ Open `http://<server>:8000` and create the admin account; the setup code is in t
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
 
+## How it's built
+
+PlateShelf is developed with the help of an AI coding assistant. I define the features and
+behaviour, review the changes and test them on my own printers and test setups (Bambu Lab,
+Prusa, Klipper, OctoPrint). Nothing is released without passing the automated checks: Python
+tests, browser tests and a container security scan.
+
 ## Support
 
 PlateShelf is free and stays free. If it saves you time, you can buy me a coffee; it keeps
