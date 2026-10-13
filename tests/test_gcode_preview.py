@@ -40,12 +40,12 @@ def test_convert(tmp_path):
     assert meta["layers"] == [0.2, 0.4]
     assert meta["tools"] == [0, 1]
     assert meta["features"] == ["Außenwand", "Infill", "Stützen"]
-    assert meta["polys"] == 3  # Wand (vereinfacht), Bogen, Stütze
+    assert meta["polys"] == 3  # wall (simplified), arc, support
     saved = json.loads((tmp_path / "out" / "1_1.json").read_text())
     assert saved["version"] == meta["version"]
     raw = gzip.open(tmp_path / "out" / "1_1.bin.gz").read()
     assert len(raw) >= meta["points"] * 4 + meta["polys"] * 20
-    # Die drei Punkte der Außenwand liegen auf einer Knickstelle: nichts darf wegfallen
+    # The three points of the outer wall lie on a bend: nothing may be dropped
     assert meta["points"] >= 3 + 3 + 2
 
 
@@ -81,15 +81,15 @@ def test_metrics_speed_flow_fan_temp(tmp_path):
     with zipfile.ZipFile(src, "w") as z:
         z.writestr("Metadata/plate_1.gcode", METRIC_GCODE)
     meta = convert(src, 1, tmp_path / "out" / "1_1")
-    # Gerade Linie, aber drei verschiedene Bahnstücke: nichts darf zusammengefasst werden
+    # Straight line, but three different path segments: nothing may be merged
     assert meta["points"] == 4
     mets = _read_preview(tmp_path / "out" / "1_1", meta)
     per_point = [tuple(mets[i:i + 4]) for i in range(0, len(mets), 4)]
-    # 0,5 mm Filament auf 10 mm bei 1,75 mm Durchmesser: 0,1203 mm³ pro mm Bahn
-    assert per_point[1] == (500, 601, 100, 220)   # 50 mm/s, 6,01 mm³/s, Lüfter 100 %, 220 °C
+    # 0.5 mm of filament over 10 mm at 1.75 mm diameter: 0.1203 mm³ per mm of path
+    assert per_point[1] == (500, 601, 100, 220)   # 50 mm/s, 6.01 mm³/s, fan 100 %, 220 °C
     assert per_point[2] == (1000, 1203, 100, 220)
-    assert per_point[3] == (1000, 1203, 50, 230)  # Zusatzlüfter P2 ändert den Bauteillüfter nicht
-    assert per_point[0] == per_point[1]            # Startpunkt trägt die Werte des ersten Stücks
+    assert per_point[3] == (1000, 1203, 50, 230)  # auxiliary fan P2 does not change the part cooling fan
+    assert per_point[0] == per_point[1]            # start point carries the values of the first segment
     r = meta["metrics"]
     assert (r["speed"]["min"], r["speed"]["max"], r["speed"]["unit"]) == (50.0, 100.0, "mm/s")
     assert (r["fan"]["min"], r["fan"]["max"]) == (50, 100)
@@ -107,8 +107,8 @@ def test_travels_and_retractions(tmp_path):
     travels = array("H", raw[off:off + meta["travels"] * 10])
     retracts = array("H", raw[off + meta["travels"] * 10:])
     q = lambda v: int((v + 100) * 100 + 0.5)  # noqa: E731
-    # Anfahrt in Schicht 0, Rückzug mit Wischen, Fahrt zum Start von Schicht 1
+    # Approach in layer 0, retraction with wipe, travel to the start of layer 1
     assert [tuple(travels[i:i + 5]) for i in range(0, len(travels), 5)] == [
         (q(10), q(10), q(0), q(0), 0), (q(20), q(10), q(30), q(10), 0), (q(40), q(10), q(0), q(0), 1)]
-    # Rückzug beim Wischen und einer am Ende; der zweite direkt danach fällt weg
+    # Retraction during wipe and one at the end; the second one right after it is dropped
     assert [tuple(retracts[i:i + 3]) for i in range(0, len(retracts), 3)] == [(q(20), q(10), 0), (q(5), q(5), 1)]

@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Eigene Fotos vom fertigen Druck, pro Projekt.
+"""Own photos of the finished print, per project.
 
-Die Fotos liegen in der Bibliothek unter .photos/<Schlüssel>/, wie der Papierkorb unter
-.trash/: Sie gehören zu den eigenen Dateien und werden mit dem Bibliotheksordner
-gesichert. Der Schlüssel kommt aus dem festen Gruppenschlüssel des Projekts, deshalb
-sind die Fotos nach dem Wiederherstellen aus dem Papierkorb automatisch wieder da.
+The photos are stored in the library under .photos/<key>/, like the trash under
+.trash/: they belong to the user's own files and are backed up with the library
+folder. The key comes from the project's fixed group key, so the photos are
+automatically back after restoring from the trash.
 
-Beim Hochladen wird jedes Bild gedreht, wie die Kamera es vermerkt hat, auf höchstens
-2400 Pixel verkleinert und als JPEG ohne Metadaten gespeichert. So landen keine
-GPS-Position und keine Kameradaten in der Bibliothek. Dazu kommt eine kleine Fassung
-für die Übersicht.
+On upload, each image is rotated as noted by the camera, scaled down to at most
+2400 pixels and saved as JPEG without metadata. That way no GPS position and no
+camera data end up in the library. In addition there is a small version
+for the overview.
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ def folder_for(group_key: str) -> Path:
 
 
 def list_photos(group_key: str) -> list[str]:
-    """Namen der Fotos (große Fassung), älteste zuerst."""
+    """Names of the photos (large version), oldest first."""
     folder = folder_for(group_key)
     if not folder.is_dir():
         return []
@@ -59,7 +59,7 @@ def path_of(group_key: str, name: str) -> Path | None:
 
 
 def save(group_key: str, fh) -> str:
-    """Bild prüfen, verkleinern und ohne Metadaten ablegen. Gibt den Namen zurück."""
+    """Check the image, scale it down and store it without metadata. Returns the name."""
     head = fh.read(MAX_UPLOAD_MB * 1024 * 1024 + 1)
     if len(head) > MAX_UPLOAD_MB * 1024 * 1024:
         raise UserError("Das Bild ist größer als {mb} MB.", mb=MAX_UPLOAD_MB)
@@ -67,7 +67,7 @@ def save(group_key: str, fh) -> str:
         with Image.open(BytesIO(head)) as probe:
             probe.verify()
         img = Image.open(BytesIO(head))
-        img = ImageOps.exif_transpose(img)  # wie fotografiert, nicht wie gespeichert
+        img = ImageOps.exif_transpose(img)  # as photographed, not as stored
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError, SyntaxError, ValueError):
         raise UserError("Dieses Bildformat wird nicht unterstützt (JPEG, PNG oder WebP).") from None
     if img.mode not in ("RGB", "L"):
@@ -81,7 +81,7 @@ def save(group_key: str, fh) -> str:
     big = img.copy()
     big.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
     tmp = folder / f".{name}.part"
-    big.save(tmp, "JPEG", quality=85, optimize=True, progressive=True)  # ohne exif=…: keine Metadaten
+    big.save(tmp, "JPEG", quality=85, optimize=True, progressive=True)  # without exif=…: no metadata
     os.replace(tmp, folder / name)
     img.thumbnail((SMALL_SIDE, SMALL_SIDE), Image.Resampling.LANCZOS)
     img.save(folder / small_name(name), "JPEG", quality=80, optimize=True)
@@ -95,7 +95,7 @@ def delete(group_key: str, name: str) -> None:
     (folder / name).unlink(missing_ok=True)
     (folder / small_name(name)).unlink(missing_ok=True)
     try:
-        folder.rmdir()  # nur wenn leer
+        folder.rmdir()  # only if empty
     except OSError:
         pass
 

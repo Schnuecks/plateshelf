@@ -1,27 +1,27 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Holt geslicte Drucke direkt von den Druckern.
+"""Fetches sliced prints directly from the printers.
 
-Bambu Lab: per FTPS von der SD-Karte. Funktioniert auch ohne LAN-only-Modus,
-solange der Drucker den Dateizugriff mit dem Zugangscode erlaubt (Port 990,
-Benutzer "bblp", implizites TLS).
+Bambu Lab: via FTPS from the SD card. Also works without LAN-only mode,
+as long as the printer allows file access with the access code (port 990,
+user "bblp", implicit TLS).
 
-Klipper (Moonraker): per HTTP aus dem G-Code-Ordner des Druckers, etwa bei
-Creality K1/K2, Sovol SV08, Qidi, Elegoo Neptune 4 oder Voron. Ein API-Schlüssel
-ist nur nötig, wenn Moonraker die Adresse von PlateShelf nicht als vertrauenswürdig kennt.
+Klipper (Moonraker): via HTTP from the printer's G-code folder, e.g. on
+Creality K1/K2, Sovol SV08, Qidi, Elegoo Neptune 4 or Voron. An API key
+is only needed if Moonraker does not know PlateShelf's address as trusted.
 
-Prusa (PrusaLink): per HTTP vom USB-Stick oder internen Speicher, bei MK4, MK3.9,
-XL, Mini und Core One. Anmeldung mit Benutzer "maker" und dem PrusaLink-Passwort.
+Prusa (PrusaLink): via HTTP from the USB stick or internal storage, on MK4, MK3.9,
+XL, Mini and Core One. Login with user "maker" and the PrusaLink password.
 
-OctoPrint: per HTTP aus dem Dateispeicher von OctoPrint (z. B. OctoPi am Ender, Anycubic
-oder Prusa MK3). Anmeldung mit einem Application Key aus den OctoPrint-Einstellungen.
+OctoPrint: via HTTP from OctoPrint's file storage (e.g. OctoPi on an Ender, Anycubic
+or Prusa MK3). Login with an Application Key from the OctoPrint settings.
 
-Drucker werden unter „Einstellungen“ gepflegt (Tabelle printers) oder über
-Umgebungsvariablen vorgegeben:
-    PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<Seriennummer>  PRINTER_1_CODE=<Zugangscode>
+Printers are managed in the settings ("Einstellungen", table printers) or set via
+environment variables:
+    PRINTER_1_NAME=P2S  PRINTER_1_IP=192.0.2.20  PRINTER_1_SERIAL=<serial number>  PRINTER_1_CODE=<access code>
     PRINTER_2_TYPE=moonraker  PRINTER_2_NAME=K1  PRINTER_2_IP=192.0.2.21  PRINTER_2_API_KEY=<optional>
-    PRINTER_3_TYPE=prusalink  PRINTER_3_NAME=MK4S  PRINTER_3_IP=192.0.2.22  PRINTER_3_PASSWORD=<Passwort>
-    PRINTER_4_TYPE=octoprint  PRINTER_4_NAME=Ender  PRINTER_4_IP=192.0.2.23  PRINTER_4_API_KEY=<Schlüssel>
+    PRINTER_3_TYPE=prusalink  PRINTER_3_NAME=MK4S  PRINTER_3_IP=192.0.2.22  PRINTER_3_PASSWORD=<password>
+    PRINTER_4_TYPE=octoprint  PRINTER_4_NAME=Ender  PRINTER_4_IP=192.0.2.23  PRINTER_4_API_KEY=<key>
 """
 from __future__ import annotations
 
@@ -50,13 +50,13 @@ SYNC_INTERVAL = int(os.environ.get("PRINTER_SYNC_INTERVAL", "600"))
 
 
 def import_dir() -> str:
-    """Zielordner für importierte Drucke: PRINTER_IMPORT_DIR, sonst „From printer“."""
+    """Target folder for imported prints: PRINTER_IMPORT_DIR, otherwise "From printer"."""
     return os.environ.get("PRINTER_IMPORT_DIR", "").strip() or "From printer"
 
 
 TIMEOUT = 15
 
-# Zeile aus einem Unix-artigen LIST: Rechte, Links, Besitzer, Gruppe, Größe, Datum, Name
+# Line from a Unix-style LIST: permissions, links, owner, group, size, date, name
 _LIST_RE = re.compile(
     r"^(?P<type>[-dl])\S+\s+\d+\s+\S+\s+\S+\s+(?P<size>\d+)\s+"
     r"(?P<date>\w{3}\s+\d{1,2}\s+(?:\d{1,2}:\d{2}|\d{4}))\s+(?P<name>.+)$"
@@ -69,16 +69,16 @@ _wakeup = threading.Event()
 
 
 class ImplicitFTPS(ftplib.FTP_TLS):
-    """FTP über implizites TLS (Port 990), wie es Bambu-Drucker verwenden.
+    """FTP over implicit TLS (port 990), as used by Bambu printers.
 
-    Der Datenkanal muss die TLS-Sitzung des Steuerkanals wiederverwenden,
-    sonst lehnt der Drucker die Übertragung ab.
+    The data channel must reuse the TLS session of the control channel,
+    otherwise the printer rejects the transfer.
     """
 
     def __init__(self, *args, **kwargs):
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE  # Drucker nutzt ein selbstsigniertes Zertifikat
+        ctx.verify_mode = ssl.CERT_NONE  # printer uses a self-signed certificate
         kwargs.setdefault("context", ctx)
         super().__init__(*args, **kwargs)
         self._sock = None
@@ -106,7 +106,7 @@ MOONRAKER_PORT = 7125
 
 
 def moonraker_url(address: str, default_port: int | None = MOONRAKER_PORT) -> str:
-    """'192.0.2.21' -> 'http://192.0.2.21:7125'; eigene Ports und https bleiben erhalten."""
+    """'192.0.2.21' -> 'http://192.0.2.21:7125'; custom ports and https are kept."""
     address = address.strip().rstrip("/")
     if not re.match(r"^https?://", address, re.I):
         address = "http://" + address
@@ -117,12 +117,12 @@ def moonraker_url(address: str, default_port: int | None = MOONRAKER_PORT) -> st
 
 
 def printer_url(kind: str, ip: str) -> str:
-    """Adresse der HTTP-Schnittstelle: Moonraker auf Port 7125, PrusaLink auf dem Webport."""
+    """Address of the HTTP interface: Moonraker on port 7125, PrusaLink on the web port."""
     return moonraker_url(ip, MOONRAKER_PORT if kind == "moonraker" else None)
 
 
 def printer_address(kind: str, ip: str) -> str:
-    """Kurze Anzeige ohne http:// und ohne Standardport: „192.0.2.21“ oder „k1.local:8080“."""
+    """Short display without http:// and without the default port: "192.0.2.21" or "k1.local:8080"."""
     if kind == "bambu":
         return ip.strip()
     parts = urllib.parse.urlsplit(printer_url(kind, ip))
@@ -141,7 +141,7 @@ _last_resync = 0.0
 
 
 def _probe_target(printer: dict) -> tuple[str, int]:
-    """Host und Port für die schnelle Erreichbarkeitsprüfung: FTPS bei Bambu, sonst die HTTP-Schnittstelle."""
+    """Host and port for the quick reachability check: FTPS for Bambu, otherwise the HTTP interface."""
     if printer.get("kind", "bambu") == "bambu":
         return printer["ip"].strip(), 990
     parts = urllib.parse.urlsplit(printer_url(printer["kind"], printer["ip"]))
@@ -149,7 +149,7 @@ def _probe_target(printer: dict) -> tuple[str, int]:
 
 
 def probe(printer: dict) -> bool:
-    """Antwortet der Drucker? Nur ein Verbindungsaufbau, ohne Anmeldung – dauert höchstens zwei Sekunden."""
+    """Does the printer respond? Only a connection attempt, without login – takes at most two seconds."""
     host, port = _probe_target(printer)
     if not host:
         return False
@@ -161,9 +161,9 @@ def probe(printer: dict) -> bool:
 
 
 def reachability() -> dict[str, bool]:
-    """Erreichbarkeit aller Drucker, parallel geprüft und kurz zwischengespeichert (Einstellungsseite
-    fragt alle paar Sekunden). Kommt ein Drucker wieder, der beim letzten Abruf fehlte, wird gleich
-    abgeglichen, damit Status und Dateien nicht bis zum nächsten Intervall warten."""
+    """Reachability of all printers, checked in parallel and briefly cached (the settings page
+    polls every few seconds). If a printer that was missing on the last check is back, a sync runs
+    right away so status and files do not wait for the next interval."""
     global _last_resync
     with _probe_lock:
         if time.time() - _probe_cache["at"] < PROBE_CACHE_SECONDS:
@@ -189,14 +189,14 @@ def reachability() -> dict[str, bool]:
 
 
 def printer_id(kind: str, ip: str, serial: str) -> str:
-    """Eindeutige Kennung: Seriennummer bei Bambu, sonst Art und Adresse."""
+    """Unique ID: serial number for Bambu, otherwise type and address."""
     return serial if kind == "bambu" else f"{kind}:{printer_url(kind, ip)}"
 
 
 def env_printers(environ=None) -> list[dict]:
-    """Drucker aus PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY/_PASSWORD, sortiert nach <n>.
+    """Printers from PRINTER_<n>_NAME/_IP/_SERIAL/_CODE/_TYPE/_API_KEY/_PASSWORD, sorted by <n>.
 
-    Jeder Wert geht auch als Datei: PRINTER_<n>_CODE_FILE=/run/secrets/… (Docker-Secrets).
+    Every value can also be given as a file: PRINTER_<n>_CODE_FILE=/run/secrets/… (Docker secrets).
     """
     environ = os.environ if environ is None else environ
     found: dict[int, dict] = {}
@@ -227,7 +227,7 @@ def env_printers(environ=None) -> list[dict]:
 
 
 def db_printers() -> list[dict]:
-    """Drucker aus den Einstellungen; Zugangsdaten entschlüsselt (code_error, wenn das nicht geht)."""
+    """Printers from the settings; credentials decrypted (code_error if that fails)."""
     out = []
     with store.connect() as con:
         for r in con.execute("SELECT * FROM printers ORDER BY name COLLATE NOCASE, id"):
@@ -242,26 +242,26 @@ def db_printers() -> list[dict]:
 
 
 def stored_plaintext() -> int:
-    """Wie viele Zugangsdaten noch unverschlüsselt gespeichert sind (ohne SECRET_KEY)."""
+    """How many credentials are still stored unencrypted (without SECRET_KEY)."""
     with store.connect() as con:
         return sum(1 for (code,) in con.execute("SELECT code FROM printers") if code and not crypto.is_encrypted(code))
 
 
 def load_printers() -> list[dict]:
-    """Alle Drucker; bei gleicher Seriennummer gilt die Umgebungsvariable."""
+    """All printers; for the same serial number the environment variable wins."""
     env = env_printers()
     serials = {p["id"] for p in env}
     return env + [p for p in db_printers() if p["id"] not in serials]
 
 
 def save_printers(rows: list[dict]) -> None:
-    """Speichert die Drucker aus den Einstellungen.
+    """Saves the printers from the settings.
 
     rows: {"db_id": int|None, "kind", "name", "ip", "serial", "code", "delete": bool}.
-    Bei Moonraker ist "code" der optionale API-Schlüssel, bei PrusaLink das Passwort;
-    die Seriennummer braucht nur Bambu.
-    Leerer Zugangscode bei einem vorhandenen Drucker behält den gespeicherten.
-    Wirft UserError mit einer übersetzbaren Meldung, dann wird nichts gespeichert.
+    For Moonraker "code" is the optional API key, for PrusaLink the password;
+    only Bambu needs the serial number.
+    An empty access code for an existing printer keeps the stored one.
+    Raises UserError with a translatable message; nothing is saved then.
     """
     with store.connect() as con:
         existing = {r["id"]: dict(r) for r in con.execute("SELECT * FROM printers")}
@@ -276,7 +276,7 @@ def save_printers(rows: list[dict]) -> None:
             label = name or serial or ip
             stored = crypto.encrypt(code)
             if not code and old and old["kind"] == kind:
-                code = stored = old["code"]  # unverändert übernehmen, wie gespeichert
+                code = stored = old["code"]  # keep unchanged, as stored
             needed = {
                 "bambu": (("IP-Adresse", ip), ("Seriennummer", serial), ("Zugangscode", code)),
                 "moonraker": (("IP-Adresse", ip),),
@@ -303,7 +303,7 @@ def save_printers(rows: list[dict]) -> None:
         kept_ids = {k[0] for k in keep if k[0]}
         for pid in set(existing) - kept_ids:
             con.execute("DELETE FROM printers WHERE id = ?", (pid,))
-        # Erst alle Seriennummern freigeben, damit Tauschen zwischen Zeilen klappt
+        # Release all serial numbers first so that swapping between rows works
         for pid in kept_ids:
             con.execute("UPDATE printers SET serial = '~' || id WHERE id = ?", (pid,))
         for pid, name, serial, ip, code, kind in keep:
@@ -315,16 +315,16 @@ def save_printers(rows: list[dict]) -> None:
                             (name, serial, ip, code, kind))
     current = {p["id"] for p in load_printers()}
     for serial in set(state["printers"]) - current:
-        state["printers"].pop(serial, None)  # Meldungen gelöschter Drucker nicht mehr zeigen
+        state["printers"].pop(serial, None)  # stop showing messages of deleted printers
     state["enabled"] = bool(current)
     request_sync()
 
 
 def init() -> None:
-    """Tabellen liegen im gemeinsamen Schema (store.SCHEMA); hier nur Zugangsdaten verschlüsseln."""
+    """Tables live in the shared schema (store.SCHEMA); here only credentials are encrypted."""
     store.init_db()
     with store.connect() as con:
-        if crypto.secret_key():  # Klartext aus älteren Versionen oder ohne SECRET_KEY gespeichert
+        if crypto.secret_key():  # plaintext from older versions or stored without SECRET_KEY
             plain = [(r["id"], r["code"]) for r in con.execute("SELECT id, code FROM printers")
                      if r["code"] and not crypto.is_encrypted(r["code"])]
             for pid, code in plain:
@@ -335,8 +335,8 @@ def init() -> None:
 
 
 def parse_listing(lines: list[str], sliced_3mf: bool = False) -> list[dict]:
-    """Dateien, die auf .gcode.3mf enden; mit sliced_3mf auch .3mf (im Ordner cache sind das
-    geslicte Projekte, die Bambu Studio zum Drucken geschickt hat)."""
+    """Files ending in .gcode.3mf; with sliced_3mf also .3mf (in the cache folder these are
+    sliced projects that Bambu Studio sent for printing)."""
     out = []
     for line in lines:
         m = _LIST_RE.match(line.strip())
@@ -349,11 +349,11 @@ def parse_listing(lines: list[str], sliced_3mf: bool = False) -> list[dict]:
 
 
 def same_date(stored: str | None, listed: str) -> bool:
-    """Gleiches Datum, auch wenn die Dateiliste inzwischen das Jahr statt der Uhrzeit zeigt.
+    """Same date, even if the file list now shows the year instead of the time.
 
-    FTP-Listen (und _remote_date) zeigen bei Dateien aus den letzten Monaten bzw. dem
-    laufenden Jahr die Uhrzeit, danach das Jahr: aus „Apr 03 18:18“ wird „Apr 03 2026“.
-    Das ist keine neue Datei und darf sie nicht noch einmal holen.
+    FTP listings (and _remote_date) show the time for files from the last months or the
+    current year, the year after that: "Apr 03 18:18" becomes "Apr 03 2026".
+    That is not a new file and must not cause it to be fetched again.
     """
     if stored == listed:
         return True
@@ -364,7 +364,7 @@ def same_date(stored: str | None, listed: str) -> bool:
 
 
 def parse_remote_date(text: str, now: float | None = None) -> float | None:
-    """Zeitpunkt zu „Apr 03 18:18“ (dieses Jahr, sonst letztes) oder „Apr 03 2026“ (mittags)."""
+    """Timestamp for "Apr 03 18:18" (this year, otherwise last year) or "Apr 03 2026" (noon)."""
     parts = (text or "").split()
     if len(parts) != 3 or parts[0] not in _MONTHS or not parts[1].isdigit():
         return None
@@ -375,7 +375,7 @@ def parse_remote_date(text: str, now: float | None = None) -> float | None:
             hour, minute = (int(x) for x in parts[2].split(":"))
             year = time.localtime(now).tm_year
             ts = time.mktime((year, month, day, hour, minute, 0, 0, 0, -1))
-            if ts > now + 2 * 86400:  # ohne Jahr und in der Zukunft: aus dem Vorjahr
+            if ts > now + 2 * 86400:  # no year and in the future: from the previous year
                 ts = time.mktime((year - 1, month, day, hour, minute, 0, 0, 0, -1))
             return ts
         return time.mktime((int(parts[2]), month, day, 12, 0, 0, 0, 0, -1))
@@ -384,10 +384,10 @@ def parse_remote_date(text: str, now: float | None = None) -> float | None:
 
 
 def _keep_printer_date(path: Path, date: str) -> None:
-    """Datei trägt das Datum, an dem sie auf dem Drucker landete, nicht das des Herunterladens.
+    """The file carries the date it landed on the printer, not the download date.
 
-    So steht ein altes Projekt unter „Neueste zuerst“ nicht vorne, nur weil es (wieder)
-    geholt wurde. Repariert auch Dateien, die frühere Versionen unnötig neu geholt haben.
+    That way an old project does not appear at the top under "Neueste zuerst" just because it was
+    fetched (again). Also repairs files that earlier versions needlessly fetched again.
     """
     ts = parse_remote_date(date)
     try:
@@ -402,28 +402,28 @@ def _local_name(remote: str) -> str:
 
 
 def _plate_file_name(remote: str, downloaded: Path) -> str:
-    """Name der lokalen Datei, mit der gedruckten Platte im Namen.
+    """Name of the local file, with the printed plate in the name.
 
-    Der Drucker speichert jedes Projekt unter demselben Namen und überschreibt es,
-    wenn eine andere Platte gedruckt wird. Mit der Plattennummer im Namen bleibt
-    jede gedruckte Platte als eigene Datei erhalten.
+    The printer stores each project under the same name and overwrites it
+    when a different plate is printed. With the plate number in the name, every
+    printed plate is kept as a separate file.
     """
     base = _local_name(remote.removeprefix(FtpSource.CACHE + "/"))
     if is_gcode(base):
-        return base  # einfacher G-Code hat nur eine Platte
+        return base  # plain G-code has only one plate
     try:
         parsed = parse_3mf(downloaded)
     except Exception:  # noqa: BLE001
         return base
     if not base.lower().endswith(".gcode.3mf"):
         if not any(p.sliced for p in parsed.plates):
-            return base  # ungeslictes Projekt: Name lassen
-        base = base[:-4] + ".gcode.3mf"  # geslict aus dem Ordner cache: wie die übrigen Druckdateien
+            return base  # unsliced project: keep the name
+        base = base[:-4] + ".gcode.3mf"  # sliced, from the cache folder: like the other print files
     sliced = [p.index for p in parsed.plates if p.sliced]
     if len(parsed.plates) <= 1 or len(sliced) != 1:
-        return base  # einplattig oder mehrere Platten auf einmal: Name unverändert
+        return base  # single plate or several plates at once: name unchanged
     if re.search(r"[_\- ](plate|platte)[_\- ]?\d+", base[:-10], re.I):
-        return base  # Name enthält schon eine Plattennummer
+        return base  # name already contains a plate number
     return f"{base[:-10]}_plate_{sliced[0]}.gcode.3mf"
 
 
@@ -436,13 +436,13 @@ def _connect(printer: dict) -> ImplicitFTPS:
 
 
 class FtpSource:
-    """Dateiliste und Download über FTPS (Bambu Lab)."""
+    """File list and download via FTPS (Bambu Lab)."""
 
     def __init__(self, ftp):
         self.ftp = ftp
 
-    # Was Bambu Studio oder die Cloud zum Drucken schickt, legt die P1- und A1-Serie in /cache ab
-    # (als geslicte .3mf, daneben ausgepackter G-Code und .bbl, die braucht es nicht)
+    # What Bambu Studio or the cloud sends for printing is stored in /cache by the P1 and A1 series
+    # (as a sliced .3mf, next to unpacked G-code and .bbl, which are not needed)
     CACHE = "cache"
 
     def list(self) -> list[dict]:
@@ -453,7 +453,7 @@ class FtpSource:
         try:
             self.ftp.retrlines(f"LIST /{self.CACHE}", cached.append)
         except ftplib.error_perm:
-            return files  # kein Ordner cache auf dieser Karte
+            return files  # no cache folder on this card
         for f in parse_listing(cached, sliced_3mf=True):
             files.append({**f, "name": f"{self.CACHE}/{f['name']}"})
         return files
@@ -472,14 +472,14 @@ _MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
 
 
 def _remote_date(ts: float) -> str:
-    """Zeitstempel im Format der Bambu-Dateiliste ('Aug 22 07:06', ältere Jahre 'Nov 29 2025')."""
+    """Timestamp in the format of the Bambu file list ('Aug 22 07:06', earlier years 'Nov 29 2025')."""
     t, now = time.localtime(ts), time.localtime()
     rest = f"{t.tm_hour:02d}:{t.tm_min:02d}" if t.tm_year == now.tm_year else str(t.tm_year)
     return f"{_MONTHS[t.tm_mon - 1]} {t.tm_mday:02d} {rest}"
 
 
 class MoonrakerSource:
-    """Dateiliste und Download über die HTTP-Schnittstelle von Moonraker (Klipper)."""
+    """File list and download via the HTTP interface of Moonraker (Klipper)."""
 
     def __init__(self, printer: dict, opener=urllib.request.urlopen):
         self.base = moonraker_url(printer["ip"])
@@ -512,11 +512,11 @@ class MoonrakerSource:
 
 
 class PrusaLinkSource:
-    """Dateiliste und Download über PrusaLink (Prusa MK4, MK3.9, XL, Mini, Core One).
+    """File list and download via PrusaLink (Prusa MK4, MK3.9, XL, Mini, Core One).
 
-    Anmeldung per HTTP-Digest mit Benutzer "maker" und dem Passwort aus den
-    Netzwerkeinstellungen des Druckers. Ältere Firmware nutzt stattdessen einen
-    API-Schlüssel; das Passwortfeld wird deshalb auch als X-Api-Key mitgeschickt.
+    Login via HTTP digest with user "maker" and the password from the printer's
+    network settings. Older firmware uses an API key instead; the password field
+    is therefore also sent as X-Api-Key.
     """
 
     USER = "maker"
@@ -538,8 +538,8 @@ class PrusaLinkSource:
         try:
             return self.opener.open(request, timeout=TIMEOUT)
         except ValueError as exc:
-            # Firmware im API-Schlüssel-Modus lehnt mit „WWW-Authenticate: ApiKey“ ab; urllib kennt
-            # das Verfahren nicht und wirft ValueError statt 401
+            # Firmware in API key mode rejects with "WWW-Authenticate: ApiKey"; urllib does not know
+            # that scheme and raises ValueError instead of 401
             if "scheme" in str(exc):
                 raise urllib.error.HTTPError(url, 401, "Unauthorized", None, None) from exc
             raise
@@ -588,7 +588,7 @@ class PrusaLinkSource:
 
 
 class OctoPrintSource:
-    """Dateiliste und Download aus dem lokalen Dateispeicher von OctoPrint (Application Key)."""
+    """File list and download from the local file storage of OctoPrint (Application Key)."""
 
     def __init__(self, printer: dict, opener=urllib.request.urlopen):
         self.base = printer_url("octoprint", printer["ip"])
@@ -635,13 +635,13 @@ SOURCES = {"moonraker": MoonrakerSource, "prusalink": PrusaLinkSource, "octoprin
 
 
 def sync_printer(printer: dict, connect=None) -> dict:
-    """Holt neue oder geänderte Dateien eines Druckers. Liefert eine kurze Bilanz."""
+    """Fetches new or changed files from a printer. Returns a short summary."""
     kind = printer.get("kind", "bambu")
     result = {"name": printer["name"], "kind": kind, "ok": False, "new": 0, "updated": 0, "error": None,
               "files": 0, "error_msg": None, "error_args": {}, "auth_failed": False}
 
     def fail(msg: str, **kwargs) -> None:
-        # error: deutscher Text für Log und Tests, error_msg/error_args zum Übersetzen
+        # error: German text for log and tests, error_msg/error_args for translation
         result.update(error=msg.format(**kwargs), error_msg=msg, error_args=kwargs)
 
     def auth_failed(exc) -> None:
@@ -685,7 +685,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
         except urllib.error.URLError as exc:
             unreachable(exc.reason if isinstance(exc.reason, Exception) else exc)
             return result
-        except ValueError as exc:  # keine Moonraker-Antwort, etwa falscher Port
+        except ValueError as exc:  # no Moonraker response, e.g. wrong port
             fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
             return result
         result["files"] = len(remote)
@@ -696,19 +696,19 @@ def sync_printer(printer: dict, connect=None) -> dict:
         for f in remote:
             prev = known.get(f["name"])
             if prev and prev["size"] == f["size"] and same_date(prev["remote_date"], f["date"]):
-                if prev["remote_date"] != f["date"]:  # nur die Schreibweise hat sich geändert
+                if prev["remote_date"] != f["date"]:  # only the notation has changed
                     with store.connect() as con:
                         con.execute("UPDATE printer_files SET remote_date = ? WHERE printer = ? AND remote_name = ?",
                                     (f["date"], printer["id"], f["name"]))
                 if prev["local_path"]:
                     _keep_printer_date(store.LIBRARY_DIR / prev["local_path"], f["date"])
-                continue  # schon geholt (oder bewusst gelöscht): nichts tun
+                continue  # already fetched (or deliberately deleted): do nothing
             target_dir.mkdir(parents=True, exist_ok=True)
             tmp = target_dir / f".{_local_name(f['name'])}.part"
             try:
                 with open(tmp, "wb") as fh:
                     source.fetch(f["name"], fh)
-                # Manche Drucker (Prusa MINI) nennen in der Liste keine Größe: dann prüft die Quelle selbst
+                # Some printers (Prusa MINI) list no size: then the source checks it itself
                 if f["size"] and tmp.stat().st_size != f["size"]:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")
                 final = target_dir / _plate_file_name(f["name"], tmp)
@@ -756,7 +756,7 @@ def sync_all() -> None:
             state["printers"].pop(serial, None)
         results: dict[str, dict] = {}
 
-        def one(printer):  # alle Drucker gleichzeitig: ein ausgeschalteter hält die anderen nicht auf
+        def one(printer):  # all printers concurrently: one that is switched off does not hold up the others
             res = sync_printer(printer)
             res["at"] = time.time()
             results[printer["id"]] = res
@@ -766,7 +766,7 @@ def sync_all() -> None:
         for t in threads:
             t.start()
         for t in threads:
-            t.join(TIMEOUT * 4 + 60)  # große Downloads dürfen dauern, hängen darf nichts ewig
+            t.join(TIMEOUT * 4 + 60)  # large downloads may take a while, but nothing may hang forever
         for printer in printers:
             res = results.get(printer["id"])
             if not res:
@@ -779,9 +779,9 @@ def sync_all() -> None:
         state["running"] = False
         _lock.release()
     if changed:
-        store.scan()  # neue Dateien sofort einlesen, danach startet die 3D-Vorberechnung
+        store.scan()  # scan new files right away, then the 3D precomputation starts
     from . import print_history
-    print_history.link_pending()  # Drucke den eben geholten Dateien zuordnen
+    print_history.link_pending()  # match prints to the files just fetched
 
 
 def request_sync() -> None:
@@ -803,7 +803,7 @@ def sync_loop() -> None:
 
 
 def origin_for(paths: list[str]) -> dict[str, dict]:
-    """Welche lokalen Dateien vom Drucker stammen: Pfad -> {printer_name, remote_date}."""
+    """Which local files come from a printer: path -> {printer_name, remote_date}."""
     if not paths:
         return {}
     with store.connect() as con:
@@ -811,7 +811,7 @@ def origin_for(paths: list[str]) -> dict[str, dict]:
         rows = con.execute(
             f"SELECT local_path, printer_name, remote_date FROM printer_imports WHERE local_path IN ({marks})", paths)
         found = {r["local_path"]: dict(r) for r in rows}
-        # Importe aus der Zeit vor der Tabelle printer_imports
+        # Imports from before the printer_imports table existed
         rows = con.execute(
             f"SELECT local_path, printer_name, remote_date FROM printer_files WHERE local_path IN ({marks})", paths)
         for r in rows:

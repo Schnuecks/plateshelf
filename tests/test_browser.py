@@ -1,6 +1,6 @@
-"""Browsertest: Seiten und 3D-Vorschau in echtem Chromium, ohne JavaScript-Fehler.
+"""Browser test: pages and 3D preview in real Chromium, without JavaScript errors.
 
-Läuft in der CI als eigener Job. Lokal nur, wenn Playwright installiert ist:
+Runs as a separate job in CI. Locally only if Playwright is installed:
     pip install playwright && python -m playwright install chromium
 """
 import math
@@ -16,7 +16,7 @@ playwright_api = pytest.importorskip("playwright.sync_api")
 
 
 def _gcode(layers: int = 12) -> str:
-    """Kleiner Zylinder mit echten Druckbahnen, Geschwindigkeiten, Lüfter, Rückzügen und Naht."""
+    """Small cylinder with real toolpaths, speeds, fan, retractions and seam."""
     epm = 0.0349
     out = ["; HEADER_BLOCK_START", f"; total layer number: {layers}", "; HEADER_BLOCK_END",
            "M83", "M104 S220", "M106 P1 S0"]
@@ -48,7 +48,7 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
-    """PlateShelf mit Beispielbibliothek in einem eigenen Thread."""
+    """PlateShelf with a sample library in its own thread."""
     import uvicorn
     from make_sample import make
 
@@ -61,7 +61,7 @@ def server(tmp_path_factory):
     store.LIBRARY_DIR, store.DATA_DIR = library, data
     store.DB_PATH, store.THUMB_DIR, store.PREBUILD = data / "plateshelf.sqlite", data / "thumbs", False
 
-    # Datei mit echten Druckbahnen für die 3D-Vorschau
+    # File with real toolpaths for the 3D preview
     model = library / "Zylinder.gcode.3mf"
     make(model, [{"idx": 1, "sec": 900, "layers": 12, "fil": [(1, "#E0404AFF", 5.0)]}], colours=("#E0404AFF",))
     with zipfile.ZipFile(model) as z:
@@ -72,12 +72,12 @@ def server(tmp_path_factory):
             z.writestr(n, d)
     make(library / "Clips.gcode.3mf", [{"idx": 1, "sec": 600, "layers": 5, "fil": [(1, "#F2C94CFF", 3.0)]}])
     from test_gcode_file import prusa_gcode
-    (library / "Benchy_MK4S.gcode").write_text(prusa_gcode())  # einfacher G-Code aus PrusaSlicer
+    (library / "Benchy_MK4S.gcode").write_text(prusa_gcode())  # plain G-code from PrusaSlicer
 
     from app import main
     store.init_db()
     store.scan(wait=True)
-    with store.connect() as con:  # ein Druck mit Notiz, damit Verlauf und Projektseite ihre Formulare zeigen
+    with store.connect() as con:  # a print with a note, so history and project page show their forms
         con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, local_path, status, started, ended, note, "
                     "rating) VALUES ('S', 'P1S', 'b1', 'Zylinder.gcode.3mf', 'completed', ?, ?, 'Sauber gedruckt', 1)",
                     (time.time() - 3600, time.time()))
@@ -104,7 +104,7 @@ def server(tmp_path_factory):
 @pytest.fixture(scope="module")
 def browser():
     with playwright_api.sync_playwright() as p:
-        # Software-WebGL, damit die 3D-Vorschau auch ohne Grafikkarte (CI) läuft
+        # Software WebGL, so the 3D preview also runs without a GPU (CI)
         b = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
         yield b
         b.close()
@@ -112,9 +112,9 @@ def browser():
 
 @pytest.fixture
 def page(browser):
-    """Neue Seite; sammelt JavaScript-Fehler und Fehlermeldungen der Konsole."""
-    # Die Tests spielen selbst Skripte ein (axe-core, Warten per Funktion); die strenge
-    # Content-Security-Policy der App würde das blocken. Sie prüft test_pages_run_under_csp.
+    """New page; collects JavaScript errors and console error messages."""
+    # The tests inject scripts themselves (axe-core, waiting via function); the app's strict
+    # Content-Security-Policy would block that. test_pages_run_under_csp checks it.
     context = browser.new_context(viewport={"width": 1280, "height": 800}, locale="de-DE", bypass_csp=True)
     pg = context.new_page()
     pg.errors = []
@@ -133,23 +133,23 @@ def test_pages_without_errors(server, page, path):
     page.wait_for_load_state("networkidle")
     assert page.locator("footer.site-footer").is_visible()
     assert page.errors == []
-    assert foreign == []  # nichts von fremden Servern (Schriften, Skripte …), läuft auch ohne Internet
+    assert foreign == []  # nothing from foreign servers (fonts, scripts …), also works without internet
 
 
-AXE = Path(__file__).parent / "vendor" / "axe.min.js"  # axe-core 4.13 (MPL-2.0), nur für Tests
+AXE = Path(__file__).parent / "vendor" / "axe.min.js"  # axe-core 4.13 (MPL-2.0), tests only
 
 
 @pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/history", "/statistics", "/trash", "/upload",
                                   "/about", "/view/{fid}/1"])
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_accessibility(server, page, path, theme):
-    """Barrierefreiheit nach WCAG 2 A/AA mit axe-core: keine ernsten oder kritischen Verstöße."""
+    """Accessibility per WCAG 2 A/AA with axe-core: no serious or critical violations."""
     page.context.add_cookies([{"name": "design", "value": theme, "url": server["url"]}])
     _check_accessibility(page, server["url"] + path.format(**server))
 
 
 def test_accessibility_sign_in_pages(server, page, monkeypatch):
-    """Einrichtung und Anmeldung sind das Erste, was neue Nutzer sehen."""
+    """Setup and login are the first things new users see."""
     from app import auth, store
     monkeypatch.setenv("AUTH", "on")
     _check_accessibility(page, server["url"] + "/setup")
@@ -163,7 +163,7 @@ def test_accessibility_sign_in_pages(server, page, monkeypatch):
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_browser_bar_matches_top_bar(server, page, theme):
-    """Handy: Browser-/Statusleiste in der Farbe der Kopfleiste, auch wenn das Design fest gewählt ist."""
+    """Phone: browser/status bar in the header color, even when the theme is set explicitly."""
     page.context.add_cookies([{"name": "design", "value": theme, "url": server["url"]}])
     page.goto(server["url"] + "/")
     colors = page.evaluate("""() => ({
@@ -183,7 +183,7 @@ def _check_accessibility(page, url):
         return {passes: r.passes.length, violations: r.violations.filter(v => ["serious", "critical"].includes(v.impact))
             .map(v => `${v.id} (${v.impact}): ${v.help} -> ${v.nodes.slice(0, 3).map(n => n.target.join(" ")).join(" | ")}`)};
     }""")
-    assert result["passes"] > 10  # axe hat wirklich geprüft
+    assert result["passes"] > 10  # axe really did check
     assert result["violations"] == [], "\n".join(result["violations"])
 
 
@@ -200,10 +200,10 @@ def test_fonts_are_served_locally(server, page):
 
 
 def test_viewer_loading_on_phone(server, browser):
-    """Handy: Ladeanzeige mittig, 3D-Fläche mit Abstand zur Kopfleiste und nicht breiter als der Bildschirm."""
+    """Phone: loading indicator centered, 3D area spaced from the header and not wider than the screen."""
     context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="de-DE")
     pg = context.new_page()
-    pg.route("**/api/preview/**", lambda route: None)  # nie beantworten: die Ladeanzeige bleibt stehen
+    pg.route("**/api/preview/**", lambda route: None)  # never answer: the loading indicator stays
     pg.goto(f"{server['url']}/view/{server['fid']}/1", wait_until="domcontentloaded")
     pg.wait_for_selector("#viewer-loading-bar")
     m = pg.evaluate("""() => {
@@ -218,8 +218,8 @@ def test_viewer_loading_on_phone(server, browser):
 
 
 def test_viewer_on_phone_keeps_layer_controls_in_view(server, browser):
-    """Handy: die Seite scrollt nicht, Schicht- und Wiedergaberegler sind sofort sichtbar,
-    die übrigen Einstellungen öffnen sich mit „Optionen“."""
+    """Phone: the page does not scroll, layer and playback sliders are visible right away,
+    the remaining settings open with „Optionen“."""
     context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True,
                                   locale="de-DE", bypass_csp=True)
     pg = context.new_page()
@@ -238,8 +238,8 @@ def test_viewer_on_phone_keeps_layer_controls_in_view(server, browser):
 
 def test_viewer_loads_and_all_controls_work(server, page):
     page.goto(f"{server['url']}/view/{server['fid']}/1")
-    # Vorschau fertig: Ladehinweis weg, Bedienfeld da, Schichtanzeige gesetzt.
-    # Bei einem JavaScript-Fehler sofort abbrechen und ihn nennen, statt bis zum Zeitlimit zu warten.
+    # Preview ready: loading notice gone, control panel present, layer display set.
+    # On a JavaScript error, abort immediately and report it instead of waiting for the timeout.
     deadline = time.time() + 60
     while page.locator("#viewer-loading").is_visible():
         assert page.errors == [], page.errors
@@ -248,7 +248,7 @@ def test_viewer_loads_and_all_controls_work(server, page):
     assert page.locator("#viewer-panel").is_visible()
     assert "12 von 12" in page.locator("#layer-label").inner_text()
 
-    # Alle Einfärbungen, die Daten haben
+    # All color modes that have data
     for mode in ("feature", "uni", "speed", "flow", "fan", "temp", "tool"):
         button = page.locator(f'[data-mode="{mode}"]')
         assert button.is_enabled(), mode
@@ -258,40 +258,40 @@ def test_viewer_loads_and_all_controls_work(server, page):
     assert "mm/s" in page.locator(".metric-legend").inner_text()
     page.locator('[data-mode="tool"]').click()
 
-    # Einblendungen mit Anzahl
+    # Overlays with count
     for key in ("travel", "retract", "seam"):
         box = page.locator(f"#show-{key}")
         assert box.is_enabled(), key
         box.check()
     assert page.locator("#show-seam").locator("xpath=..").locator(".extra-count").inner_text() == "12"
 
-    # Schichtregler und „Nur diese Schicht“
+    # Layer slider and „Nur diese Schicht“
     page.locator("#layer-max").fill("5")
     assert "6 von 12" in page.locator("#layer-label").inner_text()
     page.locator("#layer-single").check()
     page.locator("#layer-single").uncheck()
 
-    # Wiedergabe: Leertaste startet, Position läuft, Leertaste stoppt
+    # Playback: space starts, position advances, space stops
     page.locator("#viewer-canvas").click()
     page.keyboard.press("Space")
     page.wait_for_function("document.getElementById('play').getAttribute('aria-label') === 'Anhalten'")
     page.wait_for_function("Number(document.getElementById('layer-progress').value) < 1000", timeout=10_000)
     page.keyboard.press("Space")
-    # Geschwindigkeit: bis 1000× für große Drucke; damit läuft der ganze Druck in Sekunden durch
+    # Speed: up to 1000× for large prints; the whole print then plays through in seconds
     speed = page.locator("#play-speed")
     labels = []
     for _ in range(5):
         speed.click()
         labels.append(speed.inner_text())
     assert labels == ["50×", "200×", "1000×", "1×", "10×"], labels
-    for _ in range(3):  # wieder 1000×
+    for _ in range(3):  # back to 1000×
         speed.click()
     page.locator("#layer-max").fill("0")
     page.locator("#play").click()
     page.wait_for_function("document.getElementById('play').getAttribute('aria-label') === 'Abspielen'", timeout=15_000)
     assert "12 von 12" in page.locator("#layer-label").inner_text()
 
-    # Ansicht, Tiefenschattierung, Bild speichern
+    # View, depth shading, save image
     page.locator("#view-top").click()
     page.locator("#ao-toggle").uncheck()
     page.locator("#ao-toggle").check()
@@ -300,13 +300,13 @@ def test_viewer_loads_and_all_controls_work(server, page):
         page.locator("#view-png").click()
     assert download.value.suggested_filename.endswith(".png")
 
-    page.wait_for_timeout(500)  # verzögerte Fehler (z. B. im Zeichenaufruf) mitnehmen
+    page.wait_for_timeout(500)  # catch delayed errors (e.g. in the draw call)
     assert page.errors == []
 
 
 def test_viewer_playback_draws_nothing_outside_the_print(server, page):
-    """Beim Abspielen endet das gerade gedruckte Bahnstück an der Düse: früher ragte es bei kleinem
-    Fortschritt als langer Strich über die Bahn hinaus, auch weit neben das Modell."""
+    """During playback the segment currently being printed ends at the nozzle: previously, at low
+    progress, it stuck out past the path as a long line, even far beside the model."""
     import io
 
     from PIL import Image
@@ -330,7 +330,7 @@ def test_viewer_playback_draws_nothing_outside_the_print(server, page):
 
     full = orange_columns(1000)
     lo, hi = min(full), max(full)
-    for value in range(760, 1000, 6):  # Infill-Bahnen am Ende der Schicht, kurz nach ihrem Anfang
+    for value in range(760, 1000, 6):  # infill paths at the end of the layer, shortly after they start
         cols = orange_columns(value)
         assert not cols or (min(cols) >= lo - 3 and max(cols) <= hi + 3), value
 
@@ -339,14 +339,14 @@ def test_viewer_for_plain_gcode(server, page):
     page.goto(f"{server['url']}/view/{server['gcode_fid']}/1")
     page.wait_for_function("document.getElementById('viewer-loading').hidden", timeout=60_000)
     assert "2 von 2" in page.locator("#layer-label").inner_text()
-    assert page.locator("#viewer").get_attribute("data-bed") == "0.0,-4.0,250.0,210.0"  # Platte des MK4S
+    assert page.locator("#viewer").get_attribute("data-bed") == "0.0,-4.0,250.0,210.0"  # MK4S bed
     page.locator('[data-mode="feature"]').click()
     assert "Außenwand" in page.locator("#viewer-panel").inner_text()
     assert page.errors == []
 
 
 def test_settings_printer_dots_update_by_themselves(server, page):
-    """Der Punkt vor dem Drucker zeigt ohne Neuladen, ob er gerade erreichbar ist."""
+    """The dot in front of the printer shows, without reloading, whether it is currently reachable."""
     import socket
 
     from app import printer_import as pi
@@ -362,8 +362,8 @@ def test_settings_printer_dots_update_by_themselves(server, page):
         page.goto(server["url"] + "/settings#printers")
         assert "gaierror" in page.locator("[data-printer-status]").inner_text()
         page.wait_for_selector("[data-printer-dot].is-ok", timeout=10_000)
-        assert "Wieder erreichbar" in page.locator("[data-printer-status]").inner_text()   # Text folgt dem Punkt
-        listener.close()                          # Drucker aus
+        assert "Wieder erreichbar" in page.locator("[data-printer-status]").inner_text()   # text follows the dot
+        listener.close()                          # printer off
         pi._probe_cache.update(at=0.0)
         page.wait_for_selector("[data-printer-dot].is-error", timeout=15_000)
         assert "Nicht erreichbar" in page.locator("[data-printer-status]").inner_text()
@@ -376,7 +376,7 @@ def test_settings_printer_dots_update_by_themselves(server, page):
 def test_printer_type_switches_fields(server, page):
     page.goto(server["url"] + "/settings")
     row = page.locator(".printer-new [data-printer]")
-    page.locator(".printer-new").evaluate("d => { d.open = true; }")  # ohne Drucker schon offen
+    page.locator(".printer-new").evaluate("d => { d.open = true; }")  # already open when there are no printers
     assert row.locator("[name=serial]").is_visible()
     row.locator("[name=kind]").select_option("moonraker")
     assert not row.locator("[name=serial]").is_visible()
@@ -396,7 +396,7 @@ def test_printer_type_switches_fields(server, page):
 
 
 def test_settings_sections(server, page, monkeypatch):
-    """Einstellungen: ein Bereich zur Zeit, Wechsel über die Seitennavigation, Schalter speichert sofort."""
+    """Settings: one section at a time, switching via the side navigation, a switch saves immediately."""
     monkeypatch.delenv("PRINT_HISTORY", raising=False)
     page.goto(server["url"] + "/settings")
     assert page.locator("#printers").is_visible() and not page.locator("#power").is_visible()
@@ -405,7 +405,7 @@ def test_settings_sections(server, page, monkeypatch):
     assert page.locator('.settings-nav a[href="#power"]').get_attribute("aria-current") == "page"
     page.locator('.settings-nav a[href="#history"]').click()
     assert not page.locator("[data-autosubmit-button]").is_visible()
-    page.locator(".switch").click()  # ausschalten, speichert ohne Knopf
+    page.locator(".switch").click()  # switch off, saves without a button
     page.wait_for_url("**/settings?history=1#history")
     assert page.locator("#history").is_visible() and not page.locator("[data-autosubmit]").is_checked()
     page.locator(".switch").click()
@@ -415,7 +415,7 @@ def test_settings_sections(server, page, monkeypatch):
 
 
 def test_mobile_layout(server, browser):
-    """Handy: flache Kopfzeile mit Menüknopf, nichts ragt über den Rand, Vorschau passt in den Bildschirm."""
+    """Phone: flat header with menu button, nothing sticks out over the edge, preview fits the screen."""
     context = browser.new_context(viewport={"width": 375, "height": 740}, locale="de-DE", has_touch=True)
     pg = context.new_page()
     errors = []
@@ -434,14 +434,14 @@ def test_mobile_layout(server, browser):
         assert pg.locator("select[name=material]").is_visible()
         pg.goto(f"{server['url']}/view/{server['fid']}/1")
         stage = pg.locator(".viewer-stage").bounding_box()
-        assert stage["y"] + stage["height"] < 740  # die Bedienung darunter schaut noch heraus
+        assert stage["y"] + stage["height"] < 740  # the controls below still peek out
         assert errors == []
     finally:
         context.close()
 
 
 def test_long_names_do_not_widen_the_project_page(server, browser):
-    """Lange Namen ohne Leerzeichen (Profile, Objekte, Platten) sprengten auf dem Handy die Projektseite."""
+    """Long names without spaces (profiles, objects, plates) used to break the project page on phones."""
     import json
     from app import store
     long = "X" * 90
@@ -469,33 +469,33 @@ def test_language_and_theme_from_topbar(server, page):
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("lang") == "en"
     assert page.get_by_role("link", name="Settings").is_visible()
-    page.locator(".theme-btn").click()  # System -> Hell
+    page.locator(".theme-btn").click()  # system -> light
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("data-theme") == "light"
     assert page.errors == []
 
 
 def test_login_flow(server, page, monkeypatch):
-    """Mit Benutzerkonto: Anmeldeseite, Anmelden, zurück zum Ziel, eigenes Konto, Abmelden."""
+    """With user accounts: login page, logging in, back to the target, own account, logging out."""
     from app import auth, store
     monkeypatch.setenv("AUTH", "on")
     user_id = auth.create_user("tester", "geheim-123", "admin")
     try:
         _login_flow(server, page)
     finally:
-        with store.connect() as con:  # am letzten Admin vorbei, den delete_user schützt
+        with store.connect() as con:  # bypasses the last-admin protection in delete_user
             con.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
 def _login_flow(server, page):
     page.goto(server["url"] + "/settings")
     assert "/login" in page.url
-    assert page.locator(".tb-right .settings-link").count() == 0  # keine Navigation vor der Anmeldung
+    assert page.locator(".tb-right .settings-link").count() == 0  # no navigation before login
     page.fill('input[name="user"]', "tester")
     page.fill('input[name="password"]', "falsch")
     page.click('.login-form button[type="submit"]')
     assert "falsch" in page.locator(".login-form .flash").inner_text()
-    # Die Seite kommt absichtlich mit Status 401, das meldet Chrome in der Konsole
+    # The page intentionally returns status 401, which Chrome reports in the console
     assert all("401" in e for e in page.errors), page.errors
     page.errors.clear()
     page.fill('input[name="password"]', "geheim-123")
@@ -512,7 +512,7 @@ def _login_flow(server, page):
 
 
 def test_plate_versions_can_be_filtered(server, page):
-    """Neu gesliced (andere Schichthöhe): über der Plattenleiste die Fassung wählen, anfangs die neueste."""
+    """Re-sliced (different layer height): pick the version above the plate strip, newest by default."""
     import os
     import shutil
     from make_sample import make
@@ -536,7 +536,7 @@ def test_plate_versions_can_be_filtered(server, page):
         chips = page.locator("[data-version-filter] button")
         assert chips.all_inner_texts() == ["0,16 mm", "0,20 mm", "Alle Fassungen"]
         visible = lambda: page.locator(".plate-strip > li:visible .strip-title").all_inner_texts()  # noqa: E731
-        assert visible() == ["Platte 2"]                       # neueste Fassung: nur 0,16 mm
+        assert visible() == ["Platte 2"]                       # newest version: only 0.16 mm
         chips.nth(1).click()
         assert visible() == ["Platte 2", "Platte 3"]
         assert page.locator("section.file:visible").count() == 1
@@ -548,7 +548,7 @@ def test_plate_versions_can_be_filtered(server, page):
 
 
 def test_pages_run_under_csp(server, browser):
-    """Alle Seiten samt 3D-Vorschau laufen mit der Content-Security-Policy ohne einen Verstoß."""
+    """All pages including the 3D preview run under the Content-Security-Policy without a single violation."""
     context = browser.new_context(viewport={"width": 1280, "height": 800}, locale="de-DE")
     pg = context.new_page()
     problems = []
@@ -559,14 +559,14 @@ def test_pages_run_under_csp(server, browser):
         assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
         assert response.headers["x-content-type-options"] == "nosniff"
     pg.goto(f"{server['url']}/view/{server['fid']}/1")
-    pg.wait_for_selector("#viewer-panel:not([hidden])", timeout=60_000)   # Importmap, Module, Worker, WebGL
+    pg.wait_for_selector("#viewer-panel:not([hidden])", timeout=60_000)   # import map, modules, worker, WebGL
     context.close()
     assert problems == [], problems
 
 
 def test_pages_notice_when_printer_sync_is_done(server, page):
-    """Nach „Von Druckern holen“ oder dem Speichern der Drucker lädt die Seite neu, sobald der Abgleich
-    fertig ist, auch ohne neue Dateien (sonst bliebe „wird abgefragt“ stehen bzw. der Status grau)."""
+    """After „Von Druckern holen“ or saving the printers, the page reloads as soon as the sync is
+    done, even without new files (otherwise „wird abgefragt“ would remain, or the status stay gray)."""
     import time
 
     from app import printer_import
@@ -574,7 +574,7 @@ def test_pages_notice_when_printer_sync_is_done(server, page):
     try:
         for path in ("/?printers=1", "/settings?printers=1#printers"):
             page.goto(server["url"] + path)
-            printer_import.state["last_run"] = time.time() + 5     # Abgleich durch, nichts Neues
+            printer_import.state["last_run"] = time.time() + 5     # sync done, nothing new
             page.wait_for_url(lambda url: "printers=1" not in url, timeout=15_000)
             printer_import.state["last_run"] = before
     finally:
@@ -582,8 +582,8 @@ def test_pages_notice_when_printer_sync_is_done(server, page):
 
 
 def test_several_prints_at_once(server, page, monkeypatch):
-    """Mehrere gleichzeitige Drucke: Titelleiste zeigt den, der als Nächstes fertig wird, „+1“ klappt
-    die Liste auf, der Tab nennt die Zahl, die Kachel zeigt beide Drucke desselben Projekts."""
+    """Several simultaneous prints: the title bar shows the one finishing next, "+1" expands
+    the list, the tab shows the count, the tile shows both prints of the same project."""
     import time
 
     from app import print_history, store
@@ -599,7 +599,7 @@ def test_several_prints_at_once(server, page, monkeypatch):
         print_history.record(a, "m1", "running", remote_name="Zylinder.gcode.3mf", progress=20, remaining_s=3600)
         print_history.record(b, "m2", "running", remote_name="Zylinder.gcode.3mf", progress=80, remaining_s=300)
         page.goto(server["url"] + "/")
-        assert page.locator("[data-live-text]").inner_text().startswith("K1")       # wird zuerst fertig
+        assert page.locator("[data-live-text]").inner_text().startswith("K1")       # finishes first
         badge = page.locator("[data-live-project]").inner_text()
         assert "2×" in badge and "80 %" in badge and "20 %" in badge
         page.wait_for_function("document.title.startsWith('2 Drucke · nächster 80 %')", timeout=5_000)
@@ -616,7 +616,7 @@ def test_several_prints_at_once(server, page, monkeypatch):
 
 
 def test_overview_tile_shows_print_progress(server, page, monkeypatch):
-    """Die Prozente des laufenden Drucks auf der Kachel gehen ohne Neuladen weiter."""
+    """The running print's percentage on the tile keeps updating without reloading."""
     import time
 
     from app import print_history, store
@@ -631,21 +631,21 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
         page.goto(server["url"] + "/")
         badge = page.locator("[data-live-project]")
         assert "10 %" in badge.inner_text()
-        page.wait_for_function("document.title.startsWith('10 % · ')", timeout=5_000)  # auch im Tab
+        page.wait_for_function("document.title.startsWith('10 % · ')", timeout=5_000)  # in the tab too
         print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=55)
         page.clock.run_for(16_000)
         page.wait_for_function("document.querySelector('[data-live-project]').textContent.includes('55')",
                                timeout=5_000)
         pid = page.locator("[data-live-project]").get_attribute("data-live-project")
-        page.goto(f"{server['url']}/p/{pid}")                      # Projektseite: Druckliste
+        page.goto(f"{server['url']}/p/{pid}")                      # project page: print list
         assert "55 %" in page.locator("[data-live-job]").inner_text()
         print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=70)
         page.clock.run_for(16_000)
         page.wait_for_function("document.querySelector('[data-live-job]').textContent.includes('70')",
                                timeout=5_000)
-        print_history.record(printer, "live1", "completed", remote_name="Zylinder.gcode.3mf")  # Ende ohne Fortschritt
+        print_history.record(printer, "live1", "completed", remote_name="Zylinder.gcode.3mf")  # end without progress
         page.clock.run_for(16_000)
-        page.wait_for_function("!document.querySelector('[data-live-job]')", timeout=5_000)   # neu geladen
+        page.wait_for_function("!document.querySelector('[data-live-job]')", timeout=5_000)   # reloaded
     finally:
         with store.connect() as con:
             con.execute("DELETE FROM print_jobs WHERE job_key = 'live1'")
@@ -653,20 +653,20 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
 
 
 def test_overview_shows_new_files_by_itself(server, page):
-    """Neue Drucke vom Drucker (hier: neue Datei + Einlesen) erscheinen ohne Neuladen von Hand;
-    ist gerade etwas markiert, kommt nur ein Hinweis."""
+    """New prints from the printer (here: new file + scan) appear without a manual reload;
+    if something is currently selected, only a notice appears."""
     from make_sample import make
 
     from app import store
-    page.goto(server["url"] + "/?printers=1")                    # nach „Von Druckern holen“: schnell nachsehen
+    page.goto(server["url"] + "/?printers=1")                    # after „Von Druckern holen“: check quickly
     new = store.LIBRARY_DIR / "Frisch_vom_Drucker.gcode.3mf"
     make(new, [{"idx": 1, "sec": 300, "layers": 3, "fil": [(1, "#3A7BD5FF", 2.0)]}])
     try:
         store.scan(wait=True)
         page.wait_for_selector("text=Frisch vom Drucker", timeout=15_000)
-        assert "printers=1" not in page.url                       # Hinweis „wird abgefragt“ verschwindet
+        assert "printers=1" not in page.url                       # notice „wird abgefragt“ disappears
         page.goto(server["url"] + "/?printers=1")
-        page.locator("[data-bulk-item]").first.check()            # Auswahl darf nicht verloren gehen
+        page.locator("[data-bulk-item]").first.check()            # selection must not get lost
         new.unlink()
         store.scan(wait=True)
         page.wait_for_selector("[data-library-changed]:not([hidden])", timeout=15_000)

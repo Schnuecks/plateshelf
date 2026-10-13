@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Einrichtung des ersten Kontos, Anmelden, Abmelden und das eigene Konto."""
+"""Setup of the first account, signing in, signing out and the own account."""
 from __future__ import annotations
 
 import logging
@@ -37,7 +37,7 @@ def _lockout_text(request: Request) -> str:
                     "Zu viele Fehlversuche. Bitte in {n} Minuten erneut versuchen.", minutes)
 
 
-# --- Einrichtung ------------------------------------------------------------
+# --- Setup ------------------------------------------------------------------
 
 def _setup_open() -> bool:
     return auth.enabled() and not auth.has_users()
@@ -47,7 +47,7 @@ def _setup_open() -> bool:
 def setup_form(request: Request):
     if not _setup_open():
         return RedirectResponse("/", status_code=303)
-    auth.setup_code()  # sicherstellen, dass es einen gibt (steht auch im Log)
+    auth.setup_code()  # make sure one exists (also shown in the log)
     return templates.TemplateResponse(request, "setup.html", {"error": "", "name": ""})
 
 
@@ -76,7 +76,7 @@ def setup(request: Request, code: str = Form(""), name: str = Form(""), password
     return _start_session(request, user_id, "/")
 
 
-# --- Anmelden und Abmelden --------------------------------------------------
+# --- Sign in and sign out ---------------------------------------------------
 
 @router.get("/login")
 def login_form(request: Request, next: str = "/"):
@@ -87,7 +87,7 @@ def login_form(request: Request, next: str = "/"):
     return templates.TemplateResponse(request, "login.html", {"next": _local_target(next), "error": ""})
 
 
-# --- Passkeys (static/passkeys.js schickt und erwartet JSON) ---------------------
+# --- Passkeys (static/passkeys.js sends and expects JSON) ------------------------
 
 def _json_error(message: str, status_code: int = 400) -> JSONResponse:
     return JSONResponse({"error": _(message)}, status_code=status_code)
@@ -182,7 +182,7 @@ def login(request: Request, user: str = Form(""), password: str = Form(""), next
     return _start_session(request, account["id"], next)
 
 
-# --- Anmelden über OIDC (z. B. Authelia) -------------------------------------
+# --- Sign in via OIDC (e.g. Authelia) ----------------------------------------
 
 @router.get("/login/oidc")
 def oidc_start(request: Request, next: str = "/"):
@@ -241,7 +241,7 @@ def logout(request: Request):
     return response
 
 
-# --- Eigenes Konto ----------------------------------------------------------
+# --- Own account ------------------------------------------------------------
 
 def _render_account(request: Request, error: str = "", status_code: int = 200):
     user = current_user(request)
@@ -254,14 +254,14 @@ def _render_account(request: Request, error: str = "", status_code: int = 200):
 
 @router.get("/account/password")
 def account_password_url():
-    """Neu laden nach einer Fehlermeldung beim Passwortwechsel: zurück zum Konto."""
+    """Reload after an error message when changing the password: back to the account."""
     return RedirectResponse("/account", status_code=303)
 
 
 @router.get("/account")
 def account(request: Request):
     user = current_user(request)
-    if not user or user["id"] is None:  # AUTH=off: es gibt kein Konto
+    if not user or user["id"] is None:  # AUTH=off: there is no account
         return RedirectResponse("/", status_code=303)
     return _render_account(request)
 

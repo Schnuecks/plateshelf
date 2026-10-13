@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""3D-Vorschau: Seite und die Daten für den Viewer."""
+"""3D preview: page and the data for the viewer."""
 from __future__ import annotations
 
 import json
@@ -32,8 +32,8 @@ def _plate_for_view(fid: int, idx: int):
 
 
 def bed_area(path: Path) -> list[float] | None:
-    """Druckfläche des Druckers, für den die Datei gesliced ist (sonst zeigt der Viewer eine
-    256-mm-Platte)."""
+    """Bed area of the printer the file is sliced for (otherwise the viewer shows a
+    256 mm plate)."""
     try:
         if gcode_file.is_gcode(path.name):
             return gcode_file.bed_area(path)
@@ -74,7 +74,7 @@ def viewer(request: Request, fid: int, idx: int):
 
 @router.get("/api/preview/{fid}/{idx}")
 def preview_status(fid: int, idx: int):
-    *_rest, path = _plate_for_view(fid, idx)  # _ ist die Übersetzungsfunktion
+    *_rest, path = _plate_for_view(fid, idx)  # _ is the translation function
     st = gcode_preview.status(path, idx, _preview_base(fid, idx))
     if st.get("error"):
         st = {**st, "error": _(st["error"])}

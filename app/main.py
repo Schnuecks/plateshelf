@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""PlateShelf: App, Hintergrund-Threads und Schutzschichten vor allen Seiten.
+"""PlateShelf: app, background threads and protection layers in front of all pages.
 
-Die Seiten selbst liegen in routes_*.py, Gemeinsames in web.py und projects.py.
+The pages themselves live in routes_*.py, shared code in web.py and projects.py.
 """
 from __future__ import annotations
 
@@ -24,13 +24,13 @@ from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_im
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, EARLY_SCRIPT, IMPORTMAP, SAFE_METHODS, allowed, current_url, current_user, \
     is_public
-# Für Tests und Werkzeuge, die diese Namen bisher aus main holten
+# For tests and tools that used to import these names from main
 from .i18n import fmt_printer_date  # noqa: F401
 from .projects import BOOL_WORDS, SETTING_LABELS, load_projects  # noqa: F401
 from .web import APP_VERSION, JOB_STATUSES, JS_TEXTS, STATUSES, THEME_LABELS, _app_version  # noqa: F401
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
-diagnostics.install()  # letzte Warnungen für die Diagnose in den Einstellungen
+diagnostics.install()  # recent warnings for the diagnostics in the settings
 
 
 @asynccontextmanager
@@ -41,8 +41,8 @@ async def lifespan(_app):
     crypto.remove_legacy_key_file(store.DATA_DIR)
     printer_import.init()
     if os.environ.get("BACKGROUND_TASKS", "true").lower() in ("0", "false", "no", "off"):
-        # Nur für Tests: einmal einlesen, aber keine Threads, die über den Test hinaus weiterlaufen
-        # und später auf die Datenbank eines anderen Tests zugreifen
+        # Tests only: scan once, but no threads that keep running beyond the test
+        # and later access another test's database
         store.scan(wait=True)
         yield
         return
@@ -62,12 +62,12 @@ async def lifespan(_app):
 app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 
-# --- Sicherheits-Header ------------------------------------------------------
-# Die Content-Security-Policy erlaubt nur eigene Dateien; die zwei kleinen Skripte direkt in
-# der Seite (Klasse „js“ und Importmap der 3D-Vorschau) per Hash. Eingeschleuster Code liefe
-# damit selbst bei einer Lücke nicht. Stile direkt am Element (Farbfelder, Balken) bleiben
-# erlaubt. form-action auch https:, weil ein Reverse-Proxy mit Anmeldeseite (z. B. Authelia)
-# Formulare nach Ablauf seiner Sitzung dorthin umleitet; sonst bliebe das Absenden still hängen.
+# --- Security headers --------------------------------------------------------
+# The Content Security Policy only allows our own files; the two small inline scripts in
+# the page (class "js" and the import map of the 3D preview) via hash. So injected code would
+# not run even if there were a hole. Inline styles on elements (color swatches, bars) remain
+# allowed. form-action also allows https:, because a reverse proxy with a login page (e.g. Authelia)
+# redirects forms there once its session expires; otherwise submitting would silently hang.
 def _sha256(text: str) -> str:
     return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
 
@@ -114,7 +114,7 @@ async def language_middleware(request: Request, call_next):
         return await call_next(request)
     user = current_user(request)
     if user is None:
-        # Dashboards: API-Token, nur lesend und nur unter /api/
+        # Dashboards: API token, read-only and only under /api/
         if request.method in SAFE_METHODS and path.startswith("/api/") and \
                 auth.token_valid(auth.token_from_headers(request.headers)):
             return await call_next(request)
@@ -122,7 +122,7 @@ async def language_middleware(request: Request, call_next):
             if not auth.has_users():
                 return RedirectResponse("/setup", status_code=303)
             return RedirectResponse(f"/login?next={quote(current_url(request))}", status_code=303)
-        # Skripte: Anmeldung per HTTP Basic Auth oder API-Token
+        # Scripts: login via HTTP Basic Auth or API token
         return PlainTextResponse(_("Anmeldung erforderlich."), status_code=401,
                                  headers={"WWW-Authenticate": f'Basic realm="{APP_NAME}", charset="UTF-8"'})
     if not allowed(user["role"], request.method, path):
@@ -130,11 +130,11 @@ async def language_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# --- Schutz vor fremden Seiten (CSRF) ----------------------------------------
-# Ohne Anmeldung (Standard) und selbst mit gültiger Sitzung könnte jede Webseite, die
-# man im selben Netz öffnet, dem Browser ein Formular an PlateShelf unterschieben
-# (z. B. „Papierkorb leeren“). Browser schicken bei solchen Anfragen immer Origin oder
-# Referer mit; stimmt deren Host nicht mit dem angefragten überein, wird abgelehnt.
+# --- Protection against foreign sites (CSRF) ---------------------------------
+# Without login (default), and even with a valid session, any web page opened in the
+# same network could slip the browser a form aimed at PlateShelf
+# (e.g. "Papierkorb leeren"). Browsers always send Origin or Referer with such
+# requests; if their host does not match the requested one, the request is rejected.
 TRUSTED_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("TRUSTED_ORIGINS", "").split(",")
                    if o.strip()}
 
@@ -142,20 +142,20 @@ TRUSTED_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("TRUSTE
 def same_origin(request: Request) -> bool:
     source = request.headers.get("origin") or request.headers.get("referer")
     if not source:
-        return True  # kein Browser-Formular, z. B. curl oder ein Skript im Heimnetz
+        return True  # not a browser form, e.g. curl or a script on the home network
     if source == "null":
-        return False  # Sandbox, Datei oder Weiterleitung von fremder Seite
+        return False  # sandbox, file or redirect from a foreign site
     parts = urlsplit(source)
     if not parts.netloc:
         return False
     if f"{parts.scheme}://{parts.netloc}".lower() in TRUSTED_ORIGINS:
         return True
-    # Hinter einem Reverse-Proxy zählt der Host, den der Proxy weiterreicht
+    # Behind a reverse proxy, the host forwarded by the proxy counts
     host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0]
     return parts.netloc.lower() == host.strip().lower()
 
 
-mimetypes.add_type("application/manifest+json", ".webmanifest")  # Web-App-Manifest (Homescreen)
+mimetypes.add_type("application/manifest+json", ".webmanifest")  # web app manifest (home screen)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 for module in (routes_account, routes_library, routes_settings, routes_preview, routes_system):
     app.include_router(module.router)

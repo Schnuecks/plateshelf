@@ -1,4 +1,4 @@
-"""Eigene Fotos, Notizen pro Druck, doppelte Dateien und Ordnerüberwachung."""
+"""Own photos, notes per print, duplicate files and folder watching."""
 import io
 import shutil
 import threading
@@ -28,10 +28,10 @@ def project(lib, sample):
 
 
 def camera_jpeg(width=4000, height=3000) -> bytes:
-    """Querformat mit EXIF: GPS-Position und „90° drehen“, wie ein Handyfoto im Hochformat."""
+    """Landscape with EXIF: GPS position and "rotate 90°", like a phone photo in portrait."""
     img = Image.new("RGB", (width, height), (200, 60, 40))
     exif = Image.Exif()
-    exif[0x0112] = 6  # Orientation: 90° im Uhrzeigersinn anzeigen
+    exif[0x0112] = 6  # Orientation: display rotated 90° clockwise
     exif[0x010F] = "Kamerahersteller"
     exif[0x8825] = {1: "N", 2: (52.0, 31.0, 12.0)}  # GPS
     out = io.BytesIO()
@@ -48,11 +48,11 @@ def test_photo_upload_strips_metadata_and_becomes_cover(client, project, lib):
     folder = photos.folder_for(project["group_key"])
     assert folder.is_relative_to(lib / ".photos")
     with Image.open(folder / name) as big:
-        assert big.size == (1800, 2400)  # gedreht wie fotografiert, auf 2400 px verkleinert
-        assert not big.getexif()  # keine Metadaten, kein GPS
+        assert big.size == (1800, 2400)  # rotated as photographed, scaled down to 2400 px
+        assert not big.getexif()  # no metadata, no GPS
     with Image.open(folder / photos.small_name(name)) as small:
         assert max(small.size) == photos.SMALL_SIDE
-    # Erstes Foto = Titelbild, auch in der Übersicht
+    # First photo = cover image, also in the overview
     with store.connect() as con:
         assert con.execute("SELECT cover_photo FROM projects WHERE id = ?", (pid,)).fetchone()[0] == name
     assert f'/p/{pid}/photos/{name[:-4]}.small.jpg" alt="" loading="lazy" class="is-photo"' in client.get("/").text
@@ -61,7 +61,7 @@ def test_photo_upload_strips_metadata_and_becomes_cover(client, project, lib):
     got = client.get(f"/p/{pid}/photos/{name}")
     assert got.status_code == 200 and got.headers["content-type"] == "image/jpeg" and "immutable" in got.headers["cache-control"]
     assert client.get(f"/p/{pid}/photos/..%2F..%2Fplateshelf.sqlite").status_code == 404
-    # Titelbild abwählen und Foto löschen
+    # Deselect the cover image and delete the photo
     client.post(f"/p/{pid}/photos/{name}/cover")
     assert "is-photo" not in client.get("/").text
     client.post(f"/p/{pid}/photos/{name}/delete")
@@ -83,13 +83,13 @@ def test_photos_come_back_with_the_project_from_the_trash(client, project, lib):
     client.post(f"/p/{pid}/photos", files=[("files", ("a.jpg", camera_jpeg(800, 600), "image/jpeg"))])
     (name,) = photos.list_photos(key)
     client.post(f"/p/{pid}/delete")
-    assert photos.list_photos(key) == [name]  # bleibt liegen, solange der Eintrag im Papierkorb ist
+    assert photos.list_photos(key) == [name]  # stays as long as the entry is in the trash
     (entry,) = trash.entries()
     result = trash.restore(entry["id"])
     with store.connect() as con:
         cover = con.execute("SELECT cover_photo FROM projects WHERE id = ?", (result["project_id"],)).fetchone()[0]
     assert cover == name and photos.list_photos(key) == [name]
-    # Endgültig gelöscht: die Fotos verschwinden mit
+    # Permanently deleted: the photos go with it
     with store.connect() as con:
         ids = [r[0] for r in con.execute("SELECT id FROM files WHERE project_id = ?", (result["project_id"],))]
         trash.delete(con, ids, "projekt")
@@ -129,7 +129,7 @@ def test_duplicate_files_are_pointed_out(client, lib, sample):
     page = client.get(f"/p/{pids['Clip']}").text
     assert "Dieselbe Datei liegt auch hier" in page and "Kiste/Clip_Kopie.gcode.3mf" in page and "Projekt Kiste" in page
     assert "Dieselbe Datei" not in client.get(f"/p/{pids['Anders']}").text
-    # Geänderte Datei: Hash neu, kein Hinweis mehr
+    # Changed file: new hash, no notice anymore
     sample(lib / "Kiste" / "Clip_Kopie.gcode.3mf", [{"idx": 1, "sec": 70, "layers": 2, "fil": [(1, "#0000FFFF", 1.0)]}])
     store.scan(wait=True)
     assert "Dieselbe Datei" not in client.get(f"/p/{pids['Clip']}").text
@@ -165,7 +165,7 @@ def test_new_files_are_found_right_away(lib, sample):
     watcher = threading.Thread(target=store.watch_loop, args=(stop,), daemon=True)
     watcher.start()
     try:
-        time.sleep(0.5)  # Überwachung läuft
+        time.sleep(0.5)  # watcher is running
         sample(lib / "Sofort.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
         deadline = time.time() + 15
         while time.time() < deadline:

@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Sicherungen der Datenbank: Download, tägliche automatische Sicherung, Zurückspielen.
+"""Database backups: download, daily automatic backup, restore.
 
-Eine Sicherung ist die SQLite-Datenbank als einzelne Datei: Projekte mit Notizen, Tags
-und Status, Zuordnungen, Einstellungen, Drucker, Benutzer und der Druckverlauf. Die
-Druckdateien liegen ohnehin im Bibliotheksordner; Vorschaubilder und 3D-Vorschauen
-entstehen nach dem Zurückspielen neu.
+A backup is the SQLite database as a single file: projects with notes, tags
+and status, assignments, settings, printers, users and the print history. The
+print files are in the library folder anyway; thumbnails and 3D previews are
+regenerated after restoring.
 
-Automatisch: einmal am Tag unter <Datenordner>/backups/, die letzten BACKUP_KEEP
-(Standard 7) bleiben. BACKUP_KEEP=0 schaltet das ab.
+Automatic: once a day under <data folder>/backups/, the last BACKUP_KEEP
+(default 7) are kept. BACKUP_KEEP=0 turns this off.
 """
 from __future__ import annotations
 
@@ -37,12 +37,12 @@ def backup_dir() -> Path:
 
 
 def write(target: Path) -> None:
-    """Datenbank konsistent in eine einzelne Datei schreiben, auch während PlateShelf schreibt."""
+    """Write the database consistently into a single file, even while PlateShelf is writing."""
     src = store.connect()
     dst = sqlite3.connect(target)
     try:
         src.backup(dst)
-        dst.execute("PRAGMA journal_mode = DELETE")  # eine einzelne Datei, ohne -wal
+        dst.execute("PRAGMA journal_mode = DELETE")  # a single file, without -wal
     finally:
         dst.close()
         src.close()
@@ -62,7 +62,7 @@ def list_backups() -> list[dict]:
 
 
 def path_of(name: str) -> Path | None:
-    """Nur Dateien aus dem Sicherungsordner, keine beliebigen Pfade."""
+    """Only files from the backup folder, no arbitrary paths."""
     if not AUTO_NAME.match(name):
         return None
     path = backup_dir() / name
@@ -70,7 +70,7 @@ def path_of(name: str) -> Path | None:
 
 
 def run_auto(now: float | None = None) -> Path | None:
-    """Tägliche Sicherung anlegen, wenn die letzte älter als einen Tag ist; alte aufräumen."""
+    """Create a daily backup if the last one is older than a day; clean up old ones."""
     if not KEEP:
         return None
     now = now or time.time()
@@ -86,13 +86,13 @@ def run_auto(now: float | None = None) -> Path | None:
     log.info("Automatische Sicherung angelegt: %s", target.name)
     for old in [b for b in list_backups() if not b["before_restore"]][KEEP:]:
         (folder / old["name"]).unlink(missing_ok=True)
-    for old in [b for b in list_backups() if b["before_restore"]][3:]:  # höchstens drei Notfall-Kopien
+    for old in [b for b in list_backups() if b["before_restore"]][3:]:  # at most three emergency copies
         (folder / old["name"]).unlink(missing_ok=True)
     return target
 
 
 def loop() -> None:
-    time.sleep(120)  # nicht gleich beim Start, während eingelesen wird
+    time.sleep(120)  # not right at startup, while scanning
     while True:
         try:
             run_auto()
@@ -102,7 +102,7 @@ def loop() -> None:
 
 
 def check(path: Path) -> None:
-    """Prüft, ob die Datei eine PlateShelf-Sicherung ist, die sich zurückspielen lässt."""
+    """Checks whether the file is a PlateShelf backup that can be restored."""
     with open(path, "rb") as fh:
         if fh.read(16) != b"SQLite format 3\x00":
             raise UserError("Das ist keine Sicherung von PlateShelf (keine SQLite-Datenbank).")
@@ -125,9 +125,9 @@ def check(path: Path) -> None:
 
 
 def restore(path: Path) -> str:
-    """Spielt eine Sicherung zurück; vorher wird der aktuelle Stand gesichert. Gibt dessen Namen zurück."""
+    """Restores a backup; the current state is backed up first. Returns that backup's name."""
     check(path)
-    with _restore_lock, store._scan_lock:  # kein Einlesen während des Austauschs
+    with _restore_lock, store._scan_lock:  # no scanning during the swap
         folder = backup_dir()
         folder.mkdir(parents=True, exist_ok=True)
         safety = folder / time.strftime("plateshelf-%Y-%m-%d-vor-wiederherstellung-%H%M%S.sqlite")
@@ -139,9 +139,9 @@ def restore(path: Path) -> str:
         finally:
             dst.close()
             src.close()
-        # Vorschaubilder und 3D-Vorschauen gehören zu den Datei-IDs der alten Datenbank
+        # Thumbnails and 3D previews belong to the file IDs of the old database
         for cache in (store.THUMB_DIR, store.DATA_DIR / "preview"):
             shutil.rmtree(cache, ignore_errors=True)
-        store.init_db()  # ältere Sicherung auf den aktuellen Stand bringen, erzwingt neues Einlesen
+        store.init_db()  # bring an older backup up to date, forces a new scan
     log.warning("Sicherung zurückgespielt; der vorherige Stand liegt als %s im Sicherungsordner", safety.name)
     return safety.name

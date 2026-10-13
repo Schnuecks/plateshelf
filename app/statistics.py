@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Statistik aus dem Druckverlauf: Drucke, Filament und Kosten der letzten zwölf Monate.
+"""Statistics from the print history: prints, filament and costs of the last twelve months.
 
-Filament und Kosten zählen nur fertige Drucke. Grundlage sind die Angaben aus der
-gedruckten Datei (Gewicht und Filamente der geslicten Platten); der Strom ergibt
-sich aus der tatsächlichen Druckdauer, wo der Drucker sie meldet, sonst aus der
-geplanten Druckzeit.
+Filament and costs only count finished prints. They are based on the data from the
+printed file (weight and filaments of the sliced plates); electricity is calculated
+from the actual print duration where the printer reports it, otherwise from the
+planned print time.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _month_keys(now: float) -> list[str]:
 
 
 def _file_facts(con, settings: dict) -> dict[str, dict]:
-    """Je Datei: Gewicht, Filamente, Materialkosten und geplante Zeit der geslicten Platten."""
+    """Per file: weight, filaments, material costs and planned time of the sliced plates."""
     facts: dict[str, dict] = {}
     rules = store.price_rules(settings)
     for r in con.execute(

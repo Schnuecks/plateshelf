@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Druckverlauf: wann welche Datei auf welchem Drucker gedruckt wurde und wie es ausging.
+"""Print history: which file was printed on which printer, when, and how it turned out.
 
-Quellen je Druckertyp:
-  Bambu Lab   dauerhafte MQTT-Verbindung zum Drucker (Port 8883, Benutzer "bblp",
-              Zugangscode). Der Drucker meldet seinen Zustand; aus den Wechseln
-              zwischen RUNNING, FINISH und FAILED entstehen die Einträge.
-  Klipper     Moonraker führt selbst einen Verlauf (/server/history/list).
-  Prusa       PrusaLink kennt nur den aktuellen Druck (/api/v1/job); er wird
-              regelmäßig abgefragt und hier mitgeschrieben.
+Sources per printer type:
+  Bambu Lab   persistent MQTT connection to the printer (port 8883, user "bblp",
+              access code). The printer reports its state; the entries are derived
+              from the transitions between RUNNING, FINISH and FAILED.
+  Klipper     Moonraker keeps its own history (/server/history/list).
+  Prusa       PrusaLink only knows the current print (/api/v1/job); it is
+              polled regularly and recorded here.
 
-Ein Druck wird über den Dateinamen auf dem Drucker der importierten Datei
-zugeordnet (Tabelle printer_files) und damit ihrem Projekt.
+A print is matched to the imported file via the file name on the printer
+(table printer_files), and thereby to its project.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ _wakeup = threading.Event()
 
 
 def env_setting() -> bool | None:
-    """PRINT_HISTORY aus der Umgebung; None, wenn nicht gesetzt (dann gilt die Einstellung)."""
+    """PRINT_HISTORY from the environment; None if unset (the setting applies then)."""
     value = os.environ.get("PRINT_HISTORY", "").strip().lower()
     if not value:
         return None
@@ -49,7 +49,7 @@ def enabled() -> bool:
 
 
 def set_enabled(on: bool) -> None:
-    """Schalter aus den Einstellungen; die Verbindungen passen sich sofort an."""
+    """Toggle from the settings; the connections adapt immediately."""
     store.save_settings({"druckverlauf": 1 if on else 0})
     _wakeup.set()
 
@@ -58,28 +58,28 @@ def interval() -> int:
     return max(15, int(os.environ.get("PRINT_HISTORY_INTERVAL", "60")))
 
 
-# --- Speichern ----------------------------------------------------------------
+# --- Storing ------------------------------------------------------------------
 
 _PLATE_GCODE = re.compile(r"(?:^|/)plate_(\d+)\.gcode$", re.I)
 _PLATE_SUFFIX = re.compile(r"_plate_(\d+)\.gcode\.3mf$", re.I)
-UNNAMED_SLACK = 300  # so lange vor dem Druckstart darf eine Datei ohne Plattennummer geholt worden sein
+UNNAMED_SLACK = 300  # max. time before print start that a file without plate number may have been fetched
 _EXT = re.compile(r"(\.gcode)?\.3mf$|\.b?gcode$", re.I)
 
 
 def _norm(name: str) -> str:
-    """Nur Buchstaben und Ziffern, klein: „Goofy series – X“ und „Goofy_series_–_X“ sind gleich."""
+    """Only letters and digits, lowercase: "Goofy series – X" and "Goofy_series_–_X" are equal."""
     return re.sub(r"[\W_]+", "", _EXT.sub("", name).lower())
 
 
 def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = None,
              printer_name: str | None = None, started: float | None = None) -> str | None:
-    """Lokale Datei zu einem Druck.
+    """Local file for a print.
 
-    Normalfall: der Dateiname auf dem Drucker (auch nur der letzte Teil des Pfads).
-    Bambu-Drucker wie der P2S melden aber teils nur die Platte in der Datei
-    („Metadata/plate_2.gcode“) und den Projektnamen getrennt. Dann passt die vom
-    Import angelegte Datei „<Name>_plate_2.gcode.3mf“; fehlt der Name (Drucke aus
-    0.7.4 bis 0.7.11), gilt der letzte Import vor dem Druckstart.
+    Usual case: the file name on the printer (or just the last part of the path).
+    Bambu printers such as the P2S, however, sometimes only report the plate inside the file
+    ("Metadata/plate_2.gcode") and the project name separately. Then the file created by the
+    import, "<Name>_plate_2.gcode.3mf", matches; if the name is missing (prints from
+    0.7.4 to 0.7.11), the last import before the print start applies.
     """
     if remote_name and (m := _PLATE_GCODE.search(remote_name)):
         plate, remote_name = int(m[1]), None
@@ -94,8 +94,8 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
             return row["local_path"]
     if plate is None or not printer_name:
         return None
-    # Alle Importe dieses Druckers mit dem Zeitpunkt des letzten Imports (bei erneutem Hochladen
-    # derselben Platte zählt der neue Import, nicht das erste Einlesen der Datei)
+    # All imports from this printer with the time of the latest import (when the same plate is
+    # uploaded again, the new import counts, not the first scan of the file)
     imports = [dict(r) for r in con.execute(
         """SELECT i.local_path, i.remote_name,
                   COALESCE((SELECT MAX(pf.imported) FROM printer_files pf WHERE pf.local_path = i.local_path),
@@ -106,13 +106,13 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     def plates_of(r) -> set[int]:
         if m := _PLATE_SUFFIX.search(r["local_path"]):
             return {int(m[1])}
-        # Ohne Nummer im Namen (Projekt mit einer Platte oder alle Platten auf einmal): die
-        # geslicten Platten der Datei
+        # Without a number in the name (project with one plate or all plates at once): the
+        # sliced plates of the file
         return {x["idx"] for x in con.execute("""SELECT p.idx FROM plates p JOIN files f ON f.id = p.file_id
                                                  WHERE f.path = ? AND p.sliced = 1""", (r["local_path"],))}
 
     candidates = [r for r in imports if plate in plates_of(r)]
-    if remote_name:  # Projektname bekannt: dieselbe Platte desselben Projekts, bei mehreren die zeitlich nächste
+    if remote_name:  # project name known: same plate of the same project, the closest in time if several
         wanted = _norm(remote_name)
         named = [r for r in candidates if _norm(r["remote_name"] or "") == wanted
                  or _norm(_PLATE_SUFFIX.sub("", r["local_path"].rsplit("/", 1)[-1])) == wanted]
@@ -120,25 +120,25 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
             return min(named, key=lambda r: abs((r["at"] or 0) - (started or 0)))["local_path"]
     if started is None:
         return None
-    # Ohne Namen (Drucke aus 0.7.4 bis 0.7.11): Bambu Studio lädt jede Platte direkt vor dem Druck
-    # hoch, also gilt der letzte Import vor dem Start (etwas Nachlauf für den Abgleich), wenn er
-    # dieselbe Platte ist
+    # Without a name (prints from 0.7.4 to 0.7.11): Bambu Studio uploads each plate right before
+    # the print, so the last import before the start applies (with some slack for the sync) if it
+    # is the same plate
     before = [r for r in imports if (r["at"] or 0) <= started + 900]
     if not before:
         return None
     last = max(before, key=lambda r: r["at"] or 0)
     if plate not in plates_of(last):
         return None
-    # Datei ohne Plattennummer im Namen (Projekt mit einer Platte): Platte 1 passt auf fast jede
-    # Datei. Nur zuordnen, wenn sie erst zu diesem Druck geholt wurde; sonst wäre es der vorige
-    # Druck (bei Druckstart ist die neue Datei noch nicht importiert, link_pending holt das nach)
+    # File without a plate number in the name (project with one plate): plate 1 matches almost any
+    # file. Only match if it was fetched for this very print; otherwise it would be the previous
+    # print (at print start the new file is not imported yet, link_pending catches up on that)
     if not _PLATE_SUFFIX.search(last["local_path"]) and (last["at"] or 0) < started - UNNAMED_SLACK:
         return None
     return last["local_path"]
 
 
 def _guessed(con, job) -> bool:
-    """Zuordnung nur über den Importzeitpunkt (weder Name noch Plattennummer passen zur Datei)."""
+    """Match based on import time only (neither name nor plate number match the file)."""
     local = job["local_path"] or ""
     if _PLATE_SUFFIX.search(local):
         return False
@@ -152,7 +152,7 @@ def _guessed(con, job) -> bool:
 
 
 def _apply_project_status(con, job) -> None:
-    """Ein fertiger Druck setzt ein Projekt ohne Status auf „gedruckt“, einmal pro Druck."""
+    """A finished print sets a project without status to "gedruckt", once per print."""
     if job["status"] != "completed" or not job["local_path"] or job["applied"] or job["hidden"]:
         return
     con.execute("""UPDATE projects SET status = 'gedruckt', updated = ? WHERE status = '' AND id =
@@ -164,13 +164,13 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
            started: float | None = None, ended: float | None = None, duration_s: float | None = None,
            filament_mm: float | None = None, progress: float | None = None,
            remaining_s: float | None = None, plate: int | None = None) -> None:
-    """Legt einen Druck an oder schreibt seinen neuen Stand fort."""
+    """Creates a print or updates it with its new state."""
     now = time.time()
     with _lock, store.connect() as con:
         row = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
         if row and row["status"] in FINAL and status == "running":
-            return  # schon abgeschlossen, verspätete Meldung
+            return  # already finished, late report
         local = (row["local_path"] if row else None) or _resolve(
             con, printer["id"], remote_name or (row["remote_name"] if row else None),
             plate if plate is not None else (row["plate"] if row else None), printer["name"],
@@ -188,7 +188,7 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
             if status in FINAL:
                 values["remaining_s"] = None
             if status == "completed":
-                values["progress"] = 100.0  # Klipper meldet beim Ende keinen Fortschritt mehr, sonst bliebe der letzte
+                values["progress"] = 100.0  # Klipper sends no final progress, the last value would remain
             if status in FINAL and not row["ended"]:
                 values["ended"] = ended or now
             sets = ", ".join(f"{k} = ?" for k in values)
@@ -206,18 +206,17 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
                           (printer["id"], job_key)).fetchone()
         _apply_project_status(con, job)
     if not row and not local and status == "running" and remote_name:
-        # Neuer Druck einer Datei, die noch nicht in der Bibliothek liegt: gleich holen, damit er
-        # seinem Projekt zugeordnet wird (sonst erst beim nächsten Abgleich, bis zu 10 Minuten)
+        # New print of a file that is not in the library yet: fetch it right away so the print is
+        # matched to its project (otherwise only at the next sync, up to 10 minutes)
         printer_import.request_sync()
 
 
 def delete(job_id: int) -> None:
-    """Druck aus dem Verlauf entfernen, etwa einen Testdruck.
+    """Remove a print from the history, e.g. a test print.
 
-    Der Eintrag bleibt als verborgen gespeichert, damit Moonraker oder PrusaLink ihn
-    beim nächsten Abruf nicht wieder anlegen. Hatte er den Projektstatus auf
-    „gedruckt“ gesetzt und bleibt kein anderer fertiger Druck des Projekts übrig,
-    wird der Status zurückgenommen.
+    The entry stays stored as hidden so that Moonraker or PrusaLink do not create it
+    again on the next poll. If it had set the project status to "gedruckt" and no
+    other finished print of the project remains, the status is reverted.
     """
     with _lock, store.connect() as con:
         job = con.execute("SELECT * FROM print_jobs WHERE id = ?", (job_id,)).fetchone()
@@ -238,12 +237,12 @@ def delete(job_id: int) -> None:
                         (time.time(), project[0]))
 
 
-LIVE_MAX_AGE = 30 * 60  # ohne Meldung seit 30 Minuten gilt ein Druck nicht mehr als live
+LIVE_MAX_AGE = 30 * 60  # without a report for 30 minutes a print no longer counts as live
 
 
 def printing_now() -> list[dict]:
-    """Laufende Drucke mit frischer Meldung, für Titelleiste, Übersicht und Dashboard; der Druck, der
-    als Nächstes fertig wird, zuerst (ohne bekannte Restzeit ans Ende)."""
+    """Running prints with a recent report, for title bar, overview and dashboard; the print that
+    finishes next comes first (those without a known remaining time last)."""
     with store.connect() as con:
         return [dict(r) for r in con.execute(
             """SELECT j.id, j.printer_name, j.remote_name, j.progress, j.remaining_s, j.started, j.local_path,
@@ -262,10 +261,10 @@ def running_job(printer_id: str):
 
 
 def link_pending() -> None:
-    """Drucke ohne Datei nachträglich zuordnen, sobald der Import sie geholt hat.
+    """Match prints without a file afterwards, as soon as the import has fetched it.
 
-    0.8.13 und 0.8.14 haben laufende Drucke einplattiger Projekte teils der Datei des vorigen
-    Drucks zugeordnet. Solche nur geratenen Zuordnungen werden hier neu geprüft und berichtigt.
+    0.8.13 and 0.8.14 sometimes matched running prints of single-plate projects to the file of the
+    previous print. Such merely guessed matches are re-checked and corrected here.
     """
     with _lock, store.connect() as con:
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NOT NULL AND remote_name IS NOT NULL "
@@ -286,7 +285,7 @@ def link_pending() -> None:
 
 
 def set_note(job_id: int, note: str, rating: int | None) -> None:
-    """Notiz und Bewertung (1 gelungen, -1 misslungen, None keine Angabe) zu einem Druck."""
+    """Note and rating (1 successful, -1 failed, None not specified) for a print."""
     with _lock, store.connect() as con:
         cur = con.execute("UPDATE print_jobs SET note = ?, rating = ? WHERE id = ?",
                           (note.strip()[:1000] or None, rating, job_id))
@@ -294,7 +293,7 @@ def set_note(job_id: int, note: str, rating: int | None) -> None:
             raise KeyError(job_id)
 
 
-# --- Abfragen ----------------------------------------------------------------
+# --- Queries -----------------------------------------------------------------
 
 def jobs_for(paths: list[str]) -> list[dict]:
     if not paths:
@@ -319,16 +318,16 @@ def recent(limit: int = 200) -> list[dict]:
 MOONRAKER_STATUS = {"completed": "completed", "cancelled": "cancelled", "in_progress": "running"}
 
 
-LIVE_KEY = "live:"  # Druck, den nur Klippers print_stats kennt, nicht der Verlauf von Moonraker
+LIVE_KEY = "live:"  # print only known to Klipper's print_stats, not to Moonraker's history
 KLIPPER_END = {"complete": "completed", "cancelled": "cancelled", "error": "failed"}
 
 
 def poll_moonraker(printer: dict, source=None) -> int:
-    """Übernimmt die letzten Einträge aus dem Verlauf von Moonraker und den laufenden Druck.
+    """Takes over the latest entries from Moonraker's history and the running print.
 
-    Ist die Verlaufs-Komponente aus oder hat sie den Druck (noch) nicht erfasst, etwa nach einem
-    Neustart von Klipper, kommt der laufende Druck aus print_stats; er bekommt dann eine eigene
-    Kennung und wird abgeschlossen, sobald Klipper nicht mehr druckt.
+    If the history component is disabled or has not recorded the print (yet), e.g. after a
+    Klipper restart, the running print comes from print_stats; it then gets its own
+    ID and is finished as soon as Klipper stops printing.
     """
     source = source or printer_import.MoonrakerSource(printer)
     with source._get("/server/history/list?limit=50&order=desc") as resp:
@@ -355,13 +354,13 @@ def _moonraker_status(source) -> dict:
 
 
 def _moonraker_progress(status: dict) -> dict:
-    """Fortschritt und geschätzte Restzeit des laufenden Drucks aus Klipper."""
+    """Progress and estimated remaining time of the running print from Klipper."""
     if not status:
         return {}
     fraction = float((status.get("virtual_sdcard") or {}).get("progress") or 0)
     printed = float((status.get("print_stats") or {}).get("print_duration") or 0)
     out = {"progress": round(fraction * 100, 1)}
-    if fraction >= 0.02 and printed > 0:  # am Anfang ist die Hochrechnung zu ungenau
+    if fraction >= 0.02 and printed > 0:  # the extrapolation is too inaccurate at the start
         out["remaining_s"] = printed / fraction - printed
     return out
 
@@ -372,7 +371,7 @@ def _track_klipper_live(printer: dict, status: dict, live: dict, in_history: boo
     with store.connect() as con:
         rows = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' AND job_key LIKE ?",
                            (printer["id"], LIVE_KEY + "%")).fetchall()
-    if in_history:  # Moonraker führt den Druck jetzt selbst: eigenen Eintrag ausblenden
+    if in_history:  # Moonraker now tracks the print itself: hide our own entry
         with store.connect() as con:
             con.executemany("UPDATE print_jobs SET hidden = 1, status = 'cancelled' WHERE id = ?",
                             [(r["id"],) for r in rows])
@@ -384,7 +383,7 @@ def _track_klipper_live(printer: dict, status: dict, live: dict, in_history: boo
                started=None if current else time.time() - float(stats.get("total_duration") or 0),
                filament_mm=stats.get("filament_used"), **live)
         rows = [r for r in rows if r["job_key"] != key]
-    for row in rows:  # Klipper druckt nicht mehr (oder etwas anderes): abschließen
+    for row in rows:  # Klipper no longer prints (or prints something else): finish
         end = KLIPPER_END.get(state) if row["remote_name"] == filename else None
         if end is None:
             end = "completed" if (row["progress"] or 0) >= 99 else "cancelled"
@@ -399,19 +398,19 @@ PRUSALINK_STATUS = {"PRINTING": "running", "PAUSED": "running", "FINISHED": "com
 
 
 def _close_lost_prusalink_job(printer: dict, current_key: str | None) -> None:
-    """Drucke abschließen, deren Ende PrusaLink nicht mehr gemeldet hat (Drucker vorher aus,
-    neuer Druck gestartet). Fast fertig gilt als fertig, sonst als abgebrochen."""
+    """Finish prints whose end PrusaLink never reported (printer switched off before,
+    new print started). Nearly done counts as completed, otherwise as cancelled."""
     with store.connect() as con:
         rows = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND status = 'running' AND job_key != ?",
                            (printer["id"], current_key or "")).fetchall()
-    for row in rows:  # alle älteren, nicht nur den jüngsten: der jüngste ist meist der laufende
+    for row in rows:  # all older ones, not only the latest: the latest is usually the running one
         done = (row["progress"] or 0) >= 99 or (row["remaining_s"] == 0 and (row["progress"] or 0) >= 80)
         record(printer, row["job_key"], "completed" if done else "cancelled",
                ended=row["updated"] or time.time(), progress=row["progress"])
 
 
 def poll_prusalink(printer: dict, source=None) -> None:
-    """Aktuellen Druck abfragen; ohne Druck antwortet PrusaLink mit 204 und leerem Inhalt."""
+    """Query the current print; without a print PrusaLink answers with 204 and an empty body."""
     source = source or printer_import.PrusaLinkSource(printer)
     with source._get("/api/v1/job") as resp:
         body = resp.read()
@@ -433,15 +432,15 @@ def poll_prusalink(printer: dict, source=None) -> None:
 
 # --- OctoPrint -------------------------------------------------------------------
 
-OCTO_KEY = "octo:"  # OctoPrint führt ohne Plugin keinen Verlauf: Kennung aus dem Startzeitpunkt
+OCTO_KEY = "octo:"  # OctoPrint keeps no history without a plugin: ID from the start time
 OCTO_RUNNING = ("printing", "paused", "pausing", "resuming", "starting", "cancelling", "finishing")
 OCTO_UNKNOWN = ("offline", "closed", "connecting", "opening serial connection", "detecting serial connection")
 
 
 def poll_octoprint(printer: dict, source=None) -> None:
-    """Aktuellen Druck aus /api/job. Läuft einer, wird er angelegt oder fortgeschrieben; läuft keiner
-    mehr, wird der zuletzt gesehene abgeschlossen (fertig bei 100 %, Fehler bei „Error“, sonst
-    abgebrochen). Ist OctoPrint gerade nicht mit dem Drucker verbunden, bleibt alles, wie es ist."""
+    """Current print from /api/job. If one is running, it is created or updated; if none is running
+    anymore, the last one seen is finished (completed at 100 %, failed on "Error", otherwise
+    cancelled). If OctoPrint is currently not connected to the printer, everything stays as is."""
     source = source or printer_import.OctoPrintSource(printer)
     with source._get("/api/job") as resp:
         data = json.load(resp)
@@ -480,17 +479,17 @@ def poll_octoprint(printer: dict, source=None) -> None:
 # --- Bambu Lab (MQTT) -----------------------------------------------------------
 
 BAMBU_ACTIVE = ("PREPARE", "RUNNING", "PAUSE", "SLICING")
-BAMBU_CANCELLED = (0, 50348044)  # 0300400C: vom Nutzer abgebrochen
+BAMBU_CANCELLED = (0, 50348044)  # 0300400C: cancelled by the user
 
 
 class BambuTracker:
-    """Wertet die Zustandsmeldungen eines Bambu-Druckers aus (P1/A1 schicken nur Änderungen)."""
+    """Evaluates the status reports of a Bambu printer (P1/A1 only send changes)."""
 
     def __init__(self, printer: dict):
         self.printer = printer
         self.state: dict = {}
         self.job_key: str | None = None
-        self.progress = None  # zuletzt gespeichert: (Prozent, Restminuten)
+        self.progress = None  # last saved: (percent, remaining minutes)
 
     def _key(self, remote: str) -> str:
         for field in ("subtask_id", "task_id"):
@@ -499,7 +498,7 @@ class BambuTracker:
                 return f"{field}:{value}"
         job = running_job(self.printer["id"])
         if job and job["remote_name"] == remote:
-            return job["job_key"]  # nach einem Neustart von PlateShelf weiterführen
+            return job["job_key"]  # continue after a PlateShelf restart
         return f"{remote}@{int(time.time())}"
 
     def update(self, message: dict) -> None:
@@ -508,8 +507,8 @@ class BambuTracker:
             return
         self.state.update(report)
         gstate = str(self.state.get("gcode_state") or "").upper()
-        # Meist der Dateiname auf der SD-Karte; der P2S meldet dagegen „…/Metadata/plate_2.gcode“
-        # und den Projektnamen getrennt in subtask_name
+        # Usually the file name on the SD card; the P2S instead reports "…/Metadata/plate_2.gcode"
+        # and the project name separately in subtask_name
         gfile = str(self.state.get("gcode_file") or "")
         plate_match = _PLATE_GCODE.search(gfile)
         plate = int(plate_match[1]) if plate_match else None
@@ -521,17 +520,17 @@ class BambuTracker:
             current = (self.state.get("mc_percent"), minutes)
             if self.job_key is None:
                 self.job_key = self._key(remote)
-                printer_import.request_sync()  # Datei holen, damit der Druck ihr zugeordnet werden kann
+                printer_import.request_sync()  # fetch the file so the print can be matched to it
                 record(self.printer, self.job_key, "running", remote_name=remote or None,
                        progress=current[0], remaining_s=remaining, plate=plate)
                 self.progress = current
-            elif current != self.progress:  # höchstens etwa einmal pro Minute
+            elif current != self.progress:  # at most about once per minute
                 self.progress = current
                 record(self.printer, self.job_key, "running", progress=current[0], remaining_s=remaining)
         elif gstate in ("FINISH", "FAILED"):
             key = self.job_key
             if key is None and (job := running_job(self.printer["id"])):
-                key = job["job_key"]  # Druck lief, während PlateShelf aus war
+                key = job["job_key"]  # print ran while PlateShelf was off
             if key is None:
                 return
             if gstate == "FINISH":
@@ -545,7 +544,7 @@ class BambuTracker:
 
 
 class BambuWatcher:
-    """MQTT-Verbindung zu einem Bambu-Drucker; baut sich bei Abbrüchen selbst wieder auf."""
+    """MQTT connection to a Bambu printer; reconnects by itself after drops."""
 
     def __init__(self, printer: dict):
         import paho.mqtt.client as mqtt
@@ -555,7 +554,7 @@ class BambuWatcher:
         self.topic = f"device/{serial}/report"
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=f"plateshelf-{uuid.uuid4().hex[:8]}")
         self.client.username_pw_set("bblp", printer["code"])
-        self.client.tls_set(cert_reqs=ssl.CERT_NONE)  # selbstsigniertes Zertifikat des Druckers
+        self.client.tls_set(cert_reqs=ssl.CERT_NONE)  # the printer's self-signed certificate
         self.client.tls_insecure_set(True)
         self.client.reconnect_delay_set(5, 300)
         self.client.on_connect = self._on_connect
@@ -566,7 +565,7 @@ class BambuWatcher:
             log.info("%s: MQTT-Verbindung abgelehnt (%s)", self.printer["name"], reason)
             return
         client.subscribe(self.topic)
-        # Vollständigen Zustand anfordern, danach kommen nur Änderungen
+        # Request the full state; afterwards only changes arrive
         client.publish(f"device/{self.printer['id']}/request",
                        json.dumps({"pushing": {"sequence_id": "0", "command": "pushall"}}))
 
@@ -589,7 +588,7 @@ _watchers: dict[str, tuple[tuple, BambuWatcher]] = {}
 
 
 def refresh_watchers(printers: list[dict]) -> None:
-    """MQTT-Verbindungen an die eingerichteten Bambu-Drucker anpassen."""
+    """Adapt the MQTT connections to the configured Bambu printers."""
     wanted = {p["id"]: p for p in printers if p.get("kind", "bambu") == "bambu" and not p.get("code_error")} \
         if enabled() else {}
     for pid in list(_watchers):
@@ -611,13 +610,13 @@ POLLERS = {"moonraker": "poll_moonraker", "prusalink": "poll_prusalink", "octopr
 def _poll(p: dict) -> None:
     try:
         globals()[POLLERS[p["kind"]]](p)
-    except Exception as exc:  # noqa: BLE001  (nicht erreichbar: der Import meldet das schon)
+    except Exception as exc:  # noqa: BLE001  (unreachable: the import already reports that)
         log.debug("%s: Verlauf nicht abrufbar: %s", p["name"], exc)
 
 
 def poll_once() -> None:
-    """Alle abzufragenden Drucker gleichzeitig: ein ausgeschalteter bremst die anderen nicht aus.
-    Drucker mit unlesbaren Zugangsdaten bleiben außen vor, der Import meldet das in den Einstellungen."""
+    """Poll all printers concurrently: one that is switched off does not slow down the others.
+    Printers with unreadable credentials are skipped; the import reports that in the settings."""
     printers = printer_import.load_printers()
     refresh_watchers(printers)
     todo = [p for p in printers if p["kind"] in POLLERS and not p.get("code_error")]
@@ -634,7 +633,7 @@ def loop() -> None:
             if enabled():
                 poll_once()
             else:
-                refresh_watchers([])  # ausgeschaltet: MQTT-Verbindungen schließen
+                refresh_watchers([])  # disabled: close MQTT connections
         except Exception:  # noqa: BLE001
             log.exception("Druckverlauf fehlgeschlagen")
         _wakeup.wait(interval())

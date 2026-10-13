@@ -1,4 +1,4 @@
-"""Eigene Vorschaubilder aus den Druckbahnen."""
+"""Own thumbnails rendered from the toolpaths."""
 import zipfile
 
 from PIL import Image
@@ -35,17 +35,17 @@ def test_render_draws_toolpaths_in_filament_colors(tmp_path):
     with Image.open(out) as img:
         assert img.size == (render.SIZE, render.SIZE) and img.mode == "RGBA"
     colors = _colors(out)
-    assert _has(colors, lambda r, g, b, a: a == 255 and g > 150 and r < 90)      # Werkzeug 1: grün
-    assert not _has(colors, lambda r, g, b, a: a == 255 and r > 150 and g < 90)  # Stützen (Werkzeug 0) fehlen
-    assert (*render.PLATE, 255) in colors                                       # Druckplatte
+    assert _has(colors, lambda r, g, b, a: a == 255 and g > 150 and r < 90)      # tool 1: green
+    assert not _has(colors, lambda r, g, b, a: a == 255 and r > 150 and g < 90)  # supports (tool 0) are missing
+    assert (*render.PLATE, 255) in colors                                       # build plate
     render.render(base, out, {0: RED, 1: GREEN}, None, top=True, plate=False)
     with Image.open(out) as img:
-        assert img.convert("RGBA").getpixel((0, 0))[3] == 0                     # ohne Platte: durchsichtig
+        assert img.convert("RGBA").getpixel((0, 0))[3] == 0                     # without plate: transparent
     assert (*render.PLATE, 255) not in _colors(out)
 
 
 def test_render_leaves_out_the_wipe_tower(tmp_path):
-    """Wie die Slicer-Bilder: kein Reinigungsturm, und das Modell bleibt mittig im Bild."""
+    """Like the slicer images: no wipe tower, and the model stays centered in the image."""
     tower = GCODE + "; FEATURE: Prime tower\nG1 X200 Y200\nG1 X215 Y200 E1\nG1 X215 Y215 E1\n"
     plain, with_tower = tmp_path / "a.png", tmp_path / "b.png"
     render.render(_preview(tmp_path), plain, {0: RED, 1: GREEN}, None, plate=False)
@@ -54,17 +54,17 @@ def test_render_leaves_out_the_wipe_tower(tmp_path):
 
 
 def test_render_leaves_out_sparse_infill_and_thins_by_layers(tmp_path, monkeypatch):
-    """Lockeres Infill liegt immer innen und wird nicht gezeichnet; bei sehr großen Drucken wird
-    nach Schichten statt nach Punkten ausgedünnt, damit Wände geschlossen bleiben."""
+    """Sparse infill always lies inside and is not drawn; for very large prints thinning is done
+    by layers instead of by points, so that walls stay closed."""
     infill = GCODE.replace("; FEATURE: Sparse infill", "; FEATURE: Sparse infill\nG1 X50 Y50\nG1 X90 Y90 E2")
     a, b = tmp_path / "a.png", tmp_path / "b.png"
     render.render(_preview(tmp_path), a, {0: RED, 1: GREEN}, None, plate=False)
     render.render(_preview(tmp_path, infill, "3_1"), b, {0: RED, 1: GREEN}, None, plate=False)
-    assert a.read_bytes() != b"" and _colors(a) == _colors(b)   # Infill-Strecke ändert nichts am Bild
-    monkeypatch.setattr(render, "MAX_SEGMENTS", 2)                 # zwingt zum Ausdünnen
+    assert a.read_bytes() != b"" and _colors(a) == _colors(b)   # infill segment changes nothing in the image
+    monkeypatch.setattr(render, "MAX_SEGMENTS", 2)                 # forces thinning
     c = tmp_path / "c.png"
     render.render(_preview(tmp_path), c, {0: RED, 1: GREEN}, None, plate=False)
-    assert _has(_colors(c), lambda r, g, bb, al: al == 255 and g > 150 and r < 90)  # oberste Schicht da
+    assert _has(_colors(c), lambda r, g, bb, al: al == 255 and g > 150 and r < 90)  # top layer present
 
 
 def test_own_thumbnails_replace_the_slicer_image(lib, sample, monkeypatch):
@@ -86,16 +86,16 @@ def test_own_thumbnails_replace_the_slicer_image(lib, sample, monkeypatch):
         fid = con.execute("SELECT id FROM files").fetchone()[0]
     slicer_png = (store.THUMB_DIR / str(fid) / "plate_1.png").read_bytes()
     with TestClient(main.app) as client:
-        assert client.get(f"/thumb/{fid}/plate/1").content == slicer_png      # noch nicht gezeichnet
+        assert client.get(f"/thumb/{fid}/plate/1").content == slicer_png      # not rendered yet
         assert status(path, 1, store.DATA_DIR / "preview" / f"{fid}_1", background=False)["state"] == "ready"
         render.ensure(fid, 1)
         own = client.get(f"/thumb/{fid}/plate/1")
         assert own.status_code == 200 and own.content != slicer_png
-        assert client.get(f"/thumb/{fid}/top/1").status_code == 200           # auch „von oben“
+        assert client.get(f"/thumb/{fid}/top/1").status_code == 200           # also „von oben“
         with store.connect() as con:
             (project,) = load_projects(con)
         (plate,) = project["plates"]
-        assert plate["has_top"] and plate["v"].endswith(f"r{render.VERSION}e")  # neue Bildadresse
+        assert plate["has_top"] and plate["v"].endswith(f"r{render.VERSION}e")  # new image URL
         page = client.get(f"/p/{project['id']}").text
         assert f"/thumb/{fid}/top/1?v={plate['v']}" in page
 

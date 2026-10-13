@@ -1,4 +1,4 @@
-"""Geheimnisse: SECRET_KEY aus der Umgebung, verschlüsselte Druckerzugänge, Passwort-Hash, *_FILE."""
+"""Secrets: SECRET_KEY from the environment, encrypted printer credentials, password hash, *_FILE."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,13 +18,13 @@ def raw_codes():
 
 def test_encrypt_roundtrip(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    assert crypto.encrypt("geheim") == "geheim"  # ohne Schlüssel: unverändert
+    assert crypto.encrypt("geheim") == "geheim"  # without key: unchanged
     monkeypatch.setenv("SECRET_KEY", KEY)
     sealed = crypto.encrypt("geheim")
     assert sealed.startswith("enc:v1:") and "geheim" not in sealed
-    assert sealed != crypto.encrypt("geheim")  # zufällige Nonce
+    assert sealed != crypto.encrypt("geheim")  # random nonce
     assert crypto.decrypt(sealed) == "geheim" and crypto.decrypt("klartext") == "klartext"
-    assert crypto.encrypt(sealed) == sealed  # nie doppelt
+    assert crypto.encrypt(sealed) == sealed  # never twice
     monkeypatch.setenv("SECRET_KEY", OTHER_KEY)
     with pytest.raises(crypto.SecretError, match="passt nicht"):
         crypto.decrypt(sealed)
@@ -39,7 +39,7 @@ def test_env_value_from_file(tmp_path, monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     monkeypatch.setenv("SECRET_KEY_FILE", str(secret))
     assert crypto.secret_key() == "aus-datei"
-    monkeypatch.setenv("SECRET_KEY", "direkt")  # direkter Wert hat Vorrang
+    monkeypatch.setenv("SECRET_KEY", "direkt")  # direct value takes precedence
     assert crypto.secret_key() == "direkt"
     monkeypatch.delenv("SECRET_KEY")
     monkeypatch.setenv("SECRET_KEY_FILE", str(tmp_path / "fehlt"))
@@ -55,7 +55,7 @@ def test_printer_codes_are_encrypted(lib, monkeypatch):
     assert stored.startswith("enc:v1:") and "zugang12" not in stored
     (p,) = pi.db_printers()
     assert p["code"] == "zugang12" and p["code_error"] is None
-    # Leeres Feld beim Bearbeiten: gespeicherter Wert bleibt, ohne doppelte Verschlüsselung
+    # Empty field when editing: stored value stays, without double encryption
     pi.save_printers([{"db_id": p["db_id"], "kind": "bambu", "name": "P1S neu", "ip": "192.0.2.1", "serial": "S1",
                        "code": ""}])
     assert raw_codes() == [stored] and pi.db_printers()[0]["code"] == "zugang12"
@@ -66,9 +66,9 @@ def test_plaintext_is_migrated_and_wrong_key_is_reported(lib, monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     pi.init()
     pi.save_printers([{"db_id": None, "kind": "prusalink", "name": "MK4S", "ip": "192.0.2.2", "code": "pw-alt"}])
-    assert raw_codes() == ["pw-alt"] and pi.stored_plaintext() == 1  # ohne Schlüssel: Klartext
+    assert raw_codes() == ["pw-alt"] and pi.stored_plaintext() == 1  # without key: plaintext
     monkeypatch.setenv("SECRET_KEY", KEY)
-    pi.init()  # beim Start: vorhandene Zugangsdaten verschlüsseln
+    pi.init()  # at startup: encrypt existing credentials
     assert raw_codes()[0].startswith("enc:v1:") and pi.db_printers()[0]["code"] == "pw-alt"
     monkeypatch.setenv("SECRET_KEY", OTHER_KEY)
     (p,) = pi.db_printers()
@@ -88,7 +88,7 @@ def test_env_printer_values_from_files(tmp_path):
 
 def test_password_hash():
     hashed = auth.hash_password("richtig-lang")
-    assert hashed.startswith("scrypt:15:8:1:") and "$" not in hashed  # „$“ würde Compose als Variable lesen
+    assert hashed.startswith("scrypt:15:8:1:") and "$" not in hashed  # Compose would read "$" as a variable
     assert auth.verify_password("richtig-lang", hashed) and not auth.verify_password("falsch", hashed)
     assert not auth.verify_password("x", "kaputt")
 
@@ -103,7 +103,7 @@ def client(lib, monkeypatch):
 
 
 def test_env_password_file_seeds_admin(client, monkeypatch, tmp_path):
-    """AUTH_PASSWORD_FILE (Docker-Secret) wird beim Start wie AUTH_PASSWORD zum ersten Admin."""
+    """AUTH_PASSWORD_FILE (Docker secret) becomes the first admin at startup, like AUTH_PASSWORD."""
     from app import main
     monkeypatch.setenv("AUTH", "on")
     monkeypatch.setenv("AUTH_USER", "andreas")
@@ -117,7 +117,7 @@ def test_env_password_file_seeds_admin(client, monkeypatch, tmp_path):
 
 
 def test_sessions_do_not_need_secret_key(client, monkeypatch):
-    """Sitzungen liegen in der Datenbank: sie überstehen Neustarts auch ohne SECRET_KEY."""
+    """Sessions are stored in the database: they survive restarts even without SECRET_KEY."""
     monkeypatch.setenv("AUTH", "on")
     monkeypatch.delenv("SECRET_KEY", raising=False)
     auth.create_user("andreas", "geheim-123", "admin")
@@ -131,7 +131,7 @@ def test_settings_warn_without_key(client, monkeypatch):
     from app import printer_import
     monkeypatch.setattr(printer_import, "sync_all", lambda: None)
     monkeypatch.delenv("SECRET_KEY", raising=False)
-    assert "settings-key" not in client.get("/settings").text  # ohne Drucker und Anmeldung kein Hinweis
+    assert "settings-key" not in client.get("/settings").text  # no notice without printers and login
     client.post("/settings/printers", data={"db_id": [""], "kind": ["bambu"], "name": ["P1S"], "ip": ["192.0.2.9"],
                                             "serial": ["S9"], "code": ["abc12345"]})
     page = client.get("/settings").text

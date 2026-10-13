@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Gemeinsames für alle Seiten: Vorlagen, Formatierung, Versions- und Anfragehilfen."""
+"""Shared by all pages: templates, formatting, version and request helpers."""
 from __future__ import annotations
 
 import os
@@ -15,10 +15,10 @@ from .i18n import fmt_date, fmt_money, fmt_num, fmt_printer_date, gettext as _, 
 
 BASE = Path(__file__).parent
 def _app_version() -> str:
-    """Version aus dem Image: bei Releases der Tag (v0.2.0 -> 0.2.0), sonst dev-<Commit>."""
+    """Version from the image: the tag for releases (v0.2.0 -> 0.2.0), otherwise dev-<commit>."""
     v = os.environ.get("APP_VERSION", "").strip() or "dev"
     if v.startswith("dev-"):
-        return v[:11]  # dev- plus 7 Zeichen der Commit-Kennung, wie auf GitHub
+        return v[:11]  # dev- plus 7 characters of the commit hash, as on GitHub
     return v.removeprefix("v")
 
 
@@ -27,7 +27,7 @@ APP_AUTHOR = "Schnuecks"
 APP_NAME = "PlateShelf"
 APP_REPO = "https://github.com/schnuecks/plateshelf"
 APP_LICENSE = "AGPL-3.0"
-# Beschriftungen werden beim Anzeigen übersetzt
+# Labels are translated when displayed
 ROLE_LABELS = {"admin": "Admin", "user": "Benutzer", "viewer": "Nur lesen"}
 STATUSES = {"": "Ohne Status", "geplant": "Geplant", "gedruckt": "Gedruckt", "fehlgeschlagen": "Fehlgeschlagen"}
 
@@ -36,7 +36,7 @@ PUBLIC_PREFIXES = ("/static/",)
 PUBLIC_PATHS = {"/login", "/login/oidc", "/login/oidc/callback", "/login/passkey/options", "/login/passkey",
                 "/setup", "/healthz", "/appearance"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-NOBODY = {"id": None, "name": "", "role": "admin", "session_id": None}  # mit AUTH=off darf jeder alles
+NOBODY = {"id": None, "name": "", "role": "admin", "session_id": None}  # with AUTH=off everyone may do everything
 _UNSET = object()
 
 
@@ -44,7 +44,7 @@ def is_public(path: str) -> bool:
     return path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
 
 
-# Ereignisse im Protokoll (Einstellungen → Protokoll); Fehlschläge werden hervorgehoben
+# Events in the log ("Einstellungen → Protokoll"); failures are highlighted
 EVENT_LABELS = {
     "login": "Angemeldet",
     "login_failed": "Anmeldung fehlgeschlagen",
@@ -69,14 +69,14 @@ EVENT_WARN = {"login_failed", "locked", "setup_failed", "password_failed"}
 
 
 def audit(request: Request, kind: str, user_name: str = "", detail: str = "") -> None:
-    """Ereignis ins Protokoll schreiben, mit Adresse und Gerät der Anfrage."""
+    """Write an event to the log, with the address and device of the request."""
     if auth.enabled():
         auth.log_event(kind, user_name, request.client.host if request.client else "",
                        request.headers.get("user-agent", ""), detail)
 
 
 def current_user(request: Request) -> dict | None:
-    """Angemeldeter Benutzer (Sitzungs-Cookie oder Basic Auth), einmal pro Anfrage ermittelt."""
+    """Signed-in user (session cookie or Basic Auth), determined once per request."""
     user = getattr(request.state, "user", _UNSET)
     if user is _UNSET:
         if not auth.enabled():
@@ -103,9 +103,9 @@ def is_admin(request: Request) -> bool:
 
 
 def allowed(role: str, method: str, path: str) -> bool:
-    """Admins dürfen alles, Benutzer alles außer den Einstellungen, „Nur lesen“ nur ansehen.
+    """Admins may do everything, users everything except the settings, "Nur lesen" only view.
 
-    Mit „Nur lesen“ bleiben Abmelden, Sprache und Design sowie das eigene Konto erlaubt.
+    With "Nur lesen", logging out, language and theme as well as the user's own account stay allowed.
     """
     if role == "admin":
         return True
@@ -119,7 +119,7 @@ def allowed(role: str, method: str, path: str) -> bool:
 
 
 def device_label(agent: str | None) -> str:
-    """„Firefox auf Windows“ aus der User-Agent-Kopfzeile, für die Geräteliste."""
+    """Label like "Firefox auf Windows" from the User-Agent header, for the device list."""
     agent = agent or ""
     browsers = (("Edg/", "Edge"), ("OPR/", "Opera"), ("Firefox/", "Firefox"), ("Chrome/", "Chrome"),
                 ("Safari/", "Safari"), ("curl/", "curl"), ("python", "Python"))
@@ -133,7 +133,7 @@ def device_label(agent: str | None) -> str:
 
 
 def _local_target(target: str) -> str:
-    """Nur Pfade dieser Seite als Ziel nach der Anmeldung, keine fremden Adressen."""
+    """Only paths of this site as the target after login, no foreign addresses."""
     return target if target.startswith("/") and not target.startswith("//") and "\\" not in target else "/"
 
 
@@ -145,7 +145,7 @@ def current_theme(request: Request) -> str:
 templates = Jinja2Templates(directory=BASE / "templates")
 
 
-# --- Formatierung (sprachabhängig, siehe i18n) -----------------------------
+# --- Formatting (language-dependent, see i18n) -----------------------------
 
 def fmt_duration(sec) -> str:
     if not sec:
@@ -162,7 +162,7 @@ def fmt_duration(sec) -> str:
 
 
 def strand(filaments: list[dict]) -> str:
-    """CSS-Verlauf mit harten Kanten: Filamentfarben anteilig nach Gewicht."""
+    """CSS gradient with hard edges: filament colors proportional to weight."""
     total = sum(max(f.get("used_g") or 0, 0) for f in filaments)
     if not filaments:
         return "var(--line)"
@@ -197,7 +197,7 @@ templates.env.globals["STATUSES"] = STATUSES
 templates.env.globals.update(_=_, ngettext=ngettext, lang=i18n.current, theme=current_theme,
                              LANGUAGES=i18n.LANGUAGES)
 
-# Texte, die das JavaScript braucht
+# Texts the JavaScript needs
 JS_TEXTS = [
     "{pct} % übertragen", "Wird eingelesen …", "Übertragung fehlgeschlagen. Bitte erneut versuchen.",
     "G-Code wird aufbereitet: {pct} %", "Druckbahnen werden geladen", "Darstellung wird abgestimmt",
@@ -219,7 +219,7 @@ templates.env.globals.update(APP_NAME=APP_NAME, APP_VERSION=APP_VERSION, APP_AUT
 
 
 def month_label(month: dict, with_year: bool = False, january_year: bool = True) -> str:
-    """Kurzer Monatsname für Diagramme, im Januar (oder auf Wunsch immer) mit Jahr."""
+    """Short month name for charts, with the year in January (or always, if requested)."""
     name = i18n.MONTHS[i18n.current()][month["month"] - 1]
     short = name if len(name) <= 4 else name[:3]
     if with_year:
@@ -230,7 +230,7 @@ def month_label(month: dict, with_year: bool = False, january_year: bool = True)
 templates.env.filters["month_label"] = month_label
 
 
-SHORT_NAME = 40  # Zeichen für den Namen in der Kurzfassung
+SHORT_NAME = 40  # characters for the name in the short form
 
 
 def live_name(job: dict) -> str:
@@ -238,8 +238,8 @@ def live_name(job: dict) -> str:
 
 
 def live_text(job: dict, short: bool = False) -> str:
-    """„P2S: Benchy · 45 % · noch 32 min“ für einen laufenden Druck. Die Kurzfassung „P2S: Benchy · 32 min“
-    lässt den Fortschritt weg (zeigt das Dashboard als Balken) und kürzt lange Namen."""
+    """Text like "P2S: Benchy · 45 % · noch 32 min" for a running print. The short form "P2S: Benchy · 32 min"
+    omits the progress (the dashboard shows it as a bar) and truncates long names."""
     name = live_name(job)
     if short and len(name) > SHORT_NAME:
         name = name[:SHORT_NAME - 1].rstrip() + "…"
@@ -253,7 +253,7 @@ def live_text(job: dict, short: bool = False) -> str:
 
 
 def live_prints() -> list[dict]:
-    """Laufende Drucke für die Titelleiste und /api/printing: Text, Ziel des Links und Einzelwerte."""
+    """Running prints for the title bar and /api/printing: text, link target and individual values."""
     return [{"text": live_text(j), "short": live_text(j, short=True),
              "url": f"/p/{j['project_id']}#history" if j.get("project_id") else "/history",
              "progress": j.get("progress"), "printer": j["printer_name"], "name": live_name(j) or None,
@@ -267,7 +267,7 @@ templates.env.globals["live_prints"] = live_prints
 
 
 def _asset_version() -> str:
-    """Prüfsumme über CSS/JS: ändert sich bei jedem Update, damit Browser neu laden."""
+    """Checksum over CSS/JS: changes with every update so that browsers reload."""
     import hashlib
     h = hashlib.sha1()
     for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js"):
@@ -278,7 +278,7 @@ def _asset_version() -> str:
 
 
 templates.env.globals["ASSET_V"] = _asset_version()
-# Importmap der 3D-Vorschau: als fester Text, damit die Content-Security-Policy ihn per Hash erlaubt
+# Import map of the 3D preview: as fixed text so that the Content Security Policy allows it via hash
 IMPORTMAP = ('{"imports": {"three": "/static/vendor/three.module.min.js", '
              f'"plateshelf/geometry": "/static/geometry.js?v={templates.env.globals["ASSET_V"]}"}}}}')
 EARLY_SCRIPT = 'document.documentElement.classList.add("js")'
@@ -291,7 +291,7 @@ ONE_YEAR = 365 * 86400
 
 
 def language_choice(request: Request) -> str:
-    """Ausdrücklich gewählte Sprache dieses Browsers, leer = automatisch."""
+    """Explicitly chosen language of this browser, empty = automatic."""
     lang = request.cookies.get("sprache")
     return lang if lang in i18n.LANGUAGES else ""
 
@@ -316,7 +316,7 @@ templates.env.globals.update(language_choice=language_choice, current_url=curren
 
 
 def _deleted_entry(request: Request) -> dict | None:
-    """Eintrag zur Meldung „… in den Papierkorb verschoben“ mit Rückgängig-Knopf."""
+    """Entry for the "… in den Papierkorb verschoben" message with an undo button."""
     raw = request.query_params.get("deleted", "")
     if not raw.isdigit():
         return None

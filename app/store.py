@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""SQLite-Speicher und Ordner-Scanner.
+"""SQLite storage and folder scanner.
 
-Die 3MF- und G-Code-Dateien bleiben unangetastet in der Bibliothek. In der Datenbank
-landen nur ausgelesene Metadaten, Vorschaubilder und deine eigenen Notizen.
+The 3MF and G-code files stay untouched in the library. The database only
+holds extracted metadata, preview images and your own notes.
 """
 from __future__ import annotations
 
@@ -190,7 +190,7 @@ last_scan: dict = {"finished": None, "added": 0, "updated": 0, "errors": 0, "run
 
 
 def db_signature() -> tuple:
-    """Ändert sich mit jedem Schreibzugriff (Datenbank und WAL-Datei), billig abzufragen."""
+    """Changes with every write (database and WAL file), cheap to query."""
     sig = [str(DB_PATH)]
     for path in (DB_PATH, DB_PATH.with_name(DB_PATH.name + "-wal")):
         try:
@@ -202,9 +202,9 @@ def db_signature() -> tuple:
 
 
 def library_version() -> str:
-    """Stand der Übersicht: ändert sich bei neuen, geänderten oder entfernten Dateien, bei Projekten,
-    wenn ein Druck beginnt, endet oder zugeordnet wird, und wenn neue Vorschaubilder gezeichnet sind –
-    nicht aber bei Sitzungen oder dem Fortschritt laufender Drucke."""
+    """State of the overview: changes on new, modified or removed files, on projects,
+    when a print starts, ends or is assigned, and when new preview images are drawn –
+    but not on sessions or the progress of running prints."""
     with connect() as con:
         f = con.execute("SELECT COUNT(*), COALESCE(MAX(id), 0), COALESCE(MAX(mtime), 0), COALESCE(SUM(size), 0) "
                         "FROM files WHERE missing = 0").fetchone()
@@ -230,10 +230,10 @@ _force_next_scan = False
 
 
 def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
-    """Ältere Datenbanken: IDs gelöschter Einträge wurden neu vergeben.
+    """Older databases: IDs of deleted entries were reassigned.
 
-    Mit AUTOINCREMENT bekommt eine neue Datei nie die ID einer gelöschten, damit
-    zeigt der Browser auch nie ein zwischengespeichertes Bild der alten Datei.
+    With AUTOINCREMENT a new file never gets the ID of a deleted one, so the
+    browser never shows a cached image of the old file either.
     """
     row = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)).fetchone()
     if not row or "AUTOINCREMENT" in row["sql"].upper():
@@ -256,7 +256,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 7  # 1 = Stand von 0.7.9; spätere Änderungen als Schritte in MIGRATIONS
+SCHEMA_VERSION = 7  # 1 = state of 0.7.9; later changes as steps in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -267,12 +267,12 @@ def _add_column(table: str, column: str, decl: str):
 
 
 MIGRATIONS: dict = {
-    2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu meldet teils nur die Platte
-    3: lambda con: None,  # Benutzerkonten: Tabellen users, sessions, api_tokens (legt SCHEMA an)
+    2: _add_column("print_jobs", "plate", "INTEGER"),  # 0.7.12: Bambu sometimes reports only the plate
+    3: lambda con: None,  # User accounts: tables users, sessions, api_tokens (created by SCHEMA)
     4: lambda con: _migrate_4(con),
-    5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: Anmeldung über OIDC
-    6: lambda con: _rescan_all(),  # 0.8.9: „Vom Drucker“ wieder nach Namen gruppieren
-    7: lambda con: None,  # 0.8.17: Tabellen auth_events und passkeys (legt SCHEMA an)
+    5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: login via OIDC
+    6: lambda con: _rescan_all(),  # 0.8.9: group „Vom Drucker“ by name again
+    7: lambda con: None,  # 0.8.17: tables auth_events and passkeys (created by SCHEMA)
 }
 
 
@@ -282,17 +282,17 @@ def _rescan_all() -> None:
 
 
 def _migrate_4(con: sqlite3.Connection) -> None:
-    """Fotos als Titelbild, Notiz und Bewertung pro Druck, Hash gegen doppelte Dateien."""
+    """Photos as cover image, note and rating per print, hash against duplicate files."""
     for table, column, decl in (("projects", "cover_photo", "TEXT"), ("print_jobs", "note", "TEXT"),
                                 ("print_jobs", "rating", "INTEGER"), ("files", "sha256", "TEXT")):
         _add_column(table, column, decl)(con)
 
 
 def _upgrade_before_versioning(con: sqlite3.Connection) -> None:
-    """Datenbanken aus 0.7.x (noch ohne Versionsnummer) auf Schema-Version 1 bringen.
+    """Bring databases from 0.7.x (still without a version number) to schema version 1.
 
-    SCHEMA hat vorher alle fehlenden Tabellen angelegt; hier kommen die Spalten dazu,
-    die in 0.2 bis 0.7 nachträglich eingeführt wurden.
+    SCHEMA has already created all missing tables; this adds the columns
+    that were introduced later in 0.2 to 0.7.
     """
     global _force_next_scan
     added = {
@@ -307,32 +307,32 @@ def _upgrade_before_versioning(con: sqlite3.Connection) -> None:
         for col, decl, rescan in cols:
             if col not in have:
                 con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-                _force_next_scan |= rescan  # neue Angaben aus den Dateien: alles neu einlesen
+                _force_next_scan |= rescan  # new data from the files: re-read everything
     for table in ("projects", "files"):
         _ensure_autoincrement(con, table)
 
 
 def init_db() -> None:
-    """Datenbank anlegen oder auf den aktuellen Stand bringen (PRAGMA user_version)."""
+    """Create the database or bring it up to date (PRAGMA user_version)."""
     global _force_next_scan
     with connect() as con:
         version = con.execute("PRAGMA user_version").fetchone()[0]
         existed = con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'projects'").fetchone()
         con.executescript(SCHEMA)
         if not existed:
-            version = SCHEMA_VERSION  # neu angelegt: schon auf dem aktuellen Stand
+            version = SCHEMA_VERSION  # newly created: already up to date
         if existed and version == 0:
             _upgrade_before_versioning(con)
-            con.executescript(SCHEMA)  # Indizes nach dem Umbau wiederherstellen
+            con.executescript(SCHEMA)  # restore indexes after the rebuild
             version = 1
         for step in sorted(v for v in MIGRATIONS if v > version):
             MIGRATIONS[step](con)
             log.info("Datenbank auf Schema-Version %d aktualisiert", step)
-        # Indizes auf Spalten aus Migrationen erst danach, sonst fehlt die Spalte in alten Datenbanken
+        # Indexes on columns from migrations only afterwards, otherwise the column is missing in old databases
         con.execute("CREATE INDEX IF NOT EXISTS idx_files_sha ON files(sha256)")
         con.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oidc ON users(oidc_sub)")
         con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-        # Nach dem Wiederherstellen einer Sicherung fehlen die Vorschaubilder: neu einlesen
+        # After restoring a backup the preview images are missing: re-read
         if not THUMB_DIR.exists() and con.execute("SELECT 1 FROM files LIMIT 1").fetchone():
             _force_next_scan = True
 
@@ -348,21 +348,21 @@ def parse_file(path: Path):
     return parse_gcode(path) if is_gcode(path.name) else parse_3mf(path)
 
 
-# --- Gruppierung ------------------------------------------------------------
+# --- Grouping ---------------------------------------------------------------
 
 _STEM_SUFFIX = re.compile(r"([_\- ]?(plate|platte)[_\- ]?\d+|[_\- ]?\(\d+\)|[_\- ]v\d+|[_\-. ]gcode|[_\-. ](3mf|stl|step|stp|obj))$", re.I)
 _MEANINGLESS = re.compile(r"\(?unsaved\)?|untitled|unbenannt|[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}", re.I)
-# Ordner, deren Dateien über den Namen gruppiert werden statt als ein Projekt. „Vom Drucker“
-# hieß der Importordner bis 0.6 (Druckarchiv); dort liegen bei älteren Installationen noch viele
-# Drucke, die sonst beim nächsten Einlesen zu einem einzigen Projekt zusammenfallen.
+# Folders whose files are grouped by name instead of as one project. „Vom Drucker“
+# was the name of the import folder up to 0.6 (Druckarchiv); older installations still keep many
+# prints there, which would otherwise collapse into a single project on the next scan.
 FLAT_DIRS = {"from printer", "vom drucker"} | {os.environ.get("PRINTER_IMPORT_DIR", "").strip().lower()} - {""}
 
 
 def group_key_for(rel: Path) -> tuple[str, str]:
-    """Liefert (Schlüssel, Anzeigename) für die automatische Projektzuordnung.
+    """Returns (key, display name) for the automatic project assignment.
 
-    Dateien in Unterordnern gehören zum Ordner, Dateien im Wurzelverzeichnis
-    werden über ihren Namen ohne '_plate_3', ' (2)' oder '_v2' gruppiert.
+    Files in subfolders belong to the folder, files in the root directory
+    are grouped by their name without '_plate_3', ' (2)' or '_v2'.
     """
     if len(rel.parts) > 1 and rel.parts[0].lower() not in FLAT_DIRS:
         folder = rel.parent
@@ -391,7 +391,7 @@ def _project_for(con: sqlite3.Connection, key: str, name: str) -> int:
     return cur.lastrowid
 
 
-# --- Import einer Datei -----------------------------------------------------
+# --- Import of a single file ------------------------------------------------
 
 def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_result) -> None:
     rel_s = rel.as_posix()
@@ -399,7 +399,7 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
     try:
         parsed = parse_file(abs_path)
         error = None
-    except Exception as exc:  # defekte oder fremde Datei
+    except Exception as exc:  # broken or foreign file
         log.warning("Kann %s nicht lesen: %s", rel_s, exc)
         parsed, error = None, str(exc)
 
@@ -407,7 +407,7 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
         project_id = existing["project_id"]
     else:
         key, name = group_key_for(rel)
-        # Nichtssagende Dateinamen: Titel aus der 3MF verwenden, falls vorhanden
+        # Meaningless file names: use the title from the 3MF, if present
         if _MEANINGLESS.fullmatch(name) and parsed and parsed.model.get("title"):
             name = parsed.model["title"]
         project_id = _project_for(con, key, name)
@@ -439,7 +439,7 @@ def _store_file(con: sqlite3.Connection, abs_path: Path, rel: Path, st: os.stat_
         ).lastrowid
 
     preview_dir = DATA_DIR / "preview"
-    if preview_dir.exists():  # alte 3D-Vorschauen dieser Datei verwerfen
+    if preview_dir.exists():  # discard old 3D previews of this file
         for old in preview_dir.glob(f"{file_id}_*"):
             old.unlink()
     from .gcode_preview import forget
@@ -477,7 +477,7 @@ WATCH = os.environ.get("WATCH_LIBRARY", "true").strip().lower() not in ("0", "fa
 
 
 def _watch_relevant(change, path: str) -> bool:
-    """Nur Druckdateien, nichts aus versteckten Ordnern (.trash, .photos) oder Uploads in Arbeit."""
+    """Only print files, nothing from hidden folders (.trash, .photos) or uploads in progress."""
     for base in (LIBRARY_DIR, LIBRARY_DIR.resolve()):
         try:
             parts = Path(path).relative_to(base).parts
@@ -490,10 +490,10 @@ def _watch_relevant(change, path: str) -> bool:
 
 
 def watch_loop(stop_event=None) -> None:
-    """Liest neu ein, sobald sich eine Druckdatei ändert, statt bis zum nächsten Durchlauf zu warten.
+    """Re-scans as soon as a print file changes instead of waiting for the next pass.
 
-    Auf Netzwerkfreigaben (SMB/NFS) meldet das System fremde Änderungen oft nicht; dort
-    bleibt der regelmäßige Durchlauf (SCAN_INTERVAL) der Rückfall.
+    On network shares (SMB/NFS) the system often does not report changes made by others; there
+    the regular pass (SCAN_INTERVAL) remains the fallback.
     """
     from watchfiles import watch
     while not (stop_event and stop_event.is_set()):
@@ -501,13 +501,13 @@ def watch_loop(stop_event=None) -> None:
             for _changes in watch(LIBRARY_DIR, watch_filter=_watch_relevant, debounce=2000, raise_interrupt=False,
                                   stop_event=stop_event):
                 scan(wait=True)
-        except Exception as exc:  # z. B. zu viele Ordner für inotify
+        except Exception as exc:  # e.g. too many folders for inotify
             log.warning("Ordnerüberwachung nicht möglich (%s); neue Dateien erscheinen beim nächsten Durchlauf", exc)
             time.sleep(600)
 
 
 def _fill_hashes(con: sqlite3.Connection) -> None:
-    """SHA-256 der Dateien, die noch keinen haben (neu, geändert oder aus älteren Versionen)."""
+    """SHA-256 of files that do not have one yet (new, modified or from older versions)."""
     for r in con.execute("SELECT id, path FROM files WHERE sha256 IS NULL AND missing = 0").fetchall():
         try:
             with open(LIBRARY_DIR / r["path"], "rb") as fh:
@@ -519,7 +519,7 @@ def _fill_hashes(con: sqlite3.Connection) -> None:
 
 
 def duplicates_of(con: sqlite3.Connection, file_ids: list[int]) -> dict[int, list[dict]]:
-    """Andere Dateien mit genau demselben Inhalt: {Datei-ID: [{path, project_id, project_name}]}."""
+    """Other files with exactly the same content: {file ID: [{path, project_id, project_name}]}."""
     if not file_ids:
         return {}
     marks = ",".join("?" * len(file_ids))
@@ -545,7 +545,7 @@ def scan(force: bool = False, wait: bool = False) -> dict:
             known = {r["path"]: r for r in con.execute("SELECT path, mtime, size, error FROM files")}
             seen: set[str] = set()
             for root, dirs, files in os.walk(LIBRARY_DIR):
-                dirs[:] = [d for d in dirs if not d.startswith((".", "@"))]  # @eaDir etc. vom NAS
+                dirs[:] = [d for d in dirs if not d.startswith((".", "@"))]  # @eaDir etc. from the NAS
                 for fn in files:
                     if not is_library_file(fn):
                         continue
@@ -567,9 +567,9 @@ def scan(force: bool = False, wait: bool = False) -> dict:
             for path in set(known) - seen:
                 con.execute("UPDATE files SET missing = 1 WHERE path = ?", (path,))
             _fill_hashes(con)
-            # Leere Projekte ohne eigene Angaben aufräumen. Verschwundene Dateien lösen sich vorher
-            # vom Projekt (sonst verhindert der Fremdschlüssel das Löschen); kommen sie wieder,
-            # werden sie neu zugeordnet.
+            # Clean up empty projects without data of their own. Vanished files are detached from the
+            # project first (otherwise the foreign key prevents deletion); if they come back,
+            # they are reassigned.
             empty = """id NOT IN (SELECT DISTINCT project_id FROM files WHERE project_id IS NOT NULL AND missing = 0)
                        AND notes = '' AND tags = '' AND source_url = '' AND status = '' AND cover_photo IS NULL"""
             con.execute(f"""UPDATE files SET project_id = NULL, pinned = 0
@@ -587,13 +587,13 @@ def scan(force: bool = False, wait: bool = False) -> dict:
 
 
 SETTING_DEFAULTS = {
-    "strompreis": 0.35,        # Euro pro kWh
-    "leistung_standard": 100,  # durchschnittliche Leistung eines Druckers in Watt
+    "strompreis": 0.35,        # euros per kWh
+    "leistung_standard": 100,  # average power of a printer in watts
 }
 
 
 def get_settings(con: sqlite3.Connection | None = None) -> dict:
-    """Einstellungen mit Standardwerten; Druckerleistungen als "leistung:<Drucker>"."""
+    """Settings with defaults; printer power values as "leistung:<printer>"."""
     own = con is None
     con = con or connect()
     try:
@@ -625,24 +625,24 @@ def printer_watts(settings: dict, printer: str | None) -> float:
 
 
 def price_rules(settings: dict) -> list[tuple[str, float]]:
-    """Preisregeln „Stichwort -> €/kg“, das längste (genaueste) Stichwort zuerst."""
+    """Price rules "keyword -> €/kg", longest (most specific) keyword first."""
     rules = [(k.split(":", 1)[1], float(v)) for k, v in settings.items()
              if k.startswith("filamentpreis:") and v not in (None, "")]
     return sorted(rules, key=lambda r: (-len(r[0]), r[0].lower()))
 
 
 def matching_rule(rules: list[tuple[str, float]], f: dict) -> tuple[str, float] | None:
-    """Erste (also genaueste) Regel, deren Stichwort im Profilnamen oder Material vorkommt."""
+    """First (i.e. most specific) rule whose keyword occurs in the profile name or material."""
     text = f"{f.get('name') or ''} {f.get('type') or ''}".lower()
     return next((r for r in rules if r[0].lower() in text), None)
 
 
 def filament_price(settings: dict, f: dict, rules: list | None = None) -> float | None:
-    """€/kg: passende Preisregel, sonst der Preis aus der Datei, sonst der Standardpreis.
+    """€/kg: matching price rule, otherwise the price from the file, otherwise the default price.
 
-    Viele Dateien bringen keinen Preis mit (Cura, oft PrusaSlicer, Profile mit 0 €); mit dem
-    Standardpreis haben trotzdem alle Drucke Materialkosten. Mit „Preise aus den Dateien
-    ignorieren“ zählen nur Regeln und der Standardpreis (Slicer-Profile nie gepflegt).
+    Many files carry no price (Cura, often PrusaSlicer, profiles with 0 €); with the default
+    price all prints still have material costs. With „Preise aus den Dateien ignorieren“
+    only rules and the default price count (slicer profiles never maintained).
     """
     rule = matching_rule(price_rules(settings) if rules is None else rules, f)
     if rule:
@@ -661,7 +661,7 @@ def material_cost(settings: dict, filaments: list[dict], rules: list | None = No
 
 
 def rule_hits(con: sqlite3.Connection, rules: list[tuple[str, float]]) -> dict[str, int]:
-    """Je Stichwort: wie viele geslicte Platten die Regel tatsächlich trifft (für die Einstellungen)."""
+    """Per keyword: how many sliced plates the rule actually matches (for the settings)."""
     hits = {keyword: 0 for keyword, _ in rules}
     for r in con.execute("""SELECT p.filaments_json FROM plates p JOIN files f ON f.id = p.file_id
                             WHERE f.missing = 0 AND p.sliced = 1"""):
@@ -673,7 +673,7 @@ def rule_hits(con: sqlite3.Connection, rules: list[tuple[str, float]]) -> dict[s
 
 
 def unique_path(folder: Path, name: str) -> Path:
-    """Nie überschreiben: bei Namensgleichheit ' (2)', ' (3)' … anhängen."""
+    """Never overwrite: on a name clash append ' (2)', ' (3)' …"""
     target = folder / name
     if not target.exists():
         return target
@@ -704,7 +704,7 @@ def request_prebuild() -> None:
 
 
 def prebuild_loop() -> None:
-    """Erstellt fehlende 3D-Vorschauen nacheinander im Hintergrund."""
+    """Creates missing 3D previews one after another in the background."""
     from . import render
     from .gcode_preview import status as preview_status
     while True:
@@ -723,13 +723,13 @@ def prebuild_loop() -> None:
                 if path.exists():
                     st = preview_status(path, r["idx"], DATA_DIR / "preview" / f"{r['id']}_{r['idx']}", background=False)
                     if st["state"] == "ready":
-                        render.ensure(r["id"], r["idx"], current)  # eigenes Vorschaubild
+                        render.ensure(r["id"], r["idx"], current)  # own preview image
         except Exception:
             log.exception("Vorberechnung der 3D-Vorschau fehlgeschlagen")
 
 
 def scan_loop(interval: int) -> None:
-    """Polling statt inotify, damit es auch auf SMB/NFS-Freigaben zuverlässig läuft."""
+    """Polling instead of inotify, so it also runs reliably on SMB/NFS shares."""
     global _force_next_scan
     while True:
         try:

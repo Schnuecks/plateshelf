@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Einstellungen: Drucker, Stromkosten, Druckverlauf sowie Sprache und Design."""
+"""Settings: printers, electricity costs, print history as well as language and theme."""
 from __future__ import annotations
 
 import os
@@ -22,11 +22,11 @@ router = APIRouter()
 
 
 def _printer_rows() -> list[dict]:
-    """Drucker für die Einstellungen, ohne Zugangscode, mit dem letzten Abruf."""
+    """Printers for the settings, without access code, with the last poll."""
     rows = []
     for p in printer_import.load_printers():
         status = printer_import.state["printers"].get(p["id"])
-        if p.get("code_error") and not status:  # schon vor dem ersten Abruf zeigen
+        if p.get("code_error") and not status:  # show even before the first poll
             status = {"error": p["code_error"], "kind": p["kind"], "error_args": {"detail": p["code_error"]},
                       "error_msg": "Zugangsdaten lassen sich nicht entschlüsseln ({detail}). Wurde SECRET_KEY "
                                    "geändert? Dann in den Einstellungen neu eingeben."}
@@ -79,18 +79,18 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
 @router.get("/settings/tokens")
 @router.get("/settings/backup/restore")
 def settings_form_url(request: Request):
-    """Adressen der Formulare, falls der Browser die Seite danach neu lädt: zum passenden Bereich."""
+    """Form URLs, in case the browser reloads the page afterwards: to the matching section."""
     section = request.url.path.removeprefix("/settings/").split("/")[0]
     return RedirectResponse(f"/settings#{section}", status_code=303)
 
 
 @router.get("/settings/backup")
 def backup_download():
-    """Sicherung der Datenbank als eine Datei, konsistent auch während PlateShelf schreibt.
+    """Backup of the database as a single file, consistent even while PlateShelf is writing.
 
-    Enthält Projekte, Notizen, Tags, Status, Einstellungen, Drucker (Zugangsdaten
-    verschlüsselt, sofern SECRET_KEY gesetzt ist) und den Druckverlauf. Vorschaubilder
-    und 3D-Vorschauen fehlen bewusst; sie entstehen nach dem Zurückspielen neu.
+    Contains projects, notes, tags, status, settings, printers (credentials
+    encrypted if SECRET_KEY is set) and the print history. Thumbnails and
+    3D previews are deliberately missing; they are regenerated after restoring.
     """
     fd, name = tempfile.mkstemp(suffix=".sqlite", prefix="plateshelf-backup-")
     os.close(fd)
@@ -102,7 +102,7 @@ def backup_download():
 
 @router.get("/settings/backup/file/{name}")
 def backup_file(name: str):
-    """Eine der automatischen Sicherungen herunterladen."""
+    """Download one of the automatic backups."""
     path = backup.path_of(name)
     if not path:
         raise HTTPException(404, _("Sicherung nicht gefunden"))
@@ -112,8 +112,8 @@ def backup_file(name: str):
 def _after_restore(request: Request, safety: str) -> RedirectResponse:
     user = current_user(request)
     audit(request, "backup_restored", user["name"] if user else "")
-    printer_import.init()  # Drucker aus der Sicherung, Zugangsdaten ggf. verschlüsseln
-    # Vorschaubilder neu erzeugen; wie „Bibliothek neu einlesen“ im Hintergrund
+    printer_import.init()  # Printers from the backup, encrypt credentials if needed
+    # Regenerate thumbnails; like „Bibliothek neu einlesen“ in the background
     if os.environ.get("BACKGROUND_TASKS", "true").lower() not in ("0", "false", "no", "off"):
         threading.Thread(target=store.scan, kwargs={"force": True}, daemon=True).start()
     else:
@@ -154,7 +154,7 @@ def thumbnails_save(vorschaubilder: str = Form("")):
     if vorschaubilder in render.MODES:
         store.save_settings({"vorschaubilder": vorschaubilder})
         if store.PREBUILD and vorschaubilder != "slicer":
-            store.request_prebuild()  # fehlende Bilder für die neue Wahl zeichnen
+            store.request_prebuild()  # draw missing images for the new choice
     return RedirectResponse("/settings?thumbs=1#thumbs", status_code=303)
 
 
@@ -167,16 +167,16 @@ def history_settings_save(enabled: str = Form("")):
 
 @router.post("/appearance")
 def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None), next: str = Form("/")):
-    """Sprache und Design aus der Titelleiste, gespeichert pro Browser als Cookie.
+    """Language and theme from the title bar, stored per browser as a cookie.
 
-    Geändert wird nur, was mitgeschickt wurde; danach geht es zurück zur Seite.
+    Only what was sent is changed; afterwards it goes back to the page.
     """
     target = next if next.startswith("/") and not next.startswith("//") else "/"
     response = RedirectResponse(target, status_code=303)
     if sprache in i18n.LANGUAGES:
         response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax")
     elif sprache == "auto":
-        response.delete_cookie("sprache")  # Vorgabe oder Browsersprache
+        response.delete_cookie("sprache")  # default or browser language
     if design in i18n.THEMES:
         response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax")
     return response
@@ -196,7 +196,7 @@ async def printers_save(request: Request):
     try:
         await run_in_threadpool(printer_import.save_printers, rows)
     except i18n.UserError as exc:
-        # Eingaben behalten (ohne Zugangscodes) und Fehler anzeigen
+        # Keep the input (without access codes) and show errors
         env = [r for r in _printer_rows() if r["source"] == "env"]
         kept = env + [{**r, "source": "db", "status": None} for r in rows if not r["delete"]
                       and (r["db_id"] or any((r["name"], r["ip"], r["serial"])))]
@@ -252,7 +252,7 @@ def token_add(request: Request, name: str = Form("")):
     except i18n.UserError as exc:
         return _render_settings(request, tokens_error=exc.translated(), status_code=400)
     audit(request, "token_created", current_user(request)["name"], " ".join(name.split()))
-    # Nur jetzt sichtbar, deshalb keine Weiterleitung; der Browser darf die Seite nicht zwischenspeichern
+    # Only visible now, hence no redirect; the browser must not cache the page
     response = _render_settings(request, new_token=token)
     response.headers["Cache-Control"] = "no-store"
     return response
@@ -283,7 +283,7 @@ def _number(value: str, low: float, high: float) -> float | None:
 async def settings_save(request: Request):
     form = await request.form()
     def or_default(value, key):
-        # 0 ist ein gültiger Strompreis (z. B. eigene Solaranlage), nur ein leeres Feld nimmt den Standard
+        # 0 is a valid electricity price (e.g. own solar system), only an empty field takes the default
         return store.SETTING_DEFAULTS[key] if value is None else value
 
     values = {
@@ -293,9 +293,9 @@ async def settings_save(request: Request):
     }
     for key, value in form.items():
         if key.startswith("leistung:"):
-            values[key] = _number(value, 1, 5000)  # leer = Standardleistung verwenden
+            values[key] = _number(value, 1, 5000)  # empty = use default power
         elif key.startswith("filamentpreis:") or key == "filamentpreis_standard":
-            values[key] = _number(value, 0, 1000)  # leer = Preis entfernen
+            values[key] = _number(value, 0, 1000)  # empty = remove price
     keyword = " ".join((form.get("neues_stichwort") or "").split())
     new_price = _number(form.get("neuer_filamentpreis"), 0, 1000)
     if keyword and new_price is not None:

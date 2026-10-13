@@ -1,4 +1,4 @@
-"""Gemeinsame Test-Hilfen: jede Test-Funktion bekommt eine eigene Bibliothek und Datenbank."""
+"""Shared test helpers: every test function gets its own library and database."""
 import os
 import sys
 from pathlib import Path
@@ -9,25 +9,25 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools"))
 
-# Keine Verbindungen zu Druckern aus den Tests heraus (MQTT, Verlaufsabfragen), auch nicht
-# aus Hintergrund-Threads, die ein Test gestartet hat und die danach weiterlaufen
+# No connections to printers from the tests (MQTT, history queries), not even
+# from background threads that a test started and that keep running afterwards
 os.environ["PRINT_HISTORY"] = "false"
-# Keine Hintergrund-Threads (Einlesen, Druckerabruf, Papierkorb): sie überdauern den Test und
-# griffen sonst auf die Datenbank späterer Tests zu, was selten zu Fehlern führte
+# No background threads (scanning, printer polling, trash): they outlive the test and
+# would otherwise access the database of later tests, which occasionally caused failures
 os.environ["BACKGROUND_TASKS"] = "false"
-# Ohne Anmeldung, damit die übrigen Tests nicht erst Konten anlegen müssen; test_auth.py schaltet sie ein
+# Without login, so the other tests don't have to create accounts first; test_auth.py enables it
 os.environ["AUTH"] = "off"
 
 
 @pytest.fixture(autouse=True)
 def german_by_default(monkeypatch):
-    """Die Tests prüfen die deutschen Texte; ohne Vorgabe wäre Englisch die Standardsprache."""
+    """The tests check the German texts; without this setting, English would be the default language."""
     monkeypatch.setenv("DEFAULT_LANGUAGE", "de")
 
 
 @pytest.fixture
 def lib(tmp_path, monkeypatch):
-    """Leere Bibliothek + Datenbank in einem temporären Ordner."""
+    """Empty library + database in a temporary folder."""
     from app import store
 
     library = tmp_path / "library"
@@ -44,6 +44,6 @@ def lib(tmp_path, monkeypatch):
 
 @pytest.fixture
 def sample():
-    """Erzeugt nachgebaute Bambu-.gcode.3mf-Dateien (siehe tools/make_sample.py)."""
+    """Creates mock Bambu .gcode.3mf files (see tools/make_sample.py)."""
     from make_sample import make
     return make

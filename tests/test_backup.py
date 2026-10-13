@@ -1,4 +1,4 @@
-"""Sicherungen: automatisch, herunterladen, zurückspielen (siehe app/backup.py)."""
+"""Backups: automatic, download, restore (see app/backup.py)."""
 import sqlite3
 import time
 
@@ -35,8 +35,8 @@ def test_daily_backups_keep_the_last_ones(lib, monkeypatch):
         path = backup.run_auto(now=start + i * day)
         assert path is not None
         import os
-        os.utime(path, (start + i * day, start + i * day))  # Zeitstempel wie am jeweiligen Tag
-    assert backup.run_auto(now=start + 4 * day + 3600) is None  # heute schon gesichert
+        os.utime(path, (start + i * day, start + i * day))  # timestamp as on the respective day
+    assert backup.run_auto(now=start + 4 * day + 3600) is None  # already backed up today
     names = [b["name"] for b in backup.list_backups()]
     assert names == ["plateshelf-2026-09-05.sqlite", "plateshelf-2026-09-04.sqlite", "plateshelf-2026-09-03.sqlite"]
     with sqlite3.connect(backup.backup_dir() / names[0]) as con:
@@ -54,19 +54,19 @@ def test_restore_uploaded_backup(client, lib, sample):
         con.execute("UPDATE projects SET notes = 'aus der Sicherung'")
     saved = client.get("/settings/backup")
     assert saved.status_code == 200 and saved.content.startswith(b"SQLite format 3")
-    # Danach ändert sich einiges …
+    # Afterwards a few things change …
     with store.connect() as con:
         con.execute("UPDATE projects SET notes = 'neuer Stand'")
     thumbs = store.THUMB_DIR
     assert thumbs.exists()
-    # … und die Sicherung wird zurückgespielt
+    # … and the backup is restored
     r = client.post("/settings/backup/restore", files={"file": ("sicherung.sqlite", saved.content)},
                     follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].startswith("/settings?restored=plateshelf-")
     with store.connect() as con:
         assert con.execute("SELECT notes FROM projects").fetchone()[0] == "aus der Sicherung"
         assert con.execute("PRAGMA user_version").fetchone()[0] == store.SCHEMA_VERSION
-    # Der vorherige Stand liegt als Notfall-Kopie bereit, die Vorschaubilder sind neu erzeugt
+    # The previous state is kept as an emergency copy, the thumbnails are regenerated
     (safety,) = [b for b in backup.list_backups() if b["before_restore"]]
     with sqlite3.connect(backup.backup_dir() / safety["name"]) as con:
         assert con.execute("SELECT notes FROM projects").fetchone()[0] == "neuer Stand"
@@ -89,7 +89,7 @@ def test_restore_rejects_other_files(client, lib, tmp_path):
         con.execute(f"PRAGMA user_version = {store.SCHEMA_VERSION + 1}")
     r = client.post("/settings/backup/restore", files={"file": ("neuer.sqlite", newer.read_bytes())})
     assert r.status_code == 400 and "neueren Version" in r.text
-    assert backup.list_backups() == []  # nichts angefasst
+    assert backup.list_backups() == []  # nothing touched
 
 
 def test_automatic_backups_in_settings(client, lib, sample):
@@ -100,7 +100,7 @@ def test_automatic_backups_in_settings(client, lib, sample):
     assert f'/settings/backup/file/{b["name"]}' in page and "Automatische Sicherungen" in page
     r = client.get(f"/settings/backup/file/{b['name']}")
     assert r.status_code == 200 and r.content.startswith(b"SQLite format 3")
-    # Nur Dateien aus dem Sicherungsordner
+    # Only files from the backup folder
     assert client.get("/settings/backup/file/..%2Fplateshelf.sqlite").status_code == 404
     assert client.get("/settings/backup/file/plateshelf.sqlite").status_code == 404
     with store.connect() as con:

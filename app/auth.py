@@ -1,22 +1,22 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Anmeldung mit Benutzerkonten, Sitzungen und API-Tokens.
+"""Login with user accounts, sessions and API tokens.
 
-Die Anmeldung ist Standard. Solange es kein Konto gibt, führt jede Seite zur
-Einrichtung (/setup), die einen Einrichtungscode aus dem Container-Log verlangt;
-so kann niemand im Netz der Besitzerin zuvorkommen. Bestehende Zugangsdaten aus
-AUTH_USER und AUTH_PASSWORD_HASH (oder AUTH_PASSWORD) werden beim Start einmalig
-zum ersten Admin-Konto. AUTH=off schaltet die Anmeldung ab, etwa wenn schon der
-Reverse-Proxy anmeldet.
+Login is the default. As long as no account exists, every page leads to the
+setup (/setup), which requires a setup code from the container log; that way
+nobody on the owner's network can get there first. Existing credentials from
+AUTH_USER and AUTH_PASSWORD_HASH (or AUTH_PASSWORD) become the first admin
+account once at startup. AUTH=off disables login, e.g. when the reverse proxy
+already handles login.
 
-Rollen: admin (alles), user (alles außer Einstellungen und Benutzerverwaltung),
-viewer (nur ansehen und herunterladen).
+Roles: admin (everything), user (everything except settings and user management),
+viewer (view and download only).
 
-Sitzungen liegen in der Datenbank, im Cookie steckt nur ein Zufallswert, in der
-Datenbank nur dessen Hash. Abmelden macht eine Sitzung sofort ungültig, ein neues
-Passwort beendet alle anderen. API-Tokens für Dashboards dürfen nur lesen
-(GET unter /api/) und lassen sich einzeln widerrufen. Skripte können sich weiter
-per HTTP Basic Auth mit Benutzername und Passwort anmelden.
+Sessions live in the database; the cookie only holds a random value, the
+database only its hash. Logging out invalidates a session immediately, a new
+password ends all others. API tokens for dashboards are read-only
+(GET under /api/) and can be revoked individually. Scripts can still log in
+via HTTP Basic Auth with username and password.
 """
 from __future__ import annotations
 
@@ -39,26 +39,26 @@ log = logging.getLogger("plateshelf")
 
 COOKIE = "sitzung"
 SESSION_DAYS = max(1, int(os.environ.get("SESSION_DAYS", "30")))
-MAX_FAILURES = 5            # Fehlversuche je Adresse …
-FAILURE_WINDOW = 15 * 60    # … innerhalb dieser Zeit (s) …
-LOCKOUT = 5 * 60            # … sperren sie für diese Zeit (s)
+MAX_FAILURES = 5            # failed attempts per address …
+FAILURE_WINDOW = 15 * 60    # … within this time (s) …
+LOCKOUT = 5 * 60            # … lock it out for this time (s)
 SCRYPT_N_LOG2, SCRYPT_R, SCRYPT_P = 15, 8, 1
-BASIC_CACHE_SECONDS = 300   # geprüfte Basic-Auth-Kopfzeilen, damit Dashboards nicht jedes Mal scrypt rechnen
-TOUCH_SECONDS = 60          # „zuletzt aktiv“ höchstens einmal pro Minute schreiben
+BASIC_CACHE_SECONDS = 300   # verified Basic Auth headers, so dashboards don't compute scrypt every time
+TOUCH_SECONDS = 60          # write "last active" at most once per minute
 MIN_PASSWORD = 8
 ROLES = ("admin", "user", "viewer")
 TOKEN_PREFIX = "ps_"
 SETUP_KEY = "auth:setup_code"
-NO_PASSWORD = "-"  # Konten, die sich nur über OIDC anmelden
-_SETUP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # ohne 0/O und 1/I
+NO_PASSWORD = "-"  # accounts that log in only via OIDC
+_SETUP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # without 0/O and 1/I
 
 _failures: dict[str, list[float]] = {}
 _failures_lock = threading.Lock()
-_basic_ok: dict[str, tuple[int, str, float]] = {}   # Hash der Kopfzeile -> (Benutzer, Passwort-Hash, gültig bis)
+_basic_ok: dict[str, tuple[int, str, float]] = {}   # hash of the header -> (user, password hash, valid until)
 _DUMMY_HASH = ""
 
 
-EVENT_DAYS = 180   # so lange bleibt das Protokoll
+EVENT_DAYS = 180   # how long the log is kept
 
 
 def password_login_wanted_off() -> bool:
@@ -66,12 +66,12 @@ def password_login_wanted_off() -> bool:
 
 
 def password_login() -> bool:
-    """Anmeldung mit Passwort (Formular und Basic Auth). PASSWORD_LOGIN=off schaltet sie ab, aber
-    nur, wenn es einen anderen Weg gibt (OIDC eingerichtet oder ein Passkey vorhanden) – sonst
-    wäre niemand mehr hereingekommen."""
+    """Login with password (form and Basic Auth). PASSWORD_LOGIN=off disables it, but
+    only if there is another way in (OIDC configured or a passkey present) – otherwise
+    nobody could get in anymore."""
     if not password_login_wanted_off():
         return True
-    from . import oidc  # oidc nutzt auth; erst hier laden
+    from . import oidc  # oidc uses auth; import it only here
     if oidc.enabled():
         return False
     with store.connect() as con:
@@ -79,7 +79,7 @@ def password_login() -> bool:
 
 
 def log_event(kind: str, user_name: str = "", address: str = "", agent: str = "", detail: str = "") -> None:
-    """Eintrag im Protokoll (Einstellungen → Protokoll); ältere als EVENT_DAYS fallen weg."""
+    """Entry in the log (Einstellungen → Protokoll); entries older than EVENT_DAYS are dropped."""
     now = time.time()
     with store.connect() as con:
         con.execute("INSERT INTO auth_events (at, kind, user_name, address, agent, detail) VALUES (?, ?, ?, ?, ?, ?)",
@@ -93,13 +93,13 @@ def events(limit: int = 300) -> list[dict]:
 
 
 def enabled() -> bool:
-    """Anmeldung aktiv, außer AUTH=off (bzw. false, 0, no)."""
+    """Login active unless AUTH=off (or false, 0, no)."""
     return os.environ.get("AUTH", "").strip().lower() not in ("off", "false", "0", "no")
 
 
-# --- Passwort-Hash (scrypt, in Python enthalten) ------------------------------
-# Format ohne „$“, weil Docker Compose „$“ in der .env als Variable liest:
-#   scrypt:<log2 N>:<r>:<p>:<Salz>:<Hash>   (Salz und Hash als Base64 für URLs)
+# --- Password hash (scrypt, included in Python) -------------------------------
+# Format without "$", because Docker Compose reads "$" in the .env as a variable:
+#   scrypt:<log2 N>:<r>:<p>:<salt>:<hash>   (salt and hash as URL-safe Base64)
 
 def _b64(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode().rstrip("=")
@@ -136,7 +136,7 @@ def _digest(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-# --- Benutzer -------------------------------------------------------------------
+# --- Users ----------------------------------------------------------------------
 
 def _user(row) -> dict | None:
     return {"id": row["id"], "name": row["name"], "role": row["role"]} if row else None
@@ -212,7 +212,7 @@ def set_role(user_id: int, role: str) -> None:
 
 
 def set_password(user_id: int, password: str, keep_session: str | None = None) -> None:
-    """Neues Passwort; beendet alle Sitzungen des Benutzers außer keep_session (Cookie-Wert)."""
+    """New password; ends all sessions of the user except keep_session (cookie value)."""
     check_password_rules(password)
     hashed = hash_password(password)
     with store.connect() as con:
@@ -235,7 +235,7 @@ def delete_user(user_id: int, acting_id: int | None = None) -> None:
 
 
 def authenticate(name: str, password: str) -> dict | None:
-    """Benutzer bei richtigem Passwort, sonst None; gleiche Laufzeit, ob es den Namen gibt oder nicht."""
+    """User if the password is correct, otherwise None; same runtime whether the name exists or not."""
     global _DUMMY_HASH
     if not password_login():
         return None
@@ -250,10 +250,10 @@ def authenticate(name: str, password: str) -> dict | None:
 
 
 def login_external(subject: str, name: str, role: str | None) -> int:
-    """Konto für eine Anmeldung über OIDC: verknüpft, gleichnamig oder neu; liefert die Benutzer-ID.
+    """Account for an OIDC login: linked, same name or new; returns the user ID.
 
-    subject ist Aussteller + sub und bleibt gleich, auch wenn sich der Name beim Anbieter ändert.
-    role kommt aus den Gruppen (None: keine Zuordnung eingestellt, Rolle bleibt wie in PlateShelf).
+    subject is issuer + sub and stays the same even if the name changes at the provider.
+    role comes from the groups (None: no mapping configured, role stays as in PlateShelf).
     """
     name = _clean_name(name)
     with store.connect() as con:
@@ -267,7 +267,7 @@ def login_external(subject: str, name: str, role: str | None) -> int:
                 raise UserError("Den Benutzernamen „{name}“ gibt es schon.", name=name)
             first = _admins(con) == 0
             if first and role != "admin":
-                # Das erste Konto legt die Besitzerin mit dem Einrichtungscode an (oder über die Admin-Gruppe)
+                # The owner creates the first account with the setup code (or via the admin group)
                 raise UserError("Lege zuerst das Admin-Konto an.")
             cur = con.execute("INSERT INTO users (name, password_hash, role, created, oidc_sub) VALUES (?, ?, ?, ?, ?)",
                               (name, NO_PASSWORD, role or "viewer", time.time(), subject))
@@ -284,7 +284,7 @@ def login_external(subject: str, name: str, role: str | None) -> int:
 
 
 def seed_from_env() -> None:
-    """Zugangsdaten aus AUTH_USER und AUTH_PASSWORD_HASH/AUTH_PASSWORD werden einmalig zum ersten Admin."""
+    """Credentials from AUTH_USER and AUTH_PASSWORD_HASH/AUTH_PASSWORD become the first admin once."""
     if has_users():
         return
     user = crypto.env_value("AUTH_USER")
@@ -297,10 +297,10 @@ def seed_from_env() -> None:
              "das Passwort änderst du ab sofort in PlateShelf.", user)
 
 
-# --- Einrichtung ----------------------------------------------------------------
+# --- Setup ----------------------------------------------------------------------
 
 def setup_code() -> str:
-    """Einrichtungscode, solange es kein Konto gibt (in der Datenbank, damit der Konsolenbefehl ihn kennt)."""
+    """Setup code while no account exists (in the database, so the console command knows it)."""
     with store.connect() as con:
         row = con.execute("SELECT value FROM settings WHERE key = ?", (SETUP_KEY,)).fetchone()
         if row:
@@ -311,9 +311,9 @@ def setup_code() -> str:
 
 
 def announce_setup() -> None:
-    """Beim Start ohne Konto: Einrichtungscode ins Log schreiben."""
+    """At startup without an account: write the setup code to the log."""
     if enabled() and not has_users():
-        # Zweisprachig: diese eine Zeile muss jede Besitzerin finden, auch mit englischer Doku
+        # Bilingual: every owner must find this one line, even with the English docs
         code = setup_code()
         log.warning("No user account yet: open PlateShelf in the browser and create the admin account. "
                     "Setup code: %s", code)
@@ -336,7 +336,7 @@ def finish_setup(name: str, password: str, repeat: str) -> int:
     return user_id
 
 
-# --- Sitzungen ------------------------------------------------------------------
+# --- Sessions -------------------------------------------------------------------
 
 def new_session(user_id: int, agent: str = "", address: str = "") -> str:
     token = secrets.token_urlsafe(32)
@@ -393,7 +393,7 @@ def basic_auth_user(header: str | None) -> dict | None:
     now = time.time()
     cached = _basic_ok.get(cache_key)
     if cached and cached[2] > now:
-        # Gilt nur, solange Benutzer und Passwort unverändert sind
+        # Valid only while user and password are unchanged
         with store.connect() as con:
             row = con.execute("SELECT id, name, role, password_hash FROM users WHERE id = ?", (cached[0],)).fetchone()
         if row and row["password_hash"] == cached[1]:
@@ -414,10 +414,10 @@ def basic_auth_user(header: str | None) -> dict | None:
     return user
 
 
-# --- API-Tokens (nur lesen) -----------------------------------------------------
+# --- API tokens (read-only) -----------------------------------------------------
 
 def create_token(name: str, created_by: str = "") -> str:
-    """Neues Token; der Klartext wird nur dieses eine Mal zurückgegeben."""
+    """New token; the plaintext is returned only this once."""
     name = " ".join(name.split())[:64]
     if not name:
         raise UserError("Bitte einen Namen für das Token angeben, z. B. „Homepage“.")
@@ -457,10 +457,10 @@ def token_valid(token: str) -> bool:
     return row is not None
 
 
-# --- Schutz gegen Durchprobieren ---------------------------------------------
+# --- Protection against brute force ------------------------------------------
 
 def locked_out(address: str) -> int:
-    """Sekunden, die diese Adresse noch gesperrt ist (0 = nicht gesperrt)."""
+    """Seconds this address is still locked out (0 = not locked)."""
     now = time.time()
     with _failures_lock:
         times = [t for t in _failures.get(address, []) if now - t < FAILURE_WINDOW]
@@ -481,7 +481,7 @@ def record_success(address: str) -> None:
         _failures.pop(address, None)
 
 
-# --- Befehle für die Konsole ----------------------------------------------------
+# --- Console commands -----------------------------------------------------------
 
 def _ask_password() -> str | None:
     password = getpass.getpass("Password: ")
@@ -495,7 +495,7 @@ def _ask_password() -> str | None:
 
 
 def main(argv: list[str]) -> int:
-    """python -m app.auth hash | secret | setup-code | reset <name> (Ausgaben englisch, wie die Doku)"""
+    """python -m app.auth hash | secret | setup-code | reset <name> (output in English, like the docs)"""
     command = argv[1] if len(argv) > 1 else ""
     if command == "hash":
         password = _ask_password()

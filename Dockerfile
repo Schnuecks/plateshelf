@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# Wird von GitHub Actions beim Release auf den Tag gesetzt (z. B. v0.2.0)
+# Set to the tag by GitHub Actions on release (e.g. v0.2.0)
 ARG VERSION=dev
 
 LABEL org.opencontainers.image.title="PlateShelf" \

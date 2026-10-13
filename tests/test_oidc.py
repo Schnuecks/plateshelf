@@ -1,4 +1,4 @@
-"""Anmeldung über OpenID Connect gegen einen nachgebauten Anbieter (siehe app/oidc.py)."""
+"""Login via OpenID Connect against a mock provider (see app/oidc.py)."""
 import base64
 import hashlib
 import json
@@ -25,15 +25,15 @@ def num(n: int) -> str:
 
 
 class Provider:
-    """Discovery, JWKS, Token- und Userinfo-Endpunkt wie bei Authelia."""
+    """Discovery, JWKS, token and userinfo endpoints as in Authelia."""
 
     def __init__(self):
         self.rsa = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.ec = ec.generate_private_key(ec.SECP256R1())
-        self.codes = {}       # Code -> (Angaben, Nonce, PKCE-Challenge)
+        self.codes = {}       # code -> (claims, nonce, PKCE challenge)
         self.requests = []
         self.alg = "RS256"
-        self.tamper = {}      # Angaben, die ins ID-Token geschmuggelt werden
+        self.tamper = {}      # claims smuggled into the ID token
 
     def jwks(self):
         r, e = self.rsa.public_key().public_numbers(), self.ec.public_key().public_numbers()
@@ -54,7 +54,7 @@ class Provider:
         return f"{signed}.{b64(sig)}"
 
     def authorize(self, url, sub, name, groups=()):
-        """Was der Anbieter nach dem Anmelden tut: Code ausstellen und zurückleiten."""
+        """What the provider does after login: issue a code and redirect back."""
         q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
         assert q["response_type"] == "code" and q["code_challenge_method"] == "S256"
         code = f"code-{len(self.codes)}"
@@ -117,7 +117,7 @@ def client(lib, monkeypatch, provider):
 
 
 def sso(c, provider, sub, name, groups=(), next="/"):
-    """Ganze Anmeldung im Browser: PlateShelf → Anbieter → zurück."""
+    """Full login in the browser: PlateShelf → provider → back."""
     r = c.get(f"/login/oidc?next={next}", follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"].startswith(ISSUER + "/authorize?"), r.text
     back = provider.authorize(r.headers["location"], sub, name, groups)
@@ -139,10 +139,10 @@ def test_sign_in_creates_read_only_account(client, provider):
     assert client.get("/account").status_code == 200
     row = user_row("bea")
     assert row["role"] == "viewer" and row["oidc_sub"] == f"{ISSUER} u-42"
-    # Kein Passwort: weder Anmeldeformular noch Basic Auth, und im Konto nur der Hinweis
+    # No password: neither login form nor Basic Auth, and only the notice in the account page
     assert auth.authenticate("bea", "-") is None and not auth.has_password(row["id"])
     assert "dein Passwort änderst du dort" in client.get("/account").text
-    # Zustand gilt nur einmal
+    # State is valid only once
     assert not oidc._pending
 
 
@@ -150,11 +150,11 @@ def test_existing_account_is_linked_and_survives_rename(client, provider):
     auth.create_user("andreas", "andreas-pass-123", "admin")
     assert sso(client, provider, "u-1", "andreas").status_code == 303
     assert user_row("andreas")["oidc_sub"] == f"{ISSUER} u-1"
-    assert user_row("andreas")["role"] == "admin"   # ohne Gruppen-Zuordnung bleibt die Rolle
+    assert user_row("andreas")["role"] == "admin"   # without a group mapping the role is kept
     client.cookies.clear()
     assert sso(client, provider, "u-1", "andreas.neu").status_code == 303
-    assert user_row("andreas.neu") is None          # gleiche Person, gleiches Konto
-    # Ein anderes Konto beim Anbieter mit demselben Namen übernimmt das verknüpfte Konto nicht
+    assert user_row("andreas.neu") is None          # same person, same account
+    # A different account at the provider with the same name does not take over the linked account
     client.cookies.clear()
     r = sso(client, provider, "u-2", "andreas")
     assert r.status_code == 403 and "gibt es schon" in r.text
@@ -172,7 +172,7 @@ def test_roles_from_groups(client, provider, monkeypatch):
     client.cookies.clear()
     sso(client, provider, "u-7", "bea", [])
     assert user_row("bea")["role"] == "viewer"
-    # Der letzte Admin verliert seine Rolle nicht durch eine fehlende Gruppe
+    # The last admin does not lose the role due to a missing group
     client.cookies.clear()
     sso(client, provider, "u-1", "andreas", [])
     assert user_row("andreas")["role"] == "admin"
@@ -196,11 +196,11 @@ def test_callback_needs_the_same_browser(client, provider):
     auth.create_user("andreas", "andreas-pass-123", "admin")
     r = client.get("/login/oidc", follow_redirects=False)
     back = provider.authorize(r.headers["location"], "u-9", "mallory")
-    client.cookies.clear()   # z. B. ein untergeschobener Link in einem anderen Browser
+    client.cookies.clear()   # e.g. a planted link in a different browser
     r = client.get(back.removeprefix("http://testserver"), follow_redirects=False)
     assert r.status_code == 401 and "fehlgeschlagen" in r.text
     assert user_row("mallory") is None
-    # Fehler vom Anbieter (z. B. abgelehnt) landen ebenfalls freundlich auf der Anmeldeseite
+    # Errors from the provider (e.g. denied) also end up gracefully on the login page
     r = client.get("/login/oidc/callback?error=access_denied&state=x", follow_redirects=False)
     assert r.status_code == 401
 
@@ -230,7 +230,7 @@ def test_without_configuration_nothing_changes(client, monkeypatch):
 
 
 def test_button_only_on_listed_hosts(client, provider, monkeypatch):
-    """Anbieter nur im Heimnetz erreichbar: von außen (Tunnel) nur Passwort-Anmeldung."""
+    """Provider reachable only on the home network: from outside (tunnel) only password login."""
     auth.create_user("andreas", "andreas-pass-123", "admin")
     monkeypatch.setenv("OIDC_HOSTS", "https://plateshelf.home.lan:443, other.lan")
     outside = {"host": "bambu.example.net"}

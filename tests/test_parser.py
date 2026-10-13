@@ -21,7 +21,7 @@ def test_plates_filaments_costs(tmp_path, sample):
     p1, p2 = r.plates
     assert (p1.index, p1.name, p1.prediction_s, p1.layers) == (1, "Clips", 1500, 40)
     assert p1.objects == ["clip.stl"] * 3
-    assert [f.color for f in p2.filaments] == ["#F2C94C", "#2D9C74"]  # Alpha abgeschnitten
+    assert [f.color for f in p2.filaments] == ["#F2C94C", "#2D9C74"]  # alpha cut off
     assert [f.type for f in p2.filaments] == ["PLA", "PETG"]
     assert round(p2.weight_g, 2) == 6.6
     assert round(p2.cost, 4) == round(3.0 / 1000 * 20 + 3.6 / 1000 * 25, 4)
@@ -29,7 +29,7 @@ def test_plates_filaments_costs(tmp_path, sample):
 
 
 def test_preview_only_plates_are_not_sliced(tmp_path, sample):
-    """Einzeln exportierte Platte: Vorschaubilder aller Platten, G-Code nur für eine."""
+    """Individually exported plate: thumbnails of all plates, G-code for only one."""
     from make_sample import png
     path = tmp_path / "Yoshi_plate_1.gcode.3mf"
     sample(path, [{"idx": 1, "sec": 100, "layers": 5, "fil": [(1, "#00FF00FF", 1.0)]}])
@@ -67,15 +67,15 @@ def test_html_to_text_double_escaped():
 
 
 def test_norm_color():
-    assert _norm_color("#f2c94cff") == "#F2C94C"  # Alpha abgeschnitten, Großbuchstaben
-    assert _norm_color("2d9c74") == "#2D9C74"  # fehlendes # ergänzt
+    assert _norm_color("#f2c94cff") == "#F2C94C"  # alpha cut off, uppercase
+    assert _norm_color("2d9c74") == "#2D9C74"  # missing # added
     assert _norm_color(None) == "#888888"
     assert _norm_color("") == "#888888"
     assert _norm_color("rot") == "#888888"
 
 
 def test_to_float():
-    assert _to_float("0,35") == 0.35  # Dezimalkomma
+    assert _to_float("0,35") == 0.35  # decimal comma
     assert _to_float(" 15% ") == 15.0
     assert _to_float(20) == 20.0
     assert _to_float(None) is None

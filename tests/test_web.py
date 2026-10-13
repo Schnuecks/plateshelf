@@ -23,10 +23,10 @@ def test_pages_and_upload_and_trash(client, lib, sample, tmp_path):
     assert r.status_code == 303 and "/p/" in r.headers["location"]
     page = client.get(r.headers["location"])
     assert page.status_code == 200 and "Benchy" in page.text
-    # Dieselbe Datei nochmal: wird als unverändert erkannt
+    # The same file again: detected as unchanged
     r2 = client.post("/upload", files={"files": (src.name, src.read_bytes())})
     assert "bereits unverändert" in r2.text
-    # Keine 3MF
+    # Not a 3MF
     r3 = client.post("/upload", files={"files": ("x.3mf", io.BytesIO(b"nope"))})
     assert "keine gültige 3MF-Datei" in r3.text
 
@@ -46,14 +46,14 @@ def test_path_traversal_is_blocked(client):
 
 
 def test_energy_costs_and_settings(client, lib, sample):
-    # 2 Stunden auf einem P1S, 10 g Filament zu 20 €/kg
+    # 2 hours on a P1S, 10 g of filament at 20 €/kg
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 7200, "layers": 5, "fil": [(1, "#FF0000FF", 10.0)]}],
            costs=("20",))
     store.scan(wait=True)
     from app import main
     with store.connect() as con:
         p = main.load_projects(con)[0]
-    # Standard: 100 W, 0,35 €/kWh -> 0,2 kWh -> 0,07 €; Material 0,20 €
+    # Default: 100 W, 0.35 €/kWh -> 0.2 kWh -> 0.07 €; material 0.20 €
     assert round(p["energy_kwh"], 3) == 0.2
     assert round(p["energy_cost"], 3) == 0.07
     assert round(p["total_cost"], 3) == 0.27
@@ -62,16 +62,16 @@ def test_energy_costs_and_settings(client, lib, sample):
     assert page.status_code == 200 and "Bambu Lab P1S" in page.text
     r = client.post("/settings", data={
         "strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": "150"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/settings?saved=1#power"  # zurück zu „Kosten“
+    assert r.status_code == 303 and r.headers["location"] == "/settings?saved=1#power"  # back to „Kosten“
     with store.connect() as con:
         p = main.load_projects(con)[0]
-    assert round(p["energy_cost"], 3) == round(0.3 * 0.40, 3)  # 150 W × 2 h = 0,3 kWh
-    # Leeres Feld: wieder Standardleistung
+    assert round(p["energy_cost"], 3) == round(0.3 * 0.40, 3)  # 150 W × 2 h = 0.3 kWh
+    # Empty field: back to the default power
     client.post("/settings", data={"strompreis": "0,40", "leistung_standard": "100", "leistung:Bambu Lab P1S": ""})
     with store.connect() as con:
         assert round(main.load_projects(con)[0]["energy_kwh"], 3) == 0.2
     assert client.post("/settings", data={"strompreis": "abc", "leistung_standard": "100"}).status_code == 400
-    # 0 € (z. B. Solarstrom) bleibt 0 und wird nicht durch den Standard ersetzt
+    # 0 € (e.g. solar power) stays 0 and is not replaced by the default
     client.post("/settings", data={"strompreis": "0", "leistung_standard": "100"})
     with store.connect() as con:
         assert main.load_projects(con)[0]["energy_cost"] == 0
@@ -79,12 +79,12 @@ def test_energy_costs_and_settings(client, lib, sample):
 
 
 def test_filament_price_rules(client, lib, sample):
-    """Preisregeln nach Stichwort (längstes gewinnt) vor Dateipreis vor Standardpreis; alles rückwirkend."""
+    """Price rules by keyword (longest wins) before file price before default price; all retroactive."""
     from app import main, statistics
     sample(lib / "Ohne.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
-           types=("PLA",), costs=("0",))   # Profil „Bambu PLA Basic @BBL P1P“, kein Preis
+           types=("PLA",), costs=("0",))   # profile "Bambu PLA Basic @BBL P1P", no price
     sample(lib / "Mit.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 10.0)]}],
-           types=("PETG",), costs=("20",))  # Profil „Bambu PETG Basic @BBL P1P“, 20 €/kg
+           types=("PETG",), costs=("20",))  # profile "Bambu PETG Basic @BBL P1P", 20 €/kg
     store.scan(wait=True)
 
     def material():
@@ -98,15 +98,15 @@ def test_filament_price_rules(client, lib, sample):
 
     assert material() == {"Ohne": 0, "Mit": 0.2}
     page = client.get("/settings").text
-    assert "<datalist" not in page and 'name="neues_stichwort"' in page   # freies Feld, keine Vorschläge
+    assert "<datalist" not in page and 'name="neues_stichwort"' in page   # free-text field, no suggestions
 
-    save(neues_stichwort="  pla ", neuer_filamentpreis="20")   # Groß-/Kleinschreibung egal, Leerzeichen weg
+    save(neues_stichwort="  pla ", neuer_filamentpreis="20")   # case-insensitive, whitespace stripped
     assert material() == {"Ohne": 0.2, "Mit": 0.2}
     page = client.get("/settings").text
     assert re.search(r'<td>pla</td>\s*<td class="hint">1 Platte</td>', page)
 
     save(**{"filamentpreis:pla": "20", "neues_stichwort": "Basic", "neuer_filamentpreis": "25,50"})
-    assert material() == {"Ohne": 0.255, "Mit": 0.255}   # „Basic“ ist länger als „pla“ und schlägt die Datei
+    assert material() == {"Ohne": 0.255, "Mit": 0.255}   # "Basic" is longer than "pla" and beats the file
     page = client.get("/settings").text
     assert re.search(r'<td>pla</td>\s*<td class="hint">trifft nichts</td>', page)
     assert re.search(r'<td>Basic</td>\s*<td class="hint">2 Platten</td>', page)
@@ -114,23 +114,23 @@ def test_filament_price_rules(client, lib, sample):
         facts = statistics._file_facts(con, store.get_settings(con))
     assert round(facts["Ohne.gcode.3mf"]["cost"], 3) == 0.255
 
-    rules = {"filamentpreis:pla": "20", "filamentpreis:Basic": ""}   # Feld leeren = Regel entfernen
+    rules = {"filamentpreis:pla": "20", "filamentpreis:Basic": ""}   # clearing the field = removing the rule
     save(**rules)
     assert material() == {"Ohne": 0.2, "Mit": 0.2} and "Basic</td>" not in client.get("/settings").text
     save(**{"filamentpreis:pla": ""})
     assert material() == {"Ohne": 0, "Mit": 0.2}
 
-    # Standardpreis: nur ohne Regel und ohne Preis in der Datei (z. B. Cura)
+    # Default price: only without a rule and without a price in the file (e.g. Cura)
     save(filamentpreis_standard="18")
     assert material() == {"Ohne": 0.18, "Mit": 0.2}
     assert re.search(r'name="filamentpreis_standard"\s+value="18,00"', client.get("/settings").text)
-    # Schalter: Preise aus den Dateien ignorieren, dann gilt ohne Regel überall der Standardpreis
+    # Switch: ignore prices from the files; then the default price applies everywhere without a rule
     save(filamentpreis_standard="18", dateipreise_ignorieren="1")
     assert material() == {"Ohne": 0.18, "Mit": 0.18}
     assert 'name="dateipreise_ignorieren" value="1" checked' in client.get("/settings").text
     save(filamentpreis_standard="18", dateipreise_ignorieren="1", neues_stichwort="PETG", neuer_filamentpreis="30")
     assert material() == {"Ohne": 0.18, "Mit": 0.3}
-    save(filamentpreis_standard="", **{"filamentpreis:PETG": ""})   # Schalter aus (nicht angehakt)
+    save(filamentpreis_standard="", **{"filamentpreis:PETG": ""})   # switch off (unchecked)
     assert material() == {"Ohne": 0, "Mit": 0.2}
 
 
@@ -157,7 +157,7 @@ def test_printer_settings_page(client, monkeypatch):
     assert r.status_code == 303
     page = client.get("/settings").text
     assert "P1S" in page and "192.0.2.30" in page and "S1" in page
-    assert "geheim123" not in page  # Zugangscode wird nie ausgegeben
+    assert "geheim123" not in page  # access code is never output
     db_id = pi.db_printers()[0]["db_id"]
     r = client.post("/settings/printers", data={
         "db_id": [str(db_id), ""], "name": ["P1S", "Neu"], "ip": ["192.0.2.30", "192.0.2.31"],
@@ -175,7 +175,7 @@ def test_env_printers_are_read_only(client, monkeypatch):
         monkeypatch.setenv(k, v)
     page = client.get("/settings").text
     assert "A1 mini" in page and "über Umgebungsvariablen eingerichtet" in page
-    assert "envcode9" not in page and 'value="ENV1"' not in page  # kein Eingabefeld
+    assert "envcode9" not in page and 'value="ENV1"' not in page  # no input field
 
 
 def test_printer_date_in_german():
@@ -188,7 +188,7 @@ def test_printer_date_in_german():
 
 
 def test_settings_hint_shows_import_folder_as_code(client):
-    """Regression: Verketten mit ~ hatte das <code> im Hinweis mit escapt."""
+    """Regression: concatenating with ~ also escaped the <code> in the hint."""
     page = client.get("/settings").text
     assert "<code>From printer/&lt;Name&gt;/</code>" in page
     assert "&lt;code&gt;" not in page
@@ -197,7 +197,7 @@ def test_settings_hint_shows_import_folder_as_code(client):
 def test_api_stats_for_dashboards(client, lib, sample, monkeypatch):
     stats = client.get("/api/stats").json()
     assert (stats["projects"], stats["files"], stats["print_time_s"], stats["cost_eur"]) == (0, 0, 0, None)
-    # 2 Stunden, 10 g zu 20 €/kg; Strom 100 W × 2 h × 0,35 €/kWh = 0,07 €
+    # 2 hours, 10 g at 20 €/kg; power 100 W × 2 h × 0.35 €/kWh = 0.07 €
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 7200, "layers": 5, "fil": [(1, "#FF0000FF", 10.0)]}],
            costs=("20",))
     (lib / "Box").mkdir()
@@ -214,7 +214,7 @@ def test_api_stats_for_dashboards(client, lib, sample, monkeypatch):
 
 
 def test_foreign_sites_cannot_change_anything(client, lib, sample, monkeypatch):
-    """CSRF: Formulare von fremden Seiten werden abgelehnt, eigene und Skripte ohne Origin nicht."""
+    """CSRF: forms from foreign sites are rejected; our own and scripts without Origin are not."""
     from app import main
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
     store.scan(wait=True)
@@ -225,26 +225,26 @@ def test_foreign_sites_cannot_change_anything(client, lib, sample, monkeypatch):
         r = client.post(f"/f/{fid}/delete", headers=headers, follow_redirects=False)
         assert r.status_code == 403 and "fremden Seite" in r.text, headers
     assert (lib / "Teil.gcode.3mf").exists()
-    # Hinter einem Proxy: der weitergereichte Host zählt
+    # Behind a proxy: the forwarded host counts
     r = client.post("/settings", data={"strompreis": "0,35", "leistung_standard": "100"},
                     headers={"Origin": "https://druck.example", "X-Forwarded-Host": "druck.example"},
                     follow_redirects=False)
     assert r.status_code == 303
-    # Ausdrücklich erlaubte Adresse
+    # Explicitly allowed address
     monkeypatch.setattr(main, "TRUSTED_ORIGINS", {"https://dashboard.example"})
     r = client.post("/rescan", headers={"Origin": "https://dashboard.example"}, follow_redirects=False)
     assert r.status_code == 303
-    # Eigene Seite und Anfragen ohne Origin (Skripte, Tests) funktionieren
+    # Own site and requests without Origin (scripts, tests) work
     r = client.post(f"/f/{fid}/delete", headers={"Origin": "http://testserver"}, follow_redirects=False)
     assert r.status_code == 303 and not (lib / "Teil.gcode.3mf").exists()
-    assert client.get("/", headers={"Origin": "https://boese.example"}).status_code == 200  # Lesen bleibt erlaubt
+    assert client.get("/", headers={"Origin": "https://boese.example"}).status_code == 200  # reading stays allowed
 
 
 def test_about_page_and_logo(client):
     from app import main
     page = client.get("/about").text
     assert "Über PlateShelf" in page and main.APP_VERSION in page and "github.com/schnuecks/plateshelf" in page
-    assert 'href="/about"' in client.get("/").text  # Link im Footer
+    assert 'href="/about"' in client.get("/").text  # link in the footer
     logo = client.get("/static/logo.svg")
     assert logo.status_code == 200 and "<svg" in logo.text
 
@@ -260,7 +260,7 @@ def test_moonraker_printer_in_settings(client, monkeypatch):
     assert (p["kind"], p["id"]) == ("moonraker", "moonraker:http://192.0.2.60:7125")
     page = client.get("/settings").text
     assert 'data-kind="moonraker"' in page and '<option value="moonraker" selected>' in page
-    # Ohne Typ (ältere Formulare) bleibt es Bambu mit Pflichtfeldern
+    # Without a type (older forms) it stays Bambu with required fields
     r = client.post("/settings/printers", data={
         "db_id": [str(p["db_id"]), ""], "kind": ["moonraker"], "name": ["SV08", "X1C"], "ip": ["192.0.2.60", "192.0.2.61"],
         "serial": ["", ""], "code": ["", ""]})
@@ -316,7 +316,7 @@ def test_backup_download(client, lib, sample, tmp_path):
 
 
 def test_settings_explain_sections_not_single_fields(client):
-    """Einheitlich: Erklärungen stehen unter den Überschriften, nicht unter einzelnen Eingabefeldern."""
+    """Consistent: explanations sit below the headings, not below individual input fields."""
     page = client.get("/settings").text
     for label in re.findall(r"<label\b.*?</label>", page, re.S):
         assert 'class="hint"' not in label, label

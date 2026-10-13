@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Liest Bambu-Studio-/OrcaSlicer-3MF-Dateien (bevorzugt .gcode.3mf) aus.
+"""Reads Bambu Studio / OrcaSlicer 3MF files (preferably .gcode.3mf).
 
-Quellen innerhalb des ZIP-Containers:
-  Metadata/slice_info.config     Druckzeit, Gewicht, Filamente pro Platte
-  Metadata/project_settings.config  alle Slicer-Einstellungen (JSON)
-  Metadata/model_settings.config Plattennamen
-  Metadata/plate_N.gcode         Header: Layer, max. Höhe, Filamentkosten
-  Metadata/plate_N.png / top_N.png  Vorschaubilder
+Sources inside the ZIP container:
+  Metadata/slice_info.config     Print time, weight, filaments per plate
+  Metadata/project_settings.config  all slicer settings (JSON)
+  Metadata/model_settings.config Plate names
+  Metadata/plate_N.gcode         Header: layers, max. height, filament costs
+  Metadata/plate_N.png / top_N.png  Thumbnails
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from pathlib import Path
 
 GCODE_HEAD_BYTES = 512 * 1024
 
-# Fallback, falls project_settings.config fehlt
+# Fallback in case project_settings.config is missing
 PRINTER_MODEL_IDS = {
     "BL-P001": "Bambu Lab X1 Carbon",
     "BL-P002": "Bambu Lab X1",
@@ -85,8 +85,8 @@ class ParsedFile:
     process: str = ""
     settings: dict = field(default_factory=dict)
     plates: list[Plate] = field(default_factory=list)
-    model: dict = field(default_factory=dict)          # MakerWorld-/Designer-Angaben
-    photos: list[tuple[str, bytes]] = field(default_factory=list)  # (Endung, Bilddaten)
+    model: dict = field(default_factory=dict)          # MakerWorld/designer data
+    photos: list[tuple[str, bytes]] = field(default_factory=list)  # (extension, image data)
 
 
 MODEL_KEYS = {
@@ -98,7 +98,7 @@ PHOTO_EXT = (".webp", ".jpg", ".jpeg", ".png")
 
 
 def _html_to_text(raw: str) -> str:
-    """Designer-Beschreibung ist doppelt escaptes HTML: in lesbaren Text wandeln."""
+    """Designer description is double-escaped HTML: convert to readable text."""
     text = raw
     for _ in range(3):
         unescaped = html.unescape(text)
@@ -165,7 +165,7 @@ def _list(value) -> list:
 
 
 def parse_duration(text: str) -> int | None:
-    """'1d 2h 3m 4s' -> Sekunden."""
+    """'1d 2h 3m 4s' -> seconds."""
     total, found = 0, False
     for num, unit in re.findall(r"(\d+)\s*([dhms])", text):
         found = True
@@ -201,7 +201,7 @@ def parse_3mf(path: str | Path) -> ParsedFile:
         def read(name: str) -> bytes | None:
             return z.read(name) if name in names else None
 
-        # --- Einstellungen -------------------------------------------------
+        # --- Settings ------------------------------------------------------
         if raw := read("Metadata/project_settings.config"):
             try:
                 result.settings = json.loads(raw.decode("utf-8", errors="replace"))
@@ -220,7 +220,7 @@ def parse_3mf(path: str | Path) -> ParsedFile:
         fil_names = _list(s.get("filament_settings_id"))
         costs = [_to_float(c) for c in _list(s.get("filament_cost"))]
 
-        # --- Plattennamen ---------------------------------------------------
+        # --- Plate names ----------------------------------------------------
         plate_names: dict[int, str] = {}
         if raw := read("Metadata/model_settings.config"):
             try:
@@ -232,7 +232,7 @@ def parse_3mf(path: str | Path) -> ParsedFile:
             except ET.ParseError:
                 pass
 
-        # --- Slice-Infos ----------------------------------------------------
+        # --- Slice info -----------------------------------------------------
         plates: dict[int, Plate] = {}
         printer_model_id = ""
         if raw := read("Metadata/slice_info.config"):
@@ -279,12 +279,12 @@ def parse_3mf(path: str | Path) -> ParsedFile:
         if not result.printer and printer_model_id:
             result.printer = PRINTER_MODEL_IDS.get(printer_model_id, printer_model_id)
 
-        # Platten, die nur als Vorschaubild existieren (ungeslicte Projekte)
+        # Plates that only exist as a thumbnail (unsliced projects)
         for n in names:
             if m := re.fullmatch(r"Metadata/plate_(\d+)\.png", n):
                 plates.setdefault(int(m.group(1)), Plate(index=int(m.group(1))))
 
-        # --- G-Code-Header, Bilder, Namen -----------------------------------
+        # --- G-code header, images, names -----------------------------------
         for idx, plate in plates.items():
             plate.name = plate_names.get(idx, "")
             gname = f"Metadata/plate_{idx}.gcode"
@@ -308,7 +308,7 @@ def parse_3mf(path: str | Path) -> ParsedFile:
             plate.thumb = read(f"Metadata/plate_{idx}.png")
             plate.top = read(f"Metadata/top_{idx}.png")
 
-        # --- Designer-Angaben und Fotos (MakerWorld-Downloads) ------------
+        # --- Designer data and photos (MakerWorld downloads) --------------
         if raw := read("3D/3dmodel.model"):
             result.model = _parse_model_meta(raw)
         seen_sizes = set()

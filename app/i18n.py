@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Übersetzungen und sprachabhängige Formate.
+"""Translations and language-dependent formats.
 
-Die deutschen Texte im Code sind zugleich die Schlüssel. app/locales/<code>.json
-ordnet ihnen die Übersetzung zu; fehlt ein Eintrag, bleibt der deutsche Text.
-Platzhalter stehen in geschweiften Klammern: _("Platte {n}", n=3).
+The German texts in the code are also the keys. app/locales/<code>.json
+maps them to the translation; if an entry is missing, the German text remains.
+Placeholders are in curly braces: _("Platte {n}", n=3).
 
-Die Sprache gilt pro Anfrage (Cookie „sprache“, sonst DEFAULT_LANGUAGE, sonst
-die Browsersprache, sonst Englisch), das Design pro Browser (Cookie „design“, sonst DEFAULT_THEME).
+The language applies per request (cookie "sprache", otherwise DEFAULT_LANGUAGE, otherwise
+the browser language, otherwise English), the theme per browser (cookie "design", otherwise DEFAULT_THEME).
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ LANGUAGES = {
     "it": "Italiano",
     "nl": "Nederlands",
 }
-FALLBACK = "de"   # Sprache der Texte im Code, zugleich Schlüssel der Übersetzungen
-DEFAULT = "en"    # wenn die Browsersprache keine der unterstützten ist
+FALLBACK = "de"   # language of the texts in the code, also the keys of the translations
+DEFAULT = "en"    # if the browser language is not one of the supported ones
 THEMES = ("system", "light", "dark")
 
 LOCALE_DIR = Path(__file__).parent / "locales"
@@ -40,7 +40,7 @@ def _env_choice(name: str, allowed) -> str | None:
 
 
 def default_language() -> str | None:
-    """DEFAULT_LANGUAGE aus der Umgebung, sonst None (= Browsersprache)."""
+    """DEFAULT_LANGUAGE from the environment, otherwise None (= browser language)."""
     return _env_choice("DEFAULT_LANGUAGE", LANGUAGES)
 
 
@@ -74,14 +74,14 @@ def ngettext(singular: str, plural: str, n: int, **kwargs) -> str:
 
 
 class UserError(ValueError):
-    """Fehler mit übersetzbarer Meldung. str() liefert den deutschen Text."""
+    """Error with a translatable message. str() returns the German text."""
 
     def __init__(self, msg: str, **kwargs):
         self.msg, self.kwargs = msg, kwargs
         super().__init__(msg.format(**kwargs) if kwargs else msg)
 
     def translated(self) -> str:
-        # Feldnamen wie "Zugangscode" in den Platzhaltern mit übersetzen
+        # Also translate field names like "Zugangscode" in the placeholders
         args = {k: gettext(v) if isinstance(v, str) else v for k, v in self.kwargs.items()}
         return gettext(self.msg, **args)
 
@@ -106,9 +106,9 @@ def pick_language(cookie: str | None, accept: str | None) -> str:
     return DEFAULT
 
 
-# --- Formate -------------------------------------------------------------------
+# --- Formats -------------------------------------------------------------------
 
-# Tausender- und Dezimaltrennzeichen, Datumsformat, Euro vor oder hinter dem Betrag
+# Thousands and decimal separators, date format, euro before or after the amount
 NUMBER_FORMAT = {
     "de": (".", ",", "%d.%m.%Y", False),
     "en": (",", ".", "%Y-%m-%d", True),
@@ -132,7 +132,7 @@ MONTHS = {
     "nl": ("januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober",
            "november", "december"),
 }
-# Tag und Monat in der üblichen Reihenfolge der Sprache
+# Day and month in the language's usual order
 DAY_MONTH = {
     "de": "{d}. {m}",
     "en": "{m} {d}",
@@ -167,9 +167,9 @@ def fmt_date(ts) -> str:
 
 
 def fmt_printer_date(text) -> str:
-    """Datum aus der Dateiliste des Druckers: 'Aug 22 07:06' -> '22. August 07:06'.
+    """Date from the printer's file list: 'Aug 22 07:06' -> '22. August 07:06'.
 
-    Ältere Dateien listet der Drucker mit Jahr statt Uhrzeit: 'Nov 29 2025' -> '29. November 2025'.
+    The printer lists older files with the year instead of the time: 'Nov 29 2025' -> '29. November 2025'.
     """
     parts = str(text or "").split()
     if len(parts) != 3 or parts[0][:3].lower() not in _FTP_MONTHS or not parts[1].isdigit():

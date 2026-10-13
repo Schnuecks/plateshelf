@@ -1,4 +1,4 @@
-{# Notiz und Bewertung zu einem Druck, im Verlauf und auf der Projektseite #}
+{# Note and rating for a print, in the history and on the project page #}
 {% macro job_note(j, request) -%}
 <span class="job-note-view">
   {%- if j.rating == 1 %}<span class="job-rating is-good" role="img" aria-label="{{ _('Gelungen') }}" title="{{ _('Gelungen') }}">👍</span>

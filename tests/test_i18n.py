@@ -17,7 +17,7 @@ def client(lib, monkeypatch):
 
 @pytest.fixture
 def lang():
-    """Sprache für Formatierungstests setzen und danach zurück auf Deutsch."""
+    """Set the language for formatting tests and switch back to German afterwards."""
     yield i18n.set_language
     i18n.set_language("de")
 
@@ -42,11 +42,11 @@ def test_pick_language(monkeypatch):
     monkeypatch.delenv("DEFAULT_LANGUAGE", raising=False)
     assert i18n.pick_language(None, "fr-CH,fr;q=0.9,en;q=0.8") == "fr"
     assert i18n.pick_language(None, "pt-BR,en;q=0.5") == "en"
-    assert i18n.pick_language(None, "ja") == "en"  # nicht unterstützt: Englisch
+    assert i18n.pick_language(None, "ja") == "en"  # not supported: English
     assert i18n.pick_language(None, None) == "en"
-    assert i18n.pick_language("it", "fr") == "it"  # Cookie hat Vorrang
+    assert i18n.pick_language("it", "fr") == "it"  # cookie takes precedence
     monkeypatch.setenv("DEFAULT_LANGUAGE", "nl")
-    assert i18n.pick_language(None, "fr") == "nl"  # Vorgabe schlägt Browsersprache
+    assert i18n.pick_language(None, "fr") == "nl"  # default beats browser language
     assert i18n.pick_language("es", "fr") == "es"
 
 
@@ -79,10 +79,10 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     monkeypatch.delenv("DEFAULT_THEME", raising=False)
     page = client.get("/", headers={"Accept-Language": "en-US,en;q=0.9"}).text
     assert '<html lang="en">' in page and "Settings" in page and "Upload" in page
-    assert "data-theme" not in page  # System ist die Vorgabe
-    assert 'name="design" value="light"' in page  # Klick auf das Symbol wechselt zu Hell
+    assert "data-theme" not in page  # system is the default
+    assert 'name="design" value="light"' in page  # clicking the icon switches to light
 
-    # Sprache aus dem Menü der Titelleiste: nur die Sprache ändert sich, zurück zur Seite
+    # Language from the title bar menu: only the language changes, back to the page
     r = client.post("/appearance", data={"sprache": "it", "next": "/trash"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/trash"
     assert "sprache=it" in r.headers["set-cookie"] and "design=" not in r.headers["set-cookie"]
@@ -92,21 +92,21 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     client.cookies.set("design", "dark")
     page = client.get("/settings").text
     assert '<html lang="it" data-theme="dark">' in page and "Impostazioni" in page
-    assert 'name="design" value="system"' in page  # nach Dunkel kommt wieder System
+    assert 'name="design" value="system"' in page  # after dark comes system again
     assert 'value="it" lang="it" role="menuitemradio" aria-checked="true"' in page
     texts = json.loads(re.search(r'<script id="i18n" type="application/json">(.*?)</script>', page).group(1))
     assert texts["Außenwand"] == "Parete esterna"
 
-    # Automatisch: Cookie wird entfernt, danach gilt wieder die Browsersprache
+    # Automatic: cookie is removed, then the browser language applies again
     r = client.post("/appearance", data={"sprache": "auto"}, follow_redirects=False)
     assert 'sprache=""' in r.headers["set-cookie"] or "sprache=;" in r.headers["set-cookie"]
-    # Nur Pfade dieser Seite als Ziel, keine fremden Adressen
+    # Only paths of this site as target, no foreign addresses
     for bad in ("https://example.com/", "//example.com/"):
         r = client.post("/appearance", data={"design": "light", "next": bad}, follow_redirects=False)
         assert r.headers["location"] == "/"
     client.cookies.clear()
     monkeypatch.setenv("DEFAULT_THEME", "light")
-    assert '<html lang="en" data-theme="light">' in client.get("/").text  # ohne Vorgabe: Englisch
+    assert '<html lang="en" data-theme="light">' in client.get("/").text  # without default: English
 
 
 def test_printer_errors_are_translated(client, monkeypatch):
@@ -119,7 +119,7 @@ def test_printer_errors_are_translated(client, monkeypatch):
 
 
 def test_preview_status_translates_errors(client, lib, sample, monkeypatch):
-    """Regression: die Vorschau-API überschrieb die Übersetzungsfunktion _ mit einer Variablen."""
+    """Regression: the preview API overwrote the translation function _ with a variable."""
     from app import gcode_preview, store
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
     store.scan(wait=True)

@@ -1,12 +1,12 @@
-# Dependabot: meldet Schwachstellen in Abhängigkeiten und schlägt Aktualisierungen
-# als Pull Request vor. Jeder Vorschlag durchläuft die CI; Patch- und Minor-Updates
-# übernimmt danach der Job dependabot-merge in ci.yml selbst, Major-Updates bleiben
-# für eine Prüfung von Hand offen. Durch die Wartezeit (cooldown) werden nur Versionen
-# vorgeschlagen, die schon eine Woche alt sind: eine gekaperte Version, die nach wenigen
-# Tagen zurückgezogen wird, kommt so nie an. Sicherheitsupdates werden nicht verzögert.
+# Dependabot: reports vulnerabilities in dependencies and proposes updates
+# as pull requests. Every proposal runs through CI; patch and minor updates are then
+# merged by the dependabot-merge job in ci.yml, major updates stay open
+# for a manual review. Thanks to the waiting period (cooldown) only versions that are
+# already a week old are proposed: a hijacked version that is pulled after a few
+# days never arrives this way. Security updates are not delayed.
 version: 2
 updates:
-  # Python-Pakete (requirements*.txt)
+  # Python packages (requirements*.txt)
   - package-ecosystem: pip
     directory: "/"
     schedule:
@@ -37,7 +37,7 @@ updates:
     commit-message:
       prefix: "CI"
 
-  # Basisimage im Dockerfile (python:3.12-slim)
+  # Base image in the Dockerfile (python:3.12-slim)
   - package-ecosystem: docker
     directory: "/"
     schedule:
