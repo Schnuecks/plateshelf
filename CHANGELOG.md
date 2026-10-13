@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.15.4
+
+- **Running prints count as the newest:** sorted by newest or last printed, projects that are
+  printing right now are at the top of the project list (the one finishing next first). Before, a
+  project sliced weeks ago could be far down the list while it was printing.
+
 ## 0.15.3
 
 - **No duplicates from the Bambu cache folder:** the P2S keeps the same file in the main folder and

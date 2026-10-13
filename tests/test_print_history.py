@@ -379,6 +379,27 @@ def test_printing_now_and_pages(ready, monkeypatch):
         assert "data-live-print" not in client.get("/").text
 
 
+def test_running_prints_come_first_in_the_project_list(ready, monkeypatch):
+    """Sorted by newest or last printed, running prints are at the top, the one finishing next first."""
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    for name in ("Anker", "Mitte", "Yak", "Zebra"):
+        imported(ready, BAMBU, f"{name}.gcode.3mf", f"From printer/P2S/{name}.gcode.3mf")
+    ph.record(BAMBU, "z", "running", remote_name="Zebra.gcode.3mf", progress=10, remaining_s=3600)
+    ph.record(BAMBU, "y", "running", remote_name="Yak.gcode.3mf", progress=80, remaining_s=300)
+    from app import main
+    with TestClient(main.app) as client:
+        def order(sort):
+            page = client.get(f"/?sort={sort}").text
+            grid = page[page.index('<ul class="grid">'):]
+            return sorted(("Anker", "Mitte", "Yak", "Zebra"), key=lambda n: grid.index(f"<h2>{n}</h2>"))
+        with store.connect() as con:  # Zebra is the newest file, Anker the oldest
+            for age, name in enumerate(("Zebra", "Mitte", "Yak", "Anker")):
+                con.execute("UPDATE files SET mtime = ?, added = ? WHERE path LIKE ?",
+                            (time.time() - age * 86400, time.time() - age * 86400, f"%/{name}.gcode.3mf"))
+        assert order("neu")[:2] == ["Yak", "Zebra"] and order("gedruckt")[:2] == ["Yak", "Zebra"]
+        assert order("name") == ["Anker", "Mitte", "Yak", "Zebra"]   # other sort orders stay as chosen
+
+
 def test_short_live_text_drops_progress_and_shortens_name():
     from app.web import live_text
     job = {"printer_name": "P2S", "project_name": "Sehr langer Modellname mit vielen Teilen und Varianten",

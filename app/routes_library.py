@@ -61,6 +61,10 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         "haeufig": (lambda p: (-p["prints"], -p["last_printed"])),
     }
     shown.sort(key=keys.get(sort, keys["neu"]))
+    if sort in ("neu", "gedruckt") or sort not in keys:
+        # Running prints count as the newest: on top, the one finishing next first; the rest keeps its order
+        shown.sort(key=lambda p: (0, p["printing"]["remaining_s"] is None, p["printing"]["remaining_s"] or 0)
+                   if p.get("printing") else (1, False, 0))
     totals = {
         "count": len(shown),
         "time_s": sum(p["time_s"] for p in shown),
