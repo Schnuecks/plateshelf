@@ -414,6 +414,22 @@ def test_settings_sections(server, page, monkeypatch):
     assert page.errors == []
 
 
+def test_returning_to_the_app_reloads_stale_pages(server, page):
+    """iOS home-screen app: when the page comes back from the cache it is reloaded, except on pages
+    where something may be being edited."""
+    restored = "window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted: true}))"
+    page.goto(server["url"] + "/")
+    page.evaluate("window.__old = true")
+    with page.expect_navigation():
+        page.evaluate(restored)
+    assert page.evaluate("window.__old") is None
+    page.goto(server["url"] + "/settings")
+    page.evaluate("window.__old = true")
+    page.evaluate(restored)
+    page.wait_for_timeout(500)
+    assert page.evaluate("window.__old") is True
+
+
 def test_mobile_layout(server, browser):
     """Phone: flat header with menu button, nothing sticks out over the edge, preview fits the screen."""
     context = browser.new_context(viewport={"width": 375, "height": 740}, locale="de-DE", has_touch=True)

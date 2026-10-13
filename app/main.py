@@ -98,6 +98,10 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
+    # Pages and API answers always fresh: otherwise the iOS home-screen app may show an old state
+    kind = response.headers.get("content-type", "")
+    if kind.startswith(("text/html", "application/json")) or request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 

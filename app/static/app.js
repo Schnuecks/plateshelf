@@ -99,6 +99,27 @@ const tabTitle = (items) => {
     ? `${t("{n} Drucke · nächster {pct} %", { n: items.length, pct })} · ${baseTitle}`
     : `${pct} % · ${baseTitle}`;
 };
+// Home-screen app (iOS) and background tabs: timers stop while the app is hidden, and iOS shows
+// the old page when you come back. After a longer pause the page reloads (unless something is
+// being edited), otherwise the live values are fetched right away ("plateshelf:resume").
+(() => {
+  const EDIT_PAGES = /^\/(settings|upload|account|login|setup|logout)/;
+  let hiddenAt = document.hidden ? Date.now() : 0;
+  const busy = () => EDIT_PAGES.test(location.pathname) ||
+    /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
+    document.querySelector("[data-bulk-item]:checked, dialog[open], details[open] textarea");
+  const resume = (away) => {
+    if (away > 60000 && !busy()) { location.reload(); return; }
+    document.dispatchEvent(new Event("plateshelf:resume"));
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (hiddenAt) { const away = Date.now() - hiddenAt; hiddenAt = 0; resume(away); }
+  });
+  // iOS restores the page from its cache (back/forward or reopening the app)
+  window.addEventListener("pageshow", (e) => { if (e.persisted) resume(Infinity); });
+})();
+
 document.querySelectorAll("[data-live-print]").forEach((wrap) => {
   const link = wrap.querySelector("[data-live-link]");
   const text = wrap.querySelector("[data-live-text]");
@@ -135,6 +156,7 @@ document.querySelectorAll("[data-live-print]").forEach((wrap) => {
   };
   refresh();
   setInterval(refresh, 15000);
+  document.addEventListener("plateshelf:resume", refresh);
 });
 
 // Refresh progress of running prints every 15 s: on the project tiles of the overview and in
@@ -144,7 +166,7 @@ const liveBadges = document.querySelectorAll("[data-live-project], [data-live-jo
 const liveSeen = new Set();
 if (liveBadges.length) {
   const fmtPct = (v) => Math.round(v).toLocaleString(document.documentElement.lang || undefined);
-  setInterval(() => {
+  const update = () => {
     if (document.hidden) return;
     fetch("/api/printing", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
@@ -180,7 +202,9 @@ if (liveBadges.length) {
         if (ended && !typing) location.reload();
       })
       .catch(() => {});
-  }, 15000);
+  };
+  setInterval(update, 15000);
+  document.addEventListener("plateshelf:resume", update);
 }
 
 // Overview: show new prints from the printer (or other changes) automatically. Polls every
@@ -218,9 +242,10 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
         }
       } catch { /* offline: next time */ }
     }
-    setTimeout(tick, Date.now() < fastUntil ? 3000 : 20000);
+    timer = setTimeout(tick, Date.now() < fastUntil ? 3000 : 20000);
   };
-  setTimeout(tick, fastUntil ? 3000 : 20000);
+  let timer = setTimeout(tick, fastUntil ? 3000 : 20000);
+  document.addEventListener("plateshelf:resume", () => { clearTimeout(timer); tick(); });
 });
 
 // Settings: refresh the dot in front of each printer every 5 s, so you see right away when
@@ -263,9 +288,10 @@ document.querySelectorAll("[data-printer-live]").forEach((list) => {
         }
       } catch { /* offline: next time */ }
     }
-    setTimeout(tick, 5000);
+    timer = setTimeout(tick, 5000);
   };
-  setTimeout(tick, 1500);
+  let timer = setTimeout(tick, 1500);
+  document.addEventListener("plateshelf:resume", () => { clearTimeout(timer); tick(); });
 });
 
 // Settings after saving the printers: reload as soon as the sync is done, so the
