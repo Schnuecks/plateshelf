@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Diagnose zum Kopieren in ein GitHub-Issue.
+"""Diagnostics for copying into a GitHub issue.
 
-Enthält Version, Plattform, Einstellungen (nur ob gesetzt), Bibliothek in Zahlen,
-Druckertypen mit ihrem letzten Abruf und die letzten Warnungen aus dem Log.
-Bewusst nicht enthalten: Zugangsdaten, IP-Adressen, Hostnamen und Druckernamen.
-Der Text ist englisch, damit er in jedem Issue verständlich ist.
+Contains version, platform, settings (only whether set), library in numbers,
+printer types with their last poll and the latest warnings from the log.
+Deliberately not included: credentials, IP addresses, hostnames and printer names.
+The text is in English so that it is understandable in any issue.
 """
 from __future__ import annotations
 
@@ -30,18 +30,18 @@ ENV_NAMES = ("TZ", "LOG_LEVEL", "SCAN_INTERVAL", "MAX_UPLOAD_MB", "PREVIEW_PREBU
 
 
 def mask(text: str) -> str:
-    """Adressen unkenntlich machen, bevor etwas geteilt wird."""
+    """Mask addresses before anything is shared."""
     return _IPV4.sub("x.x.x.x", _URL.sub(r"\1<host>", text))
 
 
 class _Recent(logging.Handler):
-    """Merkt sich die letzten Warnungen und Fehler, ohne sie zu schreiben."""
+    """Remembers the latest warnings and errors without writing them."""
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
             when = time.strftime("%Y-%m-%d %H:%M", time.localtime(record.created))
             _log.append(f"{when} {record.levelname} {record.name}: {mask(record.getMessage())}"[:300])
-        except Exception:  # noqa: BLE001  (Diagnose darf nie selbst stören)
+        except Exception:  # noqa: BLE001  (diagnostics must never interfere itself)
             pass
 
 
@@ -57,7 +57,7 @@ def _yes(flag) -> str:
 
 
 def _sign_in() -> str:
-    """Anmeldung mit Anzahl Konten je Rolle und Tokens, ohne Namen."""
+    """Sign-in with number of accounts per role and tokens, without names."""
     if not auth.enabled():
         return "off (AUTH=off)"
     with store.connect() as con:

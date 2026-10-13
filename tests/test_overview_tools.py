@@ -1,4 +1,4 @@
-"""Mehrfachauswahl in der Übersicht, Projekt als ZIP und Web-App-Manifest."""
+"""Multi-select in the overview, project as ZIP and web app manifest."""
 import io
 import json
 import zipfile
@@ -41,10 +41,10 @@ def test_bulk_status_and_tag(client, three):
     assert r.headers["location"] == "/?sort=name&bulk=2"
     now = projects()
     assert (now["Benchy"]["status"], now["Benchy"]["tags"]) == ("geplant", "Geschenke, alt")
-    assert (now["Clip"]["status"], now["Clip"]["tags"]) == ("geplant", "alt, Geschenke")  # keine doppelten Tags
+    assert (now["Clip"]["status"], now["Clip"]["tags"]) == ("geplant", "alt, Geschenke")  # no duplicate tags
     assert now["Vase"]["status"] == "" and now["Vase"]["tags"] == ""
     assert "2 Projekte geändert" in client.get(r.headers["location"]).text
-    # „unverändert“ lässt den Status stehen
+    # „unverändert“ leaves the status as is
     client.post("/bulk", data={"pid": ids, "status": "-", "add_tag": "neu", "action": "apply"})
     assert projects()["Benchy"]["status"] == "geplant"
     assert client.post("/bulk", data={"pid": ids, "status": "quatsch", "action": "apply"}).status_code == 400
@@ -55,7 +55,7 @@ def test_bulk_trash(client, three):
     r = client.post("/bulk", data={"pid": ids, "action": "trash"}, follow_redirects=False)
     assert r.headers["location"] == "/?bulk_trashed=2"
     assert sorted(projects()) == ["Clip"]
-    assert len(trash.entries()) == 2  # einzeln wiederherstellbar
+    assert len(trash.entries()) == 2  # restorable individually
     assert client.post("/bulk", data={"action": "trash"}, follow_redirects=False).headers["location"] == "/"
 
 

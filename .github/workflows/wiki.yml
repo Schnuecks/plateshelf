@@ -1,7 +1,7 @@
 name: Wiki
 
-# Spiegelt docs/ ins GitHub-Wiki: bei jedem Release und auf Knopfdruck (Actions → Wiki → Run).
-# Die Quelle bleibt docs/ im Repo; Änderungen direkt im Wiki werden beim nächsten Lauf überschrieben.
+# Mirrors docs/ to the GitHub wiki: on every release and on demand (Actions → Wiki → Run).
+# The source stays docs/ in the repo; edits made directly in the wiki are overwritten on the next run.
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
   wiki:
     runs-on: ubuntu-24.04
     permissions:
-      contents: write   # das Wiki ist ein eigenes Git-Repo, Schreiben braucht dieses Recht
+      contents: write   # the wiki is a separate Git repo, writing to it needs this permission
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

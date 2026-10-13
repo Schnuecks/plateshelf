@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Spiegelt docs/en und docs/de ins GitHub-Wiki.
+"""Mirrors docs/en and docs/de into the GitHub wiki.
 
-Die Quelle bleibt docs/ im Repo (versioniert, per PR geprüft); das Wiki ist nur eine Ansicht
-mit Seitenleiste. Bei jedem Lauf werden alle Wiki-Seiten neu geschrieben, Änderungen direkt
-im Wiki gehen also verloren – darauf weist jede Seite oben hin.
+The source remains docs/ in the repo (versioned, reviewed via PR); the wiki is just a view
+with a sidebar. Every run rewrites all wiki pages, so changes made directly
+in the wiki are lost – every page points this out at the top.
 
     python tools/wiki_sync.py docs <wiki-checkout> --ref v1.0.0 --repo Schnuecks/plateshelf
 """
@@ -14,7 +14,7 @@ import argparse
 import re
 from pathlib import Path
 
-# Datei in docs/<lang>/ -> Name der Wiki-Seite (Englisch ohne Präfix, Deutsch mit „DE-“)
+# File in docs/<lang>/ -> name of the wiki page (English without prefix, German with "DE-")
 PAGES = {
     "en": {"README": "Documentation", "installation": "Installation", "configuration": "Configuration",
            "usage": "Usage", "printers": "Printers", "dashboard": "Dashboard", "development": "Development"},
@@ -32,9 +32,9 @@ _LINK = re.compile(r"\]\(([^)\s]+)\)")
 
 
 def _rewrite(target: str, lang: str, ref: str, repo: str) -> str:
-    """Relativen Link aus docs/<lang>/ auf Wiki-Seite oder Datei im Repo umbiegen."""
+    """Rewrite a relative link from docs/<lang>/ to a wiki page or a file in the repo."""
     if re.match(r"^[a-z]+:|^#", target):
-        return target  # extern oder Anker auf derselben Seite
+        return target  # external, or an anchor on the same page
     path, _, anchor = target.partition("#")
     anchor = f"#{anchor}" if anchor else ""
     m = re.fullmatch(r"(?:\.\./(en|de)/)?([\w-]+)\.md", path)
@@ -78,7 +78,7 @@ def home(repo: str) -> str:
 
 def sync(docs: Path, wiki: Path, ref: str, repo: str) -> list[str]:
     for old in wiki.glob("*.md"):
-        old.unlink()  # alles neu: umbenannte oder gelöschte Seiten verschwinden mit
+        old.unlink()  # start fresh: renamed or deleted pages disappear too
     written = []
     for lang, pages in PAGES.items():
         for stem, page in pages.items():

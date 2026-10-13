@@ -1,4 +1,4 @@
-"""Platten-Fortschritt: welche Platten eines Projekts schon fertig gedruckt sind."""
+"""Plate progress: which plates of a project have already been printed successfully."""
 import itertools
 import time
 
@@ -33,17 +33,17 @@ def project(name):
 
 
 def test_single_plate_files_like_the_p2s(client, lib, sample):
-    """Jede Platte als eigene Datei (Import vom P2S): jeder Druck der Datei zählt für ihre Platte."""
+    """Each plate as its own file (import from the P2S): every print of the file counts for its plate."""
     folder = lib / "Reaper"
     folder.mkdir()
     for n in (1, 2, 3, 4):
         sample(folder / f"Reaper_plate_{n}.gcode.3mf", [{"idx": n, **PLATE}])
     store.scan(wait=True)
     add_job("Reaper/Reaper_plate_2.gcode.3mf", plate=2)
-    add_job("Reaper/Reaper_plate_3.gcode.3mf", plate=None)  # alter Druck ohne Plattenangabe
+    add_job("Reaper/Reaper_plate_3.gcode.3mf", plate=None)  # old print without plate info
     add_job("Reaper/Reaper_plate_3.gcode.3mf", plate=3)
-    add_job("Reaper/Reaper_plate_4.gcode.3mf", status="cancelled")  # zählt nicht
-    add_job("Reaper/Reaper_plate_1.gcode.3mf", hidden=1)  # aus dem Verlauf entfernt, zählt nicht
+    add_job("Reaper/Reaper_plate_4.gcode.3mf", status="cancelled")  # does not count
+    add_job("Reaper/Reaper_plate_1.gcode.3mf", hidden=1)  # removed from the history, does not count
     p = project("Reaper")
     assert {x["idx"]: x["printed"] for x in p["plates"]} == {1: 0, 2: 1, 3: 2, 4: 0}
     assert p["plates_printed"] == 2
@@ -64,7 +64,7 @@ def test_several_plates_in_one_file_use_the_reported_plate(client, lib, sample):
     sample(lib / "Set.gcode.3mf", [{"idx": 1, **PLATE}, {"idx": 2, **PLATE}, {"idx": 3, **PLATE}])
     store.scan(wait=True)
     add_job("Set.gcode.3mf", plate=3)
-    add_job("Set.gcode.3mf", plate=None)  # ohne Plattenangabe nicht zuzuordnen
+    add_job("Set.gcode.3mf", plate=None)  # cannot be assigned without plate info
     p = project("Set")
     assert {x["idx"]: x["printed"] for x in p["plates"]} == {1: 0, 2: 0, 3: 1}
     assert "1/3 Platten gedruckt" in client.get("/").text
@@ -81,7 +81,7 @@ def test_single_plate_projects_keep_the_print_count(client, lib, sample):
 
 
 def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
-    """Neu gesliced und erneut gedruckt: zwei Fassungen von Platte 2, neueste zuerst, mit Datum."""
+    """Re-sliced and printed again: two versions of plate 2, newest first, with date."""
     import os
     import re
     for folder, stamp in (("Vom Drucker", 1_790_000_000), ("From printer", 1_790_600_000)):
@@ -96,4 +96,4 @@ def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
     assert strip.count("Platte 2: BODY") == 2 and strip.count("strip-version") == 2
     dates = re.findall(r'strip-version">([^<]+)<', strip)
     assert dates[0].startswith(time.strftime("%d.%m.%Y", time.localtime(1_790_600_000))), dates
-    assert "0,20 mm" in dates[0] and "Platte 3" in strip.split(dates[1])[1]  # Platte 3 ohne Zusatz
+    assert "0,20 mm" in dates[0] and "Platte 3" in strip.split(dates[1])[1]  # Platte 3 without suffix

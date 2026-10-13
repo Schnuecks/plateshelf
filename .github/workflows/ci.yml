@@ -1,13 +1,13 @@
 name: CI
 
-# Pull Requests und Versions-Tags durchlaufen alles: Linter (Ruff), Python-Tests, Browsertest
-# (Playwright), Image-Bau für alle Plattformen und Trivy-Scan auf bekannte Sicherheitslücken.
-# Ein Push auf main ist fast immer der Squash eines eben geprüften PRs: dort laufen nur Linter
-# und Python-Tests als Sicherheitsnetz, Browsertest und Image-Bau wären doppelt.
-# Bei Pull Requests wird das Image nur probeweise gebaut (nicht hochgeladen), damit Speicher
-# und Datenvolumen geschont werden und ein Fehler auf einer Plattform vor dem Release auffällt.
-# Hochgeladen wird es nur bei einem Versions-Tag (v1.2.3); danach bleiben die
-# letzten fünf Releases erhalten (KEEP_VERSIONS), ältere werden gelöscht.
+# Pull requests and version tags run everything: linter (Ruff), Python tests, browser test
+# (Playwright), image build for all platforms and a Trivy scan for known vulnerabilities.
+# A push to main is almost always the squash of a PR that was just checked: only the linter
+# and Python tests run there as a safety net, browser test and image build would be redundant.
+# For pull requests the image is only test-built (not uploaded) to save storage and
+# bandwidth and so a failure on one platform shows up before the release.
+# It is only uploaded for a version tag (v1.2.3); afterwards the last
+# five releases are kept (KEEP_VERSIONS), older ones are deleted.
 
 on:
   push:
@@ -16,15 +16,15 @@ on:
   pull_request:
 
 env:
-  PLATFORMS: linux/amd64,linux/arm64   # PC/Server, Raspberry Pi 4/5 und NAS
-  # Paketversionen, die beim Aufräumen bleiben: pro Release 1 Index + 1 Image je Plattform
-  # (2 Plattformen = 3 Versionen), also 5 Releases = 15. Sonst würden die Plattform-Images
-  # älterer Releases gelöscht und diese Versionen ließen sich nicht mehr installieren.
+  PLATFORMS: linux/amd64,linux/arm64   # PC/server, Raspberry Pi 4/5 and NAS
+  # Package versions kept by the cleanup: per release 1 index + 1 image per platform
+  # (2 platforms = 3 versions), so 5 releases = 15. Otherwise the platform images of
+  # older releases would be deleted and those versions could no longer be installed.
   KEEP_VERSIONS: 15
 
 jobs:
   test:
-    runs-on: ubuntu-24.04  # fest, damit ein Wechsel von ubuntu-latest nichts unerwartet ändert
+    runs-on: ubuntu-24.04  # pinned so a change of ubuntu-latest does not change anything unexpectedly
     permissions:
       contents: read
     steps:
@@ -39,7 +39,7 @@ jobs:
       - run: python -m pytest -q
 
   browser:
-    # Seiten und 3D-Vorschau in echtem Chromium (Software-WebGL), ohne JavaScript-Fehler
+    # Pages and 3D preview in real Chromium (software WebGL), without JavaScript errors
     if: github.event_name != 'push' || github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     permissions:
@@ -92,11 +92,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             VERSION=${{ github.ref_type == 'tag' && github.ref_name || format('dev-{0}', github.sha) }}
-          provenance: false   # keine zusätzlichen Manifeste, spart Speicher
+          provenance: false   # no extra manifests, saves storage
           sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Sicherheitsscan: das amd64-Image aus dem Cache laden (die arm64-Pakete sind dieselben)
+      # Security scan: load the amd64 image from the cache (the arm64 packages are the same)
       - uses: docker/build-push-action@v7
         with:
           context: .
@@ -106,7 +106,7 @@ jobs:
           provenance: false
           sbom: false
           cache-from: type=gha
-      # Übersicht über kritische und hohe Lücken, für die es eine Korrektur gibt …
+      # Overview of critical and high vulnerabilities that have a fix …
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: plateshelf:scan
@@ -114,8 +114,8 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: "0"
-      # … abgebrochen wird nur bei kritischen; „hoch“ im Basis-Image soll kein Release blockieren,
-      # bis Debian nachgezogen hat (Dependabot schlägt das neue Basis-Image dann vor)
+      # … but only critical ones fail the build; "high" in the base image should not block a release
+      # until Debian has caught up (Dependabot then proposes the new base image)
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: plateshelf:scan
@@ -126,8 +126,8 @@ jobs:
           skip-setup-trivy: true
 
   dependabot-merge:
-    # Übernimmt Dependabot-Vorschläge für Patch- und Minor-Updates selbst, sobald alle
-    # Prüfungen oben grün sind. Major-Updates bleiben offen und werden von Hand geprüft.
+    # Merges Dependabot proposals for patch and minor updates automatically once all
+    # checks above are green. Major updates stay open and are reviewed by hand.
     needs: [test, browser, image]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-24.04
@@ -145,7 +145,7 @@ jobs:
         run: gh pr merge --squash "$PR_URL"
 
   cleanup:
-    # Nach einem Release ältere Image-Versionen entfernen
+    # After a release, remove older image versions
     needs: image
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04

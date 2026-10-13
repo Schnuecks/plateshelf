@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Passkeys und Sicherheitsschlüssel (WebAuthn) zum Anmelden ohne Passwort.
+"""Passkeys and security keys (WebAuthn) for signing in without a password.
 
-Ablauf in beide Richtungen: Der Server erzeugt eine Herausforderung (Optionen als JSON),
-der Browser lässt sie vom Passkey unterschreiben (static/passkeys.js), der Server prüft die
-Antwort. Die eigentliche Prüfung übernimmt die Bibliothek webauthn. Ein Passkey gilt für
-genau die Adresse (Hostname), unter der er angelegt wurde, und braucht HTTPS (oder localhost).
+Flow in both directions: the server creates a challenge (options as JSON), the
+browser has it signed by the passkey (static/passkeys.js), the server verifies the
+response. The actual verification is done by the webauthn library. A passkey is valid for
+exactly the address (hostname) under which it was created, and needs HTTPS (or localhost).
 """
 from __future__ import annotations
 
@@ -38,23 +38,23 @@ RP_NAME = "PlateShelf"
 CHALLENGE_SECONDS = 300
 MAX_PER_USER = 20
 
-# Meldungen (deutscher Text = Übersetzungsschlüssel)
+# Messages (German text = translation key)
 FAILED = "Der Passkey konnte nicht geprüft werden. Bitte erneut versuchen."
 UNKNOWN = "Dieser Passkey ist hier nicht bekannt."
 EXPIRED = "Die Anfrage ist abgelaufen. Bitte erneut versuchen."
 TOO_MANY = "Du hast schon die höchste Zahl an Passkeys."
 MESSAGES = (FAILED, UNKNOWN, EXPIRED, TOO_MANY)
 
-_challenges: dict[str, dict] = {}   # token -> Herausforderung, Zweck, Benutzer, gültig bis
+_challenges: dict[str, dict] = {}   # token -> challenge, purpose, user, valid until
 _lock = threading.Lock()
 
 
 class PasskeyError(Exception):
-    """Fehler, die angezeigt werden (Meldung aus MESSAGES)."""
+    """Errors that are displayed (message from MESSAGES)."""
 
 
 def relying_party(url) -> tuple[str, str]:
-    """(RP-ID, Origin) aus der angefragten Adresse; hinter einem Proxy die weitergereichte."""
+    """(RP ID, origin) from the requested address; behind a proxy the forwarded one."""
     port = f":{url.port}" if url.port else ""
     return url.hostname or "", f"{url.scheme}://{url.hostname}{port}"
 
@@ -71,7 +71,7 @@ def for_user(user_id: int) -> list[dict]:
 
 
 def delete(user_id: int, passkey_id: int) -> str | None:
-    """Entfernt einen eigenen Passkey; liefert seinen Namen (None, wenn es ihn nicht gibt)."""
+    """Removes one of the user's own passkeys; returns its name (None if it does not exist)."""
     with store.connect() as con:
         row = con.execute("SELECT name FROM passkeys WHERE id = ? AND user_id = ?", (passkey_id, user_id)).fetchone()
         if row:
@@ -96,7 +96,7 @@ def _store_challenge(challenge: bytes, purpose: str, user_id: int | None) -> str
 
 
 def _take_challenge(token: str, purpose: str) -> dict:
-    """Holt die Herausforderung und löscht sie; jede gilt genau einmal."""
+    """Fetches the challenge and deletes it; each one is valid exactly once."""
     with _lock:
         row = _challenges.pop(str(token), None)
     if not row or row["purpose"] != purpose or row["expires"] < time.time():
@@ -113,7 +113,7 @@ def registration_options(user: dict, rp_id: str) -> dict[str, Any]:
         rp_id=rp_id, rp_name=RP_NAME, user_name=user["name"], user_display_name=user["name"],
         user_id=f"plateshelf-user-{user['id']}".encode(),
         authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.REQUIRED,          # ohne Benutzernamen anmelden
+            resident_key=ResidentKeyRequirement.REQUIRED,          # sign in without username
             user_verification=UserVerificationRequirement.REQUIRED),
         exclude_credentials=exclude,
     )
@@ -138,20 +138,20 @@ def register(user: dict, token: str, credential: dict, name: str, rp_id: str, or
                            VALUES (?, ?, ?, ?, ?, ?)""",
                         (user["id"], bytes_to_base64url(verified.credential_id), verified.credential_public_key,
                          verified.sign_count, name, time.time()))
-        except Exception as exc:  # schon registriert (Eindeutigkeit der Credential-ID)
+        except Exception as exc:  # already registered (credential ID is unique)
             raise PasskeyError(FAILED) from exc
     return name
 
 
 def authentication_options(rp_id: str) -> dict[str, Any]:
-    """Anmeldung ohne Benutzernamen: der Browser bietet die Passkeys für diese Adresse an."""
+    """Sign-in without username: the browser offers the passkeys for this address."""
     options = generate_authentication_options(rp_id=rp_id, user_verification=UserVerificationRequirement.REQUIRED)
     token = _store_challenge(options.challenge, "login", None)
     return {"token": token, "options": json.loads(options_to_json(options))}
 
 
 def authenticate(token: str, credential: dict, rp_id: str, origin: str) -> int:
-    """Prüft die Antwort und liefert die Benutzer-ID des Passkeys."""
+    """Verifies the response and returns the passkey's user ID."""
     row = _take_challenge(token, "login")
     with store.connect() as con:
         key = con.execute("SELECT * FROM passkeys WHERE credential_id = ?", (str(credential.get("id", "")),)).fetchone()
@@ -162,7 +162,7 @@ def authenticate(token: str, credential: dict, rp_id: str, origin: str) -> int:
                 credential=credential, expected_challenge=row["challenge"], expected_rp_id=rp_id,
                 expected_origin=origin, credential_public_key=key["public_key"],
                 credential_current_sign_count=key["sign_count"],
-                require_user_verification=True)  # ohne Passwort muss der Passkey die Person prüfen
+                require_user_verification=True)  # without a password, the passkey must verify the person
         except (InvalidAuthenticationResponse, ValueError, KeyError, TypeError) as exc:
             raise PasskeyError(FAILED) from exc
         con.execute("UPDATE passkeys SET sign_count = ?, last_used = ? WHERE id = ?",

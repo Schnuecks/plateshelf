@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Schnuecks
-// Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
+// Translations come from the page (<script id="i18n">); the key is the German text
 const I18N = (() => {
   try { return JSON.parse(document.getElementById("i18n").textContent); } catch (e) { return {}; }
 })();
 const t = (key, vars = {}) => (I18N[key] || key).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 const LOCALE = document.documentElement.lang || "de";
 
-// Umschalten Schrägansicht / Draufsicht
+// Toggle angled view / top view
 document.querySelectorAll("[data-thumbs]").forEach((fig) => {
   const img = fig.querySelector("img");
   fig.querySelectorAll("[data-view]").forEach((btn) => {
@@ -19,7 +19,7 @@ document.querySelectorAll("[data-thumbs]").forEach((fig) => {
   });
 });
 
-// Namensfeld nur zeigen, wenn „Neues Projekt“ gewählt ist
+// Only show the name field when „Neues Projekt“ is selected
 document.querySelectorAll("[data-new-toggle]").forEach((sel) => {
   const input = sel.form.querySelector("[name=new_name]");
   const sync = () => { input.hidden = sel.value !== "neu"; };
@@ -27,12 +27,12 @@ document.querySelectorAll("[data-new-toggle]").forEach((sel) => {
   sync();
 });
 
-// Drucker: Felder passend zum Typ zeigen (Seriennummer und Zugangscode nur bei Bambu)
+// Printers: show the fields matching the type (serial number and access code only for Bambu)
 document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
   sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
 });
 
-// Menü rechts in der Kopfzeile (Verlauf, Papierkorb, Einstellungen, Konto, Abmelden)
+// Top-bar menu on the right (history, trash, settings, account, sign out)
 document.querySelectorAll("[data-nav-menu]").forEach((menu) => {
   const button = menu.querySelector(".nav-menu-btn");
   const set = (open) => { menu.classList.toggle("is-open", open); button.setAttribute("aria-expanded", String(open)); };
@@ -41,7 +41,7 @@ document.querySelectorAll("[data-nav-menu]").forEach((menu) => {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
 });
 
-// Kopfzeile auf dem Handy: Menü auf- und zuklappen; Höhe der Kopfzeile für die 3D-Vorschau merken
+// Header on phones: expand/collapse the menu; remember the header height for the 3D preview
 document.querySelectorAll("[data-menu-toggle]").forEach((button) => {
   const bar = button.closest(".topbar");
   const set = (open) => {
@@ -57,7 +57,7 @@ document.querySelectorAll(".topbar").forEach((bar) => {
   if ("ResizeObserver" in window) new ResizeObserver(store).observe(bar);
 });
 
-// Einstellungen: immer nur einen Bereich zeigen, gewählt über den Anker (#printers, #power, #history)
+// Settings: show only one section at a time, chosen via the anchor (#printers, #power, #history)
 document.querySelectorAll("[data-settings]").forEach((root) => {
   const sections = [...root.querySelectorAll("[data-section]")];
   const links = [...root.querySelectorAll(".settings-nav a")];
@@ -75,17 +75,17 @@ document.querySelectorAll("[data-settings]").forEach((root) => {
   show();
 });
 
-// Schalter speichern sofort, der Knopf ist nur für Browser ohne JavaScript
+// Toggles save immediately; the button is only for browsers without JavaScript
 document.querySelectorAll("[data-autosubmit]").forEach((input) => {
   const button = input.form.querySelector("[data-autosubmit-button]");
   if (button) button.hidden = true;
   input.addEventListener("change", () => input.form.requestSubmit());
 });
 
-// Laufender Druck in der Titelleiste und im Titel des Browser-Tabs („45 % · …“): alle 15 s auffrischen.
-// Auch bei verstecktem Tab, damit man den Fortschritt in der Tableiste sieht.
+// Running print in the title bar and in the browser tab title („45 % · …“): refresh every 15 s.
+// Also while the tab is hidden, so the progress is visible in the tab strip.
 const baseTitle = document.title;
-// Der Server sortiert: der Druck, der als Nächstes fertig wird, steht vorn.
+// The server sorts: the print that finishes next comes first.
 const tabTitle = (items) => {
   const p = items.find((i) => i.progress != null);
   if (!p) { document.title = baseTitle; return; }
@@ -132,9 +132,9 @@ document.querySelectorAll("[data-live-print]").forEach((wrap) => {
   setInterval(refresh, 15000);
 });
 
-// Fortschritt laufender Drucke alle 15 s auffrischen: auf den Projektkacheln der Übersicht und in
-// den Drucklisten (Projektseite, Verlauf). Beginn und Ende eines Drucks lädt die Übersicht ohnehin
-// neu (siehe unten), hier geht es nur um die Prozente.
+// Refresh progress of running prints every 15 s: on the project tiles of the overview and in
+// the print lists (project page, history). The overview reloads anyway when a print starts or
+// ends (see below); this is only about the percentages.
 const liveBadges = document.querySelectorAll("[data-live-project], [data-live-job]");
 const liveSeen = new Set();
 if (liveBadges.length) {
@@ -157,13 +157,13 @@ if (liveBadges.length) {
           if (badge.dataset.liveJob) {
             const item = byJob.get(badge.dataset.liveJob);
             if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
-            // Eben noch gemeldet, jetzt nicht mehr: der Druck ist zu Ende → neu laden, damit „Fertig“ dasteht.
-            // Nur wenn er auf dieser Seite schon gemeldet war, sonst lüde ein hängender Eintrag ewig neu.
+            // Reported a moment ago, not anymore: the print has ended → reload so „Fertig“ is shown.
+            // Only if it was already reported on this page, otherwise a stuck entry would reload forever.
             if (item) liveSeen.add(badge.dataset.liveJob);
             else if (liveSeen.has(badge.dataset.liveJob)) ended = true;
             return;
           }
-          // Projektkachel: gleiches Projekt auf mehreren Druckern → „Druckt 2× 45 % / 12 %“
+          // Project tile: same project on several printers → „Druckt 2× 45 % / 12 %“
           const jobs = byProject.get(badge.dataset.liveProject) || [];
           if (!jobs.length) return;
           const pcts = jobs.filter((i) => i.progress != null).map((i) => `${fmtPct(i.progress)} %`);
@@ -178,17 +178,17 @@ if (liveBadges.length) {
   }, 15000);
 }
 
-// Übersicht: neue Drucke vom Drucker (oder andere Änderungen) von selbst zeigen. Gefragt wird
-// alle 20 s, während eines Drucker-Abgleichs alle 3 s. Ist gerade etwas markiert oder ein Feld
-// in Bearbeitung, erscheint nur ein Hinweis, damit nichts verloren geht.
+// Overview: show new prints from the printer (or other changes) automatically. Polls every
+// 20 s, every 3 s during a printer sync. If something is selected or a field is being
+// edited, only a notice appears so nothing gets lost.
 document.querySelectorAll("[data-library-version]").forEach((marker) => {
   let version = marker.dataset.libraryVersion;
   const banner = document.querySelector("[data-library-changed]");
   const params = new URLSearchParams(location.search);
   const fresh = () => { params.delete("printers"); return location.pathname + (params.size ? "?" + params : ""); };
   let fastUntil = params.has("printers") || marker.dataset.syncRunning ? Date.now() + 180000 : 0;
-  // Nach „Von Druckern holen“ auch dann neu laden, wenn nichts Neues kam: Knopf und Hinweis zeigen sonst
-  // weiter „wird abgefragt“
+  // After „Von Druckern holen“ reload even if nothing new arrived: otherwise button and notice keep
+  // showing „wird abgefragt“
   let watchSync = fastUntil > 0;
   const busy = () => document.querySelector("[data-bulk-item]:checked") ||
     /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "");
@@ -211,19 +211,19 @@ document.querySelectorAll("[data-library-version]").forEach((marker) => {
             if (banner) banner.hidden = false;
           }
         }
-      } catch { /* offline: beim nächsten Mal */ }
+      } catch { /* offline: next time */ }
     }
     setTimeout(tick, Date.now() < fastUntil ? 3000 : 20000);
   };
   setTimeout(tick, fastUntil ? 3000 : 20000);
 });
 
-// Einstellungen: Punkt vor jedem Drucker alle 5 s auffrischen, damit man beim Einschalten gleich
-// sieht, ob er da ist. Kommt einer zurück, gleicht der Server ab; danach lädt die Seite mit den
-// neuen Angaben (Dateien, Fehlertext) neu.
+// Settings: refresh the dot in front of each printer every 5 s, so you see right away when
+// switching it on whether it is reachable. When one comes back, the server syncs; then the page
+// reloads with the new details (files, error text).
 document.querySelectorAll("[data-printer-live]").forEach((list) => {
   let seen = list.dataset.lastSync;
-  let changed = false;  // nur neu laden, wenn sich an einem Drucker etwas getan hat
+  let changed = false;  // only reload if something changed on a printer
   const tick = async () => {
     if (!document.hidden) {
       try {
@@ -238,8 +238,8 @@ document.querySelectorAll("[data-printer-live]").forEach((list) => {
             dot.classList.toggle("is-error", !online);
             dot.classList.remove("is-unknown");
             dot.title = online ? dot.dataset.online : dot.dataset.offline;
-            // Text darunter stammt vom letzten Abgleich: passt er nicht mehr zum Punkt, vorläufig ersetzen,
-            // bis der Abgleich die genauen Angaben liefert
+            // The text below comes from the last sync: if it no longer matches the dot, replace it
+            // temporarily until the sync delivers the exact details
             const text = list.querySelector(`[data-printer-status="${CSS.escape(dot.dataset.printerDot)}"]`);
             if (text && text.classList.contains(online ? "is-error" : "is-ok")) {
               text.textContent = online ? text.dataset.back : text.dataset.gone;
@@ -256,15 +256,15 @@ document.querySelectorAll("[data-printer-live]").forEach((list) => {
             seen = last;
           }
         }
-      } catch { /* offline: beim nächsten Mal */ }
+      } catch { /* offline: next time */ }
     }
     setTimeout(tick, 5000);
   };
   setTimeout(tick, 1500);
 });
 
-// Einstellungen nach dem Speichern der Drucker: neu laden, sobald der Abgleich durch ist, damit der
-// Status (grün/rot) gleich zu sehen ist
+// Settings after saving the printers: reload as soon as the sync is done, so the
+// status (green/red) is visible right away
 document.querySelectorAll("[data-sync-watch]").forEach((note) => {
   const until = Date.now() + 180000;
   const tick = async () => {
@@ -278,13 +278,13 @@ document.querySelectorAll("[data-sync-watch]").forEach((note) => {
           return;
         }
       }
-    } catch { /* offline: beim nächsten Mal */ }
+    } catch { /* offline: next time */ }
     if (Date.now() < until) setTimeout(tick, 2000);
   };
   setTimeout(tick, 2000);
 });
 
-// Diagnose kopieren (Zwischenablage, sonst Text markieren)
+// Copy diagnostics (clipboard, otherwise select the text)
 document.querySelectorAll("[data-copy]").forEach((button) => {
   const section = button.closest("section");
   const source = section.querySelector("[data-copy-source]");
@@ -301,7 +301,7 @@ document.querySelectorAll("[data-copy]").forEach((button) => {
   });
 });
 
-// Upload: Drag & Drop, Dateiliste, Fortschrittsbalken
+// Upload: drag & drop, file list, progress bar
 document.querySelectorAll("[data-upload]").forEach((form) => {
   const zone = form.querySelector("[data-dropzone]");
   const input = form.querySelector("[data-file-input]");
@@ -354,7 +354,7 @@ document.querySelectorAll("[data-upload]").forEach((form) => {
   });
 });
 
-// Filter sofort anwenden: Auswahlfelder beim Ändern, Suche nach kurzer Tipppause
+// Apply filters immediately: select fields on change, search after a short typing pause
 document.querySelectorAll("[data-filter-toggle]").forEach((button) => {
   const form = button.form;
   const set = (open) => { form.classList.toggle("filters-open", open); button.setAttribute("aria-expanded", String(open)); };
@@ -365,7 +365,7 @@ document.querySelectorAll("[data-filter-toggle]").forEach((button) => {
 
 document.querySelectorAll("[data-autofilter]").forEach((form) => {
   const button = form.querySelector("[data-filter-button]");
-  if (button) button.hidden = true;  // ohne JavaScript bleibt der Knopf sichtbar
+  if (button) button.hidden = true;  // without JavaScript the button stays visible
 
   form.querySelectorAll("select").forEach((sel) => sel.addEventListener("change", () => form.requestSubmit()));
 
@@ -379,7 +379,7 @@ document.querySelectorAll("[data-autofilter]").forEach((form) => {
     form.requestSubmit();
   };
   search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(submitSearch, 500); });
-  // Nach dem Neuladen weitertippen können
+  // Keep typing after the reload
   try {
     if (sessionStorage.getItem("plateshelf-search-focus")) {
       sessionStorage.removeItem("plateshelf-search-focus");
@@ -390,7 +390,7 @@ document.querySelectorAll("[data-autofilter]").forEach((form) => {
   } catch (e) {}
 });
 
-// Sprachmenü in der Titelleiste: schließen bei Klick daneben oder mit Esc
+// Language menu in the title bar: close on outside click or with Esc
 document.querySelectorAll("details[data-menu]").forEach((menu) => {
   document.addEventListener("click", (e) => { if (!menu.contains(e.target)) menu.open = false; });
   menu.addEventListener("keydown", (e) => {
@@ -398,8 +398,8 @@ document.querySelectorAll("details[data-menu]").forEach((menu) => {
   });
 });
 
-// Sicherheitsabfrage vor dem Löschen
-// Mehrfachauswahl in der Übersicht: Leiste erscheint, sobald ein Projekt ausgewählt ist
+// Confirmation before deleting
+// Multi-select in the overview: the bar appears as soon as a project is selected
 const bulk = document.querySelector("[data-bulk]");
 if (bulk) {
   const items = [...document.querySelectorAll("[data-bulk-item]")];
@@ -420,7 +420,7 @@ if (bulk) {
     if (e.submitter && e.submitter.value === "trash"
         && !window.confirm(bulk.dataset.trashConfirm.replace("{n}", selected()))) e.preventDefault();
   });
-  update();  // der Browser stellt Häkchen beim Zurückgehen wieder her
+  update();  // the browser restores checkmarks when going back
 }
 
 document.querySelectorAll("form[data-confirm]").forEach((form) => {
@@ -429,8 +429,8 @@ document.querySelectorAll("form[data-confirm]").forEach((form) => {
   });
 });
 
-// Zurück: kommt man von genau dieser Seite, per Browser-Verlauf zurück
-// (Filter und Scrollposition bleiben erhalten). Esc als Abkürzung.
+// Back: if we came from exactly this page, go back via browser history
+// (filters and scroll position are kept). Esc as a shortcut.
 document.querySelectorAll("[data-back]").forEach((link) => {
   link.addEventListener("click", (e) => {
     try {
@@ -440,7 +440,7 @@ document.querySelectorAll("[data-back]").forEach((link) => {
         e.preventDefault();
         history.back();
       }
-    } catch (err) { /* kein Referrer: normaler Link */ }
+    } catch (err) { /* no referrer: normal link */ }
   });
 });
 document.addEventListener("keydown", (e) => {
@@ -451,12 +451,12 @@ document.addEventListener("keydown", (e) => {
   if (back) back.click();
 });
 
-// Plattenleiste: eine Platte anzeigen, per Klick, Adresse (#platte-…) oder Pfeiltasten wechseln
+// Plate strip: show one plate, switch by click, URL (#platte-…) or arrow keys
 document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
   const allLinks = [...nav.querySelectorAll("[data-plate-link]")];
   const files = [...document.querySelectorAll("[data-file]")];
   if (allLinks.length < 2) return;
-  // Mehrere Fassungen (Schichthöhen): nur die gewählte zeigen, anfangs die neueste
+  // Several versions (layer heights): show only the selected one, initially the newest
   const filter = nav.querySelector("[data-version-filter]");
   let version = filter ? filter.querySelector("[data-version]").dataset.version : "*";
   const shown = (el) => version === "*" || !el.dataset.version || el.dataset.version === version;
@@ -487,7 +487,7 @@ document.querySelectorAll("[data-plate-nav]").forEach((nav) => {
   const select = (id, scroll) => {
     const p = document.getElementById(id);
     if (!p) return;
-    if (!plates.includes(p) && filter) {  // Adresse zeigt auf eine andere Fassung: dorthin wechseln
+    if (!plates.includes(p) && filter) {  // URL points to another version: switch to it
       const li = allLinks.find((a) => a.dataset.plateLink === id)?.closest("li");
       if (li) { version = li.dataset.version; markVersion(); refresh(); }
     }

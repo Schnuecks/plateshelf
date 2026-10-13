@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Erzeugt die App-Symbole (PNG) aus app/static/logo.svg, für Homescreen und Web-App-Manifest.
+"""Creates the app icons (PNG) from app/static/logo.svg, for the home screen and web app manifest.
 
     python tools/make_icons.py
 
-Braucht Playwright (requirements-browser.txt). Erzeugt in app/static/icons/:
-- icon-192.png, icon-512.png: das Logo wie es ist (abgerundetes Quadrat)
-- icon-maskable-512.png: randlos, Logo auf 80 % verkleinert, damit Android es rund
-  oder eckig zuschneiden kann, ohne etwas abzuschneiden
-- apple-touch-icon.png (180 px): randlos; iOS rundet die Ecken selbst ab
+Requires Playwright (requirements-browser.txt). Creates in app/static/icons/:
+- icon-192.png, icon-512.png: the logo as is (rounded square)
+- icon-maskable-512.png: full-bleed, logo scaled down to 80 % so Android can crop it round
+  or square without cutting anything off
+- apple-touch-icon.png (180 px): full-bleed; iOS rounds the corners itself
 """
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 LOGO = ROOT / "app" / "static" / "logo.svg"
 OUT = ROOT / "app" / "static" / "icons"
-BACKGROUND = "#0B6E63"  # Grundfarbe des Logos
+BACKGROUND = "#0B6E63"  # base color of the logo
 
 
 def _full_bleed(svg: str, scale: float) -> str:
-    """Randloses Quadrat in der Logofarbe, Inhalt mittig auf `scale` verkleinert."""
+    """Full-bleed square in the logo color, content centered and scaled down to `scale`."""
     inner = re.sub(r'<rect width="64" height="64" rx="14"[^>]*/>', "", svg)
     body = inner[inner.index(">") + 1:inner.rindex("</svg>")]
     offset = 32 * (1 - scale)

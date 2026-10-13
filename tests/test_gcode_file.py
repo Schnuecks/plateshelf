@@ -9,7 +9,7 @@ from app.gcode_preview import convert
 
 
 def qoi(width, height, rgba):
-    """Kleines QOI-Bild nur aus QOI_OP_RGBA-Blöcken."""
+    """Small QOI image made only of QOI_OP_RGBA chunks."""
     body = b"".join(b"\xff" + bytes(px) for px in rgba)
     return b"qoif" + struct.pack(">IIBB", width, height, 4, 0) + body + b"\x00" * 7 + b"\x01"
 
@@ -125,7 +125,7 @@ def test_prusa(tmp_path):
     assert plate.weight_g == pytest.approx(3.98)
     assert plate.objects == ["Benchy", "Benchy"]
     assert parsed.settings["fill_density"] == "15%" and parsed.settings["bed_temperature"] == ["60", "90"]
-    # Größtes Vorschaubild, von QOI in PNG umgewandelt
+    # Largest thumbnail, converted from QOI to PNG
     assert plate.thumb.startswith(b"\x89PNG")
     assert struct.unpack(">II", plate.thumb[16:24]) == (16, 16)
 
@@ -173,7 +173,7 @@ def test_cura(tmp_path):
     assert parsed.slicer == "Cura 5.7.1" and parsed.printer == "Creality Ender-3 V3 SE"
     assert plate.prediction_s == 754 and plate.layers == 2 and plate.max_z == 0.4
     assert plate.filaments[0].used_m == 1.5
-    assert plate.filaments[0].used_g == pytest.approx(4.47, abs=0.01)  # aus Länge, 1,75 mm, PLA
+    assert plate.filaments[0].used_g == pytest.approx(4.47, abs=0.01)  # from length, 1.75 mm, PLA
     assert parsed.layer_height == "0.2"
 
 
@@ -191,7 +191,7 @@ def test_preview_cura_heights(tmp_path):
     path = tmp_path / "cura.gcode"
     path.write_text(CURA_GCODE)
     meta = convert(path, 1, tmp_path / "out" / "1_1")
-    assert meta["layers"] == [0.2, 0.4]  # Höhe kommt erst nach der Schichtmarke
+    assert meta["layers"] == [0.2, 0.4]  # height only comes after the layer marker
     assert meta["features"] == ["Außenwand", "Infill"]
 
 
@@ -230,7 +230,7 @@ def test_scan_and_names(lib, tmp_path):
 def test_bed_area_for_the_viewer(tmp_path):
     from app.gcode_file import bed_area, bed_rect
     assert bed_rect("0x0,180x0,180x180,0x180") == [0, 0, 180, 180]           # PrusaSlicer, MINI
-    assert bed_rect(["0x0", "256x0", "256x256", "0x256"]) == [0, 0, 256, 256]  # Bambu Studio (Liste)
+    assert bed_rect(["0x0", "256x0", "256x256", "0x256"]) == [0, 0, 256, 256]  # Bambu Studio (list)
     assert bed_rect("") is None and bed_rect("0x0,5x0,5x5") is None and bed_rect("ax0,1x1,2x2") is None
     path = tmp_path / "Benchy.gcode"
     path.write_text(prusa_gcode())

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Lasttest mit einer großen Beispielbibliothek: Einlesen, Seiten und Abfragen messen.
+"""Load test with a large sample library: measures scanning, pages and queries.
 
-    python tools/load_test.py            # 2000 Dateien
-    python tools/load_test.py 5000       # andere Anzahl
+    python tools/load_test.py            # 2000 files
+    python tools/load_test.py 5000       # different count
 
-Legt alles in einem temporären Ordner an und gibt die Zeiten aus. Die Dateien sind
-klein (ohne echten G-Code), gemessen wird also PlateShelf selbst, nicht das Entpacken.
+Creates everything in a temporary folder and prints the timings. The files are
+small (no real G-code), so it measures PlateShelf itself, not the unpacking.
 """
 from __future__ import annotations
 

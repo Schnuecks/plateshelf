@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "/static/vendor/OrbitControls.js";
 import { POLY_END, loadPreview } from "plateshelf/geometry";
 
-// Übersetzungen kommen aus der Seite (<script id="i18n">), Schlüssel ist der deutsche Text
+// Translations come from the page (<script id="i18n">); the key is the German text
 const I18N = (() => {
   try { return JSON.parse(document.getElementById("i18n").textContent); } catch (e) { return {}; }
 })();
@@ -21,7 +21,7 @@ const loading = document.getElementById("viewer-loading");
 const loadingText = document.getElementById("viewer-loading-text");
 const loadingBar = document.getElementById("viewer-loading-bar");
 const panel = document.getElementById("viewer-panel");
-// Handy: „Optionen“ öffnet die übrigen Einstellungen als Blatt von unten, „Fertig“ schließt es
+// Phone: „Optionen“ opens the remaining settings as a bottom sheet, „Fertig“ closes it
 const side = document.getElementById("viewer-side");
 const optionsBtn = document.getElementById("options-toggle");
 const setOptions = (open) => {
@@ -32,7 +32,7 @@ const setOptions = (open) => {
 optionsBtn?.addEventListener("click", () => setOptions(!side.classList.contains("is-open")));
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && side.classList.contains("is-open")) setOptions(false); });
 
-// Farben der Linientypen, angelehnt an die Slicer-Vorschau
+// Line type colors, modelled on the slicer preview
 const FEATURE_COLORS = {
   "Außenwand": "#FF7D38", "Innenwand": "#FFD37A", "Überhangwand": "#3D6BFF",
   "Infill": "#B8352E", "Massives Infill": "#C23BC9", "Oberfläche": "#FF3040",
@@ -48,26 +48,26 @@ const featureRank = (name) => {
   return name === "Sonstiges" ? 999 : i < 0 ? 900 : i;
 };
 
-const DEFAULT_UNI = "#2FB36B"; // kräftiges Grün für die einfarbige Ansicht
+const DEFAULT_UNI = "#2FB36B"; // strong green for the single-color view
 const MODES = { tool: 0, feature: 1, uni: 2, speed: 3, flow: 4, fan: 5, temp: 6 };
 const METRIC_KEYS = ["speed", "flow", "fan", "temp"];
-// Farbskala wie in den Slicern: langsam/kühl blau, schnell/heiß rot
+// Color scale as in the slicers: slow/cool blue, fast/hot red
 const RAMP = ["#2A4DD9", "#1AB3D9", "#4DC759", "#F2D133", "#E63A2E"];
 const EXTRA_COLORS = { travel: "#5B8DEF", retract: "#E040FB", seam: "#F5F5F5" };
 const METRIC_NAMES = { speed: "Geschwindigkeit", flow: "Volumenstrom", fan: "Lüfter", temp: "Düsentemperatur" };
 const store = {
-  // Einstellungen aus der Zeit als „Druckarchiv“ werden weiter gelesen
+  // Settings from the „Druckarchiv“ era are still read
   get(k, d) { try { return localStorage.getItem(k) ?? localStorage.getItem(k.replace(/^plateshelf-/, "druckarchiv-")) ?? d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* privat */ } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
 };
-const IDLE_MS = 180;          // so lange nach der letzten Bewegung wieder volle Qualität
-const TARGET_MS = 22;         // Bildzeit, die beim Drehen noch als flüssig gilt
-const REST_MAX_MS = 400;      // länger darf ein einzelnes Standbild nicht dauern
-const CUT_ALL = 1e9;          // Wiedergabe aus: oberste Schicht vollständig
-const PLAY_MM_S = 150;        // Wiedergabe bei 1×: etwa übliche Druckgeschwindigkeit
-const PLAY_SPEEDS = [1, 10, 50, 200, 1000];  // große Drucke brauchen mehr als 50×
+const IDLE_MS = 180;          // full quality again this long after the last movement
+const TARGET_MS = 22;         // frame time still considered smooth while rotating
+const REST_MAX_MS = 400;      // a single still frame must not take longer
+const CUT_ALL = 1e9;          // playback off: top layer complete
+const PLAY_MM_S = 150;        // playback at 1×: roughly typical print speed
+const PLAY_SPEEDS = [1, 10, 50, 200, 1000];  // large prints need more than 50×
 
-// Plattenwechsel mit Pfeiltasten, schon während die Vorschau noch lädt
+// Switch plates with arrow keys, even while the preview is still loading
 window.addEventListener("keydown", (e) => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
   if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
@@ -90,7 +90,7 @@ async function waitForPreview() {
   }
 }
 
-// Laden und Aufbereiten im Web Worker; ohne Worker-Unterstützung direkt hier
+// Load and process in the Web Worker; without worker support directly here
 function loadData() {
   loadingText.textContent = t("Druckbahnen werden geladen");
   loadingBar.removeAttribute("value");
@@ -115,7 +115,7 @@ function loadData() {
       else if (msg.type === "done") { worker.terminate(); resolve(msg.data); }
       else if (msg.type === "error") { worker.terminate(); reject(new Error(msg.message)); }
     };
-    // Worker nicht startbar (z. B. alte Browser ohne Modul-Worker): im Hauptthread weiter
+    // Worker cannot start (e.g. old browsers without module workers): continue on the main thread
     worker.onerror = (e) => { e.preventDefault(); worker.terminate(); resolve(inline()); };
     worker.postMessage({ api });
   });
@@ -136,16 +136,16 @@ function buildGeometry(d) {
   return { geo, tube, pos, info };
 }
 
-// Röhren in Blöcken aus aufeinanderfolgenden Schichten. Jeder Block hat einen eigenen
-// Begrenzungsrahmen: Blöcke außerhalb des Bildes oder des Schichtbereichs werden gar
-// nicht erst gezeichnet. Die Blöcke nutzen Ausschnitte derselben Arrays, auf der
-// Grafikkarte liegt nichts doppelt.
-// Instanz i verbindet Punkt i mit Punkt i+1; Bahnenden sind markiert und entfallen.
+// Tubes in blocks of consecutive layers. Each block has its own bounding
+// box: blocks outside the view or the layer range are not drawn at all.
+// The blocks use slices of the same arrays, nothing is duplicated on the
+// GPU.
+// Instance i connects point i with point i+1; path ends are flagged and skipped.
 function buildTubeChunks(d, meta, pad) {
   const { pos, info, mets, layerPoint: lp } = d;
   const nPts = pos.length / 3, nL = meta.layers.length;
   const target = Math.max(40000, Math.ceil(nPts / 32));
-  // Eckpunkte eines Rechtecks: x = Position entlang der Bahn (0..1), y = Seite (-1..1)
+  // Corners of a rectangle: x = position along the path (0..1), y = side (-1..1)
   const quad = new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, -1, 0, 1, 1, 0, 0, 1, 0]), 3);
   const chunks = [];
   let la = 0;
@@ -153,7 +153,7 @@ function buildTubeChunks(d, meta, pad) {
     const first = lp[la];
     let lb = la;
     while (lb + 1 < nL && lp[lb + 2] - first < target) lb++;
-    const end = Math.min(lp[lb + 1], nPts - 1); // Instanzen [first, end)
+    const end = Math.min(lp[lb + 1], nPts - 1); // instances [first, end)
     if (end > first) {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (let p = first; p <= end; p++) {
@@ -170,7 +170,7 @@ function buildTubeChunks(d, meta, pad) {
       g.setAttribute("aEnd", new THREE.InterleavedBufferAttribute(posBuf, 3, 3));
       const infoBuf = new THREE.InstancedInterleavedBuffer(info.subarray(first * 4, (end + 1) * 4), 4, 1);
       g.setAttribute("aInfo", new THREE.InterleavedBufferAttribute(infoBuf, 4, 0));
-      // Messwerte gehören zum Punkt am Ende des Bahnstücks
+      // measurements belong to the point at the end of the path segment
       const metBuf = new THREE.InstancedInterleavedBuffer(mets.subarray(first * 4, (end + 1) * 4), 4, 1);
       g.setAttribute("aMetric", new THREE.InterleavedBufferAttribute(metBuf, 4, 4));
       g.instanceCount = end - first;
@@ -183,7 +183,7 @@ function buildTubeChunks(d, meta, pad) {
   return chunks;
 }
 
-// Ausgedünnte Linien: nur jede step-te Schicht, gleiche Punktdaten
+// Thinned-out lines: only every step-th layer, same point data
 function buildLod(meta, polys, geo, step) {
   const nL = meta.layers.length;
   let n = 0;
@@ -215,7 +215,7 @@ const SHARED_GLSL = /* glsl */ `
   uniform vec3 toolColors[32]; uniform vec3 featureColors[32];
   uniform uint toolMask; uniform uint featureMask;
   uniform vec3 uniColor;
-  uniform float cutPoint; // Wiedergabe: oberste Schicht nur bis zu diesem Punkt (mit Bruchteil)
+  uniform float cutPoint; // playback: top layer only up to this point (with fraction)
   bool visibleFor(vec4 inf) {
     int f = int(inf.y); int t = int(inf.z);
     return inf.x >= minLayer && inf.x <= maxLayer
@@ -229,7 +229,7 @@ const SHARED_GLSL = /* glsl */ `
     return mix(ramp[i], ramp[i + 1], x - float(i));
   }
   vec3 baseColor(vec4 inf, vec4 met) {
-    // Genau ein return: sonst warnt der Shader-Compiler unter Windows (ANGLE/D3D)
+    // Exactly one return: otherwise the shader compiler warns on Windows (ANGLE/D3D)
     vec3 c = featureColors[int(inf.y)];
     if (mode >= 3) {
       int k = mode - 3;
@@ -256,7 +256,7 @@ function makeUniforms() {
     normalPass: { value: 0 },
     uniColor: { value: new THREE.Color(DEFAULT_UNI) },
     metricLo: { value: new THREE.Vector4() }, metricHi: { value: new THREE.Vector4(1, 1, 1, 1) },
-    // Wie alle Farben linear gerechnet und bei der Ausgabe umgerechnet: entspricht der Legende
+    // Like all colors computed linearly and converted on output: matches the legend
     ramp: { value: RAMP.map((h) => new THREE.Color(h)) },
   };
 }
@@ -269,10 +269,10 @@ function makeLineMaterial(uniforms) {
       ${SHARED_GLSL}
       varying vec3 vColor; varying float vIdx; varying float vTop;
       void main() {
-        vIdx = float(gl_VertexID); // beim indexierten Zeichnen der Punktindex
+        vIdx = float(gl_VertexID); // the vertex index when drawing indexed
         vTop = info.x == maxLayer ? 1.0 : 0.0;
         if (!visibleFor(info)) {
-          // Außerhalb des Sichtbereichs legen: die Linie wird verworfen, bevor sie gerastert wird
+          // Move outside the view volume: the line is discarded before it is rasterized
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           vColor = vec3(0.0);
           return;
@@ -296,7 +296,7 @@ function makeLineMaterial(uniforms) {
 function makeTubeMaterial(uniforms) {
   return new THREE.ShaderMaterial({
     uniforms,
-    side: THREE.DoubleSide, // die Bänder richten sich zur Kamera aus, die Wickelrichtung ist egal
+    side: THREE.DoubleSide, // the ribbons face the camera, winding order does not matter
     vertexShader: /* glsl */ `
       attribute vec3 aStart; attribute vec3 aEnd; attribute vec4 aInfo; attribute vec4 aMetric;
       uniform float halfWidth; uniform float pointOffset; // erster Punkt des Blocks
@@ -312,10 +312,10 @@ function makeTubeMaterial(uniforms) {
           gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
           return;
         }
-        d /= len;  // erst normieren: gekürzt wäre d sonst 1/cut lang und das Band ragte weit über
-                   // beide Enden hinaus (Striche durch die Düse beim Abspielen)
+        d /= len;  // normalize first: once shortened, d would be 1/cut long and the band would stick far out past
+                   // both ends (streaks through the nozzle during playback)
         if (cut < 1.0) { e.xyz = mix(s.xyz, e.xyz, cut); len *= cut; }
-        // Band quer zur Blickrichtung aufspannen, Enden um die halbe Breite verlängern
+        // Span the band across the view direction, extend the ends by half the width
         vec2 corner = position.xy;
         vec3 mid = mix(s.xyz, e.xyz, corner.x);
         vec3 toCam = normalize(-mid);
@@ -332,14 +332,14 @@ function makeTubeMaterial(uniforms) {
       uniform int normalPass;
       varying vec3 vColor; varying float vSide; varying vec3 vPerp; varying vec3 vToCam;
       void main() {
-        // Querschnitt einer Röhre: Normale aus der Position quer über das Band
+        // Cross-section of a tube: normal from the position across the band
         float c = sqrt(max(0.0, 1.0 - vSide * vSide));
         vec3 n = normalize(vPerp * vSide + vToCam * c);
         if (normalPass == 1) { gl_FragColor = vec4(n * 0.5 + 0.5, 1.0); return; }
         vec3 L = normalize(vec3(0.35, 0.55, 0.75));
         float diff = max(dot(n, L), 0.0);
         float spec = pow(max(dot(reflect(-L, n), vToCam), 0.0), 20.0) * 0.28;
-        // Dunkle Filamente an beleuchteten Stellen etwas aufhellen, sonst verschwinden die Schichten
+        // Brighten dark filaments a little where lit, otherwise the layers disappear
         float luma = dot(vColor, vec3(0.2126, 0.7152, 0.0722));
         vec3 col = vColor * (0.22 + 0.78 * diff) + vec3(0.06 * (1.0 - luma) * diff * diff) + spec * 0.7;
         gl_FragColor = vec4(col, 1.0);
@@ -348,9 +348,9 @@ function makeTubeMaterial(uniforms) {
   });
 }
 
-// Umgebungsverdeckung aus dem Tiefenpuffer: Rillen zwischen den Schichten und
-// Ecken werden abgedunkelt. Wird als Faktor multiplikativ über das Bild gelegt.
-// Leerfahrten: dünne Linien, sichtbar im gewählten Schichtbereich
+// Ambient occlusion from the depth buffer: grooves between layers and corners
+// are darkened. Applied multiplicatively over the image as a factor.
+// Travel moves: thin lines, visible in the selected layer range
 function makeTravelMaterial(uniforms, color) {
   return new THREE.ShaderMaterial({
     uniforms: { ...uniforms, color: { value: new THREE.Color(color) } },
@@ -371,8 +371,8 @@ function makeTravelMaterial(uniforms, color) {
   });
 }
 
-// Rückzüge und Nahtstellen: runde Punkte mit dunklem Rand, leicht zur Kamera versetzt,
-// damit sie nicht in der Röhre verschwinden, auf der sie liegen
+// Retractions and seams: round dots with a dark border, offset slightly toward the camera
+// so they do not disappear inside the tube they sit on
 function makeMarkerMaterial(uniforms, color, size) {
   return new THREE.ShaderMaterial({
     uniforms: { ...uniforms, color: { value: new THREE.Color(color) }, size: { value: size }, lift: { value: 0.5 } },
@@ -425,13 +425,13 @@ function makeAoMaterial(depthTexture, normalTexture) {
       void main() {
         if (texture2D(tDepth, vUv).x >= 0.99999) { gl_FragColor = vec4(1.0); return; }
         vec3 p = viewPos(vUv);
-        // Suchradius in Pixeln: zu klein gibt nur Moiré auf den feinen Rillen, dann keine Schattierung
+        // Search radius in pixels: too small only gives moiré on the fine grooves, so no shading then
         float fade = smoothstep(10.0, 24.0, radius * pxScale / max(-p.z, 1e-3));
         if (fade <= 0.0) { gl_FragColor = vec4(1.0); return; }
         vec3 n = normalize(texture2D(tNormal, vUv).xyz * 2.0 - 1.0);
         vec3 tg = normalize(cross(n, abs(n.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
         vec3 bt = cross(n, tg);
-        // Pro Pixel gedrehtes Muster (Interleaved Gradient Noise); das Rauschen glättet der Weichzeichner
+        // Pattern rotated per pixel (interleaved gradient noise); the blur smooths out the noise
         float ang = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
         float bias = 0.002 * abs(p.z);
         float occ = 0.0;
@@ -453,8 +453,8 @@ function makeAoMaterial(depthTexture, normalTexture) {
   });
 }
 
-// Weichzeichner mit Rücksicht auf Kanten (nur Nachbarn in ähnlicher Tiefe), legt die
-// Schattierung multiplikativ über das fertige, kantengeglättete Bild
+// Edge-aware blur (only neighbors at similar depth), applies the shading
+// multiplicatively over the finished, antialiased image
 function makeAoBlurMaterial(depthTexture, aoTexture) {
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -486,9 +486,9 @@ function makeAoBlurMaterial(depthTexture, aoTexture) {
   });
 }
 
-// Textur der Druckplatte: feine Struktur, Linien alle 10 mm, kräftiger alle 50 mm, Rand
+// Build plate texture: fine structure, lines every 10 mm, bolder every 50 mm, border
 function makePlateCanvas(bw, bh) {
-  const px = 8; // Pixel pro mm
+  const px = 8; // pixels per mm
   const s = Math.min(px, 4096 / Math.max(bw, bh));
   const w = Math.round(bw * s), h = Math.round(bh * s);
   const c = document.createElement("canvas");
@@ -499,7 +499,7 @@ function makePlateCanvas(bw, bh) {
   const hex = (col, f) => `#${col.clone().offsetHSL(0, 0, f).getHexString()}`;
   g.fillStyle = hex(base, 0.02);
   g.fillRect(0, 0, w, h);
-  // Struktur wie bei einer texturierten PEI-Platte: viele kleine, leicht hellere Punkte
+  // Structure like a textured PEI plate: many small, slightly lighter dots
   let seed = 7;
   const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   g.fillStyle = hex(base, 0.06);
@@ -527,7 +527,7 @@ function cssVar(name) {
 function start(data) {
   const { meta, polys, travels, retracts } = data;
   const canvas = document.getElementById("viewer-canvas");
-  // Hohe Pixeldichte ist selbst schon glatt, Kantenglättung nur für normale Displays
+  // High pixel density is smooth already; antialiasing only for normal displays
   const dpr = window.devicePixelRatio || 1;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: dpr < 1.5, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(dpr, 2));
@@ -558,10 +558,10 @@ function start(data) {
     controls.update();
   };
 
-  // Druckplatte mit strukturierter Oberfläche, 10-mm- und 50-mm-Linien und Rand.
-  // Sie wird in der Tiefenschattierung mitgerechnet: das Modell wirft einen weichen
-  // Kontaktschatten auf die Platte.
-  // Größe aus den Slicer-Einstellungen (data-bed: x0,y0,x1,y1), sonst 256 mm wie bei Bambu
+  // Build plate with textured surface, 10 mm and 50 mm lines and a border.
+  // It is included in the depth shading: the model casts a soft contact
+  // shadow onto the plate.
+  // Size from the slicer settings (data-bed: x0,y0,x1,y1), otherwise 256 mm as on Bambu
   let [bx0, by0, bx1, by1] = (root.dataset.bed || "").split(",").map(Number);
   if (!(bx1 > bx0 && by1 > by0)) {
     bx0 = by0 = 0;
@@ -575,8 +575,8 @@ function start(data) {
   const plateMesh = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), new THREE.MeshBasicMaterial({ map: plateTex }));
   plateMesh.position.set(bx0 + bw / 2, by0 + bh / 2, -0.02);
   const rim = new THREE.Mesh(new THREE.BoxGeometry(bw + 6, bh + 6, 3), new THREE.MeshBasicMaterial({ color: cssVar("--bed") }));
-  // Oberkante des Rands 1 mm unter der Platte: liegen beide fast gleich hoch, kann die Tiefe aus der
-  // Ferne nicht mehr unterschieden werden und der dunkle Rand scheint streifig durch die Platte
+  // Top of the border 1 mm below the plate: if both are at almost the same height, depth can no
+  // longer be told apart from afar and the dark border shows through the plate in stripes
   rim.position.set(bx0 + bw / 2, by0 + bh / 2, -2.5);
   bedGroup.add(rim, plateMesh);
   scene.add(bedGroup);
@@ -590,7 +590,7 @@ function start(data) {
 
   const { geo, tube, pos } = buildGeometry(data);
   const uniforms = makeUniforms();
-  const mat = { uniforms }; // gemeinsame Einstellungen für Linien und Röhren
+  const mat = { uniforms }; // shared settings for lines and tubes
   uniforms.halfWidth.value = (Number(root.dataset.nozzle) || 0.4) * 1.05 / 2;
   const lineMat = makeLineMaterial(uniforms);
 
@@ -604,7 +604,7 @@ function start(data) {
   }
   for (const o of [lines, tubes]) { o.visible = false; scene.add(o); }
 
-  // --- Leerfahrten, Rückzüge und Nahtstellen -------------------------------------------
+  // --- Travel moves, retractions and seams --------------------------------------------
   const layerZ = (l) => meta.layers[l] || 0;
   const unq = (v) => v / meta.scale - meta.offset;
   const extraLayerGeo = (positions, layers) => {
@@ -628,7 +628,7 @@ function start(data) {
     rePos.set([unq(retracts[i * 3]), unq(retracts[i * 3 + 1]), layerZ(l)], i * 3);
     reLayer[i] = l;
   }
-  // Nahtstellen: Anfang jeder Außenwand-Bahn
+  // Seams: start of each outer wall path
   const outer = meta.features.indexOf("Außenwand");
   const seamIdx = [];
   if (outer >= 0) for (let i = 0; i < polys.length; i += 5) if (polys[i + 4] === outer) seamIdx.push(i);
@@ -664,8 +664,8 @@ function start(data) {
     });
   }
 
-  // Darstellungen, von schön nach schnell. Ausgedünnte Linien entstehen bei Bedarf.
-  const lods = new Map(); // Schrittweite -> LineSegments
+  // Representations, from pretty to fast. Thinned-out lines are created on demand.
+  const lods = new Map(); // step -> LineSegments
   const lodFor = (step) => {
     if (!lods.has(step)) {
       const o = new THREE.LineSegments(buildLod(meta, polys, geo, step), lineMat);
@@ -693,14 +693,14 @@ function start(data) {
     for (const o of [lines, tubes, ...lods.values()]) o.visible = o === obj;
     applyRange(obj);
   };
-  // Anteil der sichtbaren Bahnen, um die Messwerte auf den Schichtbereich umzurechnen
+  // Share of visible paths, to scale the measurements to the layer range
   const shareOf = (lo, hi) => {
     const ls = geo.userData.layerStart;
     return Math.max(0.001, (ls[hi + 1] - ls[lo]) / Math.max(1, ls[ls.length - 1]));
   };
   const visibleShare = () => shareOf(range.lo, range.hi);
 
-  // Farben: Werkzeug t = Filament-Slot t + 1. Ohne Werkzeugwechsel gilt das einzige Filament.
+  // Colors: tool t = filament slot t + 1. Without tool changes the only filament applies.
   const bySlot = Object.fromEntries(filaments.map((f) => [f.slot, f]));
   const toolFil = (t) => bySlot[t + 1] || (meta.tools.length === 0 ? filaments[0] : null);
   for (let t = 0; t < 32; t++) {
@@ -714,13 +714,13 @@ function start(data) {
     uniforms.metricLo.value.setComponent(i, r.min * r.scale);
     uniforms.metricHi.value.setComponent(i, r.max * r.scale);
   });
-  // Messwerte, die im G-Code fehlen (z. B. keine Lüfterbefehle), nicht zur Wahl stellen
+  // Do not offer measurements missing from the G-code (e.g. no fan commands)
   document.querySelectorAll("[data-mode]").forEach((b) => {
     const r = ranges[b.dataset.mode];
     if (METRIC_KEYS.includes(b.dataset.mode) && (!r || r.max <= 0)) b.disabled = true;
   });
 
-  // Schichtregler
+  // Layer slider
   const nLayers = meta.layers.length;
   const slider = document.getElementById("layer-max");
   const single = document.getElementById("layer-single");
@@ -739,7 +739,7 @@ function start(data) {
     mat.uniforms.maxLayer.value = v;
     mat.uniforms.minLayer.value = lo;
     range = { lo, hi: v };
-    // Nur den sichtbaren Schichtbereich an die Grafikkarte schicken
+    // Send only the visible layer range to the GPU
     show(playing ? playObject : restObject());
     label.textContent = t("{n} von {total} ({mm} mm)", { n: v + 1, total: nLayers, mm: fmt(meta.layers[v] || 0) });
     render();
@@ -755,17 +755,17 @@ function start(data) {
     }
   });
 
-  // --- Wiedergabe innerhalb der Schicht ------------------------------------------------
-  // Bahnlänge bis zu jedem Punkt; Leerfahrten zählen nicht. Damit läuft die Wiedergabe
-  // mit gleichmäßiger Geschwindigkeit in mm/s statt Punkt für Punkt.
+  // --- Playback within the layer -----------------------------------------------------
+  // Path length up to each point; travel moves do not count. This makes playback run
+  // at a steady speed in mm/s instead of point by point.
   const nPts = pos.length / 3;
-  const cum = data.cum; // Bahnlänge bis zu jedem Punkt, Leerfahrten zählen nicht
+  const cum = data.cum; // path length up to each point, travel moves do not count
   const lp = tube.userData.layerPoint;
   const layerLen = (l) => {
     const a = lp[l], b = lp[l + 1] - 1;
     return b >= a ? [cum[a], cum[b]] : [0, 0];
   };
-  // Strecke -> Punktindex mit Bruchteil (Instanz i verbindet Punkt i und i+1)
+  // Distance -> point index with fraction (instance i connects point i and i+1)
   const cutFor = (l, dist) => {
     let lo = lp[l], hi = Math.max(lp[l], lp[l + 1] - 1);
     if (dist >= cum[hi]) return hi;
@@ -774,7 +774,7 @@ function start(data) {
     return lo + (d > 0 ? (dist - cum[lo]) / d : 0);
   };
 
-  // Düse: kleiner Kegel mit Spitze nach unten, zeigt die aktuelle Position
+  // Nozzle: small cone pointing down, shows the current position
   const hw = uniforms.halfWidth.value;
   const nozzle = new THREE.Mesh(
     new THREE.ConeGeometry(hw * 3, hw * 8, 20),
@@ -783,9 +783,9 @@ function start(data) {
   nozzle.rotation.x = -Math.PI / 2;
   nozzle.visible = false;
   scene.add(nozzle);
-  // Leerfahrten zählen nicht zur Bahnlänge: ohne Ausgleich springt die Düse beim Abspielen von
-  // einem Bahnende zum nächsten Anfang. Sie fährt deshalb wie ein Drucker dorthin, schneller als
-  // beim Drucken (3×); auf der Bahn selbst und beim Schieben am Regler sitzt sie genau am Ende.
+  // Travel moves do not count toward path length: without compensation the nozzle jumps during
+  // playback from one path end to the next start. So it travels there like a printer, faster than
+  // when printing (3×); on the path itself and when dragging the slider it sits exactly at the end.
   const nozzleTarget = new THREE.Vector3();
   const TRAVEL_FACTOR = 3;
   const moveNozzle = (dt) => {
@@ -798,7 +798,7 @@ function start(data) {
   const progress = document.getElementById("layer-progress");
   const playBtn = document.getElementById("play");
   const speedBtn = document.getElementById("play-speed");
-  let playDist = null; // null: Schicht vollständig
+  let playDist = null; // null: layer complete
   let playing = false;
   let playObject = null;
   let speedIdx = Math.max(0, PLAY_SPEEDS.indexOf(Number(store.get("plateshelf-play-speed", 10))));
@@ -821,7 +821,7 @@ function start(data) {
       pos[i * 3 + 1] + (pos[j * 3 + 1] - pos[i * 3 + 1]) * f,
       pos[i * 3 + 2] + hw * 5,
     );
-    if (!playing || !nozzle.visible) moveNozzle(0);  // Regler oder Start: direkt an die Stelle
+    if (!playing || !nozzle.visible) moveNozzle(0);  // slider or start: jump directly to the position
     nozzle.visible = true;
     if (progress) progress.value = b > a ? Math.round(((playDist - a) / (b - a)) * Number(progress.max)) : progress.max;
   };
@@ -833,13 +833,13 @@ function start(data) {
       playBtn.title = playBtn.getAttribute("aria-label");
     }
     if (on) {
-      // Darstellung für die ganze Wiedergabe festlegen, nach dem größten Bereich, der sichtbar wird:
-      // sonst wechselt sie beim Schichtwechsel zwischen Röhren und Linien hin und her
+      // Fix the representation for the whole playback, based on the largest range that becomes visible:
+      // otherwise it flips between tubes and lines on layer changes
       const l = Number(slider.value);
       playObject = motionObject(single.checked ? shareOf(l, l) : shareOf(0, nLayers - 1));
       show(playObject);
       if (playDist === null) {
-        // Vom Ende aus neu starten: bei der untersten sichtbaren Schicht beginnen
+        // Restarting from the end: begin at the lowest visible layer
         if (l >= nLayers - 1 || single.checked) { slider.value = single.checked ? l : 0; applyLayers(true); }
         setCut(layerLen(Number(slider.value))[0]);
       }
@@ -856,7 +856,7 @@ function start(data) {
     const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
     lastTick = now;
     if (nozzle.visible && nozzle.position.distanceToSquared(nozzleTarget) > 1e-6) {
-      moveNozzle(dt);  // Leerfahrt: erst ankommen, dann weiterdrucken
+      moveNozzle(dt);  // travel move: arrive first, then keep printing
       render();
       requestAnimationFrame(tick);
       return;
@@ -872,7 +872,7 @@ function start(data) {
       dist = layerLen(l + 1)[0] + (dist - layerLen(l)[1]);
       l++;
     }
-    // Bei hoher Geschwindigkeit mehrere Schichten pro Bild: nur einmal neu aufbauen
+    // At high speed several layers per frame: rebuild only once
     if (l !== from) { slider.value = l; applyLayers(true); }
     setCut(dist);
     moveNozzle(dt);
@@ -900,7 +900,7 @@ function start(data) {
     setPlaying(!playing);
   });
 
-  // Legende mit Ein-/Ausblenden
+  // Legend with show/hide
   const legend = document.getElementById("legend");
   const metricLegend = (key) => {
     const r = ranges[key];
@@ -965,8 +965,8 @@ function start(data) {
       return li;
     }));
   };
-  // Einfärbung: Filament, Linientyp oder einfarbig; Wahl und Farbe werden gemerkt
-  // Fehlen Bedienelemente (z. B. alte Seitenvorlage), läuft die Vorschau trotzdem
+  // Coloring: filament, line type or single color; choice and color are remembered
+  // If controls are missing (e.g. old page template), the preview still works
   const uniRow = document.getElementById("uni-row") || { hidden: true };
   const uniInput = document.getElementById("uni-color");
   const uniValue = store.get("plateshelf-uni-color", DEFAULT_UNI);
@@ -1008,13 +1008,13 @@ function start(data) {
       return true;
     } catch (e) { return false; }
   };
-  const forgetCamera = () => { clearTimeout(camSaveTimer); try { localStorage.removeItem(camKey); } catch (e) { /* privat */ } };
+  const forgetCamera = () => { clearTimeout(camSaveTimer); try { localStorage.removeItem(camKey); } catch (e) { /* private mode */ } };
   const resetAll = () => { resetView(); forgetCamera(); render(); };
   document.getElementById("view-reset").addEventListener("click", resetAll);
 
-  // Doppelklick bzw. Doppeltipp setzt die Ansicht zurück
+  // Double-click or double-tap resets the view
   canvas.addEventListener("dblclick", resetAll);
-  // Tippen = kurz und fast ohne Bewegung; nach einer Zwei-Finger-Geste zählt nichts als Tippen
+  // Tap = short and almost without movement; after a two-finger gesture nothing counts as a tap
   let lastTap = 0, tapX = 0, tapY = 0, touches = 0, multi = false, downAt = 0, downX = 0, downY = 0;
   canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType !== "touch") return;
@@ -1040,11 +1040,11 @@ function start(data) {
   canvas.addEventListener("pointerup", (e) => touchEnd(e, false));
   canvas.addEventListener("pointercancel", (e) => touchEnd(e, true));
 
-  // Vollbild für Vorschau und Bedienfeld, auch mit der Taste F
+  // Fullscreen for preview and control panel, also with the F key
   const fullBtn = document.getElementById("view-full");
   const toggleFull = () => {
     if (document.fullscreenElement) document.exitFullscreen?.();
-    else root.requestFullscreen?.().catch(() => { /* vom Browser abgelehnt */ });
+    else root.requestFullscreen?.().catch(() => { /* rejected by the browser */ });
   };
   if (fullBtn) {
     if (!document.fullscreenEnabled) fullBtn.hidden = true;
@@ -1061,7 +1061,7 @@ function start(data) {
     }
   });
 
-  // Bild speichern: direkt nach dem Zeichnen auslesen, solange der Puffer noch gefüllt ist
+  // Save image: read back right after drawing, while the buffer is still filled
   document.getElementById("view-png")?.addEventListener("click", () => {
     controls.update();
     draw();
@@ -1076,19 +1076,19 @@ function start(data) {
   });
   document.getElementById("view-top").addEventListener("click", () => { topView(); render(); });
 
-  // Rendern nur bei Bedarf, das schont Akku und Lüfter
+  // Render only on demand, which spares battery and fans
   let pending = false;
   function render() {
     if (pending) return;
     pending = true;
     requestAnimationFrame(() => {
       pending = false;
-      if (controls.update()) render(); // Dämpfung ausklingen lassen
+      if (controls.update()) render(); // let damping fade out
       draw();
     });
   }
 
-  // Tiefenschattierung: nur im Stillstand, nur bei Röhren und wenn das Gerät es schafft
+  // Depth shading: only when idle, only for tubes and if the device can handle it
   const aoToggle = document.getElementById("ao-toggle");
   let aoWanted = store.get("plateshelf-ao", "1") === "1";
   if (aoToggle) {
@@ -1114,7 +1114,7 @@ function start(data) {
     aoWanted && !moving && !playing && tubes.visible && perf.tube !== null &&
     perf.tube * visibleShare() * 2.2 <= REST_MAX_MS;
   function draw() {
-    // Von unten (z. B. um die erste Schicht anzusehen) die Platte ausblenden, sie würde alles verdecken
+    // From below (e.g. to inspect the first layer) hide the plate, it would cover everything
     bedGroup.visible = camera.position.z > 0;
     renderer.render(scene, camera);
     if (!aoActive()) return;
@@ -1123,7 +1123,7 @@ function start(data) {
       aoTarget.setSize(bufSize.x, bufSize.y);
       aoBuffer.setSize(bufSize.x, bufSize.y);
     }
-    // 1. Tiefe und Normalen der Röhren
+    // 1. depth and normals of the tubes
     const bg = scene.background;
     const extrasShown = Object.values(extras).map((o) => o.visible);
     Object.values(extras).forEach((o) => { o.visible = false; });
@@ -1134,14 +1134,14 @@ function start(data) {
     uniforms.normalPass.value = 0;
     plateMesh.material = plateBasicMat; rim.visible = true; nozzle.visible = playDist !== null; scene.background = bg;
     Object.values(extras).forEach((o, i) => { o.visible = extrasShown[i]; });
-    // 2. Schattierung in einen eigenen Puffer
+    // 2. shading into a separate buffer
     aoMat.uniforms.proj.value.copy(camera.projectionMatrix);
     aoMat.uniforms.projInv.value.copy(camera.projectionMatrixInverse);
     aoMat.uniforms.pxScale.value = camera.projectionMatrix.elements[5] * bufSize.y / 2;
     aoQuad.material = aoMat;
     renderer.setRenderTarget(aoBuffer);
     renderer.render(aoScene, aoCam);
-    // 3. Weichzeichnen und über das Bild legen
+    // 3. blur and apply over the image
     blurMat.uniforms.projInv.value.copy(camera.projectionMatrixInverse);
     blurMat.uniforms.texel.value.set(1 / bufSize.x, 1 / bufSize.y);
     aoQuad.material = blurMat;
@@ -1152,9 +1152,9 @@ function start(data) {
     renderer.autoClear = auto;
   }
 
-  // --- Automatische Abstimmung auf die Leistung des Geräts -------------------
-  // Gemessene Bildzeiten bei voller Sichtbarkeit (ms). Aus ihnen wird für jeden
-  // Schichtbereich die schönste Darstellung gewählt, die noch flüssig läuft.
+  // --- Automatic tuning to the device's performance ------------------------
+  // Measured frame times at full visibility (ms). From these, the prettiest
+  // representation that still runs smoothly is chosen for each layer range.
   const perf = { tube: null, line: null };
   const restObject = () =>
     perf.tube === null || perf.tube * visibleShare() <= REST_MAX_MS ? tubes : lines;
@@ -1165,14 +1165,14 @@ function start(data) {
     return lodFor(step);
   };
 
-  // Bildzeit messen: mehrere Bilder nacheinander, jeweils bis die Grafikkarte fertig ist.
-  // Ein Pixel zurückzulesen zwingt den Browser, das Bild wirklich fertigzustellen.
+  // Measure frame time: several frames in a row, each until the GPU is done.
+  // Reading back one pixel forces the browser to actually finish the frame.
   const gl = renderer.getContext();
   const px = new Uint8Array(4);
   const sync = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
   const measure = (obj, frames) => {
     show(obj);
-    renderer.render(scene, camera); sync(); // Aufwärmen, Puffer hochladen
+    renderer.render(scene, camera); sync(); // warm up, upload buffers
     let total = 0, n = 0;
     for (; n < frames; n++) {
       const t0 = performance.now();
@@ -1180,7 +1180,7 @@ function start(data) {
       sync();
       const dt = performance.now() - t0;
       total += dt;
-      if (dt > 150) { n++; break; } // sehr langsam: eine Messung reicht
+      if (dt > 150) { n++; break; } // very slow: one measurement is enough
     }
     return total / n;
   };
@@ -1188,12 +1188,12 @@ function start(data) {
     const saved = range;
     range = { lo: 0, hi: meta.layers.length - 1 };
     perf.line = measure(lines, 4);
-    // Röhren kosten ein Vielfaches der Linien; bei sehr langsamen Linien gar nicht erst messen
+    // Tubes cost many times more than lines; with very slow lines do not even measure them
     perf.tube = perf.line > 150 ? perf.line * 8 : measure(tubes, 3);
     range = saved;
   };
 
-  // Im Betrieb nachjustieren: ruckelt es trotzdem, gilt die Darstellung als langsamer
+  // Readjust at runtime: if it still stutters, the representation counts as slower
   const frameTimes = [];
   let lastFrame = 0;
   const trackFrame = (obj) => {
@@ -1211,7 +1211,7 @@ function start(data) {
     }
   };
 
-  // Beim Bewegen die flüssige Darstellung, kurz nach dem Stillstand die schönste
+  // While moving the smooth representation, shortly after stopping the prettiest
   let moving = false;
   let idleTimer = 0;
   controls.addEventListener("change", () => {

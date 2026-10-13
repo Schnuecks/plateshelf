@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Schnuecks
-// Aufbereitung der Vorschaudaten ohne three.js: läuft im Web Worker
-// (geometry-worker.js) oder, falls der Browser das nicht kann, im Viewer selbst.
+// Preview data processing without three.js: runs in the Web Worker
+// (geometry-worker.js) or, if the browser cannot do that, in the viewer itself.
 
-export const POLY_END = 2000; // Markierung im Helligkeitswert: Punkt beendet eine Bahn
+export const POLY_END = 2000; // Flag in the brightness value: point ends a path
 
-// Binärdaten der Vorschau zerlegen (Aufbau siehe app/gcode_preview.py)
+// Parse the preview binary data (format see app/gcode_preview.py)
 export function parsePreview(meta, buf) {
   const nPtsVals = meta.points * 2;
   const pts = new Uint16Array(buf, 0, nPtsVals);
@@ -14,7 +14,7 @@ export function parsePreview(meta, buf) {
   const metOffset = polyOffset + meta.polys * 5 * 4;
   const mets = buf.byteLength >= metOffset + meta.points * 8
     ? new Uint16Array(buf, metOffset, meta.points * 4)
-    : new Uint16Array(meta.points * 4); // ältere Vorschau ohne Messwerte
+    : new Uint16Array(meta.points * 4); // older preview without measurements
   const trOffset = metOffset + meta.points * 8;
   const nTr = meta.travels || 0, nRe = meta.retracts || 0;
   const hasExtras = buf.byteLength >= trOffset + nTr * 10 + nRe * 6;
@@ -23,24 +23,24 @@ export function parsePreview(meta, buf) {
   return { pts, polys, mets, travels, retracts };
 }
 
-// Punkte, Attribute, Linien-Index, Schichtanfänge und Bahnlängen berechnen.
-// progress(anteil) wird gelegentlich aufgerufen.
+// Compute points, attributes, line index, layer starts and path lengths.
+// progress(fraction) is called occasionally.
 export function buildArrays(meta, pts, polys, progress = () => {}) {
   const nPts = pts.length / 2;
   const off = meta.offset, sc = meta.scale;
   const pos = new Float32Array(nPts * 3);
-  const info = new Uint16Array(nPts * 4); // Schicht, Linientyp, Werkzeug, Helligkeit (+POLY_END)
-  const cum = new Float64Array(nPts);     // Bahnlänge bis zum Punkt, Leerfahrten zählen nicht
+  const info = new Uint16Array(nPts * 4); // layer, line type, tool, brightness (+POLY_END)
+  const cum = new Float64Array(nPts);     // path length up to the point, travel moves do not count
   let nSeg = 0;
   for (let i = 0; i < polys.length; i += 5) nSeg += polys[i + 1] - 1;
   const index = new Uint32Array(nSeg * 2);
   const nL = meta.layers.length;
-  // Wo jede Schicht beginnt: im Linien-Index und bei den Punkten (für die Röhren)
+  // Where each layer starts: in the line index and in the points (for the tubes)
   const layerStart = new Uint32Array(nL + 1).fill(0xffffffff);
   const layerPoint = new Uint32Array(nL + 1).fill(0xffffffff);
   let k = 0;
   let acc = 0;
-  const lx = 0.83, ly = 0.55; // Richtung des "Lichts" für etwas Struktur bei den Linien
+  const lx = 0.83, ly = 0.55; // Direction of the "light" for some structure on the lines
   const step = Math.max(5, Math.floor(polys.length / 5 / 50) * 5);
   for (let i = 0; i < polys.length; i += 5) {
     if (i % step === 0) progress(i / polys.length);
@@ -74,7 +74,7 @@ export function buildArrays(meta, pts, polys, progress = () => {}) {
   return { pos, info, cum, index, layerStart, layerPoint, nSeg };
 }
 
-// Alles in einem Schritt: laden, zerlegen, aufbauen
+// All in one step: load, parse, build
 export async function loadPreview(api, progress = () => {}) {
   progress("load", 0);
   const [meta, buf] = await Promise.all([

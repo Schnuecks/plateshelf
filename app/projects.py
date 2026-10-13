@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Aufbereitung der Projekte, Dateien und Platten für die Seiten."""
+"""Preparation of projects, files and plates for the pages."""
 from __future__ import annotations
 
 import json
@@ -12,7 +12,7 @@ from . import print_history, render, store
 from .i18n import gettext as _
 
 def plate_source(model_json: str | None) -> str:
-    """Kennung des Ursprungsmodells einer Datei (Titel aus der 3MF), um Platten zuzuordnen."""
+    """Identifier of a file's source model (title from the 3MF), to match plates."""
     try:
         return (json.loads(model_json or "{}").get("title") or "").strip().lower()
     except ValueError:
@@ -20,12 +20,12 @@ def plate_source(model_json: str | None) -> str:
 
 
 def natural_key(text: str):
-    """„plate_2“ vor „plate_10“: Zahlen in Namen als Zahlen sortieren."""
+    """Natural sort, "plate_2" before "plate_10": numbers in names sort as numbers."""
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", text or "")]
 
 
 def file_stamp(f) -> str:
-    """Kurzer Stempel je Dateistand für Bildadressen: neue oder geänderte Datei = neue Adresse."""
+    """Short stamp per file state for image URLs: new or changed file = new URL."""
     return format(int((f["mtime"] or 0) * 1000) ^ (f["size"] or 0), "x")
 
 
@@ -61,17 +61,17 @@ def _total(material, energy):
     return sum(parts) if parts else None
 
 
-CACHE_SECONDS = 60  # höchstens so lange, auch wenn sich scheinbar nichts geändert hat
+CACHE_SECONDS = 60  # at most this long, even if nothing seems to have changed
 _cache: dict = {"sig": None, "at": 0.0, "projects": []}
 _cache_lock = threading.Lock()
 
 
 def load_projects(con) -> list[dict]:
-    """Alle Projekte mit Dateien, Platten, Kosten und Druckverlauf.
+    """All projects with files, plates, costs and print history.
 
-    Die Aufbereitung wird zwischengespeichert, bis sich die Datenbank ändert: Bei
-    großen Bibliotheken spart das bei jedem Seitenaufruf die meiste Zeit. Laufende
-    Drucke kommen immer frisch dazu. Die Projekte nur lesen, nicht verändern.
+    The prepared data is cached until the database changes: for large libraries
+    this saves most of the time on every page view. Running prints are always
+    added fresh. Only read the projects, do not modify them.
     """
     sig = store.db_signature()
     with _cache_lock:
@@ -82,17 +82,17 @@ def load_projects(con) -> list[dict]:
     live: dict = {}
     for job in print_history.printing_now():
         live.setdefault(job["project_id"], []).append(job)
-    # printing: der Druck, der als Nächstes fertig wird; printings: alle (gleiches Projekt auf mehreren Druckern)
+    # printing: the print that finishes next; printings: all (same project on several printers)
     return [{**p, "printing": live[p["id"]][0], "printings": live[p["id"]]} if p["id"] in live else p
             for p in cached]
 
 
 def _mark_printed_plates(p: dict, by_plate: dict) -> None:
-    """Wie oft jede geslicte Platte fertig gedruckt wurde, und wie viele Platten schon gedruckt sind.
+    """How often each sliced plate was printed to completion, and how many plates are already printed.
 
-    Enthält eine Datei nur eine geslicte Platte (einzeln exportierte Platten, G-Code), zählt jeder
-    Druck dieser Datei. Bei mehreren Platten in einer Datei entscheidet die Platte, die der Drucker
-    gemeldet hat; Drucke ohne diese Angabe lassen sich keiner Platte zuordnen.
+    If a file contains only one sliced plate (individually exported plates, G-code), every print
+    of that file counts. With several plates in one file, the plate reported by the printer
+    decides; prints without this information cannot be assigned to any plate.
     """
     paths = {f["id"]: f["path"] for f in p["files"]}
     per_file: dict[int, int] = {}
@@ -125,22 +125,22 @@ def _build(con) -> list[dict]:
             pd["file_id"] = f["id"]
             pd["v"] = file_stamp(f)
             render.apply(pd, thumbs)
-            # Material: Preise aus der Datei, sonst Ersatzpreise aus den Einstellungen
+            # Material: prices from the file, otherwise fallback prices from the settings
             for fil in pd["filaments"]:
                 fil["cost_per_kg"] = store.filament_price(settings, fil, rules)
             pd["cost"] = store.material_cost(settings, pd["filaments"], rules)
-            # Strom: Druckzeit × durchschnittliche Leistung des Druckers × Strompreis
+            # Electricity: print time × average power of the printer × electricity price
             watts = store.printer_watts(settings, f["printer"])
             pd["energy_kwh"] = (pd["prediction_s"] or 0) / 3600 * watts / 1000
             pd["energy_cost"] = pd["energy_kwh"] * settings["strompreis"]
             pd["total_cost"] = _total(pd["cost"], pd["energy_cost"])
-            # Nicht geslicte Platten einer geslicten Datei: nur Vorschau, zählen nicht mit
+            # Unsliced plates of a sliced file: preview only, not counted
             bucket = "plates" if pd["sliced"] else "extra_plates"
             projects[f["project_id"]][bucket].append(pd)
 
     for p in projects.values():
-        # Einzeln exportierte Platten enthalten Vorschauen aller anderen Platten.
-        # Diese nur zeigen, wenn die Platte nirgends im Projekt gesliced vorliegt, und nur einmal.
+        # Individually exported plates contain previews of all other plates.
+        # Only show these if the plate is not sliced anywhere in the project, and only once.
         src = {f["id"]: f["source"] for f in p["files"]}
         covered = {(src[x["file_id"]], x["idx"]) for x in p["plates"]}
         seen, extras = set(), []
@@ -155,7 +155,7 @@ def _build(con) -> list[dict]:
     printed = {r[0]: (r[1], r[2]) for r in con.execute(
         "SELECT local_path, COUNT(*), MAX(COALESCE(ended, started)) FROM print_jobs WHERE status = 'completed' "
         "AND local_path IS NOT NULL AND hidden = 0 GROUP BY local_path")}
-    # Fertige Drucke je Datei und gemeldeter Platte (None: der Drucker hat keine Platte genannt)
+    # Finished prints per file and reported plate (None: the printer did not name a plate)
     by_plate: dict[str, dict] = {}
     for path, plate, n in con.execute(
             "SELECT local_path, plate, COUNT(*) FROM print_jobs WHERE status = 'completed' AND hidden = 0 "
@@ -180,7 +180,7 @@ def _build(con) -> list[dict]:
         cover = next((x for x in plates if x["has_thumb"]), None)
         p["cover"] = f"/thumb/{cover['file_id']}/plate/{cover['idx']}?v={cover['v']}" if cover else None
         p["cover_is_photo"] = bool(p.get("cover_photo"))
-        if p["cover_is_photo"]:  # eigenes Foto vom Druck statt Slicer-Vorschau
+        if p["cover_is_photo"]:  # own photo of the print instead of slicer preview
             p["cover"] = f"/p/{p['id']}/photos/{p['cover_photo'].removesuffix('.jpg')}.small.jpg"
         p["plates_total"] = len(plates) + len(p["extra_plates"])
         p["tag_list"] = [t.strip() for t in p["tags"].split(",") if t.strip()]
@@ -213,7 +213,7 @@ SETTING_LABELS = [
     ("outer_wall_speed", "Außenwand", "mm/s"),
     ("seam_position", "Naht"),
     ("ironing_type", "Glätten"),
-    # PrusaSlicer und SuperSlicer nennen einige Einstellungen anders
+    # PrusaSlicer and SuperSlicer name some settings differently
     ("first_layer_height", "Erste Schicht", "mm"),
     ("perimeters", "Wände"),
     ("top_solid_layers", "Deckschichten oben"),

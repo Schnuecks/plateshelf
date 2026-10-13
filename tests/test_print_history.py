@@ -1,4 +1,4 @@
-"""Druckverlauf: Bambu (MQTT-Meldungen), Klipper (Moonraker-Verlauf), Prusa (PrusaLink-Job)."""
+"""Print history: Bambu (MQTT messages), Klipper (Moonraker history), Prusa (PrusaLink job)."""
 import time
 
 import pytest
@@ -7,13 +7,13 @@ from fastapi.testclient import TestClient
 from app import print_history as ph
 from app import printer_import as pi
 from app import store
-from test_printer_import import moonraker, octoprint, prusalink  # noqa: F401  (Fixtures)
+from test_printer_import import moonraker, octoprint, prusalink  # noqa: F401  (fixtures)
 
 BAMBU = {"name": "P2S", "id": "SER1", "code": "x", "ip": "x", "kind": "bambu"}
 
 
 def imported(lib, printer, remote, local):
-    """Datei, als hätte der Import sie vom Drucker geholt."""
+    """File as if the import had fetched it from the printer."""
     path = lib / local
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("G1 X1 Y1 E1\n")
@@ -50,7 +50,7 @@ def test_bambu_print_completed(ready):
     t.update({"print": {"gcode_state": "PREPARE", "gcode_file": "/sdcard/Benchy.gcode.3mf", "task_id": "0",
                         "subtask_id": "0", "mc_percent": 0}})
     t.update({"print": {"gcode_state": "RUNNING", "mc_percent": 5}})
-    t.update({"print": {"mc_percent": 50}})  # P1/A1: nur Änderungen
+    t.update({"print": {"mc_percent": 50}})  # P1/A1: changes only
     (job,) = jobs()
     assert (job["status"], job["progress"], job["remote_name"]) == ("running", 50, "Benchy.gcode.3mf")
     assert job["local_path"] == "From printer/P2S/Benchy_plate_1.gcode.3mf"
@@ -58,7 +58,7 @@ def test_bambu_print_completed(ready):
     (job,) = jobs()
     assert job["status"] == "completed" and job["ended"] >= job["started"]
     assert project_status(job["local_path"]) == "gedruckt"
-    t.update({"print": {"gcode_state": "FINISH"}})  # bleibt stehen: kein zweiter Eintrag
+    t.update({"print": {"gcode_state": "FINISH"}})  # stays put: no second entry
     assert len(jobs()) == 1
 
 
@@ -72,18 +72,18 @@ def test_bambu_cancel_and_failure(ready):
 
 
 def test_bambu_restart_while_printing(ready):
-    """PlateShelf startet neu, während gedruckt wird: derselbe Druck läuft weiter und endet."""
+    """PlateShelf restarts while printing: the same print continues and ends."""
     ph.BambuTracker(BAMBU).update({"print": {"gcode_state": "RUNNING", "gcode_file": "C.gcode.3mf"}})
     t = ph.BambuTracker(BAMBU)
     t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "C.gcode.3mf", "mc_percent": 80}})
     assert len(jobs()) == 1
     ph.BambuTracker(BAMBU).update({"print": {"gcode_state": "FINISH", "gcode_file": "C.gcode.3mf"}})
     (job,) = jobs()
-    assert job["status"] == "completed" and job["progress"] == 100.0  # fertig ist fertig
+    assert job["status"] == "completed" and job["progress"] == 100.0  # done is done
 
 
 def test_link_after_import(ready):
-    """Die Datei kommt erst nach dem Druckstart vom Drucker: Zuordnung beim nächsten Import."""
+    """The file arrives from the printer only after the print starts: matched on the next import."""
     t = ph.BambuTracker(BAMBU)
     t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "Clip.gcode.3mf", "task_id": "5"}})
     t.update({"print": {"gcode_state": "FINISH"}})
@@ -103,7 +103,7 @@ def test_status_is_only_set_when_empty(ready):
 
 
 def test_watcher_requests_full_state(ready):
-    """Nach dem Verbinden: Meldungen abonnieren und den ganzen Zustand anfordern."""
+    """After connecting: subscribe to messages and request the full state."""
     w = ph.BambuWatcher(BAMBU)
     calls = []
 
@@ -153,8 +153,8 @@ def test_moonraker_history(ready, moonraker):
 
 
 def test_moonraker_live_print_without_history(ready, moonraker):
-    """Klipper druckt, aber Moonrakers Verlauf kennt den Druck nicht (z. B. nach einem Neustart):
-    der Druck erscheint trotzdem als laufend, mit Projekt und Fortschritt, und endet sauber."""
+    """Klipper is printing, but Moonraker's history doesn't know the print (e.g. after a restart):
+    the print still shows as running, with project and progress, and ends cleanly."""
     printer = {"name": "K1", "id": "moonraker:k", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
     imported(ready, printer, "Wuerfel.gcode", "From printer/K1/Wuerfel.gcode")
     moonraker["state"]["history"] = [
@@ -164,7 +164,7 @@ def test_moonraker_live_print_without_history(ready, moonraker):
         "print_stats": {"filename": "Wuerfel.gcode", "state": "printing", "total_duration": 170, "print_duration": 65},
         "virtual_sdcard": {"progress": 0.69}}
     ph.poll_moonraker(printer)
-    ph.poll_moonraker(printer)  # derselbe Druck, kein zweiter Eintrag
+    ph.poll_moonraker(printer)  # same print, no second entry
     (live,) = [j for j in jobs() if j["status"] == "running"]
     assert live["job_key"].startswith(ph.LIVE_KEY) and live["progress"] == 69.0
     assert live["local_path"] == "From printer/K1/Wuerfel.gcode"
@@ -173,13 +173,13 @@ def test_moonraker_live_print_without_history(ready, moonraker):
     moonraker["state"]["objects"]["print_stats"]["state"] = "complete"
     ph.poll_moonraker(printer)
     done = {j["job_key"]: j for j in jobs()}[live["job_key"]]
-    assert done["status"] == "completed" and done["progress"] == 100.0   # nicht beim letzten Wert stehen bleiben
+    assert done["status"] == "completed" and done["progress"] == 100.0   # don't stop at the last value
     assert ph.printing_now() == []
 
 
 def test_prusalink_job(ready, prusalink):
     printer = {"name": "MK4S", "id": "prusalink:x", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
-    ph.poll_prusalink(printer)  # kein Druck: 204
+    ph.poll_prusalink(printer)  # no print: 204
     assert jobs() == []
     imported(ready, printer, "Kunden/Halter.bgcode", "From printer/MK4S/Kunden_Halter.bgcode")
     prusalink["state"]["job"] = {"id": 42, "state": "PRINTING", "progress": 12.0, "time_printing": 600,
@@ -190,26 +190,26 @@ def test_prusalink_job(ready, prusalink):
     assert abs(job["started"] - (time.time() - 600)) < 5
     prusalink["state"]["job"].update(state="FINISHED", progress=100.0, time_printing=1800)
     ph.poll_prusalink(printer)
-    ph.poll_prusalink(printer)  # bleibt als letzter Druck stehen
+    ph.poll_prusalink(printer)  # remains as the last print
     (job,) = jobs()
     assert job["status"] == "completed" and job["duration_s"] == 1800
 
 
 def test_prusalink_closes_a_print_whose_end_was_missed(ready, prusalink):
-    """Drucker aus, bevor das Ende gemeldet wurde: der alte Druck bleibt nicht ewig „läuft“."""
+    """Printer off before the end was reported: the old print doesn't stay „läuft“ forever."""
     printer = {"name": "MINI", "id": "prusalink:m", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
     prusalink["state"]["job"] = {"id": 2, "state": "PRINTING", "progress": 90.0, "time_printing": 500,
                                  "time_remaining": 0, "file": {"display_name": "Zylinder.bgcode"}}
     ph.poll_prusalink(printer)
     prusalink["state"]["job"] = {"id": 3, "state": "PRINTING", "progress": 5.0, "time_printing": 60,
                                  "file": {"display_name": "Seestern.bgcode"}}
-    ph.record(printer, "3", "running", remote_name="Seestern.bgcode", progress=4.0)  # vor dem Update erfasst
-    ph.poll_prusalink(printer)  # neuer Druck: der vorige war fast fertig
-    ph.poll_prusalink(printer)  # auch, wenn der neue schon vorher erfasst war (Update mitten im Druck)
+    ph.record(printer, "3", "running", remote_name="Seestern.bgcode", progress=4.0)  # recorded before the update
+    ph.poll_prusalink(printer)  # new print: the previous one was almost done
+    ph.poll_prusalink(printer)  # also when the new one was already recorded (update mid-print)
     by_key = {j["job_key"]: j for j in jobs()}
     assert by_key["2"]["status"] == "completed" and by_key["3"]["status"] == "running"
     prusalink["state"]["job"] = None
-    ph.poll_prusalink(printer)  # kein Druck mehr, bei 5 % verschwunden: abgebrochen
+    ph.poll_prusalink(printer)  # no print anymore, vanished at 5 %: cancelled
     assert {j["job_key"]: j["status"] for j in jobs()}["3"] == "cancelled"
 
 
@@ -238,7 +238,7 @@ def test_delete_resets_status_only_without_other_prints(ready, monkeypatch):
     ph.record(BAMBU, "b", "completed", remote_name="G.gcode.3mf")
     ids = [j["id"] for j in jobs()]
     ph.delete(ids[0])
-    assert project_status("From printer/P2S/G.gcode.3mf") == "gedruckt"  # zweiter Druck zählt noch
+    assert project_status("From printer/P2S/G.gcode.3mf") == "gedruckt"  # second print still counts
     ph.delete(ids[1])
     assert project_status("From printer/P2S/G.gcode.3mf") == ""
     assert ph.recent() == [] and ph.jobs_for(["From printer/P2S/G.gcode.3mf"]) == []
@@ -250,7 +250,7 @@ def test_delete_keeps_own_status(ready):
     imported(ready, BAMBU, "H.gcode.3mf", "From printer/P2S/H.gcode.3mf")
     ph.record(BAMBU, "a", "completed", remote_name="H.gcode.3mf")
     with store.connect() as con:
-        con.execute("UPDATE projects SET status = 'fehlgeschlagen'")  # später von Hand geändert
+        con.execute("UPDATE projects SET status = 'fehlgeschlagen'")  # changed manually later
     ph.delete(jobs()[0]["id"])
     assert project_status("From printer/P2S/H.gcode.3mf") == "fehlgeschlagen"
 
@@ -280,7 +280,7 @@ def test_delete_from_pages(ready, monkeypatch):
         assert r.headers["location"] == f"/p/{pid}?job_deleted=1#history"
         assert "Druck aus dem Verlauf entfernt." in client.get(r.headers["location"]).text
         r = client.post(f"/history/{b}/delete", data={"next": "https://example.com/"}, follow_redirects=False)
-        assert r.headers["location"] == "/?job_deleted=1"  # nur Ziele dieser Seite
+        assert r.headers["location"] == "/?job_deleted=1"  # only targets on this site
         assert client.post("/history/999/delete").status_code == 404
         assert "× gedruckt" not in client.get("/").text and project_status("From printer/P2S/K.gcode.3mf") == ""
 
@@ -289,7 +289,7 @@ def test_setting_and_env(ready, monkeypatch):
     from app import main
     monkeypatch.delenv("PRINT_HISTORY")
     monkeypatch.setenv("SCAN_INTERVAL", "3600")
-    assert ph.enabled()  # Standard: an
+    assert ph.enabled()  # default: on
     with TestClient(main.app) as client:
         assert 'href="/history"' in client.get("/").text
         r = client.post("/settings/history", data={}, follow_redirects=False)
@@ -300,14 +300,14 @@ def test_setting_and_env(ready, monkeypatch):
         assert ph.enabled()
         page = client.get("/settings").text
         assert 'name="enabled" value="1" checked' in page
-        # Umgebungsvariable hat Vorrang, der Schalter verschwindet
+        # Environment variable takes precedence, the switch disappears
         monkeypatch.setenv("PRINT_HISTORY", "false")
         assert not ph.enabled()
         page = client.get("/settings").text
         assert "<code>PRINT_HISTORY</code> festgelegt: ausgeschaltet" in page and 'name="enabled"' not in page
         client.post("/settings/history", data={"enabled": "1"})
         monkeypatch.delenv("PRINT_HISTORY")
-        assert ph.enabled()  # Einstellung blieb unverändert (an)
+        assert ph.enabled()  # setting remained unchanged (on)
 
 
 def test_disabled_closes_watchers(ready, monkeypatch):
@@ -318,20 +318,20 @@ def test_disabled_closes_watchers(ready, monkeypatch):
             stopped.append(1)
 
     monkeypatch.setitem(ph._watchers, "SER1", (("x", "x", "P2S"), FakeWatcher()))
-    ph.refresh_watchers([BAMBU])  # PRINT_HISTORY=false in den Tests: ausgeschaltet
+    ph.refresh_watchers([BAMBU])  # PRINT_HISTORY=false in the tests: disabled
     assert stopped == [1] and ph._watchers == {}
 
 
-# --- Laufende Drucke, Sortierung, Diagnose (0.7.7) ------------------------------
+# --- Running prints, sorting, diagnostics (0.7.7) -------------------------------
 
 def test_remaining_time_from_all_printers(ready, moonraker, prusalink):
     t = ph.BambuTracker(BAMBU)
     t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "A.gcode.3mf", "task_id": "1",
                         "mc_percent": 10, "mc_remaining_time": 95}})
-    t.update({"print": {"mc_remaining_time": 94}})  # nur die Restzeit ändert sich
+    t.update({"print": {"mc_remaining_time": 94}})  # only the remaining time changes
     assert jobs()[-1]["remaining_s"] == 94 * 60
     t.update({"print": {"gcode_state": "FINISH"}})
-    assert jobs()[-1]["remaining_s"] is None  # fertig: keine Restzeit mehr
+    assert jobs()[-1]["remaining_s"] is None  # done: no remaining time anymore
 
     sv08 = {"name": "SV08", "id": "moonraker:x", "code": "", "ip": moonraker["address"], "kind": "moonraker"}
     moonraker["state"]["history"] = [{"job_id": "0009", "filename": "b.gcode", "status": "in_progress",
@@ -354,7 +354,7 @@ def test_printing_now_and_pages(ready, monkeypatch):
     imported(ready, BAMBU, "Live.gcode.3mf", "From printer/P2S/Live.gcode.3mf")
     ph.record(BAMBU, "live", "running", remote_name="Live.gcode.3mf", progress=45, remaining_s=32 * 60)
     ph.record(BAMBU, "old", "running", remote_name="Weg.gcode.3mf", progress=5)
-    with store.connect() as con:  # seit einer Stunde keine Meldung: nicht mehr live
+    with store.connect() as con:  # no message for an hour: no longer live
         con.execute("UPDATE print_jobs SET updated = ?, started = ? WHERE job_key = 'old'",
                     (time.time() - 3600, time.time() - 3600))
     (job,) = ph.printing_now()
@@ -366,7 +366,7 @@ def test_printing_now_and_pages(ready, monkeypatch):
                           "url": f"/p/{job['project_id']}#history", "progress": 45, "printer": "P2S",
                           "name": "Live", "remaining_min": 32, "remaining": "32 min",
                           "project": job["project_id"], "job": job["id"]}]
-        assert client.get("/api/printing?idle_placeholder=1").json()["items"] == items  # nur im Leerlauf
+        assert client.get("/api/printing?idle_placeholder=1").json()["items"] == items  # only when idle
         page = client.get("/").text
         assert "P2S: Live · 45 % · noch 32 min" in page and 'data-label="Druckt">Druckt 45 %' in page
         stats = client.get("/api/stats").json()
@@ -405,7 +405,7 @@ def test_sort_and_filter_by_prints(ready, sample, monkeypatch):
     from app import main
     with TestClient(main.app) as client:
         def order(query):
-            """Projektnamen in der Reihenfolge, in der die Übersicht sie zeigt."""
+            """Project names in the order the overview shows them."""
             page = client.get("/?" + query).text
             shown = [(page.index(f"<h2>{n}</h2>"), n) for n in ("Oft", "Einmal", "Nie") if f"<h2>{n}</h2>" in page]
             return [n for _, n in sorted(shown)]
@@ -437,7 +437,7 @@ def test_diagnostics(ready, monkeypatch, caplog):
         assert 'id="diagnostics"' in page and "PlateShelf" in page and "/issues/new/choose" in page
 
 
-# --- Statistik und Übersicht in Schritten (0.7.9) --------------------------------
+# --- Statistics and overview in batches (0.7.9) ---------------------------------
 
 def test_statistics(ready, sample, monkeypatch):
     from app import statistics
@@ -452,12 +452,12 @@ def test_statistics(ready, sample, monkeypatch):
               duration_s=3600)
     ph.record(BAMBU, "b", "failed", remote_name="Rot.gcode.3mf", started=now - 600, ended=now - 300)
     ph.record(BAMBU, "c", "completed", remote_name="Rot.gcode.3mf", started=now - 400 * 86400,
-              ended=now - 400 * 86400 + 60)  # älter als zwölf Monate: zählt nicht
+              ended=now - 400 * 86400 + 60)  # older than twelve months: doesn't count
     st = statistics.compute(now)
     assert len(st["months"]) == 12 and st["months"][-1]["completed"] == 1 and st["months"][-1]["failed"] == 1
     assert st["totals"]["completed"] == 1 and st["totals"]["hours"] == pytest.approx(1.0)
     assert st["materials"] == [{"name": "PETG", "grams": pytest.approx(20.0)}]
-    # 20 g × 20 €/kg + 1 h × 100 W × 0,35 €/kWh
+    # 20 g × 20 €/kg + 1 h × 100 W × 0.35 €/kWh
     assert st["totals"]["cost"] == pytest.approx(0.4 + 0.035)
     (printer,) = st["printers"]
     assert (printer["name"], printer["completed"], printer["failed"], printer["rate"]) == ("P2S", 1, 1, 50)
@@ -487,10 +487,10 @@ def test_overview_in_steps(ready, sample):
         assert page.count('class="card"') == 65 and "anzeigen</a>" not in page
 
 
-# --- Bambu P2S: meldet die Platte statt des Dateinamens (0.7.12) -------------------
+# --- Bambu P2S: reports the plate instead of the file name (0.7.12) ---------------
 
 def imported_plate(lib, printer, remote, local, added):
-    """Wie der Import: printer_imports-Eintrag und Datei mit Importzeitpunkt."""
+    """Like the import: printer_imports entry and file with import time."""
     path = lib / local
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("G1 X1 Y1 E1\n")
@@ -506,7 +506,7 @@ def test_bambu_plate_and_subtask_name(ready):
     base = "From printer/P2S/Goofy_series_–_GRIM_REAPER"
     imported_plate(ready, BAMBU, "Goofy_series_–_GRIM_REAPER.gcode.3mf", base + "_plate_1.gcode", now - 9000)
     imported_plate(ready, BAMBU, "Goofy_series_–_GRIM_REAPER.gcode.3mf", base + "_plate_2.gcode", now - 60)
-    with store.connect() as con:  # Dateinamen wie vom Import: …_plate_N.gcode.3mf
+    with store.connect() as con:  # file names as from the import: …_plate_N.gcode.3mf
         for n in (1, 2):
             con.execute("UPDATE printer_imports SET local_path = ? WHERE local_path = ?",
                         (f"{base}_plate_{n}.gcode.3mf", f"{base}_plate_{n}.gcode"))
@@ -522,7 +522,7 @@ def test_bambu_plate_and_subtask_name(ready):
 
 
 def test_old_plate_jobs_are_linked_by_import_time(ready):
-    """Drucke aus 0.7.4 bis 0.7.11 heißen nur „plate_3.gcode“: Zuordnung über den Importzeitpunkt."""
+    """Prints from 0.7.4 to 0.7.11 are only named "plate_3.gcode": matched via the import time."""
     now = time.time()
     imported_plate(ready, BAMBU, "Eevee.gcode.3mf", "From printer/P2S/Eevee_plate_3.gcode.3mf", now - 7200 + 40)
     imported_plate(ready, BAMBU, "Truck.gcode.3mf", "From printer/P2S/Truck_plate_3.gcode.3mf", now - 86400)
@@ -547,8 +547,8 @@ def test_schema_step_adds_plate_column(lib):
 
 
 def test_plates_uploaded_one_by_one(ready):
-    """Wie beim P2S am 27.09.: jede Platte kurz vor ihrem Druck hochgeladen; Platte 1 lag schon früher
-    in der Bibliothek und wurde neu importiert (files.added bleibt alt, printer_files.imported ist neu)."""
+    """As with the P2S on 27.09.: each plate uploaded shortly before its print; plate 1 was already
+    in the library and was re-imported (files.added stays old, printer_files.imported is new)."""
     now = time.time()
     base = "From printer/P2S/Grim_plate_"
     for n, up in ((2, now - 6 * 3600), (3, now - 5 * 3600), (1, now - 3600)):
@@ -570,8 +570,8 @@ def test_plates_uploaded_one_by_one(ready):
 
 
 def test_single_plate_project_without_plate_number(ready, sample):
-    """Wie am 04.10.: Projekt mit einer Platte heißt lokal ohne „_plate_N“, der Drucker meldet als Namen
-    nur das Prozessprofil („0.2mm layer, 2 walls, 15% infill“) und Platte 1. Zuordnung über den Import."""
+    """As on 04.10.: a single-plate project is named locally without "_plate_N", the printer reports as name
+    only the process profile ("0.2mm layer, 2 walls, 15% infill") and plate 1. Matched via the import."""
     now = time.time()
     local = "From printer/P2S/Minimalist_Pencil_Holder.gcode.3mf"
     other = "From printer/P2S/Flexi_Playful_Star.gcode.3mf"
@@ -592,13 +592,13 @@ def test_single_plate_project_without_plate_number(ready, sample):
                         "'completed', ?, ?)", (key, plate, start, start + 300))
     ph.link_pending()
     got = {j["job_key"]: j["local_path"] for j in jobs()}
-    assert got == {"stift": local, "stern": other, "p2": None}   # Platte 2 gibt es in der Datei nicht
+    assert got == {"stift": local, "stern": other, "p2": None}   # plate 2 doesn't exist in the file
 
 
 def test_running_print_does_not_take_the_previous_file(ready, sample):
-    """Bug nach 0.8.13: Beim Druckstart ist die neue Datei noch nicht geholt; der laufende Druck
-    landete deshalb beim vorigen Projekt. Jetzt bleibt er offen und wird nach dem Import zugeordnet.
-    Schon falsch zugeordnete Drucke berichtigt link_pending."""
+    """Bug after 0.8.13: at print start the new file has not been fetched yet; the running print
+    therefore ended up with the previous project. Now it stays open and is matched after the import.
+    link_pending corrects prints that were already mismatched."""
     now = time.time()
     folder = ready / "From printer" / "P2S"
     folder.mkdir(parents=True)
@@ -614,16 +614,16 @@ def test_running_print_does_not_take_the_previous_file(ready, sample):
                         "VALUES (?, 'P2S', ?, 'x')", (path, name))
             con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, "
                         "printer_name, imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', ?)", (name, path, at))
-    imported_at(old, now - 3600)                      # voriger Druck vor einer Stunde
+    imported_at(old, now - 3600)                      # previous print an hour ago
     t = ph.BambuTracker(BAMBU)
     t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "/data/Metadata/plate_1.gcode",
                         "subtask_name": "0.2mm layer, 2 walls, 15% infill", "task_id": "88"}})
-    assert jobs()[0]["local_path"] is None            # nicht der vorige Druck
-    imported_at(new, now + 5)                          # Import kurz nach dem Start
+    assert jobs()[0]["local_path"] is None            # not the previous print
+    imported_at(new, now + 5)                          # import shortly after the start
     ph.link_pending()
     assert jobs()[0]["local_path"] == new
 
-    # Alte, falsch geratene Zuordnung (wie mit 0.8.13/0.8.14) wird berichtigt
+    # Old, wrongly guessed match (as with 0.8.13/0.8.14) is corrected
     with store.connect() as con:
         con.execute("UPDATE print_jobs SET local_path = ?", (old,))
     ph.link_pending()
@@ -631,7 +631,7 @@ def test_running_print_does_not_take_the_previous_file(ready, sample):
 
 
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
-    """Die Übersicht lädt neu, wenn ein Druck beginnt oder endet, nicht bei jedem Prozent."""
+    """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")
     imported(ready, BAMBU, "Live.gcode.3mf", "From printer/P2S/Live.gcode.3mf")
     before = store.library_version()
@@ -643,31 +643,31 @@ def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     ph.record(BAMBU, "v1", "completed", remote_name="Live.gcode.3mf", progress=100)
     done = store.library_version()
     assert done != started
-    store.save_settings({"vorschaubilder_stand": "1.1"})  # neues eigenes Vorschaubild gezeichnet
+    store.save_settings({"vorschaubilder_stand": "1.1"})  # new custom thumbnail drawn
     assert store.library_version() != done
 
 
 def test_new_print_of_unknown_file_fetches_it_right_away(ready, monkeypatch):
-    """Druckt ein Drucker eine Datei, die PlateShelf noch nicht hat, wird sofort abgeglichen."""
+    """If a printer prints a file PlateShelf doesn't have yet, a sync runs immediately."""
     calls = []
     monkeypatch.setattr(pi, "request_sync", lambda: calls.append(1))
     octo = {"name": "Ender", "id": "octoprint:x", "kind": "octoprint"}
     ph.record(octo, "octo:1", "running", remote_name="Neu.gcode", progress=1)
     assert calls == [1]
-    ph.record(octo, "octo:1", "running", remote_name="Neu.gcode", progress=5)   # derselbe Druck: kein zweites Mal
-    ph.record(octo, "octo:0", "completed", remote_name="Alt.gcode")            # alter Verlaufseintrag: nicht
+    ph.record(octo, "octo:1", "running", remote_name="Neu.gcode", progress=5)   # same print: not a second time
+    ph.record(octo, "octo:0", "completed", remote_name="Alt.gcode")            # old history entry: no
     imported(ready, octo, "Bekannt.gcode", "From printer/Ender/Bekannt.gcode")
-    ph.record(octo, "octo:2", "running", remote_name="Bekannt.gcode")          # Datei schon da: nicht
+    ph.record(octo, "octo:2", "running", remote_name="Bekannt.gcode")          # file already there: no
     assert calls == [1]
 
 
 def test_octoprint_job(ready, octoprint):
-    """OctoPrint ohne Verlauf: laufender Druck aus /api/job, Ende fertig, abgebrochen oder Fehler."""
+    """OctoPrint without history: running print from /api/job, ending completed, cancelled or failed."""
     printer = {"name": "Ender", "id": "octoprint:x", "code": "geheim", "ip": octoprint["address"], "kind": "octoprint"}
     imported(ready, printer, "Kunden/Halter.gcode", "From printer/Ender/Kunden_Halter.gcode")
     st = octoprint["state"]
     ph.poll_octoprint(printer)
-    assert jobs() == []                                                 # nichts gedruckt
+    assert jobs() == []                                                 # nothing printed
     st["job"] = {"state": "Printing", "job": {"file": {"name": "Halter.gcode", "path": "Kunden/Halter.gcode"}},
                  "progress": {"completion": 12.5, "printTime": 120, "printTimeLeft": 840}}
     ph.poll_octoprint(printer)
@@ -678,7 +678,7 @@ def test_octoprint_job(ready, octoprint):
     assert (job["progress"], job["remaining_s"], job["local_path"]) == (40.0, 600, "From printer/Ender/Kunden_Halter.gcode")
     (live,) = ph.printing_now()
     assert live["project_name"]
-    st["job"]["state"] = "Offline"                                      # Verbindung weg: nichts beenden
+    st["job"]["state"] = "Offline"                                      # connection lost: don't end anything
     ph.poll_octoprint(printer)
     assert jobs()[0]["status"] == "running"
     st["job"].update(state="Operational", progress={"completion": 100.0, "printTime": 1000, "printTimeLeft": 0})
@@ -693,7 +693,7 @@ def test_octoprint_job(ready, octoprint):
 
 
 def test_printing_now_soonest_first_and_parallel_polls(ready, monkeypatch):
-    """Der Druck, der als Nächstes fertig wird, steht vorn; abgefragt wird gleichzeitig."""
+    """The print that finishes next comes first; polling happens concurrently."""
     monkeypatch.setenv("PRINT_HISTORY", "true")
     ph.record(BAMBU, "lang", "running", remote_name="A.gcode.3mf", progress=10, remaining_s=7200)
     ph.record(BAMBU, "kurz", "running", remote_name="B.gcode.3mf", progress=90, remaining_s=120)
@@ -712,12 +712,12 @@ def test_printing_now_soonest_first_and_parallel_polls(ready, monkeypatch):
     monkeypatch.setattr(ph, "poll_moonraker", slow)
     t0 = time.time()
     ph.poll_once()
-    assert sorted(seen) == ["K0", "K1", "K2", "K3"] and time.time() - t0 < 2.5   # nicht 4 s nacheinander
+    assert sorted(seen) == ["K0", "K1", "K2", "K3"] and time.time() - t0 < 2.5   # not 4 s in sequence
 
 
 def test_completed_print_counts_as_100_percent(ready):
-    """Moonraker meldet beim Ende aus dem Verlauf keinen Fortschritt: fertig heißt 100 %."""
+    """Moonraker reports no progress from the history at the end: completed means 100 %."""
     ph.record(BAMBU, "e1", "running", remote_name="E.gcode.3mf", progress=81.9)
     ph.record(BAMBU, "e1", "completed", remote_name="E.gcode.3mf")
-    ph.record(BAMBU, "e2", "completed", remote_name="F.gcode.3mf")          # gleich fertig angelegt
+    ph.record(BAMBU, "e2", "completed", remote_name="F.gcode.3mf")          # created as completed right away
     assert {j["job_key"]: j["progress"] for j in jobs()} == {"e1": 100.0, "e2": 100.0}
