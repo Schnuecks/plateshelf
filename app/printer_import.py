@@ -26,6 +26,7 @@ Umgebungsvariablen vorgegeben:
 from __future__ import annotations
 
 import ftplib
+import hashlib
 import json
 import logging
 import os
@@ -689,6 +690,8 @@ def sync_printer(printer: dict, connect=None) -> dict:
             fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
             return result
         result["files"] = len(remote)
+        # Neueste zuerst: beim ersten Abgleich mit vielen Dateien ist der laufende Druck schnell da
+        remote.sort(key=lambda f: parse_remote_date(f["date"]) or 0, reverse=True)
         with store.connect() as con:
             known = {r["remote_name"]: r for r in con.execute(
                 "SELECT remote_name, size, remote_date, local_path FROM printer_files WHERE printer = ?",
@@ -705,20 +708,26 @@ def sync_printer(printer: dict, connect=None) -> dict:
                 continue  # schon geholt (oder bewusst gelöscht): nichts tun
             target_dir.mkdir(parents=True, exist_ok=True)
             tmp = target_dir / f".{_local_name(f['name'])}.part"
+            same = None
             try:
                 with open(tmp, "wb") as fh:
                     source.fetch(f["name"], fh)
                 # Manche Drucker (Prusa MINI) nennen in der Liste keine Größe: dann prüft die Quelle selbst
                 if f["size"] and tmp.stat().st_size != f["size"]:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")
-                final = target_dir / _plate_file_name(f["name"], tmp)
-                os.replace(tmp, final)
-                _keep_printer_date(final, f["date"])
+                if f["name"].startswith(FtpSource.CACHE + "/"):
+                    same = _same_file(tmp)  # P2S legt dieselbe Datei auch im Hauptverzeichnis ab
+                if same:
+                    tmp.unlink()
+                else:
+                    final = target_dir / _plate_file_name(f["name"], tmp)
+                    os.replace(tmp, final)
+                    _keep_printer_date(final, f["date"])
             except (OSError, ftplib.Error) as exc:
                 log.warning("%s: %s konnte nicht geholt werden: %s", printer["name"], f["name"], exc)
                 tmp.unlink(missing_ok=True)
                 continue
-            rel = final.relative_to(store.LIBRARY_DIR).as_posix()
+            rel = same or final.relative_to(store.LIBRARY_DIR).as_posix()
             with store.connect() as con:
                 con.execute(
                     """INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, imported)
@@ -728,6 +737,8 @@ def sync_printer(printer: dict, connect=None) -> dict:
                          printer_name = excluded.printer_name, imported = excluded.imported""",
                     (printer["id"], f["name"], f["size"], f["date"], rel, printer["name"], time.time()),
                 )
+                if same:
+                    continue  # nur verknüpft: Drucke dieser Datei landen beim vorhandenen Projekt
                 con.execute(
                     """INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date)
                        VALUES (?, ?, ?, ?) ON CONFLICT(local_path) DO UPDATE SET
@@ -745,11 +756,57 @@ def sync_printer(printer: dict, connect=None) -> dict:
     return result
 
 
+def _digest(path: Path) -> str:
+    with open(path, "rb") as fh:
+        return hashlib.file_digest(fh, "sha256").hexdigest()
+
+
+def _same_file(path: Path) -> str | None:
+    """Pfad einer schon vorhandenen Datei mit genau diesem Inhalt."""
+    digest = _digest(path)
+    with store.connect() as con:
+        row = con.execute("SELECT path FROM files WHERE sha256 = ? AND missing = 0 ORDER BY added LIMIT 1",
+                          (digest,)).fetchone()
+    return row["path"] if row else None
+
+
+def dedupe_cache_imports() -> int:
+    """0.15.2 hat aus dem Ordner cache auch Dateien geholt, die schon aus dem Hauptverzeichnis da
+    waren (der P2S legt beide ab). Solche Doppel entfernen und ihre Drucke auf das Original umhängen."""
+    removed = 0
+    with store.connect() as con:
+        rows = con.execute(
+            """SELECT pf.printer, pf.remote_name, pf.local_path, f.sha256 FROM printer_files pf
+               JOIN files f ON f.path = pf.local_path AND f.missing = 0
+               WHERE pf.remote_name LIKE ? AND f.sha256 IS NOT NULL""", (FtpSource.CACHE + "/%",)).fetchall()
+        for r in rows:
+            if con.execute("SELECT 1 FROM printer_files WHERE local_path = ? AND remote_name NOT LIKE ?",
+                           (r["local_path"], FtpSource.CACHE + "/%")).fetchone():
+                continue  # ist selbst das Original (schon umgehängt)
+            orig = con.execute("""SELECT path FROM files WHERE sha256 = ? AND missing = 0 AND path != ?
+                                  AND path NOT IN (SELECT local_path FROM printer_files WHERE remote_name LIKE ?
+                                                   AND local_path IS NOT NULL)
+                                  ORDER BY added LIMIT 1""",
+                               (r["sha256"], r["local_path"], FtpSource.CACHE + "/%")).fetchone()
+            if not orig or not (store.LIBRARY_DIR / orig["path"]).exists():
+                continue
+            (store.LIBRARY_DIR / r["local_path"]).unlink(missing_ok=True)
+            con.execute("UPDATE printer_files SET local_path = ? WHERE local_path = ?", (orig["path"], r["local_path"]))
+            con.execute("UPDATE print_jobs SET local_path = ? WHERE local_path = ?", (orig["path"], r["local_path"]))
+            con.execute("DELETE FROM printer_imports WHERE local_path = ?", (r["local_path"],))
+            removed += 1
+    if removed:
+        log.info("%d doppelte Dateien aus dem Ordner cache entfernt", removed)
+    return removed
+
+
 def sync_all() -> None:
     if not _lock.acquire(blocking=False):
         return
     state["running"] = True
     changed = False
+    if dedupe_cache_imports():
+        store.scan()
     try:
         printers = load_printers()
         for serial in set(state["printers"]) - {p["id"] for p in printers}:
