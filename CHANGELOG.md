@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.15.1
+
+- **Finished prints shown as finished right away:** on the project page and in the history, a
+  running print that ends now switches to “Finished” by itself (the page reloads once) instead of
+  staying at its last percentage. Finished prints are always stored with 100 %, even when the
+  printer (e.g. Klipper) no longer reports progress at the end.
+
 ## 0.15.0
 
 - **Several prints at once:** the top bar now shows the print that finishes next (not the one

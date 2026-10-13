@@ -79,7 +79,7 @@ def test_bambu_restart_while_printing(ready):
     assert len(jobs()) == 1
     ph.BambuTracker(BAMBU).update({"print": {"gcode_state": "FINISH", "gcode_file": "C.gcode.3mf"}})
     (job,) = jobs()
-    assert job["status"] == "completed" and job["progress"] == 80
+    assert job["status"] == "completed" and job["progress"] == 100.0  # fertig ist fertig
 
 
 def test_link_after_import(ready):
@@ -172,7 +172,8 @@ def test_moonraker_live_print_without_history(ready, moonraker):
     assert now["project_name"] and now["progress"] == 69.0
     moonraker["state"]["objects"]["print_stats"]["state"] = "complete"
     ph.poll_moonraker(printer)
-    assert {j["job_key"]: j["status"] for j in jobs()}[live["job_key"]] == "completed"
+    done = {j["job_key"]: j for j in jobs()}[live["job_key"]]
+    assert done["status"] == "completed" and done["progress"] == 100.0   # nicht beim letzten Wert stehen bleiben
     assert ph.printing_now() == []
 
 
@@ -712,3 +713,11 @@ def test_printing_now_soonest_first_and_parallel_polls(ready, monkeypatch):
     t0 = time.time()
     ph.poll_once()
     assert sorted(seen) == ["K0", "K1", "K2", "K3"] and time.time() - t0 < 2.5   # nicht 4 s nacheinander
+
+
+def test_completed_print_counts_as_100_percent(ready):
+    """Moonraker meldet beim Ende aus dem Verlauf keinen Fortschritt: fertig heißt 100 %."""
+    ph.record(BAMBU, "e1", "running", remote_name="E.gcode.3mf", progress=81.9)
+    ph.record(BAMBU, "e1", "completed", remote_name="E.gcode.3mf")
+    ph.record(BAMBU, "e2", "completed", remote_name="F.gcode.3mf")          # gleich fertig angelegt
+    assert {j["job_key"]: j["progress"] for j in jobs()} == {"e1": 100.0, "e2": 100.0}

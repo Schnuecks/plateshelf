@@ -187,6 +187,8 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
                     values[key] = value
             if status in FINAL:
                 values["remaining_s"] = None
+            if status == "completed":
+                values["progress"] = 100.0  # Klipper meldet beim Ende keinen Fortschritt mehr, sonst bliebe der letzte
             if status in FINAL and not row["ended"]:
                 values["ended"] = ended or now
             sets = ", ".join(f"{k} = ?" for k in values)
@@ -197,7 +199,8 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
                        started, ended, duration_s, filament_mm, progress, remaining_s, updated, plate)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (printer["id"], printer["name"], job_key, remote_name, local, status, started or now,
-                 (ended or now) if status in FINAL else None, duration_s, filament_mm, progress,
+                 (ended or now) if status in FINAL else None, duration_s, filament_mm,
+                 100.0 if status == "completed" else progress,
                  None if status in FINAL else remaining_s, now, plate))
         job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
