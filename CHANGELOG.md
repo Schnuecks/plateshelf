@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.16.1
 
 - **Menu on phones:** the menu now opens as a panel above the page (the page behind is dimmed, a tap
   next to it closes it) instead of pushing the page down with a narrow column. Every entry has an
