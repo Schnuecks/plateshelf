@@ -21,3 +21,4 @@ library/
 .vscode/
 .DS_Store
 Thumbs.db
+.claude/worktrees/
