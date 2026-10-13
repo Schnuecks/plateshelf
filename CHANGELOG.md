@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Bambu P1 and A1 series:** prints sent from Bambu Studio or the cloud are stored by these
+  printers in the `cache` folder of the SD card, not in the main folder. PlateShelf now also fetches
+  the sliced projects from there (`.3mf`, saved as `.gcode.3mf`), so their prints are linked to a
+  project. Unsliced files and the extracted G-code copies next to them are skipped.
+
 ## 0.15.1
 
 - **Finished prints shown as finished right away:** on the project page and in the history, a

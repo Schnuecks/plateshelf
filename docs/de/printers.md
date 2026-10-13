@@ -10,6 +10,9 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
 
 - **Bambu Lab** per FTPS von der SD-Karte, mit dem Zugangscode des Druckers. Der
   LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
+  PlateShelf holt die `.gcode.3mf`-Dateien aus dem Hauptverzeichnis und die geslicten
+  Projekte aus dem Ordner `cache`, in dem die P1- und A1-Serie Drucke aus Bambu Studio
+  ablegt. Der P1S braucht dafür eine microSD-Karte.
 - **Prusa-Drucker** über PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf holt
   die `.bgcode`- und `.gcode`-Dateien vom USB-Stick oder internen Speicher.
 - **Klipper-Drucker** über [Moonraker](https://moonraker.readthedocs.io), die

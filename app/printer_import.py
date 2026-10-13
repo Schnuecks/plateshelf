@@ -334,15 +334,16 @@ def init() -> None:
     state["enabled"] = bool(load_printers())
 
 
-def parse_listing(lines: list[str]) -> list[dict]:
-    """Nur Dateien im Hauptverzeichnis, die auf .gcode.3mf enden."""
+def parse_listing(lines: list[str], sliced_3mf: bool = False) -> list[dict]:
+    """Dateien, die auf .gcode.3mf enden; mit sliced_3mf auch .3mf (im Ordner cache sind das
+    geslicte Projekte, die Bambu Studio zum Drucken geschickt hat)."""
     out = []
     for line in lines:
         m = _LIST_RE.match(line.strip())
         if not m or m["type"] != "-":
             continue
         name = m["name"].strip()
-        if name.lower().endswith(".gcode.3mf"):
+        if name.lower().endswith(".gcode.3mf") or (sliced_3mf and name.lower().endswith(".3mf")):
             out.append({"name": name, "size": int(m["size"]), "date": " ".join(m["date"].split())})
     return out
 
@@ -407,13 +408,17 @@ def _plate_file_name(remote: str, downloaded: Path) -> str:
     wenn eine andere Platte gedruckt wird. Mit der Plattennummer im Namen bleibt
     jede gedruckte Platte als eigene Datei erhalten.
     """
-    base = _local_name(remote)
+    base = _local_name(remote.removeprefix(FtpSource.CACHE + "/"))
     if is_gcode(base):
         return base  # einfacher G-Code hat nur eine Platte
     try:
         parsed = parse_3mf(downloaded)
     except Exception:  # noqa: BLE001
         return base
+    if not base.lower().endswith(".gcode.3mf"):
+        if not any(p.sliced for p in parsed.plates):
+            return base  # ungeslictes Projekt: Name lassen
+        base = base[:-4] + ".gcode.3mf"  # geslict aus dem Ordner cache: wie die übrigen Druckdateien
     sliced = [p.index for p in parsed.plates if p.sliced]
     if len(parsed.plates) <= 1 or len(sliced) != 1:
         return base  # einplattig oder mehrere Platten auf einmal: Name unverändert
@@ -436,10 +441,22 @@ class FtpSource:
     def __init__(self, ftp):
         self.ftp = ftp
 
+    # Was Bambu Studio oder die Cloud zum Drucken schickt, legt die P1- und A1-Serie in /cache ab
+    # (als geslicte .3mf, daneben ausgepackter G-Code und .bbl, die braucht es nicht)
+    CACHE = "cache"
+
     def list(self) -> list[dict]:
         lines: list[str] = []
         self.ftp.retrlines("LIST /", lines.append)
-        return parse_listing(lines)
+        files = parse_listing(lines)
+        cached: list[str] = []
+        try:
+            self.ftp.retrlines(f"LIST /{self.CACHE}", cached.append)
+        except ftplib.error_perm:
+            return files  # kein Ordner cache auf dieser Karte
+        for f in parse_listing(cached, sliced_3mf=True):
+            files.append({**f, "name": f"{self.CACHE}/{f['name']}"})
+        return files
 
     def fetch(self, name: str, fh) -> None:
         self.ftp.retrbinary(f"RETR /{name}", fh.write, blocksize=256 * 1024)
