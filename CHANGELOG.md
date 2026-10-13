@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.15.2
 
 - **Bambu P1 and A1 series:** prints sent from Bambu Studio or the cloud are stored by these
   printers in the `cache` folder of the SD card, not in the main folder. PlateShelf now also fetches
