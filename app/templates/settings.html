@@ -412,7 +412,7 @@
       <section class="settings-section" id="diagnostics" data-section>
         <h2>{{ _('Diagnose') }}</h2>
         <p class="hint">{{ _('Hilft bei Fehlermeldungen: Kopiere den Text und füge ihn in dein Issue auf GitHub ein. Er enthält keine Zugangsdaten, IP-Adressen oder Druckernamen; schau trotzdem kurz drüber, bevor du ihn teilst.') }}</p>
-        <textarea class="diag-text" rows="16" readonly spellcheck="false" aria-label="{{ _('Diagnose') }}" data-copy-source>{{ diagnostics }}</textarea>
+        <textarea class="diag-text" rows="{{ [diagnostics.splitlines()|length + 1, 8]|max }}" readonly spellcheck="false" aria-label="{{ _('Diagnose') }}" data-copy-source>{{ diagnostics }}</textarea>
         <div class="section-foot diag-actions">
           <span class="hint" data-copy-done hidden role="status">{{ _('Kopiert.') }}</span>
           <a href="{{ APP_REPO }}/issues/new/choose" target="_blank" rel="noopener">{{ _('Fehler auf GitHub melden') }}</a>

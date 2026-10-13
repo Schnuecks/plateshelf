@@ -50,6 +50,11 @@ document.querySelectorAll("[data-menu-toggle]").forEach((button) => {
   };
   button.addEventListener("click", () => set(!bar.classList.contains("menu-open")));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+  // A tap next to the panel (on the dimmed page) closes it
+  const nav = bar.querySelector(".tb-right");
+  document.addEventListener("click", (e) => {
+    if (bar.classList.contains("menu-open") && !nav.contains(e.target) && !button.contains(e.target)) set(false);
+  });
 });
 document.querySelectorAll(".topbar").forEach((bar) => {
   const store = () => document.documentElement.style.setProperty("--topbar-h", `${bar.offsetHeight}px`);
