@@ -643,6 +643,9 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
         page.clock.run_for(16_000)
         page.wait_for_function("document.querySelector('[data-live-job]').textContent.includes('70')",
                                timeout=5_000)
+        print_history.record(printer, "live1", "completed", remote_name="Zylinder.gcode.3mf")  # Ende ohne Fortschritt
+        page.clock.run_for(16_000)
+        page.wait_for_function("!document.querySelector('[data-live-job]')", timeout=5_000)   # neu geladen
     finally:
         with store.connect() as con:
             con.execute("DELETE FROM print_jobs WHERE job_key = 'live1'")

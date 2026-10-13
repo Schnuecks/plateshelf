@@ -127,6 +127,7 @@ document.querySelectorAll("[data-live-print]").forEach((wrap) => {
 // den Drucklisten (Projektseite, Verlauf). Beginn und Ende eines Drucks lädt die Übersicht ohnehin
 // neu (siehe unten), hier geht es nur um die Prozente.
 const liveBadges = document.querySelectorAll("[data-live-project], [data-live-job]");
+const liveSeen = new Set();
 if (liveBadges.length) {
   const fmtPct = (v) => Math.round(v).toLocaleString(document.documentElement.lang || undefined);
   setInterval(() => {
@@ -142,10 +143,15 @@ if (liveBadges.length) {
           byProject.set(key, [...(byProject.get(key) || []), i]);
         });
         const byJob = new Map(items.filter((i) => i.job != null).map((i) => [String(i.job), i]));
+        let ended = false;
         liveBadges.forEach((badge) => {
           if (badge.dataset.liveJob) {
             const item = byJob.get(badge.dataset.liveJob);
             if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
+            // Eben noch gemeldet, jetzt nicht mehr: der Druck ist zu Ende → neu laden, damit „Fertig“ dasteht.
+            // Nur wenn er auf dieser Seite schon gemeldet war, sonst lüde ein hängender Eintrag ewig neu.
+            if (item) liveSeen.add(badge.dataset.liveJob);
+            else if (liveSeen.has(badge.dataset.liveJob)) ended = true;
             return;
           }
           // Projektkachel: gleiches Projekt auf mehreren Druckern → „Druckt 2× 45 % / 12 %“
@@ -155,6 +161,9 @@ if (liveBadges.length) {
           badge.textContent = [badge.dataset.label, jobs.length > 1 ? `${jobs.length}×` : "", pcts.join(" / ")]
             .filter(Boolean).join(" ");
         });
+        const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "") ||
+          document.querySelector("details[open] textarea, dialog[open]");
+        if (ended && !typing) location.reload();
       })
       .catch(() => {});
   }, 15000);
