@@ -10,6 +10,9 @@ PlateShelf can fetch sliced prints from your printers itself:
 
 - **Bambu Lab** printers via FTPS from the SD card, using the printer’s access code.
   LAN-only mode is not required as long as the firmware allows file access.
+  PlateShelf fetches the `.gcode.3mf` files from the main folder and the sliced projects
+  from the `cache` folder, where the P1 and A1 series keep prints sent from Bambu Studio.
+  The P1S needs a microSD card for this.
 - **Prusa printers** via PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf fetches
   the `.bgcode` and `.gcode` files from the USB drive or internal storage.
 - **Klipper printers** via [Moonraker](https://moonraker.readthedocs.io), the interface

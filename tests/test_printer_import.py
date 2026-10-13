@@ -35,8 +35,14 @@ class FakePrinter:
         return self
 
     def retrlines(self, cmd, cb):
+        folder = cmd[5:].strip("/")  # "LIST /" oder "LIST /cache"
+        if folder and not any(name.startswith(folder + "/") for name in self.files):
+            import ftplib
+            raise ftplib.error_perm("550 No such directory")
         for name, (src, date) in self.files.items():
-            cb(f"-rwxr-xr-x    1 103      107  {os.path.getsize(src):>12} {date} {name}")
+            where, _, short = name.rpartition("/")
+            if where == folder:
+                cb(f"-rwxr-xr-x    1 103      107  {os.path.getsize(src):>12} {date} {short}")
 
     def retrbinary(self, cmd, cb, blocksize=8192):
         cb(open(self.files[cmd[6:]][0], "rb").read())
@@ -73,6 +79,37 @@ def test_sync_keeps_every_printed_plate(lib, sample, tmp_path):
     store.scan(wait=True)
     with store.connect() as con:
         assert con.execute("SELECT DISTINCT p.name FROM projects p JOIN files f ON f.project_id = p.id").fetchall()[0][0] == "Jade Mountains"
+
+
+def test_sync_takes_sliced_projects_from_the_cache_folder(lib, sample, tmp_path):
+    """P1S: Drucke aus Bambu Studio liegen als .3mf in /cache; nur die geslicten werden geholt."""
+    import shutil as _sh
+    sliced = tmp_path / "Prisma.gcode.3mf"
+    sample(sliced, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    unsliced = tmp_path / "Nur Modell.3mf"
+    _sh.copy(sliced, unsliced)
+    import zipfile
+    with zipfile.ZipFile(sliced) as z, zipfile.ZipFile(unsliced, "w") as out:
+        for name in z.namelist():
+            if not name.endswith(".gcode") and "slice_info" not in name:
+                out.writestr(name, z.read(name))
+    gcode = tmp_path / "x.gcode"
+    gcode.write_text("G1 X1")
+    pi.init()
+    fake = FakePrinter({"Root.gcode.3mf": (sliced, "Jan 18  2026"),
+                        "cache/Sechseckiges Prisma.3mf": (sliced, "Jan 19  2026"),
+                        "cache/Nur Modell.3mf": (unsliced, "Jan 19  2026"),
+                        "cache/Sechseckiges Prisma_plate_1.gcode": (gcode, "Jan 19  2026"),
+                        "cache/1_Sechseckiges Prisma.bbl": (gcode, "Jan 19  2026")})
+    res = pi.sync_printer(PRINTER, connect=fake)
+    assert res["new"] == 3 and res["files"] == 3, res
+    assert sorted(os.listdir(lib / "From printer" / "P2S")) == [
+        "Nur Modell.3mf", "Root.gcode.3mf", "Sechseckiges Prisma.gcode.3mf"]
+    from app import print_history as ph
+    with store.connect() as con:  # der Drucker meldet den Projektnamen samt .3mf
+        assert ph._resolve(con, "SER1", "Sechseckiges Prisma.3mf") == "From printer/P2S/Sechseckiges Prisma.gcode.3mf"
+    # Karte ohne Ordner cache: wie bisher nur das Hauptverzeichnis
+    assert pi.sync_printer(PRINTER, connect=FakePrinter({"Root.gcode.3mf": (sliced, "Jan 18  2026")}))["files"] == 1
 
 
 def test_older_listing_format_is_not_a_new_file(lib, sample, tmp_path):
