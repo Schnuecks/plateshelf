@@ -102,7 +102,11 @@ plates, the plate the printer reported counts. “Partly printed” lists the pr
 plates are still missing.
 
 A running print appears in the top bar with printer, project, progress and remaining
-time, and on the project's card in the overview; the top bar refreshes every 30 seconds.
+time, on the project's card in the overview and in the browser tab title; everything
+refreshes every 15 seconds. With several prints running, the top bar shows the one that
+finishes next; “+2” opens a list of all of them. If the same project prints on several
+printers, its card shows for example “Printing 2× 80 % / 20 %”. Printers are queried at the
+same time, so one that is switched off doesn't hold up the others.
 Bambu and Prusa report the remaining time themselves, for Klipper it is estimated from the
 progress so far.
 

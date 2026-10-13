@@ -79,10 +79,12 @@ def load_projects(con) -> list[dict]:
         if not fresh:
             _cache.update(projects=_build(con), sig=sig, at=time.monotonic())
         cached = _cache["projects"]
-    live = {}
+    live: dict = {}
     for job in print_history.printing_now():
-        live.setdefault(job["project_id"], job)
-    return [{**p, "printing": live.get(p["id"])} if p["id"] in live else p for p in cached]
+        live.setdefault(job["project_id"], []).append(job)
+    # printing: der Druck, der als Nächstes fertig wird; printings: alle (gleiches Projekt auf mehreren Druckern)
+    return [{**p, "printing": live[p["id"]][0], "printings": live[p["id"]]} if p["id"] in live else p
+            for p in cached]
 
 
 def _mark_printed_plates(p: dict, by_plate: dict) -> None:

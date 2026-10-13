@@ -812,6 +812,16 @@ a.icon-btn { text-decoration: none; }
 .live-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); flex: none;
   animation: live-pulse 2s ease-in-out infinite; }
 .live-more { color: var(--muted); }
+.live-wrap { position: relative; display: inline-flex; align-items: center; gap: .3rem; min-width: 0; }
+.live-wrap .live-more { padding: .2rem .55rem; border: 1px solid var(--line); border-radius: 999px; background: none;
+  font-size: .8rem; font-weight: 600; cursor: pointer; }
+.live-wrap .live-more:hover, .live-wrap .live-more[aria-expanded="true"] { border-color: var(--accent); color: var(--ink); }
+.live-list { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 40; min-width: 18rem; max-width: min(28rem, 90vw);
+  margin: 0; padding: .35rem; list-style: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.live-list a { display: block; padding: .45rem .6rem; border-radius: calc(var(--radius) - 2px); color: var(--ink);
+  text-decoration: none; font-size: .85rem; }
+.live-list a:hover { background: var(--bg); }
 @keyframes live-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 @media (max-width: 1100px) { .live-print { max-width: 14rem; } }

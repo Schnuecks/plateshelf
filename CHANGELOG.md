@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.15.0
+
+- **Several prints at once:** the top bar now shows the print that finishes next (not the one
+  started first), and “+2” opens a list of all running prints with links. The browser tab reads
+  e.g. “3 prints · next 87 %”, and a project printing on several printers shows “Printing 2× 80 % /
+  20 %” on its card.
+- **Printers queried in parallel:** fetching files and print status now runs for all printers at the
+  same time, so a printer that is switched off no longer delays the others.
+
 ## 0.14.3
 
 - **Clean thumbnails for large prints:** PlateShelf’s own thumbnails no longer show the inside of

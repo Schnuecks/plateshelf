@@ -108,8 +108,11 @@ mehrere Platten, zählt die Platte, die der Drucker gemeldet hat. „Teilweise g
 Projekte, bei denen noch Platten fehlen.
 
 Ein laufender Druck erscheint in der Titelleiste mit Drucker, Projekt, Fortschritt und
-Restzeit sowie auf der Karte des Projekts in der Übersicht; die Titelleiste frischt sich
-alle 30 Sekunden auf. Bambu und Prusa melden die Restzeit selbst, bei Klipper wird sie aus
+Restzeit sowie auf der Karte des Projekts in der Übersicht und im Titel des Browser-Tabs;
+alles frischt sich alle 15 Sekunden auf. Laufen mehrere Drucke, zeigt die Titelleiste den,
+der als Nächstes fertig wird; „+2“ klappt die Liste aller Drucke auf. Druckt dasselbe
+Projekt auf mehreren Druckern, steht auf der Karte zum Beispiel „Druckt 2× 80 % / 20 %“.
+Die Drucker werden gleichzeitig abgefragt, ein ausgeschalteter hält die anderen nicht auf. Bambu und Prusa melden die Restzeit selbst, bei Klipper wird sie aus
 dem bisherigen Fortschritt geschätzt.
 
 - **Bambu Lab:** PlateShelf hält eine MQTT-Verbindung zum Drucker (Port 8883, derselbe

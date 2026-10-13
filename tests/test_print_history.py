@@ -689,3 +689,26 @@ def test_octoprint_job(ready, octoprint):
     st["job"].update(state="Operational", progress={"completion": 7.0})
     ph.poll_octoprint(printer)
     assert sorted(j["status"] for j in jobs()) == ["cancelled", "completed"]
+
+
+def test_printing_now_soonest_first_and_parallel_polls(ready, monkeypatch):
+    """Der Druck, der als Nächstes fertig wird, steht vorn; abgefragt wird gleichzeitig."""
+    monkeypatch.setenv("PRINT_HISTORY", "true")
+    ph.record(BAMBU, "lang", "running", remote_name="A.gcode.3mf", progress=10, remaining_s=7200)
+    ph.record(BAMBU, "kurz", "running", remote_name="B.gcode.3mf", progress=90, remaining_s=120)
+    ph.record(BAMBU, "offen", "running", remote_name="C.gcode.3mf", progress=1)
+    assert [j["remote_name"] for j in ph.printing_now()] == ["B.gcode.3mf", "A.gcode.3mf", "C.gcode.3mf"]
+
+    printers = [{"name": f"K{n}", "id": f"moonraker:{n}", "kind": "moonraker", "ip": "x", "code": ""} for n in range(4)]
+    monkeypatch.setattr(pi, "load_printers", lambda: printers)
+    monkeypatch.setattr(ph, "refresh_watchers", lambda _p: None)
+    seen = []
+
+    def slow(p, source=None):
+        time.sleep(1)
+        seen.append(p["name"])
+
+    monkeypatch.setattr(ph, "poll_moonraker", slow)
+    t0 = time.time()
+    ph.poll_once()
+    assert sorted(seen) == ["K0", "K1", "K2", "K3"] and time.time() - t0 < 2.5   # nicht 4 s nacheinander

@@ -737,10 +737,23 @@ def sync_all() -> None:
         printers = load_printers()
         for serial in set(state["printers"]) - {p["id"] for p in printers}:
             state["printers"].pop(serial, None)
-        for printer in printers:
+        results: dict[str, dict] = {}
+
+        def one(printer):  # alle Drucker gleichzeitig: ein ausgeschalteter hält die anderen nicht auf
             res = sync_printer(printer)
             res["at"] = time.time()
+            results[printer["id"]] = res
             state["printers"][printer["id"]] = res
+
+        threads = [threading.Thread(target=one, args=(p,), daemon=True) for p in printers]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(TIMEOUT * 4 + 60)  # große Downloads dürfen dauern, hängen darf nichts ewig
+        for printer in printers:
+            res = results.get(printer["id"])
+            if not res:
+                continue
             changed |= bool(res["new"] or res["updated"])
             if res["error"]:
                 log.info("%s: %s", printer["name"], res["error"])

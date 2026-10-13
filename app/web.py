@@ -205,7 +205,7 @@ JS_TEXTS = [
     "Abspielen", "Anhalten", "Geometrie wird aufgebaut: {pct} %", "Vollbild", "Vollbild beenden", "Platte {n}", "Geschwindigkeit", "Volumenstrom", "Lüfter", "Düsentemperatur", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
     "Außenwand", "Innenwand", "Überhangwand", "Infill", "Massives Infill", "Oberfläche", "Unterseite", "Brücke",
     "Lückenfüllung", "Schwebende Hülle", "Stützen", "Stützen-Kontakt", "Stützen-Übergang", "Reinigungsturm",
-    "Brim", "Skirt", "Glätten", "Sonstiges",
+    "Brim", "Skirt", "Glätten", "Sonstiges", "{n} Drucke · nächster {pct} %",
 ]
 
 

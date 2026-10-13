@@ -76,13 +76,24 @@ document.querySelectorAll("[data-autosubmit]").forEach((input) => {
 // Laufender Druck in der Titelleiste und im Titel des Browser-Tabs („45 % · …“): alle 15 s auffrischen.
 // Auch bei verstecktem Tab, damit man den Fortschritt in der Tableiste sieht.
 const baseTitle = document.title;
+// Der Server sortiert: der Druck, der als Nächstes fertig wird, steht vorn.
 const tabTitle = (items) => {
   const p = items.find((i) => i.progress != null);
-  document.title = p ? `${Math.round(p.progress)} % · ${baseTitle}` : baseTitle;
+  if (!p) { document.title = baseTitle; return; }
+  const pct = Math.round(p.progress);
+  document.title = items.length > 1
+    ? `${t("{n} Drucke · nächster {pct} %", { n: items.length, pct })} · ${baseTitle}`
+    : `${pct} % · ${baseTitle}`;
 };
-document.querySelectorAll("[data-live-print]").forEach((pill) => {
-  const text = pill.querySelector("[data-live-text]");
-  const more = pill.querySelector("[data-live-more]");
+document.querySelectorAll("[data-live-print]").forEach((wrap) => {
+  const link = wrap.querySelector("[data-live-link]");
+  const text = wrap.querySelector("[data-live-text]");
+  const more = wrap.querySelector("[data-live-more]");
+  const list = wrap.querySelector("[data-live-list]");
+  const setOpen = (open) => { list.hidden = !open; more.setAttribute("aria-expanded", String(open)); };
+  more.addEventListener("click", () => setOpen(list.hidden));
+  document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) setOpen(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
   const refresh = () => {
     fetch("/api/printing", { headers: { Accept: "application/json" } })
       .then((r) => (r.ok ? r.json() : null))
@@ -90,13 +101,21 @@ document.querySelectorAll("[data-live-print]").forEach((pill) => {
         if (!data) return;
         const items = data.items || [];
         tabTitle(items);
-        pill.hidden = items.length === 0;
+        wrap.hidden = items.length === 0;
         if (!items.length) return;
         text.textContent = items[0].text;
-        pill.href = items[0].url;
-        pill.title = items.map((i) => i.text).join(" | ");
+        link.href = items[0].url;
         more.hidden = items.length < 2;
         more.textContent = "+" + (items.length - 1);
+        if (items.length < 2) setOpen(false);
+        list.replaceChildren(...items.map((i) => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = i.url;
+          a.textContent = i.text;
+          li.append(a);
+          return li;
+        }));
       })
       .catch(() => {});
   };
@@ -117,11 +136,24 @@ if (liveBadges.length) {
       .then((data) => {
         if (!data) return;
         const items = data.items || [];
-        const byProject = new Map(items.filter((i) => i.project != null).map((i) => [String(i.project), i]));
+        const byProject = new Map();
+        items.filter((i) => i.project != null).forEach((i) => {
+          const key = String(i.project);
+          byProject.set(key, [...(byProject.get(key) || []), i]);
+        });
         const byJob = new Map(items.filter((i) => i.job != null).map((i) => [String(i.job), i]));
         liveBadges.forEach((badge) => {
-          const item = badge.dataset.liveJob ? byJob.get(badge.dataset.liveJob) : byProject.get(badge.dataset.liveProject);
-          if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
+          if (badge.dataset.liveJob) {
+            const item = byJob.get(badge.dataset.liveJob);
+            if (item && item.progress != null) badge.textContent = `${badge.dataset.label} ${fmtPct(item.progress)} %`;
+            return;
+          }
+          // Projektkachel: gleiches Projekt auf mehreren Druckern → „Druckt 2× 45 % / 12 %“
+          const jobs = byProject.get(badge.dataset.liveProject) || [];
+          if (!jobs.length) return;
+          const pcts = jobs.filter((i) => i.progress != null).map((i) => `${fmtPct(i.progress)} %`);
+          badge.textContent = [badge.dataset.label, jobs.length > 1 ? `${jobs.length}×` : "", pcts.join(" / ")]
+            .filter(Boolean).join(" ");
         });
       })
       .catch(() => {});
