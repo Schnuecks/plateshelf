@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Set to the tag by GitHub Actions on release (e.g. v0.2.0)
 ARG VERSION=dev
