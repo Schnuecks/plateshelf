@@ -32,6 +32,15 @@ document.querySelectorAll("[data-printer-kind]").forEach((sel) => {
   sel.addEventListener("change", () => { sel.closest("[data-printer]").dataset.kind = sel.value; });
 });
 
+// Menü rechts in der Kopfzeile (Verlauf, Papierkorb, Einstellungen, Konto, Abmelden)
+document.querySelectorAll("[data-nav-menu]").forEach((menu) => {
+  const button = menu.querySelector(".nav-menu-btn");
+  const set = (open) => { menu.classList.toggle("is-open", open); button.setAttribute("aria-expanded", String(open)); };
+  button.addEventListener("click", () => set(!menu.classList.contains("is-open")));
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) set(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+});
+
 // Kopfzeile auf dem Handy: Menü auf- und zuklappen; Höhe der Kopfzeile für die 3D-Vorschau merken
 document.querySelectorAll("[data-menu-toggle]").forEach((button) => {
   const bar = button.closest(".topbar");

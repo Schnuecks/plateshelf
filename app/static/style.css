@@ -141,7 +141,8 @@ th.r, td.r, .r { text-align: right; }
 }
 .nav-back::before { content: "‹"; font-size: 1.3em; line-height: 1; margin-top: -.1em; }
 .nav-back:hover { border-color: var(--accent); color: var(--accent); }
-.search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1; }
+/* Suche mit Filtern: lieber als eigene Zeile unter Logo und laufendem Druck als zusammengequetscht */
+.search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 36rem; }
 .search input[type=search] { flex: 1 1 16rem; }
 .filter-toggle { display: none; }
 @media (max-width: 640px) {
@@ -388,9 +389,31 @@ summary { cursor: pointer; font-weight: 500; }
   .js .topbar.menu-open > .tb-right > a { padding: .7rem .25rem; border-top: 1px solid var(--line); text-align: left; }
   .js .topbar.menu-open > .tb-right > .tb-prefs { padding: .5rem 0 0; border-top: 1px solid var(--line);
     justify-content: flex-start; }
+  /* Handy: das Menü ist schon aufgeklappt, die Einträge stehen untereinander wie die übrigen Links */
+  .js .topbar.menu-open .nav-menu { display: contents; }
+  .js .topbar.menu-open .nav-menu-btn { display: none; }
+  .js .topbar.menu-open .nav-menu-list { display: contents; }
+  .js .topbar.menu-open .nav-menu-list .settings-link { padding: .7rem .25rem; border: 0; border-top: 1px solid var(--line);
+    border-radius: 0; margin: 0; color: var(--muted); }
+  .js .topbar.menu-open > .tb-right > .upload-link { order: 2; }
+  .js .topbar.menu-open > .tb-right > .tb-prefs { order: 3; }
   .js .topbar .tb-left { gap: .5rem .75rem; }
 }
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
+.tb-right > .upload-link { order: -1; }  /* vor Sprache und Design */
+/* Menü rechts in der Kopfzeile: Verlauf, Papierkorb, Einstellungen, Konto, Abmelden */
+.nav-menu { position: relative; display: flex; }
+.nav-menu-list { position: absolute; right: 0; top: calc(100% + .35rem); z-index: 20; min-width: 12rem;
+  display: none; flex-direction: column; padding: .3rem; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / .18); }
+.nav-menu.is-open .nav-menu-list { display: flex; }
+.nav-menu-list .settings-link { display: block; width: 100%; padding: .5rem .65rem; border-radius: 4px; color: var(--ink);
+  background: none; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
+.nav-menu-list .settings-link:hover { background: var(--bg); }
+.nav-menu-list .account-link { border-top: 1px solid var(--line); border-radius: 0 0 4px 4px; margin-top: .2rem; padding-top: .6rem;
+  color: var(--muted); }
+.nav-logout { margin: 0; }
+.nav-menu-btn[aria-expanded="true"] { color: var(--ink); background: var(--bg); }
 .settings-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
 .settings-link:hover { color: var(--ink); }
 .upload { max-width: var(--page-narrow); margin-inline: auto; }
