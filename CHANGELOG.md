@@ -2,7 +2,7 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
-## Unreleased
+## 0.15.4
 
 - **Running prints count as the newest:** sorted by newest or last printed, projects that are
   printing right now are at the top of the project list (the one finishing next first). Before, a
