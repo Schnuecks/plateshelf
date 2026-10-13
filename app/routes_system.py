@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Kennzahlen für Dashboards, About-Seite und Healthcheck."""
+"""Metrics for dashboards, About page and health check."""
 from __future__ import annotations
 
 import time
@@ -17,10 +17,10 @@ router = APIRouter()
 
 @router.get("/api/printing")
 def api_printing(idle_placeholder: bool = False):
-    """Laufende Drucke als fertiger Text, für die Anzeige in der Titelleiste und Dashboards.
+    """Running prints as finished text, for display in the title bar and dashboards.
 
-    Mit ?idle_placeholder=1 kommt im Leerlauf ein Eintrag „Kein Druck aktiv“ statt einer leeren
-    Liste: Homepage zeigt bei leerer Liste sonst fest „No items found“.
+    With ?idle_placeholder=1, an entry „Kein Druck aktiv“ is returned when idle instead of an
+    empty list: otherwise Homepage shows a fixed "No items found" for an empty list.
     """
     items = live_prints() if print_history.enabled() else []
     if not items and idle_placeholder:
@@ -32,29 +32,29 @@ def api_printing(idle_placeholder: bool = False):
 
 @router.get("/api/printers/status")
 def api_printer_status():
-    """Erreichbarkeit der Drucker für die Einstellungsseite, die damit den Punkt alle paar Sekunden auffrischt."""
+    """Printer reachability for the settings page, which uses it to refresh the dot every few seconds."""
     return {"printers": printer_import.reachability(), "sync_running": bool(printer_import.state.get("running")),
             "last_sync": last_sync()}
 
 
 @router.get("/api/library")
 def api_library():
-    """Stand der Bibliothek, damit die Übersicht neue Drucke von selbst zeigt (static/app.js)."""
+    """Library state, so that the overview shows new prints by itself (static/app.js)."""
     return {"version": store.library_version(), "sync_running": bool(printer_import.state.get("running")),
             "last_sync": last_sync()}
 
 
 def last_sync() -> int | None:
-    """Ende des letzten Drucker-Abgleichs (ganze Sekunden), damit Seiten sein Ende erkennen."""
+    """End of the last printer sync (whole seconds), so that pages can detect its end."""
     return int(printer_import.state["last_run"]) if printer_import.state.get("last_run") else None
 
 
 @router.get("/api/stats")
 def api_stats():
-    """Kennzahlen für Dashboards wie Homepage (Widget „customapi“).
+    """Metrics for dashboards such as Homepage (widget "customapi").
 
-    Dieselben Summen wie auf der Startseite, dazu Kosten, neue Dateien und
-    Druckerstatus. Zahlen bleiben unformatiert, das Dashboard formatiert selbst.
+    The same totals as on the start page, plus costs, new files and
+    printer status. Numbers stay unformatted; the dashboard formats them itself.
     """
     live = print_history.printing_now()
     week_ago = time.time() - 7 * 86400
@@ -109,7 +109,7 @@ def about(request: Request):
 
 @router.get("/healthz")
 def healthz(request: Request):
-    # Mit Anmeldung verrät der offene Healthcheck nur, dass PlateShelf läuft
+    # With sign-in enabled, the open health check only reveals that PlateShelf is running
     if auth.enabled() and not signed_in(request):
         return {"ok": True}
     return {"ok": True, "scan": store.last_scan, "printers": printer_import.state}

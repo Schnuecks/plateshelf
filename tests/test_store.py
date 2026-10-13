@@ -13,7 +13,7 @@ def test_scan_groups_and_detects_changes(lib, sample):
     assert res["added"] == 2
     with store.connect() as con:
         assert set(_projects(con).values()) == {"Benchy"}
-    assert store.scan(wait=True)["added"] == 0  # unverändert: nichts neu einlesen
+    assert store.scan(wait=True)["added"] == 0  # unchanged: nothing is re-read
     (lib / "Benchy_plate_2.gcode.3mf").unlink()
     store.scan(wait=True)
     with store.connect() as con:
@@ -44,7 +44,7 @@ def test_schema_version(lib):
 
 
 def test_database_without_version_is_upgraded(lib, monkeypatch):
-    """Datenbank aus 0.7.x: fehlende Spalten kommen dazu, danach wird einmal alles neu eingelesen."""
+    """Database from 0.7.x: missing columns are added, then everything is re-read once."""
     with store.connect() as con:
         con.execute("ALTER TABLE files DROP COLUMN model_json")
         con.execute("ALTER TABLE print_jobs DROP COLUMN remaining_s")
@@ -59,7 +59,7 @@ def test_database_without_version_is_upgraded(lib, monkeypatch):
 
 
 def test_missing_thumbnails_trigger_full_scan(lib, sample, monkeypatch):
-    """Nach dem Zurückspielen einer Sicherung fehlen die Vorschaubilder: alles neu einlesen."""
+    """After restoring a backup the thumbnails are missing: re-read everything."""
     import shutil
     sample(lib / "Teil.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
     store.scan(wait=True)
@@ -70,10 +70,10 @@ def test_missing_thumbnails_trigger_full_scan(lib, sample, monkeypatch):
 
 
 def test_old_printer_folder_is_grouped_by_name(lib, sample, monkeypatch):
-    """„Vom Drucker“ (Importordner bis 0.6): ein Projekt je Druck, nicht eines für den ganzen Ordner.
+    """„Vom Drucker“ (import folder up to 0.6): one project per print, not one for the whole folder.
 
-    0.7.8 bis 0.8.8 kannten den Ordner nicht mehr; sobald Dateien darin neu eingelesen wurden,
-    fielen alle zu einem Projekt zusammen. Schema 6 liest deshalb einmal alles neu ein.
+    0.7.8 to 0.8.8 no longer knew the folder; as soon as files in it were re-read,
+    they all collapsed into one project. Schema 6 therefore re-reads everything once.
     """
     folder = lib / "Vom Drucker" / "P2S"
     folder.mkdir(parents=True)
@@ -82,7 +82,7 @@ def test_old_printer_folder_is_grouped_by_name(lib, sample, monkeypatch):
     expected = {"Grim Reaper", "Garfield", "Easter bunny set"}
 
     with monkeypatch.context() as m:
-        m.setattr(store, "FLAT_DIRS", {"from printer"})  # Stand 0.8.8
+        m.setattr(store, "FLAT_DIRS", {"from printer"})  # as of 0.8.8
         store.scan(force=True, wait=True)
     with store.connect() as con:
         assert set(_projects(con).values()) == {"P2S"}
@@ -96,7 +96,7 @@ def test_old_printer_folder_is_grouped_by_name(lib, sample, monkeypatch):
     with store.connect() as con:
         assert set(_projects(con).values()) == expected
         assert not con.execute("SELECT 1 FROM projects WHERE id = ?", (collapsed,)).fetchone()
-    # Später geänderte Dateien bleiben in ihrem Projekt
+    # Files changed later stay in their project
     import os
     os.utime(folder / "Garfield.gcode.3mf", (1_700_000_000, 1_700_000_000))
     store.scan(wait=True)
@@ -116,7 +116,7 @@ def test_project_with_own_cover_photo_is_kept(lib, sample):
 
 
 def test_project_whose_files_all_vanished(lib, sample):
-    """Alle Dateien außerhalb von PlateShelf gelöscht: Projekt verschwindet, Einlesen läuft weiter."""
+    """All files deleted outside PlateShelf: project disappears, scanning continues."""
     sample(lib / "Weg.gcode.3mf", [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FF0000FF", 1.0)]}])
     store.scan(wait=True)
     data = (lib / "Weg.gcode.3mf").read_bytes()
@@ -124,7 +124,7 @@ def test_project_whose_files_all_vanished(lib, sample):
     store.scan(wait=True)
     with store.connect() as con:
         assert con.execute("SELECT COUNT(*) FROM projects").fetchone()[0] == 0
-    (lib / "Weg.gcode.3mf").write_bytes(data)  # kommt zurück, z. B. Freigabe wieder erreichbar
+    (lib / "Weg.gcode.3mf").write_bytes(data)  # comes back, e.g. share reachable again
     store.scan(wait=True)
     with store.connect() as con:
         assert set(_projects(con).values()) == {"Weg"}

@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Liest G-Code-Dateien (.gcode, .bgcode) aus PrusaSlicer, OrcaSlicer, Cura und Co.
+"""Reads G-code files (.gcode, .bgcode) from PrusaSlicer, OrcaSlicer, Cura and co.
 
-Die Slicer schreiben ihre Angaben als Kommentare in die Datei:
-  Anfang    Vorschaubilder (Base64), bei Orca und Cura auch Druckzeit und Schichten
-  Ende      Druckzeit, Filamentverbrauch und alle Einstellungen als "; key = value"
-Gelesen werden nur Anfang und Ende, damit auch große Dateien schnell gehen.
-Binärer G-Code (.bgcode) hat dieselben Angaben in eigenen Metadaten-Blöcken,
-siehe bgcode.py. Eine G-Code-Datei ergibt eine Platte mit der Nummer 1.
+The slicers write their data as comments into the file:
+  Start     Thumbnails (Base64), with Orca and Cura also print time and layers
+  End       Print time, filament usage and all settings as "; key = value"
+Only the start and end are read, so that large files are fast too.
+Binary G-code (.bgcode) has the same data in its own metadata blocks,
+see bgcode.py. A G-code file yields one plate with number 1.
 """
 from __future__ import annotations
 
@@ -25,10 +25,10 @@ from .parser import Filament, ParsedFile, Plate, _norm_color, _to_float, parse_d
 EXTENSIONS = (".gcode", ".bgcode")
 HEAD_BYTES = 1024 * 1024
 TAIL_BYTES = 512 * 1024
-DEFAULT_DENSITY = 1.24   # g/cm³ (PLA), falls der Slicer nur die Länge angibt
+DEFAULT_DENSITY = 1.24   # g/cm³ (PLA), if the slicer only states the length
 DEFAULT_DIAMETER = 1.75  # mm
 
-# Werte pro Extruder, die der Slicer mit ";" oder "," getrennt schreibt
+# Per-extruder values that the slicer writes separated by ";" or ","
 LIST_KEYS = {
     "filament_colour", "extruder_colour", "filament_type", "filament_settings_id", "filament_cost",
     "filament_density", "filament_diameter", "nozzle_diameter", "temperature", "first_layer_temperature",
@@ -52,7 +52,7 @@ def _values(value: str) -> list[str]:
 
 
 def read_config(text: str) -> dict:
-    """Slicer-Einstellungen aus den "; key = value"-Zeilen."""
+    """Slicer settings from the "; key = value" lines."""
     config = {}
     for key, value in _CONFIG_LINE.findall(text):
         value = value.strip()
@@ -73,7 +73,7 @@ def head_and_tail(path: Path) -> tuple[str, str]:
 
 
 def _texts(path: Path) -> tuple[str, str, bytes | None]:
-    """(Anfang, Ende, Vorschaubild); bei .bgcode die Metadaten in Kommentarform."""
+    """(Start, end, thumbnail); for .bgcode the metadata in comment form."""
     if bgcode.is_bgcode(path.name):
         meta = bgcode.read_meta(path)
         return meta.as_comments(), "", _best([(kind, w * h, data) for kind, w, h, data in meta.thumbnails])
@@ -82,7 +82,7 @@ def _texts(path: Path) -> tuple[str, str, bytes | None]:
 
 
 def diameters(path: Path) -> dict[int, float]:
-    """Filamentdurchmesser je Werkzeug, für die Volumenstrom-Berechnung der Vorschau."""
+    """Filament diameter per tool, for the preview's volumetric flow calculation."""
     head, tail, _thumb = _texts(path)
     values = read_config(head + "\n" + tail).get("filament_diameter") or []
     out = {}
@@ -94,8 +94,8 @@ def diameters(path: Path) -> dict[int, float]:
 
 
 def bed_rect(shape) -> list[float] | None:
-    """Druckfläche [x0, y0, x1, y1] aus "0x0,180x0,180x180,0x180" (bed_shape bei PrusaSlicer,
-    printable_area bei Bambu Studio und Orca; dort auch als Liste)."""
+    """Bed area [x0, y0, x1, y1] from "0x0,180x0,180x180,0x180" (bed_shape in PrusaSlicer,
+    printable_area in Bambu Studio and Orca; there also as a list)."""
     points = shape if isinstance(shape, list) else re.split(r"[;,]", str(shape or ""))
     xs, ys = [], []
     for p in points:
@@ -111,13 +111,13 @@ def bed_rect(shape) -> list[float] | None:
 
 
 def bed_area(path: Path) -> list[float] | None:
-    """Druckfläche aus den Slicer-Einstellungen einer G-Code-Datei, für die 3D-Vorschau."""
+    """Bed area from a G-code file's slicer settings, for the 3D preview."""
     head, tail, _thumb = _texts(path)
     config = read_config(head + "\n" + tail)
     return bed_rect(config.get("bed_shape") or config.get("printable_area"))
 
 
-# --- Vorschaubilder -----------------------------------------------------------
+# --- Thumbnails ---------------------------------------------------------------
 
 def _png(width: int, height: int, rgba: bytes) -> bytes:
     def chunk(kind: bytes, data: bytes) -> bytes:
@@ -129,7 +129,7 @@ def _png(width: int, height: int, rgba: bytes) -> bytes:
 
 
 def qoi_to_png(data: bytes) -> bytes | None:
-    """QOI (Prusa-Vorschaubilder) in PNG umwandeln; Browser können QOI nicht anzeigen."""
+    """Convert QOI (Prusa thumbnails) to PNG; browsers cannot display QOI."""
     if len(data) < 22 or data[:4] != b"qoif":
         return None
     width, height = struct.unpack(">II", data[4:12])
@@ -176,7 +176,7 @@ def qoi_to_png(data: bytes) -> bytes | None:
 
 
 def _best(candidates) -> bytes | None:
-    """Größtes brauchbares Bild aus (Format, Fläche, Daten); QOI wird zu PNG."""
+    """Largest usable image from (format, area, data); QOI becomes PNG."""
     for kind, _area, data in sorted(candidates, key=lambda c: -c[1]):
         if kind == "QOI":
             data = qoi_to_png(data)
@@ -186,7 +186,7 @@ def _best(candidates) -> bytes | None:
 
 
 def thumbnail(text: str) -> bytes | None:
-    """Größtes eingebettetes Vorschaubild als PNG oder JPEG."""
+    """Largest embedded thumbnail as PNG or JPEG."""
     candidates = []
     lines = iter(text.splitlines())
     for line in lines:
@@ -207,7 +207,7 @@ def thumbnail(text: str) -> bytes | None:
     return _best(candidates)
 
 
-# --- Auslesen -----------------------------------------------------------------
+# --- Reading ------------------------------------------------------------------
 
 def _first_match(pattern: str, text: str, flags=re.M | re.I):
     m = re.search(pattern, text, flags)
@@ -229,7 +229,7 @@ def _printer_name(config: dict, text: str) -> str:
 
 
 def _count_layers(path: Path) -> tuple[int | None, float | None]:
-    """PrusaSlicer nennt keine Schichtzahl: Schichtwechsel in der ganzen Datei zählen."""
+    """PrusaSlicer states no layer count: count layer changes in the whole file."""
     count, last_z, carry = 0, None, b""
     with open(path, "rb") as fh:
         while block := fh.read(4 * 1024 * 1024):
@@ -281,7 +281,7 @@ def parse_gcode(path: str | Path) -> ParsedFile:
     grams = _numbers(_first_match(r"^; filament used \[g\]\s*=\s*(.+)$", text))
     lengths = [v / 1000 for v in _numbers(_first_match(r"^; filament used \[mm\]\s*=\s*(.+)$", text))]
     if not lengths:
-        lengths = _numbers(_first_match(r"^;Filament used:\s*(.+)$", head))  # Cura, in Metern
+        lengths = _numbers(_first_match(r"^;Filament used:\s*(.+)$", head))  # Cura, in metres
     colours = config.get("filament_colour") or config.get("extruder_colour") or []
     types = config.get("filament_type") or []
     names = config.get("filament_settings_id") or []
@@ -299,7 +299,7 @@ def parse_gcode(path: str | Path) -> ParsedFile:
             dia = at(dias, i) or DEFAULT_DIAMETER
             used_g = used_m * 100 * math.pi * (dia / 20) ** 2 * (at(densities, i) or DEFAULT_DENSITY)
         if not used_g and not used_m and i > 0:
-            continue  # Extruder oder Slot, der in diesem Druck nicht benutzt wird
+            continue  # Extruder or slot not used in this print
         plate.filaments.append(Filament(
             slot=i + 1, type=at(types, i, ""), color=_norm_color(at(colours, i)),
             used_g=round(used_g or 0.0, 2), used_m=round(used_m, 2), name=at(names, i, ""),

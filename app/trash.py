@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Papierkorb: gelöschte Dateien liegen unter .trash/<Eintrag>/<ursprünglicher Pfad>.
+"""Trash: deleted files live under .trash/<entry>/<original path>.
 
-Zu jedem Eintrag merkt sich die Datenbank, was zum Wiederherstellen nötig ist:
-Projektname, Notizen, Tags, Status, Quelle und die manuelle Zuordnung der Dateien.
-Nach TRASH_DAYS Tagen werden Einträge endgültig gelöscht (0 = nie).
+For each entry the database remembers what is needed to restore it:
+project name, notes, tags, status, source and the manual assignment of the files.
+After TRASH_DAYS days entries are deleted permanently (0 = never).
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ _FOLDER = re.compile(r"[\w.\- ]+")
 
 
 def trash_root() -> Path:
-    """Papierkorb-Ordner der Bibliothek."""
+    """Trash folder of the library."""
     return store.LIBRARY_DIR / TRASH_DIR
 
 
@@ -58,7 +58,7 @@ def _remove_empty_parents(path: Path, stop: Path) -> None:
 
 
 def forget_file(con: sqlite3.Connection, fid: int) -> None:
-    """Entfernt eine Datei samt Vorschaubildern und 3D-Vorschauen aus der Datenbank."""
+    """Removes a file including preview images and 3D previews from the database."""
     from . import gcode_preview
     con.execute("DELETE FROM plates WHERE file_id = ?", (fid,))
     con.execute("DELETE FROM files WHERE id = ?", (fid,))
@@ -68,14 +68,14 @@ def forget_file(con: sqlite3.Connection, fid: int) -> None:
     gcode_preview.forget(store.DATA_DIR / "preview", fid)
 
 
-# --- Löschen -----------------------------------------------------------------
+# --- Delete ------------------------------------------------------------------
 
 def delete(con: sqlite3.Connection, file_ids: list[int], kind: str) -> int:
-    """Verschiebt Dateien in einen neuen Papierkorb-Eintrag. Rückgabe: ID des Eintrags.
+    """Moves files into a new trash entry. Returns: ID of the entry.
 
-    kind "projekt" löscht das ganze Projekt der Dateien, "datei" nur die Dateien;
-    bleibt das Projekt dabei leer, verschwindet es ebenfalls. Seine Angaben stehen
-    in beiden Fällen im Eintrag und kommen beim Wiederherstellen zurück.
+    kind "projekt" deletes the whole project of the files, "datei" only the files;
+    if the project becomes empty in the process, it disappears too. Its data is
+    stored in the entry in both cases and comes back on restore.
     """
     rows = [con.execute("SELECT id, path, project_id, pinned, missing FROM files WHERE id = ?", (fid,)).fetchone()
             for fid in file_ids]
@@ -97,7 +97,7 @@ def delete(con: sqlite3.Connection, file_ids: list[int], kind: str) -> int:
                 dst = base / r["path"]
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(src, dst)
-                _remove_empty_parents(src, lib)  # leer gewordene Projektordner aufräumen
+                _remove_empty_parents(src, lib)  # clean up project folders that became empty
                 moved.append({"path": r["path"], "pinned": r["pinned"]})
         forget_file(con, r["id"])
 
@@ -108,7 +108,7 @@ def delete(con: sqlite3.Connection, file_ids: list[int], kind: str) -> int:
         con.execute("DELETE FROM projects WHERE id = ?", (pid,))
 
     if kind == "projekt" or len(moved) != 1:
-        label = project["name"] if project else ""  # leer: „Unbekanntes Projekt“ in der Anzeigesprache
+        label = project["name"] if project else ""  # empty: „Unbekanntes Projekt“ in the display language
     else:
         label = moved[0]["path"].rsplit("/", 1)[-1]
     snapshot = {**{k: project[k] for k in PROJECT_FIELDS}, "removed": removed} if project else None
@@ -118,12 +118,12 @@ def delete(con: sqlite3.Connection, file_ids: list[int], kind: str) -> int:
     ).lastrowid
 
 
-# --- Wiederherstellen --------------------------------------------------------
+# --- Restore -----------------------------------------------------------------
 
 def _restore_project(con: sqlite3.Connection, snapshot: dict) -> int:
-    """Projekt wieder anlegen oder, falls es inzwischen wieder existiert, leere Angaben ergänzen.
+    """Recreate the project or, if it exists again by now, fill in empty fields.
 
-    Bestand das Projekt beim Löschen weiter, bleiben seine heutigen Angaben unberührt.
+    If the project still existed after the deletion, its current data stays untouched.
     """
     row = con.execute("SELECT * FROM projects WHERE group_key = ?", (snapshot["group_key"],)).fetchone()
     if row:
@@ -143,13 +143,13 @@ def _restore_project(con: sqlite3.Connection, snapshot: dict) -> int:
 
 
 def restore(entry_id: int) -> dict:
-    """Holt einen Eintrag zurück. Rückgabe: {"project_id", "restored", "renamed", "missing"}.
+    """Brings an entry back. Returns: {"project_id", "restored", "renamed", "missing"}.
 
-    Liegt am ursprünglichen Ort inzwischen eine andere Datei, wird die
-    wiederhergestellte umbenannt (" (2)"), überschrieben wird nie etwas.
+    If another file now occupies the original location, the restored one
+    is renamed (" (2)"); nothing is ever overwritten.
     """
     result = {"project_id": None, "restored": 0, "renamed": [], "missing": 0}
-    # Während des Zurückschiebens darf kein Scan das halb angelegte Projekt als leer aufräumen
+    # While moving files back, no scan may clean up the half-created project as empty
     with store._scan_lock:
         with store.connect() as con:
             entry = con.execute("SELECT * FROM trash WHERE id = ?", (entry_id,)).fetchone()
@@ -172,7 +172,7 @@ def restore(entry_id: int) -> dict:
                     result["renamed"].append(rel)
                 result["restored"] += 1
                 if pid and f.get("pinned"):
-                    # Platzhalter: der Scan übernimmt die manuelle Zuordnung von hier
+                    # Placeholder: the scan takes over the manual assignment from here
                     con.execute(
                         "INSERT INTO files (path, project_id, pinned, added) VALUES (?, ?, 1, ?) "
                         "ON CONFLICT(path) DO UPDATE SET project_id = excluded.project_id, pinned = 1, mtime = NULL",
@@ -190,7 +190,7 @@ def restore(entry_id: int) -> dict:
     return result
 
 
-# --- Endgültig löschen --------------------------------------------------------
+# --- Delete permanently -------------------------------------------------------
 
 def purge(entry_id: int) -> None:
     from . import photos
@@ -200,7 +200,7 @@ def purge(entry_id: int) -> None:
             raise LookupError("Eintrag nicht gefunden")
         shutil.rmtree(_folder_path(entry["folder"]), ignore_errors=True)
         con.execute("DELETE FROM trash WHERE id = ?", (entry_id,))
-        # Fotos eines endgültig gelöschten Projekts mit wegräumen, sofern es nicht wieder existiert
+        # Also remove photos of a permanently deleted project, unless it exists again
         snapshot = json.loads(entry["project_json"] or "null")
         key = snapshot.get("group_key") if snapshot and snapshot.get("removed") else None
         if key and not con.execute("SELECT 1 FROM projects WHERE group_key = ?", (key,)).fetchone():
@@ -229,7 +229,7 @@ def purge_expired(days: int | None = None, now: float | None = None) -> int:
     return len(ids)
 
 
-# --- Abgleich mit dem Ordner --------------------------------------------------
+# --- Sync with the folder -----------------------------------------------------
 
 def _parse_stamp(folder: str) -> float | None:
     try:
@@ -239,11 +239,11 @@ def _parse_stamp(folder: str) -> float | None:
 
 
 def sync() -> None:
-    """Gleicht die Datenbank mit dem Ordner ab.
+    """Syncs the database with the folder.
 
-    Ordner aus älteren Versionen (ohne Datenbankeintrag) werden übernommen; ihre
-    Aufbewahrungsfrist beginnt erst jetzt, damit nichts sofort verschwindet.
-    Einträge, deren Ordner von Hand geleert oder entfernt wurde, fallen weg.
+    Folders from older versions (without a database entry) are adopted; their
+    retention period only starts now, so nothing disappears immediately.
+    Entries whose folder was emptied or removed by hand are dropped.
     """
     root = trash_root()
     with store.connect() as con:
@@ -262,8 +262,8 @@ def sync() -> None:
             files = sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file())
             if not files:
                 continue
-            names = {f.split("/", 1)[0] for f in files}  # Projektordner oder Dateiname
-            label = names.pop() if len(names) == 1 else ""  # leer: Anzahl der Dateien in der Anzeigesprache
+            names = {f.split("/", 1)[0] for f in files}  # project folder or file name
+            label = names.pop() if len(names) == 1 else ""  # empty: number of files in the display language
             con.execute(
                 "INSERT INTO trash (folder, kind, label, project_json, files_json, deleted, since) "
                 "VALUES (?, 'alt', ?, NULL, ?, ?, ?)",

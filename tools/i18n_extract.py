@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Sammelt alle übersetzbaren Texte und prüft die Sprachdateien.
+"""Collects all translatable texts and checks the language files.
 
-    python tools/i18n_extract.py          # fehlende und überzählige Einträge je Sprache
-    python tools/i18n_extract.py --list   # alle Texte ausgeben
+    python tools/i18n_extract.py          # missing and surplus entries per language
+    python tools/i18n_extract.py --list   # print all texts
 
-Quellen: _("…") und ngettext("…", "…", n) in Vorlagen und Python, UserError("…")
-und fail("…") in Python sowie die Listen und Beschriftungen in app/web.py und app/projects.py.
+Sources: _("…") and ngettext("…", "…", n) in templates and Python, UserError("…")
+and fail("…") in Python, plus the lists and labels in app/web.py and app/projects.py.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-# Jinja: _('…') bzw. _("…"), ngettext('…', '…', …)
+# Jinja: _('…') or _("…"), ngettext('…', '…', …)
 _TPL_CALL = re.compile(r"""\b(?:_|ngettext)\(\s*((?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")(?:\s*,\s*(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"))?)""")
 _STR = re.compile(r"""'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)\"""")
 PY_FUNCS = {"_", "gettext", "ngettext", "UserError", "fail"}
@@ -52,10 +52,10 @@ def _from_python() -> set[str]:
 
 
 def _from_tables() -> set[str]:
-    from app import main, printer_import, web  # noqa: F401  (Beschriftungen und Listen)
+    from app import main, printer_import, web  # noqa: F401  (labels and lists)
     found = set(main.JS_TEXTS) | set(main.STATUSES.values()) | set(main.THEME_LABELS.values()) | set(main.JOB_STATUSES.values())
     found |= {entry[1] for entry in main.SETTING_LABELS} | set(main.BOOL_WORDS.values())
-    found |= {"IP-Adresse", "Seriennummer", "Zugangscode", "Passwort", "API-Schlüssel"}  # Feldnamen in Fehlermeldungen
+    found |= {"IP-Adresse", "Seriennummer", "Zugangscode", "Passwort", "API-Schlüssel"}  # field names in error messages
     found |= set(web.ROLE_LABELS.values()) | set(web.EVENT_LABELS.values())
     from app import passkeys
     found |= set(passkeys.MESSAGES)

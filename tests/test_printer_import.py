@@ -26,7 +26,7 @@ def test_parse_listing():
 
 
 class FakePrinter:
-    """Simuliert die SD-Karte: Name -> (Quelldatei, Datum)."""
+    """Simulates the SD card: name -> (source file, date)."""
 
     def __init__(self, files):
         self.files = files
@@ -35,7 +35,7 @@ class FakePrinter:
         return self
 
     def retrlines(self, cmd, cb):
-        folder = cmd[5:].strip("/")  # "LIST /" oder "LIST /cache"
+        folder = cmd[5:].strip("/")  # "LIST /" or "LIST /cache"
         if folder and not any(name.startswith(folder + "/") for name in self.files):
             import ftplib
             raise ftplib.error_perm("550 No such directory")
@@ -61,18 +61,18 @@ def test_sync_keeps_every_printed_plate(lib, sample, tmp_path):
     for i in (1, 3):
         p = tmp_path / f"plate{i}.gcode.3mf"
         sample(p, [{"idx": i, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
-        with zipfile.ZipFile(p, "a") as z:  # Vorschau der jeweils anderen Platte
+        with zipfile.ZipFile(p, "a") as z:  # thumbnail of the respective other plate
             z.writestr(f"Metadata/plate_{4 - i}.png", png((1, 1, 1, 255)))
         srcs[i] = p
     pi.init()
     fake = FakePrinter({"Jade_Mountains.gcode.3mf": (srcs[1], "Jan 18  2026")})
     assert pi.sync_printer(PRINTER, connect=fake)["new"] == 1
-    assert pi.sync_printer(PRINTER, connect=fake)["new"] == 0  # unverändert
-    fake.files["Jade_Mountains.gcode.3mf"] = (srcs[3], "Jan 20  2026")  # Drucker hat überschrieben
+    assert pi.sync_printer(PRINTER, connect=fake)["new"] == 0  # unchanged
+    fake.files["Jade_Mountains.gcode.3mf"] = (srcs[3], "Jan 20  2026")  # printer overwrote it
     assert pi.sync_printer(PRINTER, connect=fake)["updated"] == 1
     target = lib / "From printer" / "P2S"
     assert sorted(os.listdir(target)) == ["Jade_Mountains_plate_1.gcode.3mf", "Jade_Mountains_plate_3.gcode.3mf"]
-    # Im Archiv gelöscht: kommt nicht zurück
+    # Deleted in the archive: does not come back
     (target / "Jade_Mountains_plate_3.gcode.3mf").unlink()
     pi.sync_printer(PRINTER, connect=fake)
     assert not (target / "Jade_Mountains_plate_3.gcode.3mf").exists()
@@ -82,7 +82,7 @@ def test_sync_keeps_every_printed_plate(lib, sample, tmp_path):
 
 
 def test_sync_takes_sliced_projects_from_the_cache_folder(lib, sample, tmp_path):
-    """P1S: Drucke aus Bambu Studio liegen als .3mf in /cache; nur die geslicten werden geholt."""
+    """P1S: prints from Bambu Studio are stored as .3mf in /cache; only the sliced ones are fetched."""
     import shutil as _sh
     sliced = tmp_path / "Prisma.gcode.3mf"
     sample(sliced, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
@@ -106,14 +106,14 @@ def test_sync_takes_sliced_projects_from_the_cache_folder(lib, sample, tmp_path)
     assert sorted(os.listdir(lib / "From printer" / "P2S")) == [
         "Nur Modell.3mf", "Root.gcode.3mf", "Sechseckiges Prisma.gcode.3mf"]
     from app import print_history as ph
-    with store.connect() as con:  # der Drucker meldet den Projektnamen samt .3mf
+    with store.connect() as con:  # the printer reports the project name including .3mf
         assert ph._resolve(con, "SER1", "Sechseckiges Prisma.3mf") == "From printer/P2S/Sechseckiges Prisma.gcode.3mf"
-    # Karte ohne Ordner cache: wie bisher nur das Hauptverzeichnis
+    # Card without a cache folder: only the root directory, as before
     assert pi.sync_printer(PRINTER, connect=FakePrinter({"Root.gcode.3mf": (sliced, "Jan 18  2026")}))["files"] == 1
 
 
 def test_cache_copy_of_a_known_file_is_only_linked(lib, sample, tmp_path):
-    """P2S legt dieselbe Datei im Hauptverzeichnis und in /cache ab: kein zweites Projekt."""
+    """The P2S keeps the same file in the main folder and in /cache: no second project."""
     src = tmp_path / "Leuchtturm.gcode.3mf"
     sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
     pi.init()
@@ -123,7 +123,7 @@ def test_cache_copy_of_a_known_file_is_only_linked(lib, sample, tmp_path):
     assert pi.sync_printer(PRINTER, connect=fake)["new"] == 0
     assert os.listdir(lib / "From printer" / "P2S") == ["Leuchtturm.gcode.3mf"]
     from app import print_history as ph
-    with store.connect() as con:  # Druck über den Namen im Cache landet beim vorhandenen Projekt
+    with store.connect() as con:  # a print by its cache name goes to the existing project
         assert ph._resolve(con, "SER1", "Roter Leuchtturm.3mf") == "From printer/P2S/Leuchtturm.gcode.3mf"
 
 
@@ -134,7 +134,7 @@ def test_dedupe_cache_imports_from_0_15_2(lib, sample, tmp_path):
     target.mkdir(parents=True)
     import shutil as _sh
     _sh.copy(src, target / "A.gcode.3mf")
-    _sh.copy(src, target / "Profil.gcode.3mf")      # so hatte 0.15.2 die Kopie aus /cache abgelegt
+    _sh.copy(src, target / "Profil.gcode.3mf")      # this is how 0.15.2 stored the copy from /cache
     store.scan(wait=True)
     from app import print_history as ph
     with store.connect() as con:
@@ -163,7 +163,7 @@ def test_newest_files_are_fetched_first(lib, sample, tmp_path):
 
 
 def test_older_listing_format_is_not_a_new_file(lib, sample, tmp_path):
-    """Nach etwa sechs Monaten zeigt der Drucker das Jahr statt der Uhrzeit; das ist dieselbe Datei."""
+    """After about six months the printer shows the year instead of the time; it's the same file."""
     src = tmp_path / "bunny.gcode.3mf"
     sample(src, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
     pi.init()
@@ -173,16 +173,16 @@ def test_older_listing_format_is_not_a_new_file(lib, sample, tmp_path):
     assert time.localtime(april)[:5] == (time.localtime(now).tm_year - (time.localtime(now).tm_mon < 4), 4, 3, 18, 18)
     assert pi.sync_printer(PRINTER, connect=fake)["new"] == 1
     local = lib / "From printer" / "P2S" / "(Unsaved).gcode.3mf"
-    assert abs(local.stat().st_mtime - april) < 1   # Datum vom Drucker, nicht vom Herunterladen
+    assert abs(local.stat().st_mtime - april) < 1   # date from the printer, not from the download
     fake.files["(Unsaved).gcode.3mf"] = (src, f"Apr 03  {time.localtime(april).tm_year}")
     res = pi.sync_printer(PRINTER, connect=fake)
     assert res["new"] == res["updated"] == 0
-    assert abs(local.stat().st_mtime - april) < 1   # nicht neu geschrieben
-    # Von einer früheren Version schon neu geholt: bekommt beim nächsten Abgleich sein Datum zurück
+    assert abs(local.stat().st_mtime - april) < 1   # not rewritten
+    # Already re-fetched by an earlier version: gets its date back on the next sync
     os.utime(local)
     pi.sync_printer(PRINTER, connect=fake)
     assert local.stat().st_mtime < now - 86400
-    # Andere Tage oder Uhrzeiten bleiben Änderungen
+    # Other days or times still count as changes
     assert pi.same_date("Apr 03 2026", "Apr 03 18:18") and not pi.same_date("Apr 03 18:18", "Apr 04 2026")
     assert not pi.same_date("Apr 03 18:18", "Apr 03 19:00") and not pi.same_date(None, "Apr 03 2026")
 
@@ -204,7 +204,7 @@ def _free_port():
 
 @pytest.mark.skipif(shutil.which("openssl") is None, reason="openssl nicht installiert")
 def test_implicit_ftps_against_real_tls_server(lib, sample, tmp_path):
-    """Echter Server mit implizitem TLS und verschlüsseltem Datenkanal, wie am Drucker."""
+    """Real server with implicit TLS and an encrypted data channel, like on the printer."""
     pytest.importorskip("OpenSSL")
     ftpd = pytest.importorskip("pyftpdlib")  # noqa: F841
     from pyftpdlib.authorizers import DummyAuthorizer
@@ -251,7 +251,7 @@ def test_implicit_ftps_against_real_tls_server(lib, sample, tmp_path):
 def test_env_printers():
     env = {"PRINTER_2_IP": "192.0.2.21", "PRINTER_2_SERIAL": "SER2", "PRINTER_2_CODE": "b",
            "PRINTER_1_NAME": "P2S", "PRINTER_1_IP": "192.0.2.20", "PRINTER_1_SERIAL": "SER1", "PRINTER_1_CODE": "a",
-           "PRINTER_3_IP": "192.0.2.22", "PRINTER_3_SERIAL": "SER3",  # Zugangscode fehlt: wird übersprungen
+           "PRINTER_3_IP": "192.0.2.22", "PRINTER_3_SERIAL": "SER3",  # access code missing: skipped
            "PRINTER_SYNC_INTERVAL": "600"}
     printers = pi.env_printers(env)
     assert [(p["name"], p["id"], p["ip"], p["code"]) for p in printers] == [
@@ -261,10 +261,10 @@ def test_env_printers():
 def test_save_printers_from_settings(lib, monkeypatch):
     pi.init()
     pi.save_printers([{"db_id": None, "name": "P1S", "ip": "192.0.2.30", "serial": "S1", "code": "geheim"},
-                      {"db_id": None, "name": "", "ip": "", "serial": "", "code": ""}])  # leere Zeile ignoriert
+                      {"db_id": None, "name": "", "ip": "", "serial": "", "code": ""}])  # empty row ignored
     (p,) = pi.db_printers()
     assert (p["name"], p["ip"], p["id"], p["code"]) == ("P1S", "192.0.2.30", "S1", "geheim")
-    # Leerer Zugangscode behält den gespeicherten
+    # An empty access code keeps the stored one
     pi.save_printers([{"db_id": p["db_id"], "name": "P1S Werkstatt", "ip": "192.0.2.31", "serial": "S1", "code": ""}])
     (p,) = pi.db_printers()
     assert (p["name"], p["ip"], p["code"]) == ("P1S Werkstatt", "192.0.2.31", "geheim")
@@ -273,8 +273,8 @@ def test_save_printers_from_settings(lib, monkeypatch):
     with pytest.raises(ValueError, match="doppelt"):
         pi.save_printers([{"db_id": p["db_id"], "name": "A", "ip": "x", "serial": "S1", "code": ""},
                           {"db_id": None, "name": "B", "ip": "y", "serial": "S1", "code": "c"}])
-    assert len(pi.db_printers()) == 1  # nach Fehler unverändert
-    # Umgebungsvariable hat Vorrang und blockiert dieselbe Seriennummer
+    assert len(pi.db_printers()) == 1  # unchanged after an error
+    # Environment variable takes precedence and blocks the same serial number
     monkeypatch.setenv("PRINTER_1_IP", "192.0.2.50")
     monkeypatch.setenv("PRINTER_1_SERIAL", "S1")
     monkeypatch.setenv("PRINTER_1_CODE", "env")
@@ -291,7 +291,7 @@ def test_import_folder(lib, monkeypatch):
     assert pi.import_dir() == "From printer"
     monkeypatch.setenv("PRINTER_IMPORT_DIR", "Drucke")
     assert pi.import_dir() == "Drucke"
-    # Dateien im Importordner werden über den Namen gruppiert, nicht als ein Projekt
+    # Files in the import folder are grouped by name, not as one project
     from pathlib import Path
     assert store.group_key_for(Path("From printer/P2S/Benchy.gcode.3mf"))[1] == "Benchy"
 
@@ -317,7 +317,7 @@ def test_moonraker_url():
 def test_env_moonraker_printer():
     env = {"PRINTER_1_TYPE": "moonraker", "PRINTER_1_NAME": "K1", "PRINTER_1_IP": "192.0.2.21",
            "PRINTER_2_TYPE": "moonraker", "PRINTER_2_IP": "192.0.2.22", "PRINTER_2_API_KEY": "abc",
-           "PRINTER_3_TYPE": "octoprint", "PRINTER_3_IP": "192.0.2.23"}  # unbekannt: übersprungen
+           "PRINTER_3_TYPE": "octoprint", "PRINTER_3_IP": "192.0.2.23"}  # unknown: skipped
     printers = pi.env_printers(env)
     assert [(p["name"], p["id"], p["kind"], p["code"]) for p in printers] == [
         ("K1", "moonraker:http://192.0.2.21:7125", "moonraker", ""),
@@ -332,7 +332,7 @@ def test_save_moonraker_printer(lib):
     assert (p["kind"], p["id"], p["code"]) == ("moonraker", "moonraker:http://192.0.2.60:7125", "")
     pi.save_printers([{"db_id": p["db_id"], "kind": "moonraker", "name": "SV08", "ip": "192.0.2.60", "code": "key"}])
     assert pi.db_printers()[0]["code"] == "key"
-    # Wechsel auf Bambu: der API-Schlüssel wird nicht zum Zugangscode
+    # Switching to Bambu: the API key does not become the access code
     with pytest.raises(ValueError, match="Seriennummer fehlt"):
         pi.save_printers([{"db_id": p["db_id"], "kind": "bambu", "name": "SV08", "ip": "192.0.2.60", "code": ""}])
     with pytest.raises(ValueError, match="Zugangscode fehlt"):
@@ -344,7 +344,7 @@ def test_save_moonraker_printer(lib):
 
 
 def test_old_printer_table_gets_kind(lib):
-    with store.connect() as con:  # Datenbank aus 0.7.1: ohne Spalte kind, ohne Versionsnummer
+    with store.connect() as con:  # database from 0.7.1: no kind column, no version number
         con.execute("DROP TABLE printers")
         con.execute("PRAGMA user_version = 0")
         con.execute("CREATE TABLE printers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
@@ -356,12 +356,12 @@ def test_old_printer_table_gets_kind(lib):
 
 @pytest.fixture
 def moonraker(tmp_path):
-    """Kleiner HTTP-Server mit den beiden Moonraker-Aufrufen, die PlateShelf nutzt."""
+    """Small HTTP server with the two Moonraker calls PlateShelf uses."""
     import json
     import urllib.parse
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    files = {}  # Pfad -> (Inhalt, Änderungszeit)
+    files = {}  # path -> (content, modification time)
     server_state = {"key": "", "requests": [], "history": []}
 
     class Handler(BaseHTTPRequestHandler):
@@ -421,7 +421,7 @@ def test_moonraker_sync(lib, moonraker):
     target = lib / "From printer" / "SV08"
     assert sorted(os.listdir(target)) == ["Benchy_PLA_1h2m.gcode", "Ordner_Clip mit Umlaut ä.gcode"]
     assert (target / "Benchy_PLA_1h2m.gcode").read_bytes() == prusa_gcode().encode()
-    assert pi.sync_printer(printer)["new"] == 0  # unverändert
+    assert pi.sync_printer(printer)["new"] == 0  # unchanged
     moonraker["files"]["Benchy_PLA_1h2m.gcode"] = (prusa_gcode().encode() + b"; neu\n", now + 120)
     assert pi.sync_printer(printer)["updated"] == 1
     origin = pi.origin_for(["From printer/SV08/Benchy_PLA_1h2m.gcode"])
@@ -454,7 +454,7 @@ def test_moonraker_unreachable(lib):
 def test_env_prusalink_printer():
     env = {"PRINTER_1_TYPE": "prusalink", "PRINTER_1_NAME": "MK4S", "PRINTER_1_IP": "192.0.2.22",
            "PRINTER_1_PASSWORD": "geheim",
-           "PRINTER_2_TYPE": "prusalink", "PRINTER_2_IP": "192.0.2.23"}  # Passwort fehlt: übersprungen
+           "PRINTER_2_TYPE": "prusalink", "PRINTER_2_IP": "192.0.2.23"}  # password missing: skipped
     (p,) = pi.env_printers(env)
     assert (p["name"], p["id"], p["kind"], p["code"]) == ("MK4S", "prusalink:http://192.0.2.22", "prusalink", "geheim")
 
@@ -470,15 +470,15 @@ def test_save_prusalink_printer(lib):
 
 @pytest.fixture
 def prusalink():
-    """HTTP-Server im Stil von PrusaLink, mit Digest-Anmeldung (Benutzer maker)."""
+    """PrusaLink-style HTTP server with Digest auth (user maker)."""
     import hashlib
     import json
     import re
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     realm, nonce = "Printer API", "abc123"
-    st = {"password": "geheim", "files": {}, "requests": [], "job": None,  # files: Pfad -> (Inhalt, Zeit)
-          "no_size": False, "auth": "Digest"}  # wie Prusa MINI: Größe 0 in der Liste; ApiKey-Modus
+    st = {"password": "geheim", "files": {}, "requests": [], "job": None,  # files: path -> (content, time)
+          "no_size": False, "auth": "Digest"}  # like Prusa MINI: size 0 in the list; ApiKey mode
 
     def md5(text):
         return hashlib.md5(text.encode()).hexdigest()
@@ -577,7 +577,7 @@ def test_prusalink_wrong_password(lib, prusalink):
 
 
 def test_prusalink_mini_lists_no_sizes(lib, prusalink):
-    """Der Prusa MINI nennt in der Dateiliste die Größe 0: trotzdem holen, Länge aus der Antwort prüfen."""
+    """The Prusa MINI lists size 0 in the file list: fetch anyway, check length from the response."""
     prusalink["state"]["no_size"] = True
     prusalink["state"]["files"]["Seestern_PLA_MINIIS.gcode"] = (b"G1 X1 Y1 E1\n" * 50, 1_700_000_000)
     printer = {"name": "MINI", "id": "prusalink:m", "code": "geheim", "ip": prusalink["address"], "kind": "prusalink"}
@@ -585,7 +585,7 @@ def test_prusalink_mini_lists_no_sizes(lib, prusalink):
     res = pi.sync_printer(printer)
     assert res["ok"] and res["new"] == 1, res
     assert (lib / "From printer" / "MINI" / "Seestern_PLA_MINIIS.gcode").stat().st_size == 600
-    assert pi.sync_printer(printer)["new"] == 0  # nicht bei jedem Abgleich neu holen
+    assert pi.sync_printer(printer)["new"] == 0  # don't re-fetch on every sync
 
 
 def test_prusalink_api_key_mode_is_an_auth_error(lib, prusalink):
@@ -596,7 +596,7 @@ def test_prusalink_api_key_mode_is_an_auth_error(lib, prusalink):
 
 
 def test_reachability_probe_and_resync(lib, prusalink, monkeypatch):
-    """Schnelle Prüfung für die Einstellungsseite; ein zurückgekehrter Drucker löst einen Abgleich aus."""
+    """Quick check for the settings page; a printer that comes back triggers a sync."""
     synced = []
     monkeypatch.setattr(pi, "request_sync", lambda: synced.append(1))
     monkeypatch.setattr(pi, "_last_resync", 0.0)
@@ -605,13 +605,13 @@ def test_reachability_probe_and_resync(lib, prusalink, monkeypatch):
                       {"db_id": None, "kind": "prusalink", "name": "Weg", "ip": "127.0.0.1:1", "code": "x"}])
     ids = {p["name"]: p["id"] for p in pi.load_printers()}
     pi.state["printers"][ids["MINI"]] = {"error": "nicht erreichbar"}
-    synced.clear()                                # Speichern stößt selbst schon einen Abgleich an
+    synced.clear()                                # saving itself already triggers a sync
     result = pi.reachability()
     assert result == {ids["MINI"]: True, ids["Weg"]: False}
-    assert synced == [1]                          # MINI ist wieder da: gleich abgleichen
+    assert synced == [1]                          # MINI is back: sync right away
     pi._probe_cache.update(at=0.0)
     pi.reachability()
-    assert synced == [1]                          # nicht bei jeder Abfrage erneut
+    assert synced == [1]                          # not again on every check
     pi.state["printers"].clear()
 
 
@@ -619,7 +619,7 @@ def test_reachability_probe_and_resync(lib, prusalink, monkeypatch):
 
 @pytest.fixture
 def octoprint():
-    """HTTP-Server mit den OctoPrint-Aufrufen, die PlateShelf nutzt (X-Api-Key)."""
+    """HTTP server with the OctoPrint calls PlateShelf uses (X-Api-Key)."""
     import json
     import urllib.parse
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -678,7 +678,7 @@ def octoprint():
 
 def test_env_and_save_octoprint_printer(lib):
     env = {"PRINTER_1_TYPE": "octoprint", "PRINTER_1_NAME": "Ender", "PRINTER_1_IP": "192.0.2.23",
-           "PRINTER_1_API_KEY": "k", "PRINTER_2_TYPE": "octoprint", "PRINTER_2_IP": "192.0.2.24"}  # ohne Schlüssel
+           "PRINTER_1_API_KEY": "k", "PRINTER_2_TYPE": "octoprint", "PRINTER_2_IP": "192.0.2.24"}  # without key
     (p,) = pi.env_printers(env)
     assert (p["kind"], p["id"], p["code"]) == ("octoprint", "octoprint:http://192.0.2.23", "k")
     from app.i18n import UserError

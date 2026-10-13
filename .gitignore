@@ -5,11 +5,11 @@ __pycache__/
 .venv/
 venv/
 
-# Lokale Konfiguration und Zugangsdaten: niemals einchecken
+# Local configuration and credentials: never commit
 .env
 *.pem
 
-# Laufzeitdaten und Drucke
+# Runtime data and prints
 data/
 library/
 *.gcode.3mf

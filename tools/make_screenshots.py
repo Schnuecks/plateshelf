@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Erzeugt die Screenshots für README und Dokumentation (docs/screenshots/*.png).
+"""Creates the screenshots for the README and documentation (docs/screenshots/*.png).
 
     pip install -r requirements-browser.txt && python -m playwright install chromium
     python tools/make_screenshots.py
 
-Baut eine Beispielbibliothek mit englischen Namen, startet PlateShelf auf Englisch im
-dunklen Design und fotografiert Übersicht, Projektseite, 3D-Vorschau, Druckverlauf,
-Einstellungen und „About“. Drucker und Drucke sind nachgestellt, es wird nichts abgefragt.
+Builds a sample library with English names, starts PlateShelf in English with the
+dark theme and captures the overview, project page, 3D preview, print history,
+settings and "About". Printers and prints are simulated; nothing is queried.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ OUT = ROOT / "docs" / "screenshots"
 
 
 def planter_gcode(layers: int = 150) -> str:
-    """Pflanztopf mit geschwungener Wand, Infill und Deckschichten, mit echten Druckbahnen."""
+    """Planter with a curved wall, infill and top layers, with real toolpaths."""
     epm = 0.0349
     out = ["; HEADER_BLOCK_START", f"; total layer number: {layers}", "; HEADER_BLOCK_END",
            "M83", "M104 S220", "M106 P1 S0"]
@@ -105,7 +105,7 @@ def build_library(lib: Path) -> None:
 
 
 def add_printers_and_prints() -> None:
-    """Drei Drucker mit letztem Abruf und ein paar Drucke, einer davon läuft gerade."""
+    """Three printers with a last poll and a few prints, one of them currently running."""
     from app import print_history as ph, printer_import as pi, store
     pi.init()
     now = time.time()
@@ -134,7 +134,7 @@ def add_printers_and_prints() -> None:
             (printers[2], "d", "Wall mount/Mount_left.gcode.3mf", "completed", now - 2 * day, 123),
             (printers[0], "e", "Benchy_plate_1.gcode.3mf", "completed", now - day, 50)):
         ph.record(p, key, status, remote_name=remote, started=start, ended=start + minutes * 60)
-    # Ältere Drucke über das Jahr verteilt, für die Statistik
+    # Older prints spread over the year, for the statistics
     import random
     rng = random.Random(11)
     remotes = ["Benchy_plate_1.gcode.3mf", "Planter.gcode.3mf", "Cable_clips.gcode.3mf", "Wall mount/Mount_left.gcode.3mf"]
@@ -182,7 +182,7 @@ def main() -> None:
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
         page = browser.new_page(viewport={"width": 1400, "height": 860}, locale="en-US", color_scheme="dark")
-        # 3D-Vorschau: Einfärbung nach Linientyp, Kamera etwas näher
+        # 3D preview: coloring by line type, camera a bit closer
         page.add_init_script(f"""
             localStorage.setItem('plateshelf-color-mode', 'feature');
             localStorage.setItem('plateshelf-cam-{fid}-1', JSON.stringify({{p: [205, 38, 88], t: [128, 128, 14]}}));
@@ -198,7 +198,7 @@ def main() -> None:
 
         page.goto(f"{url}/view/{fid}/1")
         page.wait_for_selector("#viewer-loading", state="hidden", timeout=120_000)
-        page.wait_for_timeout(1500)  # Tiefenschattierung im Stillstand abwarten
+        page.wait_for_timeout(1500)  # wait for depth shading once the view is still
         page.screenshot(path=OUT / "preview.png")
 
         page.goto(url + "/history")

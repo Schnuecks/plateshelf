@@ -1,4 +1,4 @@
-"""Sicherheits-Header, Protokoll, Passkeys (mit nachgebautem Gerät) und PASSWORD_LOGIN=off."""
+"""Security headers, event log, passkeys (with an emulated device) and PASSWORD_LOGIN=off."""
 import base64
 import hashlib
 import json
@@ -21,7 +21,7 @@ def b64(data: bytes) -> str:
 
 
 class Authenticator:
-    """Ein Passkey: erzeugt Schlüssel und unterschreibt wie ein echtes Gerät."""
+    """A passkey: generates keys and signs like a real device."""
 
     def __init__(self):
         self.key = ec.generate_private_key(ec.SECP256R1())
@@ -98,7 +98,7 @@ def test_security_headers_everywhere(client):
 
 
 def test_passkey_register_login_and_remove(client):
-    assert "data-passkey-login" not in client.get("/login").text      # noch keine Passkeys
+    assert "data-passkey-login" not in client.get("/login").text      # no passkeys yet
     login(client)
     key, r = add_passkey(client)
     assert r.status_code == 200 and r.json()["redirect"].startswith("/account")
@@ -108,11 +108,11 @@ def test_passkey_register_login_and_remove(client):
 
     r = passkey_login(client, key)
     assert r.status_code == 200 and r.json()["redirect"] == "/history"
-    assert client.get("/account").status_code == 200                  # Sitzung steht
+    assert client.get("/account").status_code == 200                  # session established
     with store.connect() as con:
         assert con.execute("SELECT last_used FROM passkeys").fetchone()[0]
 
-    # Fremde Adresse, ohne Prüfung der Person, unbekanntes Gerät, wiederverwendete Anfrage: abgelehnt
+    # Foreign origin, no user verification, unknown device, reused challenge: rejected
     client.post("/logout")
     assert passkey_login(client, key, origin="https://evil.test").status_code == 401
     assert passkey_login(client, key, verified=False).status_code == 401
@@ -121,7 +121,7 @@ def test_passkey_register_login_and_remove(client):
     body = {"token": opts["token"], "credential": key.get(opts["options"])}
     assert client.post("/login/passkey", json=body).status_code == 200
     client.post("/logout")
-    assert client.post("/login/passkey", json=body).status_code == 401  # jede Anfrage gilt nur einmal
+    assert client.post("/login/passkey", json=body).status_code == 401  # each challenge is valid only once
 
     login(client)
     pid = passkeys.for_user(1)[0]["id"]
@@ -149,7 +149,7 @@ def test_event_log(client):
 
 def test_password_login_off_needs_another_way_in(client, monkeypatch):
     monkeypatch.setenv("PASSWORD_LOGIN", "off")
-    # Kein OIDC und kein Passkey: Passwort bleibt erlaubt, sonst käme niemand mehr herein
+    # No OIDC and no passkey: password stays allowed, otherwise nobody could get in anymore
     assert auth.password_login() and login(client).status_code == 303
     add_passkey(client)
     assert not auth.password_login()

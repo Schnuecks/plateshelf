@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Geheimnisse: SECRET_KEY, verschlüsselte Druckerzugänge und Werte aus Dateien.
+"""Secrets: SECRET_KEY, encrypted printer credentials and values from files.
 
-SECRET_KEY kommt nur aus der Umgebung (SECRET_KEY oder SECRET_KEY_FILE), nie aus
-dem Datenordner: So nützt eine Kopie der Datenbank allein niemandem.
+SECRET_KEY only comes from the environment (SECRET_KEY or SECRET_KEY_FILE), never from
+the data folder: that way a copy of the database alone is useless to anyone.
 
-Zugangscodes, Passwörter und API-Schlüssel der Drucker liegen mit AES-256-GCM
-verschlüsselt in der Datenbank ("enc:v1:" + Base64 aus Nonce und Chiffrat). Der
-Schlüssel dafür wird per HKDF aus SECRET_KEY abgeleitet, getrennt vom Schlüssel
-für die Anmeldesitzungen.
+Access codes, passwords and API keys of the printers are stored AES-256-GCM
+encrypted in the database ("enc:v1:" + Base64 of nonce and ciphertext). The
+key for this is derived via HKDF from SECRET_KEY, separate from the key
+for the sign-in sessions.
 """
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ _AAD = b"plateshelf printer secret"
 
 
 class SecretError(Exception):
-    """Ein gespeichertes Geheimnis lässt sich nicht entschlüsseln."""
+    """A stored secret cannot be decrypted."""
 
 
 def env_value(name: str, environ=None) -> str:
-    """Wert von NAME, sonst Inhalt der Datei aus NAME_FILE (für Docker-Secrets)."""
+    """Value of NAME, otherwise content of the file from NAME_FILE (for Docker secrets)."""
     environ = os.environ if environ is None else environ
     value = environ.get(name, "")
     if value:
@@ -61,7 +61,7 @@ def _derive(secret: str, purpose: str) -> bytes:
 
 
 def derive(purpose: str) -> bytes | None:
-    """Eigener Schlüssel je Zweck aus SECRET_KEY; None, wenn SECRET_KEY fehlt."""
+    """Separate key per purpose from SECRET_KEY; None if SECRET_KEY is missing."""
     secret = secret_key()
     return _derive(secret, purpose) if secret else None
 
@@ -71,7 +71,7 @@ def is_encrypted(value: str | None) -> bool:
 
 
 def encrypt(text: str) -> str:
-    """Verschlüsselt, sofern SECRET_KEY gesetzt ist; sonst bleibt der Text unverändert."""
+    """Encrypts if SECRET_KEY is set; otherwise the text stays unchanged."""
     if not text or is_encrypted(text):
         return text
     key = derive("plateshelf printer secrets v1")
@@ -84,7 +84,7 @@ def encrypt(text: str) -> str:
 
 def decrypt(value: str) -> str:
     if not is_encrypted(value):
-        return value  # alter Klartext oder leer
+        return value  # old plaintext or empty
     key = derive("plateshelf printer secrets v1")
     if key is None:
         raise SecretError("SECRET_KEY fehlt")
@@ -96,13 +96,13 @@ def decrypt(value: str) -> str:
 
 
 def status() -> dict:
-    """Für Einstellungen und Diagnose: ist ein brauchbarer SECRET_KEY gesetzt?"""
+    """For settings and diagnostics: is a usable SECRET_KEY set?"""
     key = secret_key()
     return {"set": bool(key), "short": bool(key) and len(key) < MIN_KEY_LENGTH}
 
 
 def remove_legacy_key_file(data_dir: Path) -> None:
-    """Bis 0.7.7 wurde SECRET_KEY ohne Vorgabe als Datei im Datenordner abgelegt."""
+    """Up to 0.7.7, SECRET_KEY was stored as a file in the data folder when not set."""
     path = data_dir / "secret.key"
     if path.exists():
         try:

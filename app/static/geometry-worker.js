@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Schnuecks
-// Lädt und bereitet die Vorschau in einem eigenen Thread auf, damit die Seite
-// bedienbar bleibt. Die Ergebnisse werden ohne Kopie an den Viewer übergeben.
+// Loads and processes the preview in a separate thread so the page stays
+// responsive. The results are handed to the viewer without copying.
 
 const version = new URL(self.location.href).searchParams.get("v") || "";
 const ready = import(`/static/geometry.js?v=${version}`);

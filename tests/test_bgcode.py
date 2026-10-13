@@ -1,4 +1,4 @@
-"""Binärer G-Code (.bgcode): Dateien werden hier nach der Spezifikation von libbgcode gebaut."""
+"""Binary G-code (.bgcode): files are built here according to the libbgcode specification."""
 import struct
 import zlib
 
@@ -13,7 +13,7 @@ MP_CHARS = {c: i for i, c in enumerate("0123456789. \nGX")}
 
 
 def meatpack(text: str, nospace: bool = True) -> bytes:
-    """MeatPack wie im Binarisierer: gepackt, auf Wunsch ohne Leerzeichen in Befehlszeilen."""
+    """MeatPack as in the binarizer: packed, optionally without spaces in command lines."""
     table = dict(MP_CHARS)
     if nospace:
         del table[" "]
@@ -24,7 +24,7 @@ def meatpack(text: str, nospace: bool = True) -> bytes:
     i = 0
     while i < len(text):
         c1 = text[i]
-        if c1 == "\n":  # nach dem Zeilenende ist das zweite Halbbyte nur Füllung
+        if c1 == "\n":  # after the line end the second nibble is just padding
             out.append(table["\n"])
             i += 1
             continue
@@ -78,7 +78,7 @@ def make_bgcode(path, gcode: str, *, comp=3, encoding=2, nospace=True, blocks_of
         data = chunk.encode()
         if encoding in (1, 2):
             data = meatpack(chunk, nospace)
-            if n:  # Befehle zum Einschalten nur im ersten Block
+            if n:  # enabling commands only in the first block
                 data = data[6 if nospace else 3:]
         parts.append(block(bgcode.GCODE, data, comp=comp, params=struct.pack("<H", encoding)))
     path.write_bytes(b"".join(parts))
@@ -91,7 +91,7 @@ def test_meatpack_roundtrip():
         packed = meatpack(text, nospace)
         expected = text if not nospace else "G1X10.5Y20E.25F1800\n;TYPE:External perimeter\nM106S255\nG1Z.2\n"
         assert bgcode.MeatPack().decode(packed) == expected
-    # Zustand bleibt über Blockgrenzen erhalten, auch mitten im Signal
+    # State is kept across block boundaries, even in the middle of a signal
     packed = meatpack(text)
     mp = bgcode.MeatPack()
     assert mp.decode(packed[:1]) + mp.decode(packed[1:20]) + mp.decode(packed[20:]) == \
@@ -109,7 +109,7 @@ def test_read_meta_and_parse(tmp_path):
     assert (fil.type, fil.color, fil.used_g, fil.used_m, fil.name, fil.cost_per_kg) == (
         "PETG", "#FF8000", 6.95, 2.35, "Prusament PETG", 30.0)
     assert plate.objects == ["Clip", "Clip"]
-    assert plate.thumb.startswith(b"\x89PNG")  # QOI umgewandelt
+    assert plate.thumb.startswith(b"\x89PNG")  # QOI converted
     assert parsed.settings["fill_density"] == "20%"
     assert gcode_file.diameters(path) == {0: 1.75}
 
@@ -128,11 +128,11 @@ def test_preview(tmp_path, comp, encoding, nospace):
 
 
 def test_preview_without_layer_comments(tmp_path):
-    """MeatPack ohne Kommentare: Schichten ergeben sich aus der Druckhöhe."""
+    """MeatPack without comments: layers are derived from the print height."""
     body = "\n".join(line for line in PRUSA_BODY.splitlines() if not line.startswith(";")) + "\n"
     path = make_bgcode(tmp_path / "clip.bgcode", body, encoding=1)
     meta = convert(path, 1, tmp_path / "out" / "1_1")
-    assert len(meta["layers"]) == 3  # Reinigungslinie auf Starthöhe, dann zwei Schichten
+    assert len(meta["layers"]) == 3  # purge line at start height, then two layers
 
 
 def test_not_a_bgcode(tmp_path):

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Übersicht, Projekte, Dateien, Hochladen, Papierkorb und Druckverlauf."""
+"""Overview, projects, files, upload, trash and print history."""
 from __future__ import annotations
 
 import filecmp
@@ -26,7 +26,7 @@ from .projects import _key_settings, file_stamp, load_projects, natural_key
 from .web import ONE_YEAR, STATUSES, _local_target, templates
 
 router = APIRouter()
-PAGE = 60  # Projekte pro Schritt in der Übersicht; große Bibliotheken bleiben so schnell
+PAGE = 60  # Projects per step in the overview; keeps large libraries fast
 
 
 @router.get("/")
@@ -57,7 +57,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         "name": (lambda p: p["name"].lower()),
         "dauer": (lambda p: -p["time_s"]),
         "gewicht": (lambda p: -p["weight_g"]),
-        "gedruckt": (lambda p: (-p["last_printed"], -p["latest"])),  # nie gedruckte ans Ende
+        "gedruckt": (lambda p: (-p["last_printed"], -p["latest"])),  # never printed ones go last
         "haeufig": (lambda p: (-p["prints"], -p["last_printed"])),
     }
     shown.sort(key=keys.get(sort, keys["neu"]))
@@ -117,7 +117,7 @@ def project(request: Request, pid: int):
         f["plates"] = [x for x in p["plates"] if x["file_id"] == f["id"]]
         f["extra_plates"] = [x for x in p["extra_plates"] if x["file_id"] == f["id"]]
         f["all_plates"] = sorted(f["plates"] + f["extra_plates"], key=lambda x: x["idx"])
-    # Plattenleiste über alle Dateien des Projekts, in natürlicher Reihenfolge
+    # Plate bar across all files of the project, in natural order
     strip = []
     for f in file_rows.values():
         source = (f["model"].get("title") or "").strip().lower()
@@ -126,8 +126,8 @@ def project(request: Request, pid: int):
                           "_sort": (source, pl["idx"], -(f["mtime"] or 0), natural_key(f["path"])),
                           "_version": (f["mtime"], f["layer_height"])})
     strip.sort(key=lambda x: x["_sort"])
-    # Dieselbe Platte mehrfach gesliced (etwa neu gesliced und erneut gedruckt): Fassungen
-    # mit Datum und Schichthöhe unterscheidbar machen, die neueste zuerst
+    # Same plate sliced several times (e.g. resliced and printed again): make versions
+    # distinguishable by date and layer height, newest first
     seen: dict = {}
     for pl in strip:
         if pl["sliced"]:
@@ -139,7 +139,7 @@ def project(request: Request, pid: int):
             for pl in group:
                 mtime, layer = pl["_version"]
                 pl["version"] = " · ".join(x for x in (fmt_date(mtime) if mtime else "", _layer_label(layer)) if x)
-    # Fassungen mit verschiedener Schichthöhe: Auswahl über der Leiste, die neueste zuerst
+    # Versions with different layer heights: selection above the bar, newest first
     versions = []
     if twice:
         newest: dict = {}
@@ -167,7 +167,7 @@ def project(request: Request, pid: int):
     })
 
 
-# --- Eigene Fotos -------------------------------------------------------------
+# --- Own photos ---------------------------------------------------------------
 
 def _group_key(pid: int) -> str:
     with store.connect() as con:
@@ -190,7 +190,7 @@ async def photos_upload(pid: int, files: list[UploadFile] = File(...)):
             saved += 1
         except i18n.UserError:
             failed += 1
-    if saved:  # das erste Foto wird Titelbild, solange es keines gibt
+    if saved:  # the first photo becomes the cover image as long as there is none
         with store.connect() as con:
             con.execute("UPDATE projects SET cover_photo = ?, updated = ? WHERE id = ? AND COALESCE(cover_photo, '') = ''",
                         (photos.list_photos(key)[0], time.time(), pid))
@@ -202,7 +202,7 @@ def photo_file(pid: int, name: str):
     path = photos.path_of(_group_key(pid), name)
     if not path:
         raise HTTPException(404)
-    # Namen sind zufällig und ändern sich nie: dauerhaft zwischenspeichern
+    # Names are random and never change: cache permanently
     return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": f"private, max-age={ONE_YEAR}, immutable"})
 
 
@@ -285,7 +285,7 @@ def _merge_tags(*parts: str) -> str:
 
 @router.post("/bulk")
 async def bulk_edit(request: Request):
-    """Mehrere Projekte aus der Übersicht: Status setzen, Tag hinzufügen oder in den Papierkorb."""
+    """Several projects from the overview: set status, add a tag or move to the trash."""
     form = await request.form()
     ids = list(dict.fromkeys(int(x) for x in form.getlist("pid") if str(x).isdigit()))
     target = _local_target(str(form.get("next") or "/"))
@@ -367,7 +367,7 @@ def _library_folders() -> list[str]:
 
 
 def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | None]:
-    """Speichert eine Datei. Rückgabe: (relativer Pfad, Fehlermeldung)."""
+    """Saves a file. Returns: (relative path, error message)."""
     name = _clean_name(upload.filename)
     if not store.is_library_file(name):
         return None, _("{name}: keine .3mf-, .gcode- oder .bgcode-Datei", name=upload.filename or _("Datei"))
@@ -410,7 +410,7 @@ def _save_upload(upload: UploadFile, folder: Path) -> tuple[str | None, str | No
             tmp.unlink()
 
 
-# --- Löschen und Papierkorb -------------------------------------------------
+# --- Deleting and trash -----------------------------------------------------
 
 def _require_writable() -> None:
     if not _library_writable():
@@ -543,7 +543,7 @@ def thumb(fid: int, kind: str, idx: int):
             or store.THUMB_DIR / str(fid) / f"{kind}_{idx}.png")
     if not path.exists():
         raise HTTPException(404)
-    with open(path, "rb") as fh:  # Vorschaubilder aus G-Code können auch JPEG sein
+    with open(path, "rb") as fh:  # thumbnails from G-code can also be JPEG
         jpeg = fh.read(2) == b"\xff\xd8"
     return FileResponse(path, media_type="image/jpeg" if jpeg else "image/png", headers={"Cache-Control": "max-age=2592000"})
 
@@ -560,7 +560,7 @@ def photo(fid: int, name: str):
 
 @router.get("/p/{pid}/download")
 def download_project(pid: int):
-    """Alle Dateien eines Projekts als ZIP, dazu eine Textdatei mit Status, Tags, Quelle und Notizen."""
+    """All files of a project as ZIP, plus a text file with status, tags, source and notes."""
     with store.connect() as con:
         project = con.execute("SELECT * FROM projects WHERE id = ?", (pid,)).fetchone()
         rows = con.execute("SELECT path FROM files WHERE project_id = ? AND missing = 0 ORDER BY path",
@@ -572,7 +572,7 @@ def download_project(pid: int):
     os.close(fd)
     target = Path(name)
     used: set[str] = set()
-    # Gesliced Dateien sind schon gepackt: nur speichern, nicht noch einmal komprimieren
+    # Sliced files are already compressed: only store, do not compress again
     with zipfile.ZipFile(target, "w", zipfile.ZIP_STORED) as z:
         for row in rows:
             path = (store.LIBRARY_DIR / row["path"]).resolve()
@@ -580,7 +580,7 @@ def download_project(pid: int):
                 continue
             arcname = path.name
             n = 2
-            while arcname.lower() in used:  # gleiche Namen aus verschiedenen Ordnern
+            while arcname.lower() in used:  # same names from different folders
                 arcname = f"{path.stem} ({n}){path.suffix}"
                 n += 1
             used.add(arcname.lower())

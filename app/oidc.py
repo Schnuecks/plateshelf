@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) 2026 Schnuecks
-"""Anmeldung über OpenID Connect, z. B. mit Authelia, Authentik, Keycloak oder Pocket ID.
+"""Sign-in via OpenID Connect, e.g. with Authelia, Authentik, Keycloak or Pocket ID.
 
-Ablauf: Authorization Code mit PKCE. Der Browser geht zum Anbieter und kommt mit einem
-Code zurück; PlateShelf tauscht ihn direkt beim Anbieter gegen ein ID-Token, prüft dessen
-Signatur (Schlüssel aus JWKS), Aussteller, Empfänger, Ablauf und Nonce und holt Name und
-Gruppen zusätzlich vom Userinfo-Endpunkt (Authelia liefert Gruppen nur dort).
+Flow: Authorization Code with PKCE. The browser goes to the provider and comes back with a
+code; PlateShelf exchanges it directly with the provider for an ID token, checks its
+signature (keys from JWKS), issuer, audience, expiry and nonce, and additionally fetches name
+and groups from the userinfo endpoint (Authelia only returns groups there).
 
-Konten: Beim ersten Anmelden wird das Konto mit gleichem Benutzernamen verknüpft oder ein
-neues angelegt (siehe auth.login_external). Rollen kommen aus OIDC_ADMIN_GROUP und
-OIDC_USER_GROUP, wenn gesetzt, und werden dann bei jeder Anmeldung übernommen.
+Accounts: on first sign-in, the account with the same username is linked or a new one is
+created (see auth.login_external). Roles come from OIDC_ADMIN_GROUP and OIDC_USER_GROUP,
+if set, and are then applied on every sign-in.
 """
 from __future__ import annotations
 
@@ -36,8 +36,8 @@ from . import auth, crypto
 log = logging.getLogger("plateshelf")
 
 STATE_COOKIE = "oidc_state"
-STATE_SECONDS = 600       # so lange darf die Anmeldung beim Anbieter dauern
-CACHE_SECONDS = 3600      # Discovery und Schlüssel des Anbieters
+STATE_SECONDS = 600       # how long the sign-in at the provider may take
+CACHE_SECONDS = 3600      # provider discovery and keys
 CLOCK_SKEW = 60
 TIMEOUT = 10
 
@@ -48,13 +48,13 @@ _ALGS = {
 }
 _CURVES = {"P-256": ec.SECP256R1, "P-384": ec.SECP384R1, "P-521": ec.SECP521R1}
 
-_pending: dict[str, dict] = {}   # state -> Nonce, PKCE-Verifier, Rücksprung, gültig bis
+_pending: dict[str, dict] = {}   # state -> nonce, PKCE verifier, return target, valid until
 _cache: dict[str, tuple[float, dict]] = {}
 _lock = threading.Lock()
 
 
 class OIDCError(Exception):
-    """Anmeldung beim Anbieter fehlgeschlagen; Einzelheiten stehen im Log, nicht auf der Seite."""
+    """Sign-in at the provider failed; details are in the log, not on the page."""
 
 
 def issuer() -> str:
@@ -72,8 +72,8 @@ def _hostname(value: str) -> str:
 
 
 def available(host: str | None) -> bool:
-    """OIDC an dieser Adresse anbieten? OIDC_HOSTS beschränkt es auf bestimmte Hostnamen,
-    etwa wenn PlateShelf auch von außen erreichbar ist, der Anbieter aber nur im Heimnetz."""
+    """Offer OIDC at this address? OIDC_HOSTS restricts it to certain hostnames,
+    e.g. when PlateShelf is also reachable from outside, but the provider only on the home network."""
     if not enabled():
         return False
     hosts = {_hostname(h) for h in os.environ.get("OIDC_HOSTS", "").split(",") if h.strip()}
@@ -88,7 +88,7 @@ def admin_group_set() -> bool:
     return bool(os.environ.get("OIDC_ADMIN_GROUP", "").strip())
 
 
-# --- HTTP und Zwischenspeicher --------------------------------------------------
+# --- HTTP and cache -------------------------------------------------------------
 
 def _request(url: str, data: dict | None = None, headers: dict | None = None) -> dict:
     body = urllib.parse.urlencode(data).encode() if data is not None else None
@@ -127,7 +127,7 @@ def _keys(force: bool = False) -> list[dict]:
     return _cached("jwks", lambda: _request(discovery()["jwks_uri"]), force).get("keys", [])
 
 
-# --- ID-Token prüfen -----------------------------------------------------------
+# --- Verify ID token -----------------------------------------------------------
 
 def _unb64(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
@@ -168,10 +168,10 @@ def verify_id_token(token: str, nonce: str) -> dict:
     except ValueError as exc:
         raise OIDCError("ID-Token ist kein gültiges JWT") from exc
     alg = header.get("alg")
-    if alg not in _ALGS:  # „none“ und HS* (geteiltes Geheimnis) gibt es hier nicht
+    if alg not in _ALGS:  # "none" and HS* (shared secret) are not supported here
         raise OIDCError(f"Signaturverfahren {alg!r} wird nicht unterstützt")
     kid = header.get("kid")
-    for force in (False, True):  # unbekannte Schlüssel-ID: Anbieter hat vielleicht neue Schlüssel
+    for force in (False, True):  # unknown key ID: the provider may have new keys
         candidates = [k for k in _keys(force) if k.get("use", "sig") == "sig" and (kid is None or k.get("kid") == kid)]
         if candidates:
             break
@@ -203,10 +203,10 @@ def verify_id_token(token: str, nonce: str) -> dict:
     return claims
 
 
-# --- Ablauf ---------------------------------------------------------------------
+# --- Flow -----------------------------------------------------------------------
 
 def start(redirect_uri: str, target: str) -> tuple[str, str]:
-    """Adresse beim Anbieter und state (für das Cookie, das die Rückkehr an diesen Browser bindet)."""
+    """Provider URL and state (for the cookie that binds the return to this browser)."""
     state, nonce, verifier = (secrets.token_urlsafe(32) for _ in range(3))
     now = time.time()
     with _lock:
@@ -237,7 +237,7 @@ def _token_request(pending: dict, code: str) -> dict:
     headers = {}
     methods = doc.get("token_endpoint_auth_methods_supported") or ["client_secret_basic"]
     if not secret:
-        data["client_id"] = client_id  # öffentlicher Client, nur PKCE
+        data["client_id"] = client_id  # public client, PKCE only
     elif "client_secret_basic" in methods:
         pair = f"{urllib.parse.quote(client_id, safe='')}:{urllib.parse.quote(secret, safe='')}"
         headers["Authorization"] = "Basic " + base64.b64encode(pair.encode()).decode()
@@ -247,7 +247,7 @@ def _token_request(pending: dict, code: str) -> dict:
 
 
 def finish(state: str, cookie_state: str | None, code: str) -> tuple[dict, str]:
-    """Code einlösen; liefert die Angaben zur Person und das Ziel nach der Anmeldung."""
+    """Redeem the code; returns the person's details and the target after sign-in."""
     with _lock:
         pending = _pending.pop(state, None)
     if not pending or not cookie_state or not hmac.compare_digest(state, cookie_state):
@@ -267,7 +267,7 @@ def finish(state: str, cookie_state: str | None, code: str) -> tuple[dict, str]:
 
 
 def role_for(claims: dict) -> str | None:
-    """Rolle aus den Gruppen; None, wenn keine Gruppen-Zuordnung eingestellt ist."""
+    """Role from the groups; None if no group mapping is configured."""
     admin = os.environ.get("OIDC_ADMIN_GROUP", "").strip()
     user = os.environ.get("OIDC_USER_GROUP", "").strip()
     if not admin and not user:

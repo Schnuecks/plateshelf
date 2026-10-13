@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Schnuecks
-// Passkeys (WebAuthn): Optionen vom Server holen, den Browser fragen, Antwort zurückschicken.
-// Ohne WebAuthn im Browser (oder ohne HTTPS) bleiben die Knöpfe versteckt und ein Hinweis erscheint.
+// Passkeys (WebAuthn): fetch options from the server, ask the browser, send the response back.
+// Without WebAuthn in the browser (or without HTTPS) the buttons stay hidden and a notice appears.
 (() => {
   const supported = !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
   document.querySelectorAll("[data-passkey-unsupported]").forEach((el) => { el.hidden = supported; });
@@ -71,7 +71,7 @@
       if (!resp.ok) return show(data.error || errorBox.dataset.fallback);
       window.location.assign(data.redirect);
     } catch (err) {
-      show(errorBox.dataset.cancelled);  // abgebrochen oder auf diesem Gerät nicht möglich
+      show(errorBox.dataset.cancelled);  // cancelled or not possible on this device
     } finally {
       button.disabled = false;
     }

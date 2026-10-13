@@ -11,12 +11,12 @@
   <link rel="stylesheet" href="/static/style.css?v={{ ASSET_V }}">
   {% block head %}{% endblock %}
   <link rel="icon" href="/static/logo.svg?v={{ ASSET_V }}" type="image/svg+xml">
-  {# Als App auf dem Homescreen: Manifest für Android/Chrome, Symbol und Titel für iOS #}
+  {# As an app on the home screen: manifest for Android/Chrome, icon and title for iOS #}
   <link rel="manifest" href="/static/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-title" content="{{ APP_NAME }}">
   <meta name="mobile-web-app-capable" content="yes">
-  {# Farbe der Browserleiste = Kopfleiste; bei fest gewähltem Design unabhängig vom System #}
+  {# Browser bar color = header; with an explicitly chosen theme independent of the system #}
   {% if t == 'system' %}
   <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#1D2227" media="(prefers-color-scheme: dark)">
@@ -75,8 +75,8 @@
       </form>
       {% block nav_links %}
       {% if can_edit(request) %}<a class="upload-link" href="/upload">{{ _('Hochladen') }}</a>{% endif %}
-      {# Seltener gebraucht: hinter einem Menüknopf, damit die Kopfzeile Platz für laufende Drucke hat.
-         Auf dem Handy steht alles direkt im aufgeklappten Menü. #}
+      {# Used less often: behind a menu button, so the header has room for running prints.
+         On phones everything is shown directly in the expanded menu. #}
       <div class="nav-menu" data-nav-menu>
         <button type="button" class="icon-btn nav-menu-btn" aria-expanded="false" aria-controls="nav-menu-list"
                 title="{{ _('Menü') }}" aria-label="{{ _('Menü') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>

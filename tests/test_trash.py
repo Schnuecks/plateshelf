@@ -29,7 +29,7 @@ def test_project_restore_brings_back_notes_and_manual_assignment(lib, sample):
         pid = _project(con, "Halter")["id"]
         con.execute("UPDATE projects SET notes = 'PETG nehmen', tags = 'Werkstatt', status = 'gedruckt' WHERE id = ?",
                     (pid,))
-        # Clip von Hand dem Projekt Halter zugeordnet
+        # Clip manually assigned to the project Halter
         con.execute("UPDATE files SET project_id = ?, pinned = 1 WHERE path = 'Clip.gcode.3mf'", (pid,))
         ids = [r["id"] for r in con.execute("SELECT id FROM files WHERE project_id = ?", (pid,))]
         entry = trash.delete(con, ids, "projekt")
@@ -56,14 +56,14 @@ def test_restore_never_overwrites(lib, sample):
     with store.connect() as con:
         entry = trash.delete(con, [con.execute("SELECT id FROM files").fetchone()[0]], "datei")
     newer = [{"idx": 1, "sec": 120, "layers": 4, "fil": [(1, "#00FF00FF", 2.0)]}]
-    sample(lib / "Benchy.gcode.3mf", newer)  # inzwischen neue Datei mit gleichem Namen
+    sample(lib / "Benchy.gcode.3mf", newer)  # meanwhile a new file with the same name
     before = (lib / "Benchy.gcode.3mf").read_bytes()
 
     result = trash.restore(entry)
     assert result["renamed"] == ["Benchy (2).gcode.3mf"]
     assert (lib / "Benchy.gcode.3mf").read_bytes() == before
     with store.connect() as con:
-        # Beide landen über den Namen im selben Projekt
+        # Both end up in the same project via the name
         assert con.execute("SELECT COUNT(DISTINCT project_id) FROM files").fetchone()[0] == 1
 
 
@@ -77,7 +77,7 @@ def test_file_restore_keeps_current_project_details(lib, sample):
         con.execute("UPDATE projects SET notes = 'alt' WHERE id = ?", (pid,))
         fid = con.execute("SELECT id FROM files WHERE path = 'Box/Deckel.gcode.3mf'").fetchone()[0]
         entry = trash.delete(con, [fid], "datei")
-        con.execute("UPDATE projects SET notes = '' WHERE id = ?", (pid,))  # danach bewusst geleert
+        con.execute("UPDATE projects SET notes = '' WHERE id = ?", (pid,))  # deliberately cleared afterwards
     trash.restore(entry)
     with store.connect() as con:
         p = _project(con, "Box")
@@ -89,12 +89,12 @@ def test_old_trash_folders_are_adopted_and_expire_later(lib, sample):
     old = lib / ".trash" / "2026-01-02_03-04-05" / "Vase"
     old.mkdir(parents=True)
     sample(old / "Vase.gcode.3mf", PLATE)
-    (lib / ".trash" / "2026-01-03_00-00-00").mkdir()  # leerer Ordner wird ignoriert
+    (lib / ".trash" / "2026-01-03_00-00-00").mkdir()  # empty folder is ignored
 
     entries = trash.entries()
     assert [(e["kind"], e["label"], e["files"]) for e in entries] == [("alt", "Vase", ["Vase/Vase.gcode.3mf"])]
     assert time.localtime(entries[0]["deleted"]).tm_year == 2026
-    # Die Frist beginnt mit der Übernahme, alte Einträge verschwinden nicht sofort
+    # The retention period starts at adoption, old entries do not disappear immediately
     assert trash.purge_expired(days=30) == 0
     assert trash.purge_expired(days=30, now=time.time() + 31 * 86400) == 1
     assert not (lib / ".trash" / "2026-01-02_03-04-05").exists()
@@ -106,7 +106,7 @@ def test_manually_emptied_entries_disappear(lib, sample):
     with store.connect() as con:
         entry = trash.delete(con, [con.execute("SELECT id FROM files").fetchone()[0]], "datei")
         folder = con.execute("SELECT folder FROM trash WHERE id = ?", (entry,)).fetchone()[0]
-    (lib / ".trash" / folder / "Teil.gcode.3mf").rename(lib / "Teil.gcode.3mf")  # von Hand zurückgeschoben
+    (lib / ".trash" / folder / "Teil.gcode.3mf").rename(lib / "Teil.gcode.3mf")  # moved back manually
     assert trash.entries() == []
 
 
