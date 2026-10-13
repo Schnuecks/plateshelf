@@ -2,6 +2,11 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+- **Python 3.14:** the Docker image is now built on `python:3.14-slim` (before 3.12), and CI tests
+  with 3.14. Python 3.15 follows once all dependencies have ready-made packages for it.
+
 ## 0.16.2
 
 - **Home-screen app on iOS stays up to date:** when you come back to the app after more than a

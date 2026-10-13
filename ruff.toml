@@ -1,6 +1,6 @@
 # Linter for app/, tests/ and tools/ (runs in CI, locally: python -m ruff check)
 line-length = 120
-target-version = "py312"
+target-version = "py314"
 
 [lint]
 # Default rules (syntax, unused names) plus common sources of bugs
