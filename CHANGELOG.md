@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.15.5
+
+- **Printer names from the settings:** files fetched from a printer now show the name you gave that
+  printer in the settings (e.g. "Prusa Mini") instead of the slicer profile ("Original Prusa MINI &
+  MINI+ Input Shaper"), in the printer filter, on the project page, in the statistics and for the
+  printer power. Uploaded files keep the profile name.
+
 ## 0.15.4
 
 - **Running prints count as the newest:** sorted by newest or last printed, projects that are

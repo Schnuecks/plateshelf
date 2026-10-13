@@ -102,6 +102,9 @@ def project(request: Request, pid: int):
         p = projects[pid]
         rows = con.execute("SELECT * FROM files WHERE project_id = ? AND missing = 0", (pid,)).fetchall()
         file_rows = {r["id"]: dict(r) for r in sorted(rows, key=lambda r: natural_key(r["path"]))}
+        labels = printer_import.printer_labels(con)
+    for f in file_rows.values():
+        f["printer"] = labels.get(f["path"], f["printer"])
     origins = printer_import.origin_for([f["path"] for f in file_rows.values()])
     designer = None
     for f in file_rows.values():

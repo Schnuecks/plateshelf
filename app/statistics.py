@@ -13,7 +13,7 @@ import json
 import time
 from collections import defaultdict
 
-from . import store
+from . import printer_import, store
 
 MONTHS = 12
 
@@ -34,10 +34,11 @@ def _file_facts(con, settings: dict) -> dict[str, dict]:
     """Per file: weight, filaments, material costs and planned time of the sliced plates."""
     facts: dict[str, dict] = {}
     rules = store.price_rules(settings)
+    labels = printer_import.printer_labels(con)
     for r in con.execute(
             """SELECT f.path, f.printer, p.weight_g, p.cost, p.prediction_s, p.filaments_json
                FROM plates p JOIN files f ON f.id = p.file_id WHERE p.sliced = 1"""):
-        fact = facts.setdefault(r["path"], {"printer": r["printer"], "weight_g": 0.0, "cost": None,
+        fact = facts.setdefault(r["path"], {"printer": labels.get(r["path"], r["printer"]), "weight_g": 0.0, "cost": None,
                                             "prediction_s": 0, "filaments": []})
         fact["weight_g"] += r["weight_g"] or 0
         fact["prediction_s"] += r["prediction_s"] or 0

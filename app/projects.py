@@ -8,7 +8,7 @@ import re
 import threading
 import time
 
-from . import print_history, render, store
+from . import print_history, printer_import, render, store
 from .i18n import gettext as _
 
 def plate_source(model_json: str | None) -> str:
@@ -110,11 +110,13 @@ def _build(con) -> list[dict]:
     projects = {r["id"]: {**dict(r), "files": [], "plates": [], "extra_plates": []}
                 for r in con.execute("SELECT * FROM projects")}
     files = {}
+    labels = printer_import.printer_labels(con)
     for r in con.execute(
         "SELECT id, project_id, path, printer, nozzle, layer_height, added, mtime, size, sliced, model_json FROM files WHERE missing = 0"
     ):
         if r["project_id"] in projects:
             files[r["id"]] = dict(r)
+            files[r["id"]]["printer"] = labels.get(r["path"], r["printer"])
             files[r["id"]]["source"] = plate_source(files[r["id"]].pop("model_json"))
             projects[r["project_id"]]["files"].append(files[r["id"]])
     rules = store.price_rules(settings)

@@ -400,6 +400,25 @@ def test_running_prints_come_first_in_the_project_list(ready, monkeypatch):
         assert order("name") == ["Anker", "Mitte", "Yak", "Zebra"]   # other sort orders stay as chosen
 
 
+def test_files_from_a_printer_show_its_configured_name(ready, monkeypatch):
+    """Not the slicer profile ("Original Prusa MINI & MINI+ Input Shaper"), but the name from the settings."""
+    profile = "; printer_settings_id = Original Prusa MINI & MINI+ Input Shaper 0.4 nozzle\nG1 X1 Y1 E1\n"
+    imported(ready, BAMBU, "Haken.gcode", "From printer/P2S/Haken.gcode")
+    (ready / "From printer/P2S/Haken.gcode").write_text(profile)
+    (ready / "Upload.gcode").write_text(profile)
+    store.scan(wait=True)
+    monkeypatch.setattr(pi, "load_printers", lambda: [{**BAMBU, "name": "Prusa Mini"}])
+    from app import main
+    with TestClient(main.app) as client:
+        page = client.get("/").text
+        assert ">Prusa Mini</option>" in page                             # from the printer
+        assert ">Original Prusa MINI &amp; MINI+ Input Shaper</option>" in page   # uploaded
+        assert client.get("/?printer=Prusa+Mini").text.count("<h2>") == 1
+    monkeypatch.setattr(pi, "load_printers", lambda: [])                       # printer removed meanwhile
+    with store.connect() as con:
+        assert pi.printer_labels(con) == {"From printer/P2S/Haken.gcode": "P2S"}
+
+
 def test_short_live_text_drops_progress_and_shortens_name():
     from app.web import live_text
     job = {"printer_name": "P2S", "project_name": "Sehr langer Modellname mit vielen Teilen und Varianten",

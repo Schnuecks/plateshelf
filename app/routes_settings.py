@@ -47,9 +47,9 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
                      users_error: str = "", new_token: str = "", tokens_error: str = "", backup_error: str = ""):
     with store.connect() as con:
         settings = store.get_settings(con)
-        printers = [r[0] for r in con.execute(
-            "SELECT DISTINCT printer FROM files WHERE missing = 0 AND printer IS NOT NULL AND printer != '' "
-            "ORDER BY printer")]
+        labels = printer_import.printer_labels(con)
+        printers = sorted({labels.get(r["path"], r["printer"]) for r in con.execute(
+            "SELECT path, printer FROM files WHERE missing = 0 AND printer IS NOT NULL AND printer != ''")})
         rules = store.price_rules(settings)
         hits = store.rule_hits(con, rules)
     rows = [{"name": pr, "watts": settings.get(f"leistung:{pr}")} for pr in printers]
