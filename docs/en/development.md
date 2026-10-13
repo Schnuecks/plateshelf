@@ -51,6 +51,12 @@ and paste the text into the issue. It lists version, platform, library figures, 
 types with their last result, which settings are set and the latest warnings, without
 credentials, IP addresses, host names or printer names.
 
+If a printer is not recognised correctly (status, progress or project wrong), also attach the
+file from “Download as file”. Besides the text it contains the last 500 log lines and, for each
+printer, the result of the last sync, the file list on the printer and the last answer to the
+status query. Credentials, serial numbers, addresses and printer names are removed (printers are
+called “printer 1” etc.); file names stay. The answers are only kept in memory, nothing is sent.
+
 ## Tests, builds and releases
 
 - Every pull request and every push to `main` runs Ruff, the Python tests and the browser

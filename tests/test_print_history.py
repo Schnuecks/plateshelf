@@ -477,6 +477,42 @@ def test_diagnostics(ready, monkeypatch, caplog):
         assert 'id="diagnostics"' in page and "PlateShelf" in page and "/issues/new/choose" in page
 
 
+def test_diagnostics_download(ready, monkeypatch, caplog):
+    """ZIP with log and raw printer answers, without credentials, serials, addresses and names."""
+    import io
+    import json
+    import logging
+    import zipfile
+    from app import captures, diagnostics
+    monkeypatch.setenv("PRINTER_1_NAME", "Werkstatt Keller")
+    monkeypatch.setenv("PRINTER_1_IP", "bambu-keller.home.lan")
+    monkeypatch.setenv("PRINTER_1_SERIAL", "01P00A123456789")
+    monkeypatch.setenv("PRINTER_1_CODE", "geheim99")
+    diagnostics.install()
+    captures.clear()
+    caplog.set_level(logging.INFO, logger="plateshelf.printers")
+    logging.getLogger("plateshelf.printers").info("Werkstatt Keller: 3 files fetched from bambu-keller.home.lan")
+    captures.remember("01P00A123456789", "mqtt report",
+                      {"print": {"gcode_state": "RUNNING", "mc_percent": 12, "sn": "01P00A123456789",
+                                 "net": {"info": [{"ip": 3232235777}]}, "wifi_signal": "-40dBm"}}, merge=True)
+    captures.remember("01P00A123456789", "mqtt report", {"print": {"mc_percent": 13}}, merge=True)
+    captures.remember("01P00A123456789", "files on the printer", [{"name": "Benchy.gcode.3mf", "size": 12}])
+    from app import main
+    with TestClient(main.app) as client:
+        resp = client.get("/settings/diagnostics.zip")
+    assert resp.status_code == 200 and resp.headers["content-type"] == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(resp.content))
+    assert sorted(z.namelist()) == ["diagnostics.txt", "log.txt", "printer-1-bambu.json"]
+    everything = "".join(z.read(n).decode() for n in z.namelist())
+    for secret in ("Werkstatt Keller", "bambu-keller", "01P00A123456789", "geheim99", "3232235777", "-40dBm"):
+        assert secret not in everything, secret
+    assert "printer 1: 3 files fetched from <host>" in z.read("log.txt").decode()
+    printer = json.loads(z.read("printer-1-bambu.json"))
+    report = printer["last answers"]["mqtt report"]["data"]["print"]
+    assert report["gcode_state"] == "RUNNING" and report["mc_percent"] == 13 and report["sn"] == "<removed>"
+    assert printer["last answers"]["files on the printer"]["data"] == [{"name": "Benchy.gcode.3mf", "size": 12}]
+
+
 # --- Statistics and overview in batches (0.7.9) ---------------------------------
 
 def test_statistics(ready, sample, monkeypatch):

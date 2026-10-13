@@ -24,7 +24,7 @@ import threading
 import time
 import uuid
 
-from . import printer_import, store
+from . import captures, printer_import, store
 
 log = logging.getLogger("plateshelf.history")
 
@@ -333,6 +333,8 @@ def poll_moonraker(printer: dict, source=None) -> int:
     with source._get("/server/history/list?limit=50&order=desc") as resp:
         jobs = (json.load(resp).get("result") or {}).get("jobs") or []
     status = _moonraker_status(source)
+    captures.remember(printer["id"], "history (latest 5)", jobs[:5])
+    captures.remember(printer["id"], "status", status)
     live = _moonraker_progress(status)
     in_history = any(job.get("status") == "in_progress" for job in jobs)
     for job in jobs:
@@ -414,6 +416,7 @@ def poll_prusalink(printer: dict, source=None) -> None:
     source = source or printer_import.PrusaLinkSource(printer)
     with source._get("/api/v1/job") as resp:
         body = resp.read()
+    captures.remember(printer["id"], "job", json.loads(body) if body.strip() else "(204, no print)")
     if not body.strip():
         _close_lost_prusalink_job(printer, None)
         return
@@ -444,6 +447,7 @@ def poll_octoprint(printer: dict, source=None) -> None:
     source = source or printer_import.OctoPrintSource(printer)
     with source._get("/api/job") as resp:
         data = json.load(resp)
+    captures.remember(printer["id"], "job", data)
     state = str(data.get("state") or "").lower()
     file = ((data.get("job") or {}).get("file") or {})
     name = file.get("path") or file.get("name")
@@ -571,7 +575,9 @@ class BambuWatcher:
 
     def _on_message(self, _client, _userdata, msg):
         try:
-            self.tracker.update(json.loads(msg.payload))
+            payload = json.loads(msg.payload)
+            captures.remember(self.printer["id"], "mqtt report", payload, merge=True)
+            self.tracker.update(payload)
         except Exception:  # noqa: BLE001
             log.exception("%s: Meldung nicht auswertbar", self.printer["name"])
 

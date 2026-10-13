@@ -52,6 +52,13 @@ Plattform, Zahlen zur Bibliothek, die Druckertypen mit ihrem letzten Ergebnis, w
 Einstellungen gesetzt sind und die letzten Warnungen, aber keine Zugangsdaten,
 IP-Adressen, Hostnamen oder Druckernamen.
 
+Wird ein Drucker nicht richtig erkannt (Status, Fortschritt oder Projekt falsch), hängst du
+zusätzlich die Datei aus „Als Datei herunterladen“ an. Sie enthält neben dem Text die letzten
+500 Protokollzeilen und je Drucker das Ergebnis des letzten Abgleichs, die Dateiliste auf dem
+Drucker und die letzte Antwort auf die Statusabfrage. Zugangsdaten, Seriennummern, Adressen und
+Druckernamen sind entfernt (die Drucker heißen „printer 1“ usw.); Dateinamen bleiben drin. Die
+Antworten liegen nur im Arbeitsspeicher, verschickt wird nichts.
+
 ## Tests, Builds und Releases
 
 - Jeder Pull Request und jeder Push auf `main` durchläuft Ruff, die Python-Tests und den

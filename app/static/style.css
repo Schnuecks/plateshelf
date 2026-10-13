@@ -653,6 +653,9 @@ button.danger-quiet:hover { color: var(--ink); }
 .diag-text { width: 100%; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical;
   white-space: pre; overflow-x: auto; }
 .diag-actions { align-items: center; gap: 1rem; flex-wrap: wrap; }
+.diag-contents { margin-top: .75rem; }
+.diag-contents summary { cursor: pointer; color: var(--accent); }
+.diag-contents ul { margin: .5rem 0 0; padding-left: 1.2rem; display: grid; gap: .35rem; }
 
 /* Toggles */
 .toggle-form { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }

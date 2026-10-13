@@ -2,6 +2,15 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.16.0
+
+- **Diagnostics as a file:** "Settings" → "Diagnostics" → "Download as file" creates a ZIP for bug
+  reports: the diagnostics text, the last 500 log lines and, for each printer, the result of the
+  last sync, the file list on the printer and the last raw answer to the status query (Bambu MQTT,
+  Moonraker, PrusaLink, OctoPrint). Credentials, serial numbers, addresses and printer names are
+  removed; a short list in the settings explains what is collected and why. The answers are only
+  kept in memory, nothing is sent.
+
 ## 0.15.5
 
 - **Printer names from the settings:** files fetched from a printer now show the name you gave that

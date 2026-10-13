@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import crypto, store
+from . import captures, crypto, store
 from .gcode_file import is_gcode
 from .i18n import UserError
 from .parser import parse_3mf
@@ -705,6 +705,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
             fail("Fehler beim Abrufen ({detail})", detail=f"{exc.__class__.__name__}: {exc}")
             return result
         result["files"] = len(remote)
+        captures.remember(printer["id"], "files on the printer", remote)
         # Newest first: on a first sync with many files, the running print is available quickly
         remote.sort(key=lambda f: parse_remote_date(f["date"]) or 0, reverse=True)
         with store.connect() as con:
