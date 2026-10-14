@@ -53,12 +53,13 @@ settings. An example for Traefik (instead of `ports:` in the `compose.yaml`):
 ```
 
 PlateShelf takes the visitor's address (for the sign-in lock and the log) from
-`X-Forwarded-For`, but only from proxies listed in `FORWARDED_ALLOW_IPS`. The default covers
-local and private networks, so a proxy in the same Docker network works without changes.
-For a tighter setup, set it to the proxy's own address, e.g. `FORWARDED_ALLOW_IPS=172.20.0.5`.
-Without a reverse proxy and with the port open to your network, set
-`FORWARDED_ALLOW_IPS=127.0.0.1`: otherwise any device in your network could send a made-up
-address.
+`X-Forwarded-For`, but only from proxies listed in `FORWARDED_ALLOW_IPS`. The supplied
+`compose.yaml` publishes port 8000 directly and therefore sets `FORWARDED_ALLOW_IPS=127.0.0.1`:
+otherwise any device in your network could send a made-up address. **With a reverse proxy in
+front, set its address in `.env`**, e.g. `FORWARDED_ALLOW_IPS=172.20.0.5`, or its Docker
+network, e.g. `172.20.0.0/16`; otherwise every visitor appears with the proxy's address and
+one person's failed attempts lock out everybody. Without that line in your own compose file,
+the image trusts all local and private networks. Never use `*`.
 
 ## Data and backups
 

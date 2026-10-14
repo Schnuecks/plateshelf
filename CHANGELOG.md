@@ -2,6 +2,13 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.17.1
+
+- `compose.yaml` sets `FORWARDED_ALLOW_IPS=127.0.0.1`, as it publishes the port directly: devices in
+  the local network can no longer put a made-up address into the sign-in log. **Behind a reverse
+  proxy, set its address in `.env`** (see the installation guide). The image itself still trusts
+  local and private networks.
+
 ## 0.17.0
 
 Security review before the public release:
