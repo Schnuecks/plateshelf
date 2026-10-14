@@ -17,7 +17,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `LIBRARY` | `./library` | Folder with the `.gcode.3mf`, `.gcode` and `.bgcode` files |
 | `DATA` | `./data` | Folder for database, preview images and 3D previews |
 | `LOG_LEVEL` | INFO | Log verbosity (`docker compose logs`): `DEBUG`, `INFO` or `WARNING` |
-| `FORWARDED_ALLOW_IPS` | local and private networks | Reverse proxies whose `X-Forwarded-For` is trusted, see [Installation](installation.md#behind-a-reverse-proxy) |
+| `FORWARDED_ALLOW_IPS` | `127.0.0.1` (`compose.yaml`; image: local and private networks) | Reverse proxies whose `X-Forwarded-For` is trusted, see [Installation](installation.md#behind-a-reverse-proxy) |
 
 **Library**
 

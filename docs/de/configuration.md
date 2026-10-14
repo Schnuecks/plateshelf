@@ -18,7 +18,7 @@ weiter.
 | `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-, `.gcode`- und `.bgcode`-Dateien |
 | `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
 | `LOG_LEVEL` | INFO | Ausführlichkeit der Protokolle (`docker compose logs`): `DEBUG`, `INFO` oder `WARNING` |
-| `FORWARDED_ALLOW_IPS` | lokale und private Netze | Reverse Proxys, deren `X-Forwarded-For` vertraut wird, siehe [Installation](installation.md#hinter-einem-reverse-proxy) |
+| `FORWARDED_ALLOW_IPS` | `127.0.0.1` (`compose.yaml`; Image: lokale und private Netze) | Reverse Proxys, deren `X-Forwarded-For` vertraut wird, siehe [Installation](installation.md#hinter-einem-reverse-proxy) |
 
 **Bibliothek**
 

@@ -17,6 +17,9 @@ services:
       - TRASH_DAYS=${TRASH_DAYS:-30}
       - PRINTER_SYNC_INTERVAL=${PRINTER_SYNC_INTERVAL:-600}
       - PRINTER_IMPORT_DIR=${PRINTER_IMPORT_DIR:-}
+      # Port 8000 is published directly, so only trust X-Forwarded-For from this host.
+      # With a reverse proxy in front, set the proxy's address (see docs/en/installation.md).
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
     ports:
       - "${PORT:-8000}:8000"
     volumes:

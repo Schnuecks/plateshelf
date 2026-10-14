@@ -55,11 +55,13 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
 ```
 
 Die Adresse der Besucher (für die Anmeldesperre und das Protokoll) nimmt PlateShelf aus
-`X-Forwarded-For`, aber nur von Proxys aus `FORWARDED_ALLOW_IPS`. Die Vorgabe umfasst lokale
-und private Netze, ein Proxy im selben Docker-Netz funktioniert also ohne Änderung. Enger
-geht es mit der Adresse des Proxys selbst, z. B. `FORWARDED_ALLOW_IPS=172.20.0.5`. Ohne
-Reverse Proxy und mit offenem Port im Netzwerk `FORWARDED_ALLOW_IPS=127.0.0.1` setzen: sonst
-könnte jedes Gerät im Netz eine erfundene Adresse mitschicken.
+`X-Forwarded-For`, aber nur von Proxys aus `FORWARDED_ALLOW_IPS`. Die mitgelieferte
+`compose.yaml` veröffentlicht Port 8000 direkt und setzt deshalb `FORWARDED_ALLOW_IPS=127.0.0.1`:
+sonst könnte jedes Gerät im Netz eine erfundene Adresse mitschicken. **Mit einem Reverse Proxy
+davor dessen Adresse in der `.env` eintragen**, z. B. `FORWARDED_ALLOW_IPS=172.20.0.5`, oder
+sein Docker-Netz, z. B. `172.20.0.0/16`; sonst erscheinen alle Besucher mit der Adresse des
+Proxys, und die Fehlversuche einer Person sperren alle aus. Fehlt die Zeile in deiner eigenen
+Compose-Datei, vertraut das Image allen lokalen und privaten Netzen. Nie `*` verwenden.
 
 ## Daten und Sicherung
 
