@@ -68,16 +68,33 @@ def _blocks(fh):
         fh.seek(pos + csize + crc_len)
 
 
-def _unpack(raw: bytes, comp: int) -> bytes:
+# A block is normally 64 KB; anything far larger is not a real file (or a decompression bomb)
+MAX_BLOCK = 16 * 1024 * 1024
+
+
+def _inflate(raw: bytes, wbits: int, limit: int) -> bytes:
+    out = zlib.decompressobj(wbits).decompress(raw, limit + 1)
+    if len(out) > limit:
+        raise ValueError("Block entpackt größer als angegeben")
+    return out
+
+
+def _unpack(raw: bytes, comp: int, usize: int) -> bytes:
+    """Unpack one block; usize is its stated size, more than that is never produced."""
+    if usize > MAX_BLOCK or len(raw) > MAX_BLOCK:
+        raise ValueError(f"Block zu groß ({max(usize, len(raw))} Byte)")
     if comp == 0:
         return raw
     if comp == 1:
         try:
-            return zlib.decompress(raw)
+            return _inflate(raw, zlib.MAX_WBITS, usize)
         except zlib.error:
-            return zlib.decompress(raw, -15)
+            return _inflate(raw, -15, usize)
     if comp in (2, 3):
-        return heatshrink2.decompress(raw, window_sz2=11 if comp == 2 else 12, lookahead_sz2=4)
+        out = heatshrink2.decompress(raw, window_sz2=11 if comp == 2 else 12, lookahead_sz2=4)
+        if len(out) > usize:
+            raise ValueError("Block entpackt größer als angegeben")
+        return out
     raise ValueError(f"unbekannte Kompression {comp}")
 
 
@@ -95,14 +112,14 @@ def read_meta(path: Path) -> Meta:
     meta = Meta()
     targets = {FILE_META: meta.file, PRINTER_META: meta.printer, PRINT_META: meta.print, SLICER_META: meta.slicer}
     with open(path, "rb") as fh:
-        for btype, comp, _usize, csize, params, pos in _blocks(fh):
+        for btype, comp, usize, csize, params, pos in _blocks(fh):
             if btype in targets:
                 fh.seek(pos)
-                targets[btype].update(_ini(_unpack(fh.read(csize), comp)))
+                targets[btype].update(_ini(_unpack(fh.read(csize), comp, usize)))
             elif btype == THUMBNAIL:
                 fmt, width, height = struct.unpack("<HHH", params)
                 fh.seek(pos)
-                meta.thumbnails.append((THUMB_FORMATS.get(fmt, "?"), width, height, _unpack(fh.read(csize), comp)))
+                meta.thumbnails.append((THUMB_FORMATS.get(fmt, "?"), width, height, _unpack(fh.read(csize), comp, usize)))
     return meta
 
 
@@ -206,11 +223,11 @@ def gcode_lines(path: Path, progress=None):
         total = fh.seek(0, 2) or 1
         fh.seek(0)
         packer, rest = MeatPack(), ""
-        for btype, comp, _usize, csize, params, pos in _blocks(fh):
+        for btype, comp, usize, csize, params, pos in _blocks(fh):
             if btype != GCODE:
                 continue
             fh.seek(pos)
-            data = _unpack(fh.read(csize), comp)
+            data = _unpack(fh.read(csize), comp, usize)
             encoding = struct.unpack("<H", params)[0]
             text = rest + (packer.decode(data) if encoding in (1, 2) else data.decode("utf-8", "replace"))
             lines = text.split("\n")

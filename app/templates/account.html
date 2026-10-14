@@ -27,6 +27,21 @@
     {% endif %}
   </section>
 
+  {% if oidc_offered(request) %}
+  <section class="settings-section" id="sso">
+    <h2>{{ _('Anmeldung über {name}', name=oidc_name()) }}</h2>
+    {% if request.query_params.get('sso') %}<p class="flash" role="status">{{ _('Verbunden. Du kannst dich ab jetzt über {name} anmelden.', name=oidc_name()) }}</p>{% endif %}
+    {% if sso_linked %}
+    <p class="hint">{{ _('Dein Konto ist mit {name} verbunden.', name=oidc_name()) }}</p>
+    {% else %}
+    <p class="hint">{{ _('Verbinde dein Konto mit {name}, um dich auch dort anzumelden. Du meldest dich dafür einmal bei {name} an.', name=oidc_name()) }}</p>
+    <form method="post" action="/account/sso" class="section-foot">
+      <button type="submit">{{ _('Mit {name} verbinden', name=oidc_name()) }}</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="settings-section" id="passkeys">
     <h2>{{ _('Passkeys') }}</h2>
     <p class="hint">{{ _('Mit einem Passkey meldest du dich ohne Passwort an: per Fingerabdruck, Gesichtserkennung, Geräte-PIN oder Sicherheitsschlüssel. Ein Passkey gilt nur für die Adresse, unter der du ihn anlegst ({host}).', host=request.url.hostname) }}</p>

@@ -54,6 +54,13 @@ Einstellungen am Proxy. Ein Beispiel für Traefik (statt `ports:` in der
       - traefik.http.services.plateshelf.loadbalancer.server.port=8000
 ```
 
+Die Adresse der Besucher (für die Anmeldesperre und das Protokoll) nimmt PlateShelf aus
+`X-Forwarded-For`, aber nur von Proxys aus `FORWARDED_ALLOW_IPS`. Die Vorgabe umfasst lokale
+und private Netze, ein Proxy im selben Docker-Netz funktioniert also ohne Änderung. Enger
+geht es mit der Adresse des Proxys selbst, z. B. `FORWARDED_ALLOW_IPS=172.20.0.5`. Ohne
+Reverse Proxy und mit offenem Port im Netzwerk `FORWARDED_ALLOW_IPS=127.0.0.1` setzen: sonst
+könnte jedes Gerät im Netz eine erfundene Adresse mitschicken.
+
 ## Daten und Sicherung
 
 - Die Dateien in der Bibliothek werden nie verändert, nur beim Löschen in den

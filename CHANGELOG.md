@@ -2,6 +2,31 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## Unreleased
+
+Security review before the public release:
+
+- **Sign-in lock could be bypassed:** the container trusted `X-Forwarded-For` from anywhere, and
+  uvicorn then took the first address, which the client chooses itself. With a new made-up address
+  per attempt, passwords could be guessed without limit. Now only proxies in `FORWARDED_ALLOW_IPS`
+  are trusted (default: local and private networks), and the address the proxy added is used. In
+  addition, a user name is locked after 20 failed attempts within 15 minutes from any number of
+  addresses (addresses the account signed in from before are exempt), and HTTP Basic Auth now has
+  the same lock as the sign-in form.
+- **Zip bombs in 3MF and .bgcode files:** settings, model data and images were read without a size
+  limit; a 300 KB file could take gigabytes of memory, again on every start. Now each part is capped
+  (32 MB for settings and model data, 10 MB per image, 256 MB per file) and such files show up as
+  read errors. The designer data is read as a stream up to the mesh, so 3MF files with a large
+  inline mesh still work. `.bgcode` blocks are capped at their stated size (at most 16 MB), the 3D
+  preview refuses plate G-code over 4 GB.
+- **Single sign-on no longer takes over accounts by name:** before, the first OIDC sign-in linked a
+  local account with the same name, falling back to the display name, which many providers let
+  people choose freely, admins included. Now an existing account is linked only by its owner:
+  sign in as usual, then "My account" → "Link with …".
+- Downloads from printers stop when a file grows beyond the size the printer listed.
+- Warning in the log at start when printer credentials are stored unencrypted (no `SECRET_KEY`).
+- Base image pinned to its digest, GitHub Actions to commit SHAs (Dependabot keeps both current).
+
 ## 0.16.3
 
 - **Python 3.14:** the Docker image is now built on `python:3.14-slim` (before 3.12), and CI tests

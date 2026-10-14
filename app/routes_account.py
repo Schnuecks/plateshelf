@@ -28,8 +28,8 @@ def _start_session(request: Request, user_id: int, target: str, response=None):
     return response
 
 
-def _lockout_text(request: Request) -> str:
-    wait = auth.locked_out(_address(request))
+def _lockout_text(request: Request, user: str = "") -> str:
+    wait = auth.locked_out(_address(request), user)
     if not wait:
         return ""
     minutes = max(1, (wait + 59) // 60)
@@ -166,13 +166,13 @@ def login(request: Request, user: str = Form(""), password: str = Form(""), next
     if not auth.password_login():
         return templates.TemplateResponse(request, "login.html", {
             **context, "error": _("Die Anmeldung mit Passwort ist abgeschaltet.")}, status_code=403)
-    locked = _lockout_text(request)
+    locked = _lockout_text(request, user)
     if locked:
         audit(request, "locked", user)
         return templates.TemplateResponse(request, "login.html", {**context, "error": locked}, status_code=429)
     account = auth.authenticate(user, password)
     if not account:
-        auth.record_failure(_address(request))
+        auth.record_failure(_address(request), user)
         audit(request, "login_failed", user, "Passwort")
         return templates.TemplateResponse(request, "login.html", {
             **context, "error": _("Benutzername oder Passwort ist falsch."),
@@ -208,7 +208,9 @@ def oidc_callback(request: Request, state: str = "", code: str = "", error: str 
     try:
         if error:
             raise oidc.OIDCError(f"Anbieter meldet {error}: {request.query_params.get('error_description', '')}")
-        claims, target = oidc.finish(state, request.cookies.get(oidc.STATE_COOKIE), code)
+        claims, target, link_user = oidc.finish(state, request.cookies.get(oidc.STATE_COOKIE), code)
+        if link_user is not None:
+            return _finish_link(request, claims, link_user, target)
         user_id = oidc.sign_in(claims)
     except oidc.OIDCError as exc:
         log.warning("OIDC-Anmeldung fehlgeschlagen: %s", exc)
@@ -221,6 +223,39 @@ def oidc_callback(request: Request, state: str = "", code: str = "", error: str 
     audit(request, "login", (auth.get_user(user_id) or {}).get("name", ""), name)
     response = _start_session(request, user_id, target)
     response.delete_cookie(oidc.STATE_COOKIE, path="/login/oidc")
+    return response
+
+
+def _finish_link(request: Request, claims: dict, link_user: int, target: str):
+    """Return from the provider after „Verbinden“ on the account page."""
+    me = current_user(request)
+    if not me or me["id"] != link_user:  # signed out or a different account in the meantime
+        raise oidc.OIDCError("Verbinden: nicht mehr mit demselben Konto angemeldet")
+    try:
+        auth.link_external(link_user, oidc.subject(claims))
+    except UserError as exc:
+        return _render_account(request, exc.translated(), 409)
+    audit(request, "sso_linked", me["name"], oidc.provider_name())
+    response = RedirectResponse(target, status_code=303)
+    response.delete_cookie(oidc.STATE_COOKIE, path="/login/oidc")
+    return response
+
+
+@router.post("/account/sso")
+def account_link_sso(request: Request):
+    """Link the signed-in account with the OIDC provider; the provider then signs the person in."""
+    user = current_user(request)
+    if not user or user["id"] is None or not oidc.available(request.url.hostname):
+        return RedirectResponse("/account", status_code=303)
+    try:
+        url, state = oidc.start(str(request.url_for("oidc_callback")), "/account?sso=1", link_user=user["id"])
+    except oidc.OIDCError as exc:
+        log.warning("OIDC: Anbieter nicht erreichbar: %s", exc)
+        return _render_account(request, _("Die Anmeldung über {name} ist gerade nicht möglich.",
+                                          name=oidc.provider_name()), 502)
+    response = RedirectResponse(url, status_code=303)
+    response.set_cookie(oidc.STATE_COOKIE, state, max_age=oidc.STATE_SECONDS, httponly=True, samesite="lax",
+                        secure=request.url.scheme == "https", path="/login/oidc")
     return response
 
 
@@ -248,7 +283,7 @@ def _render_account(request: Request, error: str = "", status_code: int = 200):
     return templates.TemplateResponse(request, "account.html", {
         "me": user, "sessions": auth.user_sessions(user["id"]), "error": error,
         "has_password": auth.has_password(user["id"]), "password_login": auth.password_login(),
-        "passkeys": passkeys.for_user(user["id"]),
+        "passkeys": passkeys.for_user(user["id"]), "sso_linked": auth.is_linked(user["id"]),
     }, status_code=status_code)
 
 

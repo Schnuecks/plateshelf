@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from . import gcode_file, gcode_preview, store
+from .parser import read_member
 from .i18n import gettext as _
 from .projects import _plate_dict, natural_key
 from .web import templates
@@ -38,7 +39,7 @@ def bed_area(path: Path) -> list[float] | None:
         if gcode_file.is_gcode(path.name):
             return gcode_file.bed_area(path)
         with zipfile.ZipFile(path) as z:
-            settings = json.loads(z.read("Metadata/project_settings.config"))
+            settings = json.loads(read_member(z, "Metadata/project_settings.config"))
         return gcode_file.bed_rect(settings.get("printable_area"))
     except (OSError, KeyError, ValueError, zipfile.BadZipFile):
         return None

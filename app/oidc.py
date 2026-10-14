@@ -205,14 +205,15 @@ def verify_id_token(token: str, nonce: str) -> dict:
 
 # --- Flow -----------------------------------------------------------------------
 
-def start(redirect_uri: str, target: str) -> tuple[str, str]:
-    """Provider URL and state (for the cookie that binds the return to this browser)."""
+def start(redirect_uri: str, target: str, link_user: int | None = None) -> tuple[str, str]:
+    """Provider URL and state (for the cookie that binds the return to this browser).
+    link_user: link this signed-in account instead of signing in."""
     state, nonce, verifier = (secrets.token_urlsafe(32) for _ in range(3))
     now = time.time()
     with _lock:
         for key in [k for k, v in _pending.items() if v["expires"] < now]:
             del _pending[key]
-        _pending[state] = {"nonce": nonce, "verifier": verifier, "target": target,
+        _pending[state] = {"nonce": nonce, "verifier": verifier, "target": target, "link_user": link_user,
                            "redirect_uri": redirect_uri, "expires": now + STATE_SECONDS}
     params = {
         "response_type": "code",
@@ -246,8 +247,9 @@ def _token_request(pending: dict, code: str) -> dict:
     return _request(doc["token_endpoint"], data, headers)
 
 
-def finish(state: str, cookie_state: str | None, code: str) -> tuple[dict, str]:
-    """Redeem the code; returns the person's details and the target after sign-in."""
+def finish(state: str, cookie_state: str | None, code: str) -> tuple[dict, str, int | None]:
+    """Redeem the code; returns the person's details, the target after sign-in and the account
+    to link (None for a normal sign-in)."""
     with _lock:
         pending = _pending.pop(state, None)
     if not pending or not cookie_state or not hmac.compare_digest(state, cookie_state):
@@ -263,7 +265,7 @@ def finish(state: str, cookie_state: str | None, code: str) -> tuple[dict, str]:
         info = _request(endpoint, headers={"Authorization": f"Bearer {tokens['access_token']}"})
         if info.get("sub") == claims["sub"]:
             claims = {**info, **claims}
-    return claims, pending["target"]
+    return claims, pending["target"], pending.get("link_user")
 
 
 def role_for(claims: dict) -> str | None:
@@ -281,6 +283,11 @@ def role_for(claims: dict) -> str | None:
     return "viewer"
 
 
+def subject(claims: dict) -> str:
+    return f"{issuer()} {claims['sub']}"
+
+
 def sign_in(claims: dict) -> int:
+    # The name only names a new account; existing accounts are found by subject alone
     name = (claims.get("preferred_username") or claims.get("name") or claims.get("email") or claims["sub"])
-    return auth.login_external(f"{issuer()} {claims['sub']}", str(name), role_for(claims))
+    return auth.login_external(subject(claims), str(name), role_for(claims))

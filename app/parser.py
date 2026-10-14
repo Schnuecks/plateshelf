@@ -20,6 +20,28 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 GCODE_HEAD_BYTES = 512 * 1024
+# Limits for what is read from a 3MF into memory: a small, highly compressed file could
+# otherwise unpack to gigabytes (zip bomb). The plate G-code is only streamed.
+MAX_MEMBER = 32 * 1024 * 1024       # one settings file or the model metadata
+MAX_IMAGE = 10 * 1024 * 1024        # one preview image or photo
+MAX_TOTAL = 256 * 1024 * 1024       # everything read from one file
+
+
+class TooLarge(ValueError):
+    """A part of the file unpacks to more than allowed (possibly a zip bomb)."""
+
+
+def read_member(z: zipfile.ZipFile, name: str, limit: int = MAX_MEMBER) -> bytes:
+    """Content of one ZIP entry, at most limit bytes; the size in the header can lie, so
+    the read itself is capped too."""
+    info = z.getinfo(name)
+    if info.file_size > limit:
+        raise TooLarge(f"{name}: {info.file_size} Byte (höchstens {limit})")
+    with z.open(info) as fh:
+        data = fh.read(limit + 1)
+    if len(data) > limit:
+        raise TooLarge(f"{name}: mehr als {limit} Byte")
+    return data
 
 # Fallback in case project_settings.config is missing
 PRINTER_MODEL_IDS = {
@@ -114,20 +136,40 @@ def _html_to_text(raw: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
-def _parse_model_meta(raw: bytes) -> dict:
-    out = {}
-    try:
-        root = ET.fromstring(raw)
-    except ET.ParseError:
-        return out
-    for el in root:
-        if el.tag.rsplit("}", 1)[-1] != "metadata":
-            continue
-        key = MODEL_KEYS.get(el.get("name", ""))
-        val = (el.text or "").strip()
-        if key and val and val != "[]":
-            out[key] = _html_to_text(val) if key == "description" else html.unescape(val)
+def _model_meta(z: zipfile.ZipFile, name: str) -> dict:
+    """Designer data from the model file. It can also contain the whole mesh (hundreds of MB),
+    so it is read as a stream and only up to the start of the meshes (<resources>)."""
+    out: dict = {}
+    with z.open(name) as raw:
+        fh = _Capped(raw, MAX_MEMBER)
+        try:
+            for event, el in ET.iterparse(fh, events=("start", "end")):
+                tag = el.tag.rsplit("}", 1)[-1]
+                if event == "start" and tag == "resources":
+                    break
+                if event == "end" and tag == "metadata":
+                    key = MODEL_KEYS.get(el.get("name", ""))
+                    val = (el.text or "").strip()
+                    if key and val and val != "[]":
+                        out[key] = _html_to_text(val) if key == "description" else html.unescape(val)
+                    el.clear()
+        except ET.ParseError:
+            pass
     return out
+
+
+class _Capped:
+    """File-like wrapper that fails after limit bytes."""
+
+    def __init__(self, fh, limit: int):
+        self.fh, self.left = fh, limit
+
+    def read(self, n: int = -1) -> bytes:
+        data = self.fh.read(self.left + 1 if n is None or n < 0 else min(n, self.left + 1))
+        self.left -= len(data)
+        if self.left < 0:
+            raise TooLarge("Modelldatei: Metadaten zu groß")
+        return data
 
 
 def _norm_color(value: str | None) -> str:
@@ -197,9 +239,14 @@ def parse_3mf(path: str | Path) -> ParsedFile:
     result = ParsedFile()
     with zipfile.ZipFile(path) as z:
         names = set(z.namelist())
+        budget = [MAX_TOTAL]
 
-        def read(name: str) -> bytes | None:
-            return z.read(name) if name in names else None
+        def read(name: str, limit: int = MAX_MEMBER) -> bytes | None:
+            if name not in names:
+                return None
+            data = read_member(z, name, min(limit, budget[0]))
+            budget[0] -= len(data)
+            return data
 
         # --- Settings ------------------------------------------------------
         if raw := read("Metadata/project_settings.config"):
@@ -305,16 +352,16 @@ def parse_3mf(path: str | Path) -> ParsedFile:
                         f.cost_per_kg = gcosts[f.slot - 1]
             if plate.weight_g is None and plate.filaments:
                 plate.weight_g = sum(f.used_g for f in plate.filaments)
-            plate.thumb = read(f"Metadata/plate_{idx}.png")
-            plate.top = read(f"Metadata/top_{idx}.png")
+            plate.thumb = read(f"Metadata/plate_{idx}.png", MAX_IMAGE)
+            plate.top = read(f"Metadata/top_{idx}.png", MAX_IMAGE)
 
         # --- Designer data and photos (MakerWorld downloads) --------------
-        if raw := read("3D/3dmodel.model"):
-            result.model = _parse_model_meta(raw)
+        if "3D/3dmodel.model" in names:
+            result.model = _model_meta(z, "3D/3dmodel.model")
         seen_sizes = set()
         for n in sorted(names):
             if n.startswith("Auxiliaries/Model Pictures/") and n.lower().endswith(PHOTO_EXT):
-                data = z.read(n)
+                data = read(n, MAX_IMAGE)
                 if len(data) in seen_sizes:
                     continue
                 seen_sizes.add(len(data))

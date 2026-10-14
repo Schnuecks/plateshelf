@@ -42,6 +42,8 @@ SESSION_DAYS = max(1, int(os.environ.get("SESSION_DAYS", "30")))
 MAX_FAILURES = 5            # failed attempts per address …
 FAILURE_WINDOW = 15 * 60    # … within this time (s) …
 LOCKOUT = 5 * 60            # … lock it out for this time (s)
+MAX_USER_FAILURES = 20      # failed attempts per user name in the same window, from any address; addresses
+                            # the account has signed in from before are exempt, so the owner is not locked out
 SCRYPT_N_LOG2, SCRYPT_R, SCRYPT_P = 15, 8, 1
 BASIC_CACHE_SECONDS = 300   # verified Basic Auth headers, so dashboards don't compute scrypt every time
 TOUCH_SECONDS = 60          # write "last active" at most once per minute
@@ -250,21 +252,22 @@ def authenticate(name: str, password: str) -> dict | None:
 
 
 def login_external(subject: str, name: str, role: str | None) -> int:
-    """Account for an OIDC login: linked, same name or new; returns the user ID.
+    """Account for an OIDC login: the one linked to this person, otherwise a new one; returns the user ID.
 
-    subject is issuer + sub and stays the same even if the name changes at the provider.
+    subject is issuer + sub and stays the same even if the name changes at the provider. An
+    existing account is never taken over by its name (the provider may let people pick any
+    name); its owner links it on the account page instead, see link_external.
     role comes from the groups (None: no mapping configured, role stays as in PlateShelf).
     """
     name = _clean_name(name)
     with store.connect() as con:
-        row = (con.execute("SELECT id, role FROM users WHERE oidc_sub = ?", (subject,)).fetchone()
-               or con.execute("SELECT id, role FROM users WHERE name = ? AND oidc_sub IS NULL", (name,)).fetchone())
+        row = con.execute("SELECT id, role FROM users WHERE oidc_sub = ?", (subject,)).fetchone()
         if row:
-            con.execute("UPDATE users SET oidc_sub = ? WHERE id = ?", (subject, row["id"]))
             user_id, current = row["id"], row["role"]
         else:
             if con.execute("SELECT 1 FROM users WHERE name = ?", (name,)).fetchone():
-                raise UserError("Den Benutzernamen „{name}“ gibt es schon.", name=name)
+                raise UserError("Den Benutzernamen „{name}“ gibt es schon. Ist es dein Konto, melde dich damit an "
+                                "und verbinde es unter „Mein Konto“.", name=name)
             first = _admins(con) == 0
             if first and role != "admin":
                 # The owner creates the first account with the setup code (or via the admin group)
@@ -281,6 +284,20 @@ def login_external(subject: str, name: str, role: str | None) -> int:
         except UserError:
             log.warning("Rolle von „%s“ bleibt %s: es wäre kein Admin mehr übrig", name, current)
     return user_id
+
+
+def link_external(user_id: int, subject: str) -> None:
+    """Link the signed-in account with a person at the OIDC provider (started from the account page)."""
+    with store.connect() as con:
+        if con.execute("SELECT 1 FROM users WHERE oidc_sub = ? AND id != ?", (subject, user_id)).fetchone():
+            raise UserError("Dieses Konto beim Anbieter ist schon mit einem anderen Konto verbunden.")
+        con.execute("UPDATE users SET oidc_sub = ? WHERE id = ?", (subject, user_id))
+
+
+def is_linked(user_id: int) -> bool:
+    with store.connect() as con:
+        row = con.execute("SELECT oidc_sub FROM users WHERE id = ?", (user_id,)).fetchone()
+    return bool(row and row["oidc_sub"])
 
 
 def seed_from_env() -> None:
@@ -386,7 +403,7 @@ def end_other_sessions(user_id: int, keep_id: int | None) -> None:
         con.execute("DELETE FROM sessions WHERE user_id = ? AND id != ?", (user_id, keep_id or 0))
 
 
-def basic_auth_user(header: str | None) -> dict | None:
+def basic_auth_user(header: str | None, address: str = "") -> dict | None:
     if not header or not header.lower().startswith("basic ") or not password_login():
         return None
     cache_key = _digest(header)
@@ -403,8 +420,11 @@ def basic_auth_user(header: str | None) -> dict | None:
         name, _, password = base64.b64decode(header[6:].strip()).decode().partition(":")
     except (ValueError, binascii.Error, UnicodeDecodeError):
         return None
+    if locked_out(address, name):
+        return None
     user = authenticate(name, password)
     if not user:
+        record_failure(address, name)
         return None
     with store.connect() as con:
         hashed = con.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],)).fetchone()[0]
@@ -459,20 +479,51 @@ def token_valid(token: str) -> bool:
 
 # --- Protection against brute force ------------------------------------------
 
-def locked_out(address: str) -> int:
-    """Seconds this address is still locked out (0 = not locked)."""
+def _user_key(user: str) -> str:
+    return "user:" + " ".join(user.split()).casefold()
+
+
+def _recent(key: str, now: float) -> list[float]:
+    times = [t for t in _failures.get(key, []) if now - t < FAILURE_WINDOW]
+    if times:
+        _failures[key] = times
+    else:
+        _failures.pop(key, None)
+    return times
+
+
+def _known_address(user: str, address: str) -> bool:
+    """Whether this account has signed in from this address before (log of the last EVENT_DAYS)."""
+    if not user or not address:
+        return False
+    with store.connect() as con:
+        return con.execute("SELECT 1 FROM auth_events WHERE kind = 'login' AND address = ? "
+                           "AND user_name = ? COLLATE NOCASE LIMIT 1", (address, " ".join(user.split()))).fetchone()             is not None
+
+
+def locked_out(address: str, user: str = "") -> int:
+    """Seconds until the next attempt is allowed (0 = not locked): per address, and per user name
+    for attempts from addresses the account has not signed in from before."""
     now = time.time()
     with _failures_lock:
-        times = [t for t in _failures.get(address, []) if now - t < FAILURE_WINDOW]
-        _failures[address] = times
+        times = _recent(address, now)
         if len(times) >= MAX_FAILURES:
             return max(0, int(times[-1] + LOCKOUT - now))
+        user_times = _recent(_user_key(user), now) if user.strip() else []
+    if len(user_times) >= MAX_USER_FAILURES and not _known_address(user, address):
+        return max(1, int(user_times[-MAX_USER_FAILURES] + FAILURE_WINDOW - now))
     return 0
 
 
-def record_failure(address: str) -> None:
+def record_failure(address: str, user: str = "") -> None:
+    now = time.time()
     with _failures_lock:
-        _failures.setdefault(address, []).append(time.time())
+        if len(_failures) > 10_000:  # many changing addresses: drop what has expired
+            for key in list(_failures):
+                _recent(key, now)
+        _failures.setdefault(address, []).append(now)
+        if user.strip():
+            _failures.setdefault(_user_key(user), []).append(now)
     log.warning("Anmeldung fehlgeschlagen von %s", address)
 
 

@@ -146,18 +146,57 @@ def test_sign_in_creates_read_only_account(client, provider):
     assert not oidc._pending
 
 
-def test_existing_account_is_linked_and_survives_rename(client, provider):
+def test_existing_account_is_not_taken_over_by_its_name(client, provider):
+    """The name at the provider is often freely chosen: it must never lead into an existing account."""
     auth.create_user("andreas", "andreas-pass-123", "admin")
-    assert sso(client, provider, "u-1", "andreas").status_code == 303
+    r = sso(client, provider, "u-evil", "andreas")
+    assert r.status_code == 403 and "gibt es schon" in r.text and "Mein Konto" in r.text
+    assert user_row("andreas")["oidc_sub"] is None
+    assert client.get("/account", follow_redirects=False).status_code == 303   # not signed in
+
+
+def link(c, provider, sub, name):
+    """„Mit Authelia verbinden“ on the account page → provider → back."""
+    r = c.post("/account/sso", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"].startswith(ISSUER + "/authorize?"), r.text
+    back = provider.authorize(r.headers["location"], sub, name)
+    return c.get(back.removeprefix("http://testserver"), follow_redirects=False)
+
+
+def test_owner_links_account_on_the_account_page(client, provider):
+    auth.create_user("andreas", "andreas-pass-123", "admin")
+    client.post("/login", data={"user": "andreas", "password": "andreas-pass-123"})
+    assert "Mit Authelia verbinden" in client.get("/account").text
+    r = link(client, provider, "u-1", "andreas.at.provider")
+    assert r.status_code == 303 and r.headers["location"] == "/account?sso=1"
     assert user_row("andreas")["oidc_sub"] == f"{ISSUER} u-1"
-    assert user_row("andreas")["role"] == "admin"   # without a group mapping the role is kept
+    page = client.get("/account?sso=1").text
+    assert "mit Authelia verbunden" in page and "Mit Authelia verbinden" not in page
+    assert auth.events()[0]["kind"] == "sso_linked"
+    # From now on the provider signs in to this account, whatever the name there
     client.cookies.clear()
     assert sso(client, provider, "u-1", "andreas.neu").status_code == 303
-    assert user_row("andreas.neu") is None          # same person, same account
-    # A different account at the provider with the same name does not take over the linked account
+    assert user_row("andreas.neu") is None and user_row("andreas")["role"] == "admin"
+    # A different person at the provider cannot be linked to a second account
     client.cookies.clear()
-    r = sso(client, provider, "u-2", "andreas")
-    assert r.status_code == 403 and "gibt es schon" in r.text
+    auth.create_user("bea", "bea-pass-12345", "user")
+    client.post("/login", data={"user": "bea", "password": "bea-pass-12345"})
+    r = link(client, provider, "u-1", "bea")
+    assert r.status_code == 409 and "schon mit einem anderen Konto" in r.text
+    assert user_row("bea")["oidc_sub"] is None
+
+
+def test_link_needs_the_same_session(client, provider):
+    """The return from the provider only links if the same account is still signed in."""
+    auth.create_user("andreas", "andreas-pass-123", "admin")
+    client.post("/login", data={"user": "andreas", "password": "andreas-pass-123"})
+    r = client.post("/account/sso", follow_redirects=False)
+    back = provider.authorize(r.headers["location"], "u-1", "andreas")
+    client.post("/logout")
+    r = client.get(back.removeprefix("http://testserver"), follow_redirects=False)
+    assert r.status_code == 401 and user_row("andreas")["oidc_sub"] is None
+    # Without a session the button is not reachable either
+    assert client.post("/account/sso", follow_redirects=False).status_code == 401
 
 
 def test_roles_from_groups(client, provider, monkeypatch):

@@ -18,6 +18,7 @@ weiter.
 | `LIBRARY` | `./library` | Ordner mit den `.gcode.3mf`-, `.gcode`- und `.bgcode`-Dateien |
 | `DATA` | `./data` | Ordner für Datenbank, Vorschaubilder und 3D-Vorschauen |
 | `LOG_LEVEL` | INFO | Ausführlichkeit der Protokolle (`docker compose logs`): `DEBUG`, `INFO` oder `WARNING` |
+| `FORWARDED_ALLOW_IPS` | lokale und private Netze | Reverse Proxys, deren `X-Forwarded-For` vertraut wird, siehe [Installation](installation.md#hinter-einem-reverse-proxy) |
 
 **Bibliothek**
 
@@ -108,7 +109,10 @@ auf dem Server, ein kopiertes Cookie nützt danach nichts mehr. Sitzungen übers
 Neustarts, mit oder ohne `SECRET_KEY`.
 
 **Schutz vor Durchprobieren:** Nach fünf Fehlversuchen (Passwort oder Einrichtungscode)
-ist eine Adresse für fünf Minuten gesperrt. Ob es einen Benutzernamen gibt, verrät weder
+ist eine Adresse für fünf Minuten gesperrt. Zusätzlich wird ein Benutzername nach 20
+Fehlversuchen innerhalb von 15 Minuten gesperrt, egal von wie vielen Adressen; ausgenommen
+sind nur Adressen, von denen sich das Konto schon angemeldet hat, damit du dich nicht selbst
+aussperrst. Das gilt auch für HTTP Basic Auth. Ob es einen Benutzernamen gibt, verrät weder
 die Antwort noch ihre Dauer.
 
 **Skripte** melden sich mit Benutzername und Passwort per HTTP Basic Auth an; die Rolle
@@ -206,10 +210,15 @@ OIDC_ADMIN_GROUP=admins
 OIDC_USER_GROUP=family
 ```
 
-**Konten:** Bei der ersten Anmeldung verknüpft PlateShelf das Konto mit gleichem
-Benutzernamen (`preferred_username`) oder legt ein neues an. Danach bleibt das Konto an die
-Person beim Anbieter gebunden, auch wenn sich der Name dort ändert. So angelegte Konten haben
-in PlateShelf kein Passwort; sie melden sich nur über den Anbieter an.
+**Konten:** Bei der ersten Anmeldung legt PlateShelf ein neues Konto an (benannt nach
+`preferred_username`). Danach bleibt das Konto an die Person beim Anbieter gebunden, auch wenn
+sich der Name dort ändert. So angelegte Konten haben in PlateShelf kein Passwort; sie melden
+sich nur über den Anbieter an.
+
+Ein **bestehendes Konto** wird nie über seinen Namen übernommen, weil viele Anbieter den
+Namen frei wählen lassen. Der Besitzer meldet sich wie gewohnt an und verbindet es unter
+„Mein Konto“ → „Mit … verbinden“; ab dann meldet der Anbieter in genau dieses Konto an. Wer
+sich beim Anbieter mit einem Namen anmeldet, den es schon gibt, bekommt diesen Hinweis.
 
 **Rollen:** Mit `OIDC_ADMIN_GROUP` und/oder `OIDC_USER_GROUP` folgt die Rolle bei jeder
 Anmeldung den Gruppen: Admin-Gruppe → Admin, Benutzer-Gruppe → Benutzer, keine von beiden
