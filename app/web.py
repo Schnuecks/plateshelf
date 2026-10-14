@@ -48,6 +48,7 @@ def is_public(path: str) -> bool:
 EVENT_LABELS = {
     "login": "Angemeldet",
     "login_failed": "Anmeldung fehlgeschlagen",
+    "sso_linked": "Konto mit Anmeldedienst verbunden",
     "locked": "Gesperrt nach Fehlversuchen",
     "logout": "Abgemeldet",
     "setup": "Admin-Konto eingerichtet",
@@ -83,7 +84,8 @@ def current_user(request: Request) -> dict | None:
             user = NOBODY
         else:
             user = (auth.session_user(request.cookies.get(auth.COOKIE))
-                    or auth.basic_auth_user(request.headers.get("authorization")))
+                    or auth.basic_auth_user(request.headers.get("authorization"),
+                                            request.client.host if request.client else ""))
         request.state.user = user
     return user
 

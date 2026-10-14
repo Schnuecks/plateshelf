@@ -31,6 +31,9 @@ from pathlib import Path
 
 from . import bgcode, gcode_file
 from .i18n import UserError
+from .parser import read_member
+
+MAX_PLATE_GCODE = 4 * 1024 ** 3  # unpacked size of one plate's G-code in a 3MF
 
 VERSION = 4
 OFFSET_MM = 100.0
@@ -124,7 +127,7 @@ def _mparams(line: str) -> dict[str, float]:
 def _diameters(z: zipfile.ZipFile) -> dict[int, float]:
     """Filament diameter per tool from the project settings (otherwise 1.75 mm)."""
     try:
-        settings = json.loads(z.read("Metadata/project_settings.config"))
+        settings = json.loads(read_member(z, "Metadata/project_settings.config"))
         values = settings.get("filament_diameter") or []
         values = values if isinstance(values, list) else str(values).split(",")
         return {i: float(v) for i, v in enumerate(values) if float(v) > 0}
@@ -178,6 +181,8 @@ def _open_gcode(path: Path, plate: int):
     with zipfile.ZipFile(path) as z:
         name = f"Metadata/plate_{plate}.gcode"
         size = z.getinfo(name).file_size or 1
+        if size > MAX_PLATE_GCODE:  # zipfile reads no further than this, but a bomb could claim terabytes
+            raise UserError("Der G-Code dieser Platte ist zu groß für die 3D-Vorschau.")
         with z.open(name) as raw:
             yield (io.TextIOWrapper(raw, encoding="utf-8", errors="replace"), size, _diameters(z),
                    lambda: raw.tell() / size)

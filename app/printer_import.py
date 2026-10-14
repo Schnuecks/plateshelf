@@ -347,6 +347,10 @@ def init() -> None:
                 con.execute("UPDATE printers SET code = ? WHERE id = ?", (crypto.encrypt(code), pid))
             if plain:
                 log.info("%d Zugangsdaten von Druckern verschlüsselt", len(plain))
+    if not crypto.secret_key() and (count := stored_plaintext()):
+        log.warning("SECRET_KEY fehlt: %d Zugangsdaten von Druckern liegen unverschlüsselt in der Datenbank "
+                    "(und in jeder Sicherung). Anlegen mit: docker compose exec plateshelf python -m app.auth secret",
+                    count)
     state["enabled"] = bool(load_printers())
 
 
@@ -650,6 +654,22 @@ class OctoPrintSource:
 SOURCES = {"moonraker": MoonrakerSource, "prusalink": PrusaLinkSource, "octoprint": OctoPrintSource}
 
 
+MAX_PRINTER_FILE = 4 * 1024 ** 3  # when the printer lists no size
+
+
+class _CappedWriter:
+    """Stops a download that grows beyond the size the printer listed (or MAX_PRINTER_FILE)."""
+
+    def __init__(self, fh, limit: int):
+        self.fh, self.left = fh, limit
+
+    def write(self, data: bytes) -> int:
+        self.left -= len(data)
+        if self.left < 0:
+            raise OSError("Datei größer als vom Drucker angegeben")
+        return self.fh.write(data)
+
+
 def sync_printer(printer: dict, connect=None) -> dict:
     """Fetches new or changed files from a printer. Returns a short summary."""
     kind = printer.get("kind", "bambu")
@@ -727,7 +747,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
             same = None
             try:
                 with open(tmp, "wb") as fh:
-                    source.fetch(f["name"], fh)
+                    source.fetch(f["name"], _CappedWriter(fh, f["size"] or MAX_PRINTER_FILE))
                 # Some printers (Prusa MINI) list no size: then the source checks it itself
                 if f["size"] and tmp.stat().st_size != f["size"]:
                     raise OSError(f"unvollständig ({tmp.stat().st_size} von {f['size']} Byte)")

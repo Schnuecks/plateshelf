@@ -28,8 +28,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           cache: pip
@@ -45,8 +45,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.14"
           cache: pip
@@ -63,27 +63,27 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-qemu-action@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         if: contains(env.PLATFORMS, 'arm')
-      - uses: docker/setup-buildx-action@v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - id: release
         run: echo "push=${{ startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: steps.release.outputs.push == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ steps.release.outputs.push }}
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: ${{ env.PLATFORMS }}
@@ -97,7 +97,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       # Security scan: load the amd64 image from the cache (the arm64 packages are the same)
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           platforms: linux/amd64
@@ -107,7 +107,7 @@ jobs:
           sbom: false
           cache-from: type=gha
       # Overview of critical and high vulnerabilities that have a fix …
-      - uses: aquasecurity/trivy-action@v0.36.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: plateshelf:scan
           severity: CRITICAL,HIGH
@@ -116,7 +116,7 @@ jobs:
           exit-code: "0"
       # … but only critical ones fail the build; "high" in the base image should not block a release
       # until Debian has caught up (Dependabot then proposes the new base image)
-      - uses: aquasecurity/trivy-action@v0.36.0
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: plateshelf:scan
           severity: CRITICAL
@@ -136,7 +136,7 @@ jobs:
       pull-requests: write
     steps:
       - id: meta
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Patch- und Minor-Updates übernehmen
         if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
         env:
@@ -152,7 +152,7 @@ jobs:
     permissions:
       packages: write
     steps:
-      - uses: actions/delete-package-versions@v5
+      - uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
         with:
           package-name: ${{ github.event.repository.name }}
           package-type: container

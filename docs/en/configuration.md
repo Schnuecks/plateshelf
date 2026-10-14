@@ -17,6 +17,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `LIBRARY` | `./library` | Folder with the `.gcode.3mf`, `.gcode` and `.bgcode` files |
 | `DATA` | `./data` | Folder for database, preview images and 3D previews |
 | `LOG_LEVEL` | INFO | Log verbosity (`docker compose logs`): `DEBUG`, `INFO` or `WARNING` |
+| `FORWARDED_ALLOW_IPS` | local and private networks | Reverse proxies whose `X-Forwarded-For` is trusted, see [Installation](installation.md#behind-a-reverse-proxy) |
 
 **Library**
 
@@ -106,8 +107,10 @@ so a copied cookie is useless afterwards. Sessions survive restarts, with or wit
 `SECRET_KEY`.
 
 **Protection against guessing:** after five failed attempts (password or setup code), an
-address is blocked for five minutes. Whether a user name exists cannot be told from the
-response or its timing.
+address is blocked for five minutes. In addition, a user name is blocked after 20 failed
+attempts within 15 minutes from any number of addresses; only addresses the account has
+already signed in from are exempt, so you are not locked out yourself. This also applies to
+HTTP Basic Auth. Whether a user name exists cannot be told from the response or its timing.
 
 **Scripts** sign in with user name and password via HTTP Basic Auth; the role applies here
 too. For dashboards, [API tokens](dashboard.md#api-tokens) are the better choice.
@@ -202,10 +205,15 @@ OIDC_ADMIN_GROUP=admins
 OIDC_USER_GROUP=family
 ```
 
-**Accounts:** on the first sign-in, PlateShelf links the account with the same user name
-(`preferred_username`) or creates a new one. From then on the account stays linked to the
-person at the provider, even if the name changes there. Accounts created this way have no
-password in PlateShelf; they only sign in with the provider.
+**Accounts:** on the first sign-in, PlateShelf creates a new account (named after
+`preferred_username`). From then on the account stays linked to the person at the provider,
+even if the name changes there. Accounts created this way have no password in PlateShelf;
+they only sign in with the provider.
+
+An **existing account** is never taken over by its name, because many providers let people
+choose their name freely. Its owner signs in as usual and links it under “My account” →
+“Link with …”; from then on the provider signs in to this account. If someone signs in with
+the provider under a name that already exists, PlateShelf points them there.
 
 **Roles:** with `OIDC_ADMIN_GROUP` and/or `OIDC_USER_GROUP`, the role follows the groups on
 every sign-in: admin group → Admin, user group → User, neither → Read only. Without these
