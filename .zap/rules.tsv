@@ -1,0 +1,3 @@
+# Regeln für den ZAP-Baseline-Scan: <Regel-ID><TAB><IGNORE|WARN|FAIL><TAB>(<Name>)
+# Nur Meldungen eintragen, die bewusst so sind, mit kurzer Begründung als Kommentar darüber.
+# Die IDs stehen im ZAP-Bericht bzw. im Issue, z. B. 10049 für Cache-Hinweise.

@@ -1,0 +1,45 @@
+name: ZAP
+
+# Passiver Sicherheits-Scan mit OWASP ZAP (Baseline): baut das Image, startet die App ohne
+# Konfiguration und prüft alles, was ohne Anmeldung erreichbar ist (Header, Cookies, CSP,
+# Informationslecks). Greift nicht aktiv an. Funde landen als Issue, der Lauf bricht nicht ab.
+# Bewusst akzeptierte Meldungen stehen in .zap/rules.tsv.
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"   # montags früh, fängt auch neue ZAP-Regeln ab
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Image bauen und App starten
+        run: |
+          docker build -t plateshelf:zap .
+          mkdir -p "$RUNNER_TEMP/library" "$RUNNER_TEMP/data"
+          docker run -d --name app -p 8000:8000 --user "$(id -u):$(id -g)" -v "$RUNNER_TEMP/library:/library" -v "$RUNNER_TEMP/data:/data" plateshelf:zap
+          timeout 90 bash -c 'until curl -fs http://localhost:8000/healthz >/dev/null; do sleep 2; done'
+
+      - name: ZAP Baseline
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: http://localhost:8000
+          rules_file_name: .zap/rules.tsv
+          cmd_options: "-a"
+          fail_action: false
+          allow_issue_writing: ${{ github.event_name != 'pull_request' }}
+          issue_title: "ZAP Baseline: Funde"
+
+      - name: Log der App bei Fehlern
+        if: failure()
+        run: docker logs app
