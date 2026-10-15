@@ -182,11 +182,11 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
     target = next if next.startswith("/") and not next.startswith("//") else "/"
     response = RedirectResponse(target, status_code=303)
     if sprache in i18n.LANGUAGES:
-        response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax")
+        response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax", httponly=True)
     elif sprache == "auto":
         response.delete_cookie("sprache")  # default or browser language
     if design in i18n.THEMES:
-        response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax")
+        response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax", httponly=True)
     return response
 
 

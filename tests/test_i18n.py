@@ -86,8 +86,10 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     r = client.post("/appearance", data={"sprache": "it", "next": "/trash"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/trash"
     assert "sprache=it" in r.headers["set-cookie"] and "design=" not in r.headers["set-cookie"]
+    assert "httponly" in r.headers["set-cookie"].lower()   # no script needs to read it
     r = client.post("/appearance", data={"design": "dark", "next": "/settings"}, follow_redirects=False)
     assert "design=dark" in r.headers["set-cookie"] and "sprache" not in r.headers["set-cookie"]
+    assert "httponly" in r.headers["set-cookie"].lower()
     client.cookies.set("sprache", "it")
     client.cookies.set("design", "dark")
     page = client.get("/settings").text
