@@ -76,9 +76,10 @@ Antworten liegen nur im Arbeitsspeicher, verschickt wird nichts.
      git tag -a v1.2.3 -m "PlateShelf 1.2.3" && git push --tags
      ```
 
-  3. GitHub Actions testet, baut das Image für alle Plattformen und veröffentlicht es
-     als `1.2.3`, `1.2` und `latest`. Anschließend werden ältere Versionen entfernt, die
-     letzten fünf Releases bleiben erhalten.
+  3. GitHub Actions testet, baut das Image für alle Plattformen, veröffentlicht es als
+     `1.2.3`, `1.2`, `1` und `latest` und legt das GitHub-Release mit den Notizen aus dem
+     Changelog an. Anschließend werden ältere Versionen entfernt, die letzten fünf Releases
+     bleiben erhalten.
 
 - Dependabot (`.github/dependabot.yml`) prüft wöchentlich Python-Pakete, GitHub Actions
   und das Basisimage und schlägt Aktualisierungen als Pull Request vor. Bekannte

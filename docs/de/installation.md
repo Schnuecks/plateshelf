@@ -34,6 +34,10 @@ Start mit dem Fehler „unable to open database file“ ab.
 docker compose pull && docker compose up -d
 ```
 
+Um bei Version 1 zu bleiben und eine spätere Hauptversion mit Handarbeit beim Update
+auszulassen, statt `:latest` den Image-Tag `:1` verwenden
+(`PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:1` in der `.env`).
+
 Die Datenbank wird beim Start bei Bedarf automatisch auf den neuen Stand gebracht.
 Wenn sich das Format der 3D-Vorschau ändert, werden die Vorschauen danach einmal im
 Hintergrund neu erzeugt. Was sich in einer Version geändert hat, steht im

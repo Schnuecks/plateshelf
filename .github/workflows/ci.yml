@@ -82,6 +82,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=raw,value=latest,enable=${{ steps.release.outputs.push }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -124,6 +125,24 @@ jobs:
           format: table
           exit-code: "1"
           skip-setup-trivy: true
+
+  release:
+    # Creates the GitHub release from the matching CHANGELOG section
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '
+            /^## / { if (found) exit; if ($0 == "## " v) { found=1; next } }
+            found { print }' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" --title "PlateShelf ${GITHUB_REF_NAME#v}" --notes "${notes:-See CHANGELOG.md}"
 
   dependabot-merge:
     # Merges Dependabot proposals for patch and minor updates automatically once all
