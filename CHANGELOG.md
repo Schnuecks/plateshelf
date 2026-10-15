@@ -2,6 +2,22 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.17.3
+
+Hardening after the ZAP baseline scan (it found no actual vulnerability):
+
+- New headers `Cross-Origin-Resource-Policy: same-origin` and `Cross-Origin-Embedder-Policy:
+  require-corp`: other sites cannot embed PlateShelf's files, and its pages only load what comes
+  from PlateShelf itself.
+- The language and theme cookies are `HttpOnly`; no script needs to read them.
+- `.zap/rules.tsv`: known false alarms of the scan are documented and ignored.
+
+## 0.17.2
+
+- The image runs as an unprivileged user (UID 10001) instead of root. With the supplied
+  `compose.yaml` nothing changes, `user: PUID:PGID` takes precedence. Without a `user:` line,
+  the library and data folders must be writable for UID 10001, or set `user:`.
+
 ## 0.17.1
 
 - `compose.yaml` sets `FORWARDED_ALLOW_IPS=127.0.0.1`, as it publishes the port directly: devices in

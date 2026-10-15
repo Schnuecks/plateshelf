@@ -1,3 +1,17 @@
 # Regeln für den ZAP-Baseline-Scan: <Regel-ID><TAB><IGNORE|WARN|FAIL><TAB>(<Name>)
-# Nur Meldungen eintragen, die bewusst so sind, mit kurzer Begründung als Kommentar darüber.
-# Die IDs stehen im ZAP-Bericht bzw. im Issue, z. B. 10049 für Cache-Hinweise.
+# Nur Fehlalarme oder bewusst so. IDs, die mehrere Meldungen abdecken (10055 CSP,
+# 90004 Cross-Origin), NICHT ignorieren, sondern beheben.
+
+# Sec-Fetch-* schickt der Browser in der Anfrage mit; ZAPs Anfragen haben sie nicht. Fehlalarm.
+90005	IGNORE	(Sec-Fetch-* Header is Missing)
+# Nur Info zum Caching: HTML no-store, statische Dateien cachebar – gewollt.
+10049	IGNORE	(Non-Storable / Storable Content)
+# ZAP sucht Wörter wie "user" oder "select" in JavaScript-Kommentaren; nichts Geheimes.
+10027	IGNORE	(Information Disclosure - Suspicious Comments)
+# Hinweis, dass es eine Anmeldeseite gibt.
+10111	IGNORE	(Authentication Request Identified)
+# Sprach-/Design-Cookie übernimmt nur Werte aus einer festen Liste, nie die Eingabe.
+10029	IGNORE	(Cookie Poisoning)
+# Formulare vor der Anmeldung haben kein Token; same_origin() in der Middleware weist POSTs
+# fremder Seiten ab.
+10202	IGNORE	(Absence of Anti-CSRF Tokens)

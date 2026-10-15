@@ -94,6 +94,8 @@ def test_security_headers_everywhere(client):
         assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
         assert r.headers["x-frame-options"] == "DENY" and r.headers["x-content-type-options"] == "nosniff"
         assert r.headers["referrer-policy"] == "same-origin"
+        assert r.headers["cross-origin-resource-policy"] == "same-origin"
+        assert r.headers["cross-origin-embedder-policy"] == "require-corp"
     assert "'unsafe-inline'" not in client.get("/login").headers["content-security-policy"].split("style-src")[0]
     # Pages and API answers are never taken from a cache (iOS home-screen app), static files are
     assert client.get("/login").headers["cache-control"] == "no-cache"
