@@ -27,7 +27,7 @@
     {% if designer and designer.title %}
     <p class="origin">{{ _('{title}, von {designer}', title=designer.title, designer=designer.designer) if designer.designer else designer.title }}</p>
     {% endif %}
-    <div class="strand strand-wide" style="background: {{ p.filaments|strand }}"></div>
+    <div class="strand strand-wide" data-css="background: {{ p.filaments|strand }}"></div>
     <dl class="headline-stats">
       <div><dt>{{ _('Druckzeit gesamt') }}</dt><dd>{{ p.time_s|duration }}</dd></div>
       <div><dt>{{ _('Filament') }}</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
@@ -141,7 +141,7 @@
               <tbody>
               {% for fi in pl.filaments %}
                 <tr>
-                  <td><span class="swatch" style="background: {{ fi.color }}" title="{{ fi.color }}"></span>{{ fi.slot }}</td>
+                  <td><span class="swatch" data-css="background: {{ fi.color }}" title="{{ fi.color }}"></span>{{ fi.slot }}</td>
                   <td>{{ fi.type }}{% if fi.name %}<span class="fil-name">{{ fi.name }}</span>{% endif %}</td>
                   <td class="r">{{ fi.used_g|num(2) }}</td>
                   <td class="r">{{ fi.used_m|num(2) }}</td>
@@ -303,7 +303,7 @@
         <h2>{{ _('Filament im Projekt') }}</h2>
         <ul>
           {% for fi in p.filaments %}
-          <li><span class="swatch" style="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
+          <li><span class="swatch" data-css="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
           {% endfor %}
         </ul>
       </section>

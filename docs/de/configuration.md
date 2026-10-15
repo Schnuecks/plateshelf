@@ -61,6 +61,7 @@ weiter.
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Nur für Updates von Versionen ohne Benutzerkonten: werden einmalig zum ersten Admin-Konto |
 | `SECRET_KEY` | – | Schlüssel zum Verschlüsseln der Druckerzugänge; dringend empfohlen, siehe [Geheimnisse](#geheimnisse) |
 | `TRUSTED_ORIGINS` | – | Weitere Adressen, die Änderungen schicken dürfen, durch Komma getrennt |
+| `AUTH_PORTAL_URL` | – | Anmeldeseite eines Reverse-Proxys mit Anmeldung (z. B. `https://auth.example.com`), durch Komma getrennt; siehe unten |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Anmelden mit Authelia, Authentik, Keycloak & Co., siehe [Single Sign-on](#single-sign-on-oidc) |
 
 ## Zugriffsschutz
@@ -150,6 +151,13 @@ Reverse-Proxy, der HTTPS bereitstellt.
 **Ohne Anmeldung:** `AUTH=off` in der `.env` schaltet all das ab; dann darf jeder, der
 PlateShelf erreicht, alles. Das ist nur sinnvoll, wenn schon der Reverse-Proxy anmeldet
 (etwa Authelia oder Authentik) oder niemand anderes PlateShelf erreicht.
+
+**Reverse-Proxy mit Anmeldeseite:** Die Content-Security-Policy lässt Formulare nur an
+PlateShelf selbst und an den OIDC-Anbieter gehen. Läuft die Sitzung beim Proxy ab und leitet er
+ein Formular (z. B. Einstellungen speichern) auf seine Anmeldeseite um, blockiert der Browser
+das, und scheinbar passiert nichts. Dafür `AUTH_PORTAL_URL` auf die Adresse dieser
+Anmeldeseite setzen, z. B. `AUTH_PORTAL_URL=https://auth.example.com`; es zählen nur
+HTTPS-Adressen (oder `localhost`).
 
 `/healthz` bleibt für den Docker-Healthcheck erreichbar, meldet ohne Anmeldung aber nur,
 dass PlateShelf läuft.

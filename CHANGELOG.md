@@ -2,6 +2,14 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.18.0
+
+- **Stricter Content Security Policy:** no inline styles any more (`style-src 'self'`); colours
+  and bars are set by the page script. Forms may only go to PlateShelf itself, the OIDC provider
+  and, new, the sign-in page in `AUTH_PORTAL_URL` (before: any `https:` address). **Behind a
+  reverse proxy with a login page (Authelia, Authentik …), set `AUTH_PORTAL_URL`**, otherwise a
+  form sent after the proxy's session ran out is blocked instead of leading to its login page.
+
 ## 0.17.3
 
 Hardening after the ZAP baseline scan (it found no actual vulnerability):

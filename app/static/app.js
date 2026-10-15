@@ -7,6 +7,15 @@ const I18N = (() => {
 const t = (key, vars = {}) => (I18N[key] || key).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
 const LOCALE = document.documentElement.lang || "de";
 
+// Computed styles (filament colours, bar lengths) come as data-css and are set via element.style:
+// the Content Security Policy blocks style="…" attributes, but not changes through the CSSOM.
+document.querySelectorAll("[data-css]").forEach((el) => {
+  for (const decl of el.dataset.css.split(";")) {
+    const i = decl.indexOf(":");
+    if (i > 0) el.style.setProperty(decl.slice(0, i).trim(), decl.slice(i + 1).trim());
+  }
+});
+
 // Toggle angled view / top view
 document.querySelectorAll("[data-thumbs]").forEach((fig) => {
   const img = fig.querySelector("img");
