@@ -8,6 +8,8 @@
   <img src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" alt="Python 3.14">
   <a href="https://github.com/Schnuecks/plateshelf/pkgs/container/plateshelf"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready"></a>
   <img src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-E4572E" alt="Platform amd64 | arm64">
+  <a href="https://github.com/Schnuecks/plateshelf/actions/workflows/ci.yml"><img src="https://github.com/Schnuecks/plateshelf/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Schnuecks/plateshelf/actions/workflows/zap.yml"><img src="https://github.com/Schnuecks/plateshelf/actions/workflows/zap.yml/badge.svg" alt="ZAP scan"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-4C9A2A" alt="License AGPL-3.0"></a>
   <img src="https://img.shields.io/badge/maintained-yes-4C9A2A" alt="Maintained">
 </p>
