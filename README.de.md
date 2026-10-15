@@ -98,9 +98,9 @@ beidem vorsichtig um:
   Content-Security-Policy ohne Inline-Code und ein Container ohne Root.
 - **Bei jeder Änderung geprüft:** Python- und Browser-Tests, Trivy-Scan des Images,
   OWASP-ZAP-Baseline-Scan, Dependabot.
-- **Überprüft:** Vor der Veröffentlichung ein KI-gestützter Sicherheits-Review; jeder Fund wurde
-  mit einem Test nachgestellt, behoben und erneut geprüft – nachzulesen bei den Versionen 0.17
-  und 0.18 im [Changelog](CHANGELOG.md).
+- **Überprüft:** Vor der Veröffentlichung ein Sicherheits-Review (mit KI-Unterstützung); die
+  Funde wurden behoben, die wichtigsten vorher mit Tests nachgestellt – nachzulesen bei den
+  Versionen 0.17 und 0.18 im [Changelog](CHANGELOG.md).
 
 Sicherheitslücken bitte vertraulich melden, siehe [SECURITY.md](SECURITY.md).
 
