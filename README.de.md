@@ -83,6 +83,24 @@ Aktualisieren: `docker compose pull && docker compose up -d`.
 
 Was sich in einer Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) (auf Englisch).
 
+## Sicherheit
+
+RDAPI verwaltet den Zugang zu deinen Fernwartungs-Geräten, deshalb bekommt Sicherheit hier
+besondere Aufmerksamkeit:
+
+- **Eingebaut:** Passwörter mit Argon2id, Tokens nur als Hash gespeichert,
+  Zwei-Faktor-Anmeldung, Passkeys, Begrenzung fehlgeschlagener Anmeldungen je Adresse und je
+  Benutzer, CSRF-Tokens und Herkunftsprüfung bei Formularen, eine strikte
+  Content-Security-Policy und ein schreibgeschützter Container ohne Root.
+- **Bei jeder Änderung geprüft:** Tests, Trivy-Scan des Images, OWASP-ZAP-Baseline-Scan,
+  Dependabot. GitHub Actions sind auf Commit-Hashes festgelegt.
+- **Überprüft:** Vor der öffentlichen Beta hat ein KI-gestützter Sicherheits-Review Anmeldung,
+  Gerätezuordnung, Single Sign-on und die App-Schnittstelle durchgesehen. Jeder Fund wurde mit
+  einem Test nachgestellt, behoben und erneut geprüft – nachzulesen bei den Versionen 0.10.x im
+  [Changelog](CHANGELOG.md).
+
+Sicherheitslücken bitte vertraulich melden, siehe [SECURITY.md](SECURITY.md).
+
 ## Wie es entsteht
 
 PlateShelf entsteht mit Unterstützung eines KI-Assistenten. Funktionen und Verhalten lege ich
