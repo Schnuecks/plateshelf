@@ -8,6 +8,8 @@
   <img src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" alt="Python 3.14">
   <a href="https://github.com/Schnuecks/plateshelf/pkgs/container/plateshelf"><img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker ready"></a>
   <img src="https://img.shields.io/badge/platform-amd64%20%7C%20arm64-E4572E" alt="Platform amd64 | arm64">
+  <a href="https://github.com/Schnuecks/plateshelf/actions/workflows/ci.yml"><img src="https://github.com/Schnuecks/plateshelf/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Schnuecks/plateshelf/actions/workflows/zap.yml"><img src="https://github.com/Schnuecks/plateshelf/actions/workflows/zap.yml/badge.svg" alt="ZAP scan"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-4C9A2A" alt="License AGPL-3.0"></a>
   <img src="https://img.shields.io/badge/maintained-yes-4C9A2A" alt="Maintained">
 </p>
@@ -75,6 +77,26 @@ Open `http://<server>:8000` and create the admin account; the setup code is in t
 - [Development](docs/en/development.md): running locally, tests, translations
 
 What changed in each version is listed in the [CHANGELOG](CHANGELOG.md).
+
+## Security
+
+PlateShelf reads files from the internet and talks to your printers, so it is built to be
+careful with both:
+
+- **Files:** size limits for every part of a `.3mf`, `.gcode` or `.bgcode` file (no zip bombs),
+  safe file names, photos re-encoded without metadata.
+- **Printers:** the import only lists and downloads files – PlateShelf never starts a print or
+  sends commands to a printer. With `SECRET_KEY` set, printer credentials are stored encrypted.
+- **Sign-in:** per-address and per-user limits on failed sign-ins, passkeys, single sign-on that
+  never takes over an existing account by its name, a strict Content Security Policy without
+  inline code, and a container without root.
+- **Checked on every change:** Python and browser tests, Trivy scan of the image, OWASP ZAP
+  baseline scan, Dependabot.
+- **Reviewed:** before the public release, an AI-assisted security review; every finding was
+  reproduced with a test, fixed and re-tested – see versions 0.17 and 0.18 in the
+  [changelog](CHANGELOG.md).
+
+Please report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
 
 ## How it's built
 
