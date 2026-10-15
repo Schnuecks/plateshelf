@@ -85,8 +85,6 @@ Was sich in einer Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) (auf
 
 ## Sicherheit
 
-## Sicherheit
-
 PlateShelf liest Dateien aus dem Internet und spricht mit deinen Druckern, deshalb geht es mit
 beidem vorsichtig um:
 
