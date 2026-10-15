@@ -92,8 +92,8 @@ careful with both:
   inline code, and a container without root.
 - **Checked on every change:** Python and browser tests, Trivy scan of the image, OWASP ZAP
   baseline scan, Dependabot.
-- **Reviewed:** before the public release, an AI-assisted security review; every finding was
-  reproduced with a test, fixed and re-tested – see versions 0.17 and 0.18 in the
+- **Reviewed:** before the public release, a security review (assisted by AI); the findings were
+  fixed, the main ones reproduced with tests first – see versions 0.17 and 0.18 in the
   [changelog](CHANGELOG.md).
 
 Please report vulnerabilities privately, see [SECURITY.md](SECURITY.md).
