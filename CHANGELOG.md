@@ -2,6 +2,12 @@
 
 Entries up to version 0.6.0 (when the project was still called Druckarchiv) are in German.
 
+## 0.17.2
+
+- The image now runs as an unprivileged user (UID 10001) instead of root. With the supplied
+  `compose.yaml` nothing changes (`user:` takes precedence). Without `user:`, the library
+   folder must be writable for UID 10001, or set `user:`.
+
 ## 0.17.1
 
 - `compose.yaml` sets `FORWARDED_ALLOW_IPS=127.0.0.1`, as it publishes the port directly: devices in
