@@ -85,19 +85,24 @@ Was sich in einer Version geändert hat, steht im [CHANGELOG](CHANGELOG.md) (auf
 
 ## Sicherheit
 
-RDAPI verwaltet den Zugang zu deinen Fernwartungs-Geräten, deshalb bekommt Sicherheit hier
-besondere Aufmerksamkeit:
+## Sicherheit
 
-- **Eingebaut:** Passwörter mit Argon2id, Tokens nur als Hash gespeichert,
-  Zwei-Faktor-Anmeldung, Passkeys, Begrenzung fehlgeschlagener Anmeldungen je Adresse und je
-  Benutzer, CSRF-Tokens und Herkunftsprüfung bei Formularen, eine strikte
-  Content-Security-Policy und ein schreibgeschützter Container ohne Root.
-- **Bei jeder Änderung geprüft:** Tests, Trivy-Scan des Images, OWASP-ZAP-Baseline-Scan,
-  Dependabot. GitHub Actions sind auf Commit-Hashes festgelegt.
-- **Überprüft:** Vor der öffentlichen Beta hat ein KI-gestützter Sicherheits-Review Anmeldung,
-  Gerätezuordnung, Single Sign-on und die App-Schnittstelle durchgesehen. Jeder Fund wurde mit
-  einem Test nachgestellt, behoben und erneut geprüft – nachzulesen bei den Versionen 0.10.x im
-  [Changelog](CHANGELOG.md).
+PlateShelf liest Dateien aus dem Internet und spricht mit deinen Druckern, deshalb geht es mit
+beidem vorsichtig um:
+
+- **Dateien:** Größengrenzen für jeden Teil einer `.3mf`-, `.gcode`- oder `.bgcode`-Datei (keine
+  ZIP-Bomben), sichere Dateinamen, eigene Fotos werden neu kodiert und ohne Metadaten gespeichert.
+- **Drucker:** Der Import listet und lädt nur Dateien – PlateShelf startet nie einen Druck und
+  schickt keine Befehle an einen Drucker. Mit gesetztem `SECRET_KEY` werden die Zugangsdaten der
+  Drucker verschlüsselt gespeichert.
+- **Anmeldung:** Begrenzung fehlgeschlagener Anmeldungen je Adresse und je Benutzer, Passkeys,
+  Single Sign-on, das nie ein bestehendes Konto über seinen Namen übernimmt, eine strikte
+  Content-Security-Policy ohne Inline-Code und ein Container ohne Root.
+- **Bei jeder Änderung geprüft:** Python- und Browser-Tests, Trivy-Scan des Images,
+  OWASP-ZAP-Baseline-Scan, Dependabot.
+- **Überprüft:** Vor der Veröffentlichung ein KI-gestützter Sicherheits-Review; jeder Fund wurde
+  mit einem Test nachgestellt, behoben und erneut geprüft – nachzulesen bei den Versionen 0.17
+  und 0.18 im [Changelog](CHANGELOG.md).
 
 Sicherheitslücken bitte vertraulich melden, siehe [SECURITY.md](SECURITY.md).
 
