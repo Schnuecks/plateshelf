@@ -60,6 +60,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `AUTH_USER`, `AUTH_PASSWORD_HASH` | – | Only for updates from before user accounts: become the first admin account once |
 | `SECRET_KEY` | – | Key for encrypting printer credentials; strongly recommended, see [Secrets](#secrets) |
 | `TRUSTED_ORIGINS` | – | Additional addresses allowed to send changes, comma-separated |
+| `AUTH_PORTAL_URL` | – | Sign-in page of a reverse proxy with login (e.g. `https://auth.example.com`), comma-separated; see below |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | – | Sign in with Authelia, Authentik, Keycloak & co., see [Single sign-on](#single-sign-on-oidc) |
 
 ## Access control
@@ -145,6 +146,12 @@ reverse proxy that terminates HTTPS.
 **Without sign-in:** `AUTH=off` in the `.env` switches all of this off; anyone who can reach
 PlateShelf may then do everything. This only makes sense if the reverse proxy signs users
 in (e.g. Authelia or Authentik) or PlateShelf is not reachable by anyone else.
+
+**Reverse proxy with a login page:** the Content Security Policy only lets forms go to
+PlateShelf itself and to the OIDC provider. If the proxy's session runs out and it redirects a
+form (e.g. saving the settings) to its login page, the browser blocks that and nothing seems to
+happen. Set `AUTH_PORTAL_URL` to the address of that login page, e.g.
+`AUTH_PORTAL_URL=https://auth.example.com`; only HTTPS addresses (or `localhost`) count.
 
 `/healthz` stays reachable for the Docker health check, but without sign-in it only reports
 that PlateShelf is running.

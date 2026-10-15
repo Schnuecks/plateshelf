@@ -96,7 +96,18 @@ def test_security_headers_everywhere(client):
         assert r.headers["referrer-policy"] == "same-origin"
         assert r.headers["cross-origin-resource-policy"] == "same-origin"
         assert r.headers["cross-origin-embedder-policy"] == "require-corp"
-    assert "'unsafe-inline'" not in client.get("/login").headers["content-security-policy"].split("style-src")[0]
+    csp = client.get("/login").headers["content-security-policy"]
+    assert "'unsafe-inline'" not in csp and "style-src 'self';" in csp
+    assert "form-action 'self';" in csp   # no sign-in page configured: forms only to PlateShelf
+
+
+def test_form_action_allows_the_configured_sign_in_pages(client, monkeypatch):
+    """Forms may be redirected to the reverse proxy's sign-in page and the OIDC provider, nowhere else."""
+    monkeypatch.setenv("AUTH_PORTAL_URL", "https://auth.example.com/?rd=x, http://elsewhere.example, ftp://x")
+    monkeypatch.setenv("OIDC_ISSUER", "https://sso.example.com/realms/home/")
+    csp = client.get("/login").headers["content-security-policy"]
+    assert "form-action 'self' https://auth.example.com https://sso.example.com;" in csp
+    assert " https:;" not in csp and "elsewhere" not in csp
     # Pages and API answers are never taken from a cache (iOS home-screen app), static files are
     assert client.get("/login").headers["cache-control"] == "no-cache"
     assert client.get("/healthz").headers["cache-control"] == "no-cache"

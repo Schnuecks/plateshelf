@@ -798,6 +798,10 @@ a.icon-btn { text-decoration: none; }
 .chart-legend li { display: flex; align-items: center; gap: .4rem; }
 .swatch-ok, .swatch-bad { width: .75rem; height: .75rem; border-radius: 2px; display: inline-block; }
 .swatch-ok { background: var(--chart-ok); }
+/* Extras in the 3D preview, same colours as in viewer.js */
+.swatch-travel { background: #5B8DEF; }
+.swatch-retract { background: #E040FB; }
+.swatch-seam { background: #F5F5F5; box-shadow: inset 0 0 0 1px #555; }
 .swatch-bad { background: var(--chart-bad); }
 .column-chart { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: .35rem;
   align-items: end; height: 11rem; padding: 1.1rem 0 1.4rem; border-bottom: 1px solid var(--line); }

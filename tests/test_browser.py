@@ -578,7 +578,15 @@ def test_pages_run_under_csp(server, browser):
     for path in ("/", "/p/{pid}", "/settings", "/history", "/statistics", "/upload", "/about"):
         response = pg.goto(server["url"] + path.format(**server))
         assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+        assert "'unsafe-inline'" not in response.headers["content-security-policy"]
         assert response.headers["x-content-type-options"] == "nosniff"
+        # Computed colours and bars arrive via data-css and element.style despite the CSP
+        if path == "/":
+            assert "linear-gradient" in pg.evaluate(
+                "getComputedStyle(document.querySelector('.strand')).backgroundImage")
+        if path == "/p/{pid}":
+            assert pg.evaluate("getComputedStyle(document.querySelector('.swatch')).backgroundColor") not in (
+                "", "rgba(0, 0, 0, 0)")
     pg.goto(f"{server['url']}/view/{server['fid']}/1")
     pg.wait_for_selector("#viewer-panel:not([hidden])", timeout=60_000)   # import map, modules, worker, WebGL
     context.close()

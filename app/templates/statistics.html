@@ -51,9 +51,9 @@
       {% for m in st.months %}
       {% set total = m.completed + m.failed %}
       <div class="column" tabindex="0" title="{{ m|month_label(True) }}: {{ _('{done} fertig, {bad} abgebrochen oder fehlgeschlagen', done=m.completed, bad=m.failed) }}">
-        <div class="bar-stack" style="height: {{ (total / st.max_prints * 100) if st.max_prints else 0 }}%">
-          {% if m.failed %}<span class="seg seg-bad" style="flex-grow: {{ m.failed }}"></span>{% endif %}
-          {% if m.completed %}<span class="seg seg-ok" style="flex-grow: {{ m.completed }}"></span>{% endif %}
+        <div class="bar-stack" data-css="height: {{ (total / st.max_prints * 100) if st.max_prints else 0 }}%">
+          {% if m.failed %}<span class="seg seg-bad" data-css="flex-grow: {{ m.failed }}"></span>{% endif %}
+          {% if m.completed %}<span class="seg seg-ok" data-css="flex-grow: {{ m.completed }}"></span>{% endif %}
         </div>
         <span class="column-label">{{ m|month_label }}</span>
       </div>
@@ -69,8 +69,8 @@
         <span class="chart-max">{{ st.max_cost|money }}</span>
         {% for m in st.months %}
         <div class="column" tabindex="0" title="{{ m|month_label(True) }}: {{ m.cost|money }}">
-          <div class="bar-stack" style="height: {{ (m.cost / st.max_cost * 100) if st.max_cost else 0 }}%">
-            {% if m.cost %}<span class="seg seg-ok" style="flex-grow: 1"></span>{% endif %}
+          <div class="bar-stack" data-css="height: {{ (m.cost / st.max_cost * 100) if st.max_cost else 0 }}%">
+            {% if m.cost %}<span class="seg seg-ok" data-css="flex-grow: 1"></span>{% endif %}
           </div>
           <span class="column-label">{{ m|month_label(False, False) }}</span>
         </div>
@@ -86,7 +86,7 @@
         {% set label = m.name if m.name != '?' else _('Unbekannt') %}
         <li title="{{ label }}: {{ m.grams|num(0, 'g') }}">
           <span class="bar-name">{{ label }}</span>
-          <span class="bar-track"><span class="bar-fill" style="width: {{ m.grams / st.max_material * 100 }}%"></span></span>
+          <span class="bar-track"><span class="bar-fill" data-css="width: {{ m.grams / st.max_material * 100 }}%"></span></span>
           <span class="bar-value">{{ (m.grams / 1000)|num(2, 'kg') if m.grams >= 1000 else m.grams|num(0, 'g') }}</span>
         </li>
         {% endfor %}
@@ -104,7 +104,7 @@
       {% for p in st.printers %}
         <tr>
           <td>{{ p.name }}</td><td class="r">{{ p.completed }}</td><td class="r">{{ p.failed }}</td>
-          <td><span class="rate"><span class="bar-track"><span class="bar-fill" style="width: {{ p.rate }}%"></span></span>{{ p.rate|num(0) }} %</span></td>
+          <td><span class="rate"><span class="bar-track"><span class="bar-fill" data-css="width: {{ p.rate }}%"></span></span>{{ p.rate|num(0) }} %</span></td>
         </tr>
       {% endfor %}
       </tbody>

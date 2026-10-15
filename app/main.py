@@ -19,7 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, routes_account, \
+from . import auth, backup, crypto, diagnostics, i18n, oidc, print_history, printer_import, routes_account, \
     routes_library, routes_preview, routes_settings, routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, EARLY_SCRIPT, IMPORTMAP, SAFE_METHODS, allowed, current_url, current_user, \
@@ -64,27 +64,45 @@ app = FastAPI(title="PlateShelf", docs_url=None, redoc_url=None, lifespan=lifesp
 
 # --- Security headers --------------------------------------------------------
 # The Content Security Policy only allows our own files; the two small inline scripts in
-# the page (class "js" and the import map of the 3D preview) via hash. So injected code would
-# not run even if there were a hole. Inline styles on elements (color swatches, bars) remain
-# allowed. form-action also allows https:, because a reverse proxy with a login page (e.g. Authelia)
-# redirects forms there once its session expires; otherwise submitting would silently hang.
+# the page (class "js" and the import map of the 3D preview) via hash, no inline styles (computed
+# colours and bars are set by app.js via element.style). So injected code would not run even if
+# there were a hole. Forms may only go to PlateShelf itself and to the sign-in pages in
+# AUTH_PORTAL_URL and OIDC_ISSUER: a reverse proxy with a login page (e.g. Authelia) redirects a
+# form there once its session expires, and „Mit … verbinden“ redirects to the provider; a
+# redirect to any other address would be blocked, and submitting would silently hang.
 def _sha256(text: str) -> str:
     return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
 
 
-CSP = "; ".join((
-    "default-src 'self'",
-    f"script-src 'self' {_sha256(EARLY_SCRIPT)} {_sha256(IMPORTMAP)}",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
-    "worker-src 'self'",
-    "frame-ancestors 'none'",
-    "base-uri 'none'",
-    "form-action 'self' https:",
-    "object-src 'none'",
-))
+def form_action() -> str:
+    """'self' plus the origin of the sign-in pages (HTTPS, or HTTP on localhost)."""
+    sources = ["'self'"]
+    urls = [u.strip() for u in os.environ.get("AUTH_PORTAL_URL", "").split(",")] + [oidc.issuer()]
+    for url in filter(None, urls):
+        parts = urlsplit(url)
+        local = parts.hostname in ("localhost", "127.0.0.1")
+        if parts.netloc and (parts.scheme == "https" or (parts.scheme == "http" and local)):
+            origin = f"{parts.scheme}://{parts.netloc}".lower()
+            if origin not in sources:
+                sources.append(origin)
+    return " ".join(sources)
+
+
+def csp() -> str:
+    return "; ".join((
+        "default-src 'self'",
+        f"script-src 'self' {_sha256(EARLY_SCRIPT)} {_sha256(IMPORTMAP)}",
+        "style-src 'self'",
+        "img-src 'self' data: blob:",
+        "worker-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        f"form-action {form_action()}",
+        "object-src 'none'",
+    ))
+
+
 SECURITY_HEADERS = {
-    "Content-Security-Policy": CSP,
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",
@@ -100,6 +118,7 @@ SECURITY_HEADERS = {
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", csp())
     for name, value in SECURITY_HEADERS.items():
         response.headers.setdefault(name, value)
     # Pages and API answers always fresh: otherwise the iOS home-screen app may show an old state
