@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- **Language and theme switch could redirect to another site:** its return address was checked
+  without the backslash rule of the sign-in, so `/\evil.example` became `//evil.example` in the
+  browser. It now uses the same check (found by CodeQL code scanning).
+- File names of backups and photos are matched in full (`fullmatch`), not only up to a line break.
+
 ## 1.0.0
 
 First stable release. PlateShelf is a self-hosted archive for your 3D prints:

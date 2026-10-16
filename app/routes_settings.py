@@ -16,7 +16,7 @@ from starlette.background import BackgroundTask
 
 from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, render, store
 from .i18n import gettext as _
-from .web import APP_VERSION, ONE_YEAR, audit, current_user, templates
+from .web import APP_VERSION, ONE_YEAR, _local_target, audit, current_user, templates
 
 router = APIRouter()
 
@@ -179,8 +179,7 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
 
     Only what was sent is changed; afterwards it goes back to the page.
     """
-    target = next if next.startswith("/") and not next.startswith("//") else "/"
-    response = RedirectResponse(target, status_code=303)
+    response = RedirectResponse(_local_target(next), status_code=303)
     if sprache in i18n.LANGUAGES:
         response.set_cookie("sprache", sprache, max_age=ONE_YEAR, samesite="lax", httponly=True)
     elif sprache == "auto":
