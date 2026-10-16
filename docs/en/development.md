@@ -75,8 +75,8 @@ called “printer 1” etc.); file names stay. The answers are only kept in memo
      ```
 
   3. GitHub Actions tests, builds the image for all platforms and publishes it as
-     `1.2.3`, `1.2` and `latest`. Older versions are then removed; the last five releases
-     are kept.
+     `1.2.3`, `1.2`, `1` and `latest`, and creates the GitHub release with the notes from
+     the changelog. Older versions are then removed; the last five releases are kept.
 
 - Dependabot (`.github/dependabot.yml`) checks Python packages, GitHub Actions and the
   base image weekly and proposes updates as pull requests. Known vulnerabilities are

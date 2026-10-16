@@ -35,6 +35,9 @@ to open database file”.
 docker compose pull && docker compose up -d
 ```
 
+To stay on version 1 and skip a future major version with manual steps, use the image tag
+`:1` instead of `:latest` (`PLATESHELF_IMAGE=ghcr.io/schnuecks/plateshelf:1` in `.env`).
+
 The database is upgraded automatically on startup if needed. If the format of the 3D
 preview changes, the previews are rebuilt once in the background. What changed in each
 version is listed in the [CHANGELOG](../../CHANGELOG.md). Coming from a version before 0.7
