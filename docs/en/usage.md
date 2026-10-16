@@ -91,6 +91,8 @@ A sliced file no longer contains a 3D model but the finished G-code. The 3D prev
 therefore shows the actual toolpaths, similar to your slicer. Line types are recognised
 for Bambu Studio, OrcaSlicer, PrusaSlicer and Cura.
 
+![The same vase coloured by filament, line type, speed and flow](../screenshots/preview-colour-modes.gif)
+
 **Colouring**
 
 - by filament, by line type (outer wall, infill, supports and so on) or in a single

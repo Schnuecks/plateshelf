@@ -13,11 +13,6 @@ python tools/make_sample.py ./library      # Beispieldateien erzeugen
 LIBRARY_DIR=./library DATA_DIR=./data uvicorn app.main:app --reload
 ```
 
-`python tools/make_screenshots.py` erzeugt die Screenshots für README und Dokumentation neu.
-`python tools/load_test.py 2000` legt eine Bibliothek mit 2000 Dateien an und misst
-Einlesen und die wichtigsten Seiten. `python tools/make_icons.py` erzeugt die Symbole für
-den Homescreen aus `app/static/logo.svg`.
-
 Zusätzlich gibt es einen Browsertest, der alle Seiten und die 3D-Vorschau in Chromium
 öffnet. Er schlägt fehl bei jedem JavaScript-Fehler, bei jeder Anfrage an einen fremden
 Server und bei ernsten oder kritischen Mängeln der Barrierefreiheit (WCAG 2 A/AA, geprüft
