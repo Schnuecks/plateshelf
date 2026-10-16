@@ -54,7 +54,7 @@ def list_backups() -> list[dict]:
         return []
     items = []
     for path in folder.iterdir():
-        if AUTO_NAME.match(path.name):
+        if AUTO_NAME.fullmatch(path.name):
             st = path.stat()
             items.append({"name": path.name, "size": st.st_size, "time": st.st_mtime,
                           "before_restore": "-vor-wiederherstellung-" in path.name})
@@ -63,7 +63,7 @@ def list_backups() -> list[dict]:
 
 def path_of(name: str) -> Path | None:
     """Only files from the backup folder, no arbitrary paths."""
-    if not AUTO_NAME.match(name):
+    if not AUTO_NAME.fullmatch(name):
         return None
     path = backup_dir() / name
     return path if path.is_file() else None

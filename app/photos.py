@@ -43,7 +43,7 @@ def list_photos(group_key: str) -> list[str]:
     folder = folder_for(group_key)
     if not folder.is_dir():
         return []
-    items = [p for p in folder.iterdir() if NAME.match(p.name) and ".small." not in p.name]
+    items = [p for p in folder.iterdir() if NAME.fullmatch(p.name) and ".small." not in p.name]
     return [p.name for p in sorted(items, key=lambda p: (p.stat().st_mtime, p.name))]
 
 
@@ -52,7 +52,7 @@ def small_name(name: str) -> str:
 
 
 def path_of(group_key: str, name: str) -> Path | None:
-    if not NAME.match(name):
+    if not NAME.fullmatch(name):
         return None
     path = folder_for(group_key) / name
     return path if path.is_file() else None
@@ -89,7 +89,7 @@ def save(group_key: str, fh) -> str:
 
 
 def delete(group_key: str, name: str) -> None:
-    if not NAME.match(name) or ".small." in name:
+    if not NAME.fullmatch(name) or ".small." in name:
         return
     folder = folder_for(group_key)
     (folder / name).unlink(missing_ok=True)

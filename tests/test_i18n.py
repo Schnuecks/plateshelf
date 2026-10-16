@@ -83,6 +83,10 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     assert 'name="design" value="light"' in page  # clicking the icon switches to light
 
     # Language from the title bar menu: only the language changes, back to the page
+    # Only back to a page of this site: "/\evil.example" would become "//evil.example" in the browser
+    for bad in ("//evil.example", r"/\evil.example", "https://evil.example"):
+        r = client.post("/appearance", data={"sprache": "it", "next": bad}, follow_redirects=False)
+        assert r.headers["location"] == "/", bad
     r = client.post("/appearance", data={"sprache": "it", "next": "/trash"}, follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/trash"
     assert "sprache=it" in r.headers["set-cookie"] and "design=" not in r.headers["set-cookie"]
