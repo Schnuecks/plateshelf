@@ -24,11 +24,6 @@ python -m playwright install chromium
 python -m pytest -q tests/test_browser.py
 ```
 
-`python tools/make_screenshots.py` recreates the screenshots in the README and docs.
-`python tools/load_test.py 2000` builds a library with 2000 files and times reading and
-the main pages. `python tools/make_icons.py` renders the home screen icons from
-`app/static/logo.svg`.
-
 ## Translations
 
 The German texts in the code double as keys for the translations in

@@ -96,6 +96,8 @@ Eine geslicte Datei enthält kein 3D-Modell mehr, sondern den fertigen G-Code. D
 3D-Vorschau zeigt deshalb die tatsächlichen Druckbahnen, ähnlich wie dein Slicer.
 Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
 
+![Dieselbe Vase eingefärbt nach Filament, Linientyp, Geschwindigkeit und Fluss](../screenshots/preview-colour-modes.gif)
+
 **Einfärbung**
 
 - nach Filament, nach Linientyp (Außenwand, Infill, Stützen usw.) oder einfarbig in

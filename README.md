@@ -43,6 +43,8 @@ print settings and a 3D preview of the actual toolpaths.
 - **Six languages**, light and dark theme, installable on the home screen, key figures as
   JSON for dashboards
 
+![3D preview: a two-colour vase builds up layer by layer](docs/screenshots/preview-printing.gif)
+
 | Project | 3D preview |
 |---|---|
 | ![Project page](docs/screenshots/project.png) | ![3D preview coloured by line type](docs/screenshots/preview.png) |

@@ -45,6 +45,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Sechs Sprachen**, helles und dunkles Design, als App auf dem Homescreen, Kennzahlen als JSON
   für Dashboards
 
+![3D-Vorschau: eine zweifarbige Vase entsteht Schicht für Schicht](docs/screenshots/preview-printing.gif)
+
 | Projekt | 3D-Vorschau |
 |---|---|
 | ![Projektseite](docs/screenshots/project.png) | ![3D-Vorschau, eingefärbt nach Linientyp](docs/screenshots/preview.png) |
