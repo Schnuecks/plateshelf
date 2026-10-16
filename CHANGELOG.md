@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
 
 - **Language and theme switch could redirect to another site:** its return address was checked
   without the backslash rule of the sign-in, so `/\evil.example` became `//evil.example` in the
