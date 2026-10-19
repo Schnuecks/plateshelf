@@ -182,7 +182,16 @@ jobs:
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Patch- und Minor-Updates übernehmen
-        if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        # Docker base images: only digest rebuilds and patch updates of the same version.
+        # A new minor or major version (e.g. Python 3.14 -> 3.15) stays open until the
+        # tests cover it.
+        if: >-
+          (steps.meta.outputs.package-ecosystem != 'docker'
+            && (steps.meta.outputs.update-type == 'version-update:semver-patch'
+              || steps.meta.outputs.update-type == 'version-update:semver-minor'))
+          || (steps.meta.outputs.package-ecosystem == 'docker'
+            && steps.meta.outputs.update-type != 'version-update:semver-minor'
+            && steps.meta.outputs.update-type != 'version-update:semver-major')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
