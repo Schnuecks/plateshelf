@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2
 
 - **Image without pip:** pip is removed after the build. The copy from the Python base image
   bundled an outdated certifi with compromised root certificates (GHSA-6q48-6c7w-9gw2, critical),
