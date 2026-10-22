@@ -706,6 +706,39 @@ def test_running_print_does_not_take_the_previous_file(ready, sample):
     assert jobs()[0]["local_path"] == new
 
 
+def test_running_print_does_not_take_an_old_plate(ready, sample):
+    """As on 21.10.: the previous print was a plate of a project ("…_plate_1.gcode.3mf", a day
+    earlier), both reported only the process profile as name. The new print must not end up there."""
+    now = time.time()
+    folder = ready / "From printer" / "P2S"
+    folder.mkdir(parents=True)
+    old, new = "From printer/P2S/Echo_Dot_plate_1.gcode.3mf", "From printer/P2S/Apple.gcode.3mf"
+    for path in (old, new):
+        sample(ready / path, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    store.scan(wait=True)
+
+    def imported_at(path, remote, at):
+        with store.connect() as con:
+            con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                        "VALUES (?, 'P2S', ?, 'x')", (path, remote))
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, "
+                        "printer_name, imported) VALUES ('SER1', ?, 1, 'x', ?, 'P2S', ?)", (remote, path, at))
+    imported_at(old, "Echo_Dot.gcode.3mf", now - 86400)
+    t = ph.BambuTracker(BAMBU)
+    t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "/data/Metadata/plate_1.gcode",
+                        "subtask_name": "0.2mm layer, 2 walls, 15% infill", "task_id": "89"}})
+    assert jobs()[0]["local_path"] is None
+    imported_at(new, "Apple.gcode.3mf", now + 1)
+    ph.link_pending()
+    assert jobs()[0]["local_path"] == new
+
+    # Matched to the old plate by an earlier version: corrected
+    with store.connect() as con:
+        con.execute("UPDATE print_jobs SET local_path = ?", (old,))
+    ph.link_pending()
+    assert jobs()[0]["local_path"] == new
+
+
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")
