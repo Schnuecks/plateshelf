@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.2
+
+- **Image without pip:** pip is removed after the build. The copy from the Python base image
+  bundled an outdated certifi with compromised root certificates (GHSA-6q48-6c7w-9gw2, critical),
+  which PlateShelf never used.
+- **3D preview showed a third colour for Bambu Lab P2S prints:** the current P2S start G-code
+  selects the first filament in an indented block, which the preview skipped. Everything up to the
+  first filament change was drawn in no filament's colour. Previews and preview images are
+  recalculated once.
+- **Print history matched a P2S print to the previous project:** when the printer reports only the
+  process profile as name ("0.2mm layer, 2 walls, 15% infill"), a new print could end up at a plate
+  of a project fetched a day earlier, and this was never corrected. A plate now only counts if it
+  was fetched within the hour before the start; such matches from the last 30 days are corrected
+  after the next import.
+
 ## 1.0.1
 
 - **Language and theme switch could redirect to another site:** its return address was checked

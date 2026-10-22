@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 log = logging.getLogger(__name__)
 
-VERSION = 4  # new number = old images are redrawn
+VERSION = 5  # new number = old images are redrawn
 SIZE = 512          # like the images from Bambu Studio
 SUPERSAMPLE = 2     # draw at double size and downscale: smooth edges
 MARGIN = 0.07

@@ -35,7 +35,7 @@ from .parser import read_member
 
 MAX_PLATE_GCODE = 4 * 1024 ** 3  # unpacked size of one plate's G-code in a 3MF
 
-VERSION = 4
+VERSION = 5
 OFFSET_MM = 100.0
 SCALE = 100.0  # 0.01 mm
 # Metrics per point: name, factor for storage as Uint16, unit
@@ -291,6 +291,12 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
             if not line:
                 continue
             c0 = line[0]
+            if c0 == " " or c0 == "\t":
+                # Indented commands, e.g. the first filament selection in Bambu's P2S start G-code
+                line = line.lstrip()
+                if not line:
+                    continue
+                c0 = line[0]
             if c0 == ";":
                 # Bambu/Orca: "; FEATURE:", Prusa/Orca/Cura: ";TYPE:"
                 if line.startswith(("; FEATURE:", ";TYPE:")):

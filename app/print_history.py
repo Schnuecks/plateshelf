@@ -63,6 +63,7 @@ def interval() -> int:
 _PLATE_GCODE = re.compile(r"(?:^|/)plate_(\d+)\.gcode$", re.I)
 _PLATE_SUFFIX = re.compile(r"_plate_(\d+)\.gcode\.3mf$", re.I)
 UNNAMED_SLACK = 300  # max. time before print start that a file without plate number may have been fetched
+PLATE_SLACK = 3600  # the same for a single plate of a project (plates are uploaded one by one, then printed)
 _EXT = re.compile(r"(\.gcode)?\.3mf$|\.b?gcode$", re.I)
 
 
@@ -134,15 +135,19 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     # print (at print start the new file is not imported yet, link_pending catches up on that)
     if not _PLATE_SUFFIX.search(last["local_path"]) and (last["at"] or 0) < started - UNNAMED_SLACK:
         return None
+    # A plate fetched long before is the previous print as well (the P2S reports only the process
+    # profile as name when printing from Bambu Studio)
+    if (last["at"] or 0) < started - PLATE_SLACK:
+        return None
     return last["local_path"]
 
 
 def _guessed(con, job) -> bool:
-    """Match based on import time only (neither name nor plate number match the file)."""
+    """Match based on import time only (the name doesn't match the file)."""
     local = job["local_path"] or ""
-    if _PLATE_SUFFIX.search(local):
-        return False
-    base = _norm(local.rsplit("/", 1)[-1])
+    if _PLATE_SUFFIX.search(local) and _PLATE_GCODE.search(job["remote_name"] or ""):
+        return False  # only the plate is known (prints from 0.7.4 to 0.7.11)
+    base = _norm(_PLATE_SUFFIX.sub("", local.rsplit("/", 1)[-1]))
     name = job["remote_name"] or ""
     if name and (_norm(name.rsplit("/", 1)[-1]) == base or con.execute(
             "SELECT 1 FROM printer_files WHERE printer = ? AND remote_name = ? AND local_path = ?",
@@ -273,7 +278,7 @@ def link_pending() -> None:
                 continue
             local = _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
                              job["started"])
-            if local != job["local_path"]:
+            if local and local != job["local_path"]:
                 log.info("Druck %s: Zuordnung %s -> %s berichtigt", job["id"], job["local_path"], local)
                 con.execute("UPDATE print_jobs SET local_path = ?, applied = 0 WHERE id = ?", (local, job["id"]))
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NULL AND remote_name IS NOT NULL "
