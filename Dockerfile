@@ -17,7 +17,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pip is only needed for the build; the base image's pip bundles its own (sometimes outdated) certifi
+RUN pip install --no-cache-dir -r requirements.txt \
+ && pip uninstall -y pip
 COPY app ./app
 
 RUN useradd --system --uid 10001 --no-create-home plateshelf \

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Image without pip:** pip is removed after the build. The copy from the Python base image
+  bundled an outdated certifi with compromised root certificates (GHSA-6q48-6c7w-9gw2, critical),
+  which PlateShelf never used.
 - **3D preview showed a third colour for Bambu Lab P2S prints:** the current P2S start G-code
   selects the first filament in an indented block, which the preview skipped. Everything up to the
   first filament change was drawn in no filament's colour. Previews and preview images are
