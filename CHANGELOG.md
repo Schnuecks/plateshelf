@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **3D preview showed a third colour for Bambu Lab P2S prints:** the current P2S start G-code
+  selects the first filament in an indented block, which the preview skipped. Everything up to the
+  first filament change was drawn in no filament's colour. Previews and preview images are
+  recalculated once.
+
 ## 1.0.1
 
 - **Language and theme switch could redirect to another site:** its return address was checked

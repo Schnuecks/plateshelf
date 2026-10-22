@@ -112,3 +112,22 @@ def test_travels_and_retractions(tmp_path):
         (q(10), q(10), q(0), q(0), 0), (q(20), q(10), q(30), q(10), 0), (q(40), q(10), q(0), q(0), 1)]
     # Retraction during wipe and one at the end; the second one right after it is dropped
     assert [tuple(retracts[i:i + 3]) for i in range(0, len(retracts), 3)] == [(q(20), q(10), 0), (q(5), q(5), 1)]
+
+
+def test_indented_filament_select(tmp_path):
+    # Bambu's P2S start G-code selects the first filament in an indented block
+    gcode = """M83
+  M620 S3A   ; switch material if AMS exist
+  T3
+; CHANGE_LAYER
+; Z_HEIGHT: 0.2
+; FEATURE: Outer wall
+G1 Z0.2
+G0 X0 Y0
+G1 X10 Y0 E0.5
+"""
+    src = tmp_path / "i.gcode.3mf"
+    with zipfile.ZipFile(src, "w") as z:
+        z.writestr("Metadata/plate_1.gcode", gcode)
+    meta = convert(src, 1, tmp_path / "out" / "1_1")
+    assert meta["tools"] == [3]
