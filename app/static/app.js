@@ -430,6 +430,16 @@ document.querySelectorAll("[data-autofilter]").forEach((form) => {
   } catch (e) {}
 });
 
+// Phones: language and style as select fields in the expanded menu, sent right away. They stay
+// disabled otherwise, so the menus' buttons on wider screens send only their own value.
+document.querySelectorAll("[data-pref-select] select").forEach((select) => {
+  const phone = window.matchMedia("(max-width: 640px)");
+  const sync = () => { select.disabled = !phone.matches; };
+  sync();
+  phone.addEventListener("change", sync);
+  select.addEventListener("change", () => select.form.requestSubmit());
+});
+
 // Language menu in the title bar: close on outside click or with Esc
 document.querySelectorAll("details[data-menu]").forEach((menu) => {
   document.addEventListener("click", (e) => { if (!menu.contains(e.target)) menu.open = false; });

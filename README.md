@@ -40,8 +40,8 @@ print settings and a 3D preview of the actual toolpaths.
   finished, with a note and rating per print
 - **User accounts** with roles (admin, user, read only), device list and read-only API tokens;
   single sign-on with Authelia, Authentik, Keycloak & co. (OIDC)
-- **Six languages**, light and dark theme, installable on the home screen, key figures as
-  JSON for dashboards
+- **Six languages** and **five styles** (Classic, Candy, Workbench, Blueprint, Pinboard), each
+  light and dark, installable on the home screen, key figures as JSON for dashboards
 
 ![3D preview: a two-colour vase builds up layer by layer](docs/screenshots/preview-printing.gif)
 

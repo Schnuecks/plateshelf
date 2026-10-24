@@ -97,8 +97,9 @@ button.quiet { background: none; font-weight: 600; }
 /* Overview */
 main { padding-top: 1.8rem; }
 .summary p { font-size: 1.05rem; }
-.summary strong { font: 900 1.1em var(--display); color: #1D1236; background: linear-gradient(transparent 55%, var(--yellow) 55%);
-  padding-inline: .1em; }
+.summary strong { font: 900 1em var(--display); color: #1D1236; background: var(--yellow); padding: .05em .35em;
+  border: 2px solid var(--stroke); border-radius: 8px; box-shadow: 2px 2px 0 var(--shadow);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .chip { border: var(--bw) solid var(--stroke); font-weight: 700; padding: .2rem .8rem; box-shadow: 2px 2px 0 var(--shadow);
   color: #1D1236; transition: transform .12s; }
 .chip:nth-child(5n+1) { background: var(--pink); } .chip:nth-child(5n+2) { background: var(--yellow); }

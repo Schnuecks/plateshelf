@@ -42,8 +42,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
 - **Benutzerkonten** mit Rollen (Admin, Benutzer, Nur lesen), Geräteliste und API-Tokens;
   Single Sign-on mit Authelia, Authentik, Keycloak & Co. (OIDC)
   nur zum Lesen
-- **Sechs Sprachen**, helles und dunkles Design, als App auf dem Homescreen, Kennzahlen als JSON
-  für Dashboards
+- **Sechs Sprachen** und **fünf Stile** (Klassisch, Bonbon, Werkbank, Blaupause, Pinnwand), jeweils
+  hell und dunkel, als App auf dem Homescreen, Kennzahlen als JSON für Dashboards
 
 ![3D-Vorschau: eine zweifarbige Vase entsteht Schicht für Schicht](docs/screenshots/preview-printing.gif)
 

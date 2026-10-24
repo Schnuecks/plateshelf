@@ -510,6 +510,30 @@ def test_language_and_theme_from_topbar(server, page):
     assert page.errors == []
 
 
+def test_language_and_style_on_phone(server, browser):
+    """Phones: language and style are select fields in the expanded menu (iOS Safari does not
+    open the menus there) and are applied right away; on wide screens the menus stay."""
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, locale="de-DE")
+    pg = context.new_page()
+    try:
+        pg.goto(server["url"] + "/")
+        pg.locator("[data-menu-toggle]").tap()
+        assert pg.locator(".lang-menu").first.is_hidden()
+        with pg.expect_navigation():
+            pg.locator("[data-pref-select] select[name=stil]").select_option("pinnwand")
+        assert pg.locator("html").get_attribute("data-style") == "pinnwand"
+        pg.locator("[data-menu-toggle]").tap()
+        with pg.expect_navigation():
+            pg.locator("[data-pref-select] select[name=sprache]").select_option("en")
+        assert pg.locator("html").get_attribute("lang") == "en"
+        assert pg.locator("html").get_attribute("data-style") == "pinnwand"  # the other choice stays
+        pg.set_viewport_size({"width": 1280, "height": 800})
+        assert pg.locator(".style-menu").is_visible() and pg.locator("[data-pref-select]").first.is_hidden()
+    finally:
+        context.clear_cookies()
+        context.close()
+
+
 def test_login_flow(server, page, monkeypatch):
     """With user accounts: login page, logging in, back to the target, own account, logging out."""
     from app import auth, store

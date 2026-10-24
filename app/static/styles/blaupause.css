@@ -77,6 +77,7 @@ button.danger-quiet { color: var(--accent); }
 .filter-toggle { background: transparent; color: var(--ink); border: 1.5px solid var(--line); }
 .upload-link { color: var(--ink); text-transform: uppercase; letter-spacing: .14em; font-weight: 400; }
 .upload-link::before { content: "⊕ "; color: var(--accent); }
+.js .topbar.menu-open .upload-link::before { content: none; }  /* the menu row has its own icon */
 .nav-back { background: transparent; border: 1.5px solid var(--line); border-radius: 0; text-transform: uppercase; letter-spacing: .1em; font-weight: 400; }
 
 /* Overview */
