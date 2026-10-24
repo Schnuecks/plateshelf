@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Bonbon in dark:** the highlighted numbers in the summary above the projects were hard to read,
+  because the yellow marker only covered their lower half. They are now full yellow labels.
+
 ## 1.1.0
 
 - **Four new styles:** besides the classic look, PlateShelf now comes as Candy, Workbench,
