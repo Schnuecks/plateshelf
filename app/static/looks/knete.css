@@ -1,0 +1,181 @@
+/* Design proposal „Knete“: soft and tactile like matte PLA. Pastel clay, puffy surfaces with layered
+   light and shadow, fine layer lines like a print, and a filament strand that looks extruded. */
+@font-face { font-family: "Fredoka"; font-weight: 400; font-display: swap; src: url("fonts/fredoka-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Fredoka"; font-weight: 400; font-display: swap; src: url("fonts/fredoka-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Fredoka"; font-weight: 500; font-display: swap; src: url("fonts/fredoka-latin-500.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Fredoka"; font-weight: 500; font-display: swap; src: url("fonts/fredoka-latin-ext-500.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Fredoka"; font-weight: 600; font-display: swap; src: url("fonts/fredoka-latin-600.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Fredoka"; font-weight: 600; font-display: swap; src: url("fonts/fredoka-latin-ext-600.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Fredoka"; font-weight: 700 900; font-display: swap; src: url("fonts/fredoka-latin-700.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Fredoka"; font-weight: 700 900; font-display: swap; src: url("fonts/fredoka-latin-ext-700.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-weight: 400; font-display: swap; src: url("fonts/nunito-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Nunito"; font-weight: 400; font-display: swap; src: url("fonts/nunito-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-weight: 500 600; font-display: swap; src: url("fonts/nunito-latin-600.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Nunito"; font-weight: 500 600; font-display: swap; src: url("fonts/nunito-latin-ext-600.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Nunito"; font-weight: 700 900; font-display: swap; src: url("fonts/nunito-latin-800.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Nunito"; font-weight: 700 900; font-display: swap; src: url("fonts/nunito-latin-ext-800.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+
+:root {
+  --radius: 18px;
+  --font: "Nunito", system-ui, sans-serif;
+  --font-cond: "Fredoka", "Nunito", sans-serif;
+  --display: "Fredoka", "Nunito", sans-serif;
+  --h-panel: 600 1.2rem/1.2 var(--display);
+  --h-side: 600 1.05rem/1.2 var(--display);
+  --bg: #EFE9E3;
+  --surface: #F7F3EE;
+  --ink: #3B3350;
+  --muted: #847B96;
+  --line: #E1D9D0;
+  --accent: #7A5CF0;
+  --accent-ink: #FFFFFF;
+  --btn-ink: #FFFFFF;
+  --peach: #FFB38A;
+  --mint: #8FDDBB;
+  --lilac: #B9A7F5;
+  --butter: #FFDC7A;
+  --sky: #9CCBF5;
+  --hi: rgb(255 255 255 / .85);   /* light from top left */
+  --lo: rgb(120 95 70 / .16);     /* shade bottom right */
+  --drop: rgb(90 70 120 / .28);
+  --layers: rgb(120 95 70 / .045);
+  --bed: #E6DED5;
+  --bed-grain: #E6DED5;
+  --viewer-bg: #EFE9E3;
+  --warn: #C2562C;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #211C2C; --surface: #2B2539; --ink: #F1EAFB; --muted: #ABA0C2; --line: #3A3249; --accent: #B9A7FF;
+    --accent-ink: #211C2C; --btn-ink: #211C2C; --hi: rgb(255 255 255 / .07); --lo: rgb(0 0 0 / .35); --drop: rgb(0 0 0 / .55);
+    --layers: rgb(255 255 255 / .025); --bed: #1A1623; --bed-grain: #1A1623; --viewer-bg: #211C2C; --warn: #FFA27A;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #211C2C; --surface: #2B2539; --ink: #F1EAFB; --muted: #ABA0C2; --line: #3A3249; --accent: #B9A7FF;
+  --accent-ink: #211C2C; --btn-ink: #211C2C; --hi: rgb(255 255 255 / .07); --lo: rgb(0 0 0 / .35); --drop: rgb(0 0 0 / .55);
+  --layers: rgb(255 255 255 / .025); --bed: #1A1623; --bed-grain: #1A1623; --viewer-bg: #211C2C; --warn: #FFA27A;
+}
+
+body {
+  background:
+    radial-gradient(50rem 32rem at 0% 0%, color-mix(in srgb, var(--peach) 28%, transparent), transparent 70%),
+    radial-gradient(46rem 30rem at 100% 15%, color-mix(in srgb, var(--lilac) 30%, transparent), transparent 70%),
+    radial-gradient(50rem 30rem at 40% 105%, color-mix(in srgb, var(--mint) 24%, transparent), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
+  font-size: 16.5px;
+}
+::selection { background: var(--lilac); color: #3B3350; }
+a { color: var(--accent); font-weight: 700; }
+
+/* The clay: one recipe for every raised surface */
+.topbar, .card, .file, .edit, .project-strip, .designer, .photos-own, .job-list, .usage, .settings-section,
+.stat-tiles > div, .chart-card, .notice, .trash-item, .about-page section, .login-form, .headline-stats > div,
+.nav-menu-list, .lang-menu .menu, .live-list, .js .search.filters-open .filter-panel, .bulk-bar {
+  background:
+    repeating-linear-gradient(0deg, var(--layers) 0 1px, transparent 1px 4px),
+    var(--surface);
+  border: 0; border-radius: 26px;
+  box-shadow: inset 2px 2px 3px var(--hi), inset -3px -4px 8px var(--lo), 14px 18px 36px -16px var(--drop), 0 2px 4px -2px var(--drop);
+}
+
+.topbar { margin: .9rem clamp(.6rem, 2vw, 1.5rem) 0; top: .9rem; border-radius: 999px; padding-inline: 1.2rem; padding-block: .6rem;
+  backdrop-filter: blur(10px); }
+@supports (padding: max(0px)) { .topbar { padding-top: .6rem; } }
+.brand { font: 700 1.35rem/1 var(--display); letter-spacing: -.01em; }
+.brand img { border-radius: 10px; box-shadow: 2px 3px 6px var(--drop); }
+
+/* Pressed-in fields, puffy buttons */
+input, select, textarea { background: var(--bg); border: 0; border-radius: 14px; padding: .55rem .8rem;
+  box-shadow: inset 3px 3px 6px var(--lo), inset -2px -2px 4px var(--hi); }
+input[type=search] { border-radius: 999px; padding-inline: 1.1rem; }
+input:focus, select:focus, textarea:focus { outline: none; box-shadow: inset 3px 3px 6px var(--lo), inset -2px -2px 4px var(--hi), 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent); }
+button, .button {
+  border-radius: 999px; font: 600 .98rem/1.1 var(--display); padding: .6rem 1.2rem; color: var(--btn-ink);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 80%, #fff), var(--accent));
+  box-shadow: inset 2px 3px 4px rgb(255 255 255 / .45), inset -2px -4px 6px rgb(0 0 0 / .18), 4px 8px 16px -6px var(--drop);
+  transition: transform .15s cubic-bezier(.3, 1.6, .5, 1), box-shadow .15s;
+}
+button:hover, .button:hover { transform: translateY(-2px) scale(1.03); }
+button:active, .button:active { transform: scale(.97); box-shadow: inset 3px 4px 8px rgb(0 0 0 / .25); }
+button.quiet, button.danger-quiet, .icon-btn, .lang-menu .menu button, .nav-menu-list .settings-link, .card-select,
+.view-toggle button, .seg button, .play-speed, .live-more {
+  background: none; box-shadow: none; transform: none; color: inherit; font-family: var(--font);
+}
+button.quiet { color: var(--muted); font-weight: 700; }
+button.danger-quiet { color: var(--warn); }
+.icon-btn { color: var(--ink); }
+.filter-toggle { background: linear-gradient(160deg, #FFE7A8, var(--butter)); color: #3B3350; }
+.upload-link { color: #3B3350; padding: .45rem 1rem; border-radius: 999px; font: 600 1rem var(--display);
+  background: linear-gradient(160deg, #FFD0B5, var(--peach));
+  box-shadow: inset 2px 3px 4px rgb(255 255 255 / .5), inset -2px -4px 6px rgb(0 0 0 / .12), 4px 8px 16px -6px var(--drop); }
+.nav-back { border: 0; background: var(--surface); box-shadow: inset 2px 2px 3px var(--hi), inset -2px -3px 6px var(--lo), 6px 8px 16px -8px var(--drop); }
+
+/* Overview */
+main { padding-top: 2rem; }
+.summary p { font-size: 1.05rem; }
+.summary strong { font: 600 1.15em var(--display); color: var(--ink); }
+.chip { border: 0; padding: .3rem .85rem; font-weight: 700; color: #3B3350;
+  box-shadow: inset 2px 2px 3px rgb(255 255 255 / .6), inset -2px -3px 5px rgb(0 0 0 / .1), 3px 5px 10px -5px var(--drop); }
+.chip:nth-child(5n+1) { background: var(--peach); } .chip:nth-child(5n+2) { background: var(--mint); }
+.chip:nth-child(5n+3) { background: var(--lilac); } .chip:nth-child(5n+4) { background: var(--butter); }
+.chip:nth-child(5n+5) { background: var(--sky); }
+
+.grid { gap: 1.8rem; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); }
+.card { overflow: visible; transition: transform .35s cubic-bezier(.3, 1.6, .5, 1); border-radius: 30px; }
+.card:hover { transform: translateY(-5px) scale(1.015); }
+.card-link:hover h2 { color: var(--accent); }
+.card .bed { margin: .7rem .7rem 0; border-radius: 22px; overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--surface) 60%, #fff), var(--bed) 75%);
+  box-shadow: inset 3px 4px 10px var(--lo), inset -2px -2px 5px var(--hi); }
+.card .bed img:not(.is-photo) { transition: transform .4s cubic-bezier(.3, 1.6, .5, 1); }
+.card-link:hover .bed img:not(.is-photo) { transform: scale(1.05) rotate(-1deg); }
+/* The strand looks extruded: a soft round tube */
+.strand { height: 11px; margin: .7rem 1.1rem 0; border-radius: 999px;
+  box-shadow: inset 0 3px 2px rgb(255 255 255 / .45), inset 0 -3px 3px rgb(0 0 0 / .22), 0 3px 6px -2px var(--drop); }
+.card-body { padding: .75rem 1.2rem 1.15rem; }
+.card h2 { font: 600 1.15rem/1.2 var(--display); }
+.stats dt { font-size: .74rem; font-weight: 700; color: var(--muted); }
+.stats dd { font: 600 1.02rem var(--display); }
+.status { padding: .15rem .6rem; border-radius: 999px; color: #3B3350;
+  box-shadow: inset 1px 2px 2px rgb(255 255 255 / .55), inset -1px -2px 3px rgb(0 0 0 / .12); }
+.status-gedruckt { background: var(--mint); } .status-geplant { background: var(--sky); } .status-fehlgeschlagen { background: var(--peach); }
+.bed-count, .bed-live { border-radius: 999px; padding: .15rem .6rem; color: #3B3350;
+  box-shadow: inset 1px 2px 2px rgb(255 255 255 / .55), inset -1px -2px 3px rgb(0 0 0 / .12); }
+.bed-count { background: var(--butter); } .bed-live { background: var(--peach); }
+.card-select { border-radius: 10px; }
+
+/* Project page */
+.project-title > h1, .project-head h1 { font: 700 clamp(2rem, 5vw, 3.6rem)/1.02 var(--display); letter-spacing: -.02em; }
+.origin { font-weight: 600; }
+.strand-wide { height: 18px; border-radius: 999px; max-width: 40rem;
+  box-shadow: inset 0 4px 3px rgb(255 255 255 / .45), inset 0 -4px 4px rgb(0 0 0 / .22), 0 6px 12px -4px var(--drop); }
+.headline-stats { gap: 1rem; }
+.headline-stats > div { padding: .8rem 1.3rem; border-radius: 22px; }
+.headline-stats dd { font: 600 1.6rem/1.2 var(--display); }
+.file-head { border-bottom: 1px solid var(--line); }
+.file-name { font: 600 1.05rem var(--display); }
+.plate-info h3 { font: 600 1.3rem var(--display); }
+.bed-large, .plate-strip .bed, .extra-list .bed { border-radius: 20px; box-shadow: inset 3px 4px 10px var(--lo); }
+.plate-strip .bed { outline: 0; }
+.plate-strip .is-sliced a[aria-current=true] .bed { outline: 0; box-shadow: inset 3px 4px 10px var(--lo), 0 0 0 3px var(--accent); }
+.seg { border: 0; border-radius: 999px; background: var(--bg); padding: 3px; gap: 2px;
+  box-shadow: inset 3px 3px 6px var(--lo), inset -2px -2px 4px var(--hi); }
+.seg button { border-radius: 999px !important; color: var(--ink); }
+.seg button[aria-pressed=true] { background: var(--surface); color: var(--accent);
+  box-shadow: inset 1px 2px 2px var(--hi), 2px 3px 6px -2px var(--drop); }
+.swatch { box-shadow: inset 0 2px 1px rgb(255 255 255 / .5), inset 0 -2px 2px rgb(0 0 0 / .25); width: 1rem; height: 1rem; }
+.filaments th, .filaments td { border-bottom-color: var(--line); }
+.flash { border: 0; border-radius: 18px; background: var(--surface);
+  box-shadow: inset 4px 0 0 var(--accent), 8px 10px 22px -12px var(--drop); }
+.live-print { border: 0; background: var(--surface); box-shadow: inset 2px 2px 3px var(--hi), inset -2px -3px 6px var(--lo); }
+.live-dot { background: var(--peach); box-shadow: 0 0 0 3px color-mix(in srgb, var(--peach) 35%, transparent); }
+.history-page h1, .settings-page h1, .trash-head h1, .account-page h1, .upload h1 { font: 700 2.4rem/1.05 var(--display); }
+.page-tabs a[aria-current="page"] { border-bottom-color: var(--accent); }
+.stat-tiles dd { font: 600 1.7rem var(--display); }
+.settings-nav a[aria-current="page"] { box-shadow: inset 2px 2px 3px var(--hi), inset -2px -3px 6px var(--lo); background: var(--surface); }
+.site-footer { border-top: 0; }
+@media (max-width: 640px) {
+  .topbar { border-radius: 26px; margin: .5rem .5rem 0; }
+}

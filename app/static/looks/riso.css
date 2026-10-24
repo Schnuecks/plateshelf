@@ -1,0 +1,163 @@
+/* Design proposal „Riso“: a risograph zine. Two fluorescent inks that overprint, halftone dots,
+   slightly misregistered layers and grainy paper. Previews print as duotone until you point at them. */
+@font-face { font-family: "Archivo Black"; font-weight: 400 900; font-display: swap; src: url("fonts/archivo-black-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Archivo Black"; font-weight: 400 900; font-display: swap; src: url("fonts/archivo-black-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Archivo"; font-weight: 400; font-display: swap; src: url("fonts/archivo-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Archivo"; font-weight: 400; font-display: swap; src: url("fonts/archivo-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Archivo"; font-weight: 500 600; font-display: swap; src: url("fonts/archivo-latin-600.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Archivo"; font-weight: 500 600; font-display: swap; src: url("fonts/archivo-latin-ext-600.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Archivo"; font-weight: 700 800; font-display: swap; src: url("fonts/archivo-latin-800.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
+@font-face { font-family: "Archivo"; font-weight: 700 800; font-display: swap; src: url("fonts/archivo-latin-ext-800.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
+
+:root {
+  --radius: 0;
+  --font: "Archivo", system-ui, sans-serif;
+  --font-cond: "Archivo Black", "Archivo", sans-serif;
+  --display: "Archivo Black", "Archivo", sans-serif;
+  --h-panel: 400 1.1rem/1.15 var(--display);
+  --h-side: 400 .95rem/1.15 var(--display);
+  --paper: #F5F0E6;
+  --bg: #F5F0E6;
+  --surface: #FBF8F2;
+  --ink: #2A3A99;        /* riso blue does the text */
+  --muted: #6370B5;
+  --line: #2A3A99;
+  --pink: #FF4FAE;       /* fluorescent pink */
+  --yellow: #FFE11A;
+  --accent: #E8238F;
+  --accent-ink: #FBF8F2;
+  --duo-dark: #2A3A99;
+  --duo-light: #FFD3EA;
+  --grain: .10;
+  --bed: #2A3A99;
+  --bed-grain: #2F40A6;
+  --viewer-bg: #F5F0E6;
+  --warn: #D2321E;
+  --blend: multiply;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15162A; --bg: #15162A; --surface: #1D1F38; --ink: #F3EDE2; --muted: #A9AEDB; --line: #8FA4FF;
+    --accent: #FF5DB7; --accent-ink: #15162A; --duo-dark: #15162A; --duo-light: #FF7AC4; --grain: .16;
+    --bed: #15162A; --bed-grain: #191A31; --viewer-bg: #15162A; --warn: #FF8A5B; --blend: screen;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15162A; --bg: #15162A; --surface: #1D1F38; --ink: #F3EDE2; --muted: #A9AEDB; --line: #8FA4FF;
+  --accent: #FF5DB7; --accent-ink: #15162A; --duo-dark: #15162A; --duo-light: #FF7AC4; --grain: .16;
+  --bed: #15162A; --bed-grain: #191A31; --viewer-bg: #15162A; --warn: #FF8A5B; --blend: screen;
+}
+
+body {
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--pink) 55%, transparent) 1.4px, transparent 1.6px) 0 0 / 9px 9px,
+    var(--bg);
+  background-attachment: fixed;
+  background-size: 9px 9px, auto;
+  font-size: 16px;
+}
+/* Halftone only in two corners of the page, the paper stays clean in the middle */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(60rem 40rem at 50% 45%, var(--bg) 45%, transparent 75%);
+}
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: var(--grain); mix-blend-mode: var(--blend);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+::selection { background: var(--yellow); color: #2A3A99; }
+a { color: var(--accent); }
+
+/* Misregistered headlines: blue plate, pink plate shifted */
+.brand, .card h2, .project-title > h1, .project-head h1, .plate-info h3, .history-page h1, .settings-page h1,
+.trash-head h1, .account-page h1, .upload h1, .about-head h1, .empty h2 {
+  font-family: var(--display); font-weight: 400; text-transform: uppercase; letter-spacing: -.01em;
+  text-shadow: .06em .045em 0 color-mix(in srgb, var(--pink) 85%, transparent);
+}
+.brand { font-size: 1.3rem; }
+.brand img { filter: grayscale(1) contrast(1.4); mix-blend-mode: var(--blend); }
+
+.topbar { background: var(--bg); border-bottom: 3px solid var(--line); box-shadow: 0 6px 0 -1px var(--pink); }
+input, select, textarea { background: var(--surface); border: 2px solid var(--line); border-radius: 0; color: var(--ink); }
+input:focus, select:focus, textarea:focus { outline: none; box-shadow: 4px 4px 0 var(--yellow); }
+input::placeholder { color: var(--muted); }
+button, .button { background: var(--yellow); color: #2A3A99; border: 2px solid #2A3A99; border-radius: 0;
+  font: 400 .85rem/1.1 var(--display); text-transform: uppercase; letter-spacing: .04em; padding: .55rem 1rem;
+  box-shadow: 3px 3px 0 var(--pink); }
+button:hover, .button:hover { box-shadow: -3px -3px 0 var(--pink); }
+button.quiet, button.danger-quiet, .icon-btn, .lang-menu .menu button, .nav-menu-list .settings-link, .card-select,
+.view-toggle button, .seg button, .play-speed, .live-more {
+  border: 0; box-shadow: none; text-transform: none; font-family: var(--font); letter-spacing: 0;
+}
+button.quiet { background: none; font-weight: 600; text-decoration-color: var(--pink); text-decoration-thickness: 2px; }
+.icon-btn { background: none; color: var(--ink); }
+.upload-link { font: 400 .95rem var(--display); text-transform: uppercase; color: var(--accent); }
+.nav-back { border: 2px solid var(--line); border-radius: 0; background: var(--surface); box-shadow: 3px 3px 0 var(--pink); }
+
+/* Overview */
+.summary p { font-size: 1.05rem; color: var(--ink); }
+.summary strong { font: 400 1.1em var(--display); color: #2A3A99; background: var(--yellow); padding: 0 .2em;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.chip { border: 2px solid var(--line); border-radius: 0; background: var(--surface); color: var(--ink); font-weight: 700;
+  text-transform: uppercase; font-size: .78rem; letter-spacing: .04em; }
+.chip:nth-child(odd) { transform: rotate(-1.5deg); } .chip:nth-child(even) { transform: rotate(1.2deg); }
+.chip:hover { background: var(--pink); color: #2A3A99; }
+
+.grid { gap: 2rem 1.6rem; }
+.card { background: var(--surface); border: 2px solid var(--line); border-radius: 0; overflow: visible;
+  box-shadow: 7px 7px 0 color-mix(in srgb, var(--pink) 80%, transparent); transition: box-shadow .2s, transform .2s; }
+.card:hover { transform: translate(-2px, -2px); box-shadow: 10px 10px 0 color-mix(in srgb, var(--pink) 80%, transparent); }
+.card-link:hover h2 { color: var(--ink); }
+/* Duotone with halftone; full colour on hover */
+.card .bed { overflow: hidden; border-bottom: 2px solid var(--line); background: var(--duo-dark); }
+.card .bed img { filter: grayscale(1) contrast(1.25) brightness(1.05); transition: filter .35s; }
+.card .bed::before, .card .bed::after { content: ""; position: absolute; inset: 0; pointer-events: none; transition: opacity .35s; }
+.card .bed::before { background: var(--duo-dark); mix-blend-mode: screen; }
+.card .bed::after { background:
+    radial-gradient(circle, var(--duo-light) 30%, transparent 32%) 0 0 / 6px 6px,
+    var(--duo-light); mix-blend-mode: multiply; opacity: .9; }
+.card-link:hover .bed img { filter: none; }
+.card-link:hover .bed::before, .card-link:hover .bed::after { opacity: 0; }
+.bed-count, .bed-live { z-index: 2; }
+.card .strand { height: 8px; border-bottom: 2px solid var(--line); box-shadow: none; }
+.card h2 { font-size: 1.05rem; line-height: 1.15; }
+.stats dt { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 700; color: var(--muted); }
+.stats dd { font-weight: 800; }
+.card-meta { font-weight: 600; }
+.status { font: 400 .7rem var(--display); text-transform: uppercase; padding: .15rem .45rem; border: 2px solid currentColor;
+  transform: rotate(-3deg); }
+.status-gedruckt { background: var(--pink); color: #2A3A99; border-color: #2A3A99; }
+.status-geplant { background: var(--yellow); color: #2A3A99; border-color: #2A3A99; }
+.bed-count { background: var(--yellow); color: #2A3A99; border-radius: 0; font: 400 .72rem var(--display); text-transform: uppercase; }
+.bed-live { background: var(--pink); color: #2A3A99; border-radius: 0; }
+.card-select { border-radius: 0; }
+
+/* Project page */
+.project-title > h1, .project-head h1 { font-size: clamp(2rem, 5.5vw, 4.2rem); line-height: .95; }
+.origin { font-weight: 600; }
+.strand-wide { height: 14px; border: 2px solid var(--line); border-radius: 0; box-shadow: 5px 5px 0 var(--yellow); }
+.headline-stats { gap: 0; }
+.headline-stats > div { padding: .6rem 1.4rem .7rem; border: 2px solid var(--line); margin-left: -2px; background: var(--surface); }
+.headline-stats > div:nth-child(2) { background: var(--yellow); color: #2A3A99; }
+.headline-stats > div:nth-child(2) dt { color: #2A3A99; }
+.headline-stats dd { font: 400 1.7rem/1.1 var(--display); }
+.file, .edit, .project-strip, .designer, .photos-own, .job-list, .usage, .settings-section, .stat-tiles > div, .chart-card,
+.notice, .trash-item, .about-page section, .login-form {
+  border: 2px solid var(--line); border-radius: 0; box-shadow: 6px 6px 0 color-mix(in srgb, var(--pink) 70%, transparent); }
+.file-head { border-bottom: 2px solid var(--line);
+  background: radial-gradient(circle, color-mix(in srgb, var(--pink) 45%, transparent) 1.3px, transparent 1.5px) 0 0 / 7px 7px; }
+.file-name { font-weight: 800; }
+.bed-large, .plate-strip .bed, .extra-list .bed { border-radius: 0; border: 2px solid var(--line); }
+.plate-strip .is-sliced a[aria-current=true] .bed { outline: 0; box-shadow: 4px 4px 0 var(--pink); }
+.seg { border: 2px solid var(--line); border-radius: 0; }
+.seg button { background: var(--surface); color: var(--ink); }
+.seg button[aria-pressed=true] { background: var(--pink); color: #2A3A99; }
+.swatch { border-radius: 0; box-shadow: 2px 2px 0 var(--line); }
+.filaments th { border-bottom: 2px solid var(--line); }
+.flash { border: 2px solid var(--line); border-left-width: 8px; border-left-color: var(--pink); }
+.nav-menu-list, .lang-menu .menu, .live-list, .js .search.filters-open .filter-panel {
+  border: 2px solid var(--line); border-radius: 0; box-shadow: 6px 6px 0 var(--pink); }
+.live-print { border: 2px solid var(--line); border-radius: 0; font-weight: 700; }
+.page-tabs a[aria-current="page"] { border-bottom: 4px solid var(--pink); }
+.stat-tiles dd { font: 400 1.8rem var(--display); }
+.site-footer { border-top: 3px solid var(--line); }
