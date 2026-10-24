@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.1.1
 
 - **Bonbon in dark:** the highlighted numbers in the summary above the projects were hard to read,
   because the yellow marker only covered their lower half. They are now full yellow labels.
+- **Language and style on iPhone:** in the expanded menu on phones, Safari closed the menu instead of
+  opening the language or style list. On phones both are now select fields that apply right away.
 
 ## 1.1.0
 

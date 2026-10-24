@@ -81,6 +81,24 @@
             {% endfor %}
           </div>
         </details>
+        {# Phones: iOS Safari does not open the menus above inside the expanded menu, so plain
+           select fields there, sent right away by app.js #}
+        <label class="pref-select" data-pref-select>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
+          <span>{{ _('Sprache') }}</span>
+          <select name="sprache" disabled>
+            <option value="auto" {{ 'selected' if not chosen }}>{{ _('Automatisch') }}</option>
+            {% for code, name in LANGUAGES.items() %}<option value="{{ code }}" lang="{{ code }}" {{ 'selected' if code == chosen }}>{{ name }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="pref-select" data-pref-select>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.7-.8 1.7-1.6 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.3-4-7.6-9-7.6z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/><circle cx="17" cy="11" r="1"/></svg>
+          <span>{{ _('Stil') }}</span>
+          <select name="stil" disabled>
+            <option value="auto" {{ 'selected' if not chosen_style }}>{{ _('Standard ({style})', style=_(STYLE_LABELS[default_style()])) }}</option>
+            {% for key, label in STYLE_LABELS.items() %}<option value="{{ key }}" {{ 'selected' if key == chosen_style }}>{{ _(label) }}</option>{% endfor %}
+          </select>
+        </label>
         {% set nt = NEXT_THEME[t] %}
         <button type="submit" name="design" value="{{ nt }}" class="icon-btn theme-btn"
                 title="{{ _('Design: {current}. Klicken für: {next}', current=_(THEME_LABELS[t]), next=_(THEME_LABELS[nt])) }}"

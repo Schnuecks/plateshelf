@@ -429,7 +429,18 @@ summary { cursor: pointer; font-weight: 500; }
   .js .topbar.menu-open .lang-menu .menu { position: static; min-width: 0; margin: 0 0 .3rem 2.8rem; box-shadow: none;
     border: 0; border-left: 2px solid var(--line); border-radius: 0; padding: 0 0 0 .5rem; }
   .js .topbar .tb-left { gap: .5rem .75rem; }
+  /* Language and style as select fields instead of the menus (iOS Safari does not open those here) */
+  .js .topbar.menu-open .tb-prefs .lang-menu { display: none; }
+  .js .topbar.menu-open .pref-select { display: flex; align-items: center; gap: .8rem; min-height: 2.9rem; padding: .3rem .75rem;
+    border-radius: 6px; font-size: 1rem; font-weight: 500; color: var(--ink); cursor: pointer; }
+  .js .topbar.menu-open .pref-select:hover { background: var(--bg); }
+  .pref-select svg { width: 1.25rem; height: 1.25rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7;
+    stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
+  .pref-select select { margin-left: auto; min-width: 0; max-width: 60%; border: 0; background: none; box-shadow: none;
+    color: var(--muted); font: inherit; font-weight: 400; text-align: right; text-align-last: right; padding: .4rem 0;
+    -webkit-appearance: none; appearance: none; cursor: pointer; }
 }
+.pref-select { display: none; }
 .upload-link { font-weight: 600; text-decoration: none; white-space: nowrap; }
 .tb-right > .upload-link { order: -1; }  /* before language and theme */
 /* Top-bar menu on the right: history, trash, settings, account, sign out */
