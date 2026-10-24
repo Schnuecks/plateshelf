@@ -62,6 +62,10 @@ Antworten liegen nur im Arbeitsspeicher, verschickt wird nichts.
 - Danach prüft Trivy das Image auf bekannte Sicherheitslücken. Kritische und hohe, für die
   es schon eine Korrektur gibt, werden aufgelistet; abgebrochen wird nur bei kritischen,
   damit ein neues „hoch“ im Basis-Image kein Release blockiert, bis Debian nachgezogen hat.
+- Pull Requests, die nur Dokumentation ändern, überspringen Tests, Browsertest und Image-Build.
+  Das gilt auch für einen weiteren Push auf einen Pull Request, der nur Dokumentation ändert
+  (zum Beispiel die Version in `CHANGELOG.md`), sofern der Lauf für den vorherigen Stand
+  erfolgreich war.
 - Ein Release entsteht durch einen Versions-Tag:
 
   1. Änderungen in `CHANGELOG.md` unter der neuen Versionsnummer eintragen.

@@ -60,6 +60,9 @@ called “printer 1” etc.); file names stay. The answers are only kept in memo
 - Trivy then scans the image for known vulnerabilities. Critical and high ones that
   already have a fix are listed; the build only fails on critical ones, so a fresh “high”
   in the base image does not block a release until Debian has shipped the fix.
+- Pull requests that only change documentation skip the tests, browser test and image build.
+  The same applies to a further push to a pull request that only changes documentation (for
+  example the version in `CHANGELOG.md`), as long as the run for the previous state succeeded.
 - A release is created by a version tag:
 
   1. Add the changes to `CHANGELOG.md` under the new version number.
