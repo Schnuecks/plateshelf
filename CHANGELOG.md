@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - **Four new styles:** besides the classic look, PlateShelf now comes as Candy, Workbench,
   Blueprint and Pinboard, each in light and dark. Admins set the default under Settings → Style;
