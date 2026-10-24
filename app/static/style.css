@@ -913,3 +913,7 @@ a.icon-btn { text-decoration: none; }
 .viewer-footer a { color: var(--muted); }
 .event-log td { vertical-align: top; }
 .event-log tr.is-warn td:nth-child(2) { color: var(--warn); font-weight: 600; }
+/* Design proposals (branch only) */
+.look-switch { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .9rem; margin: .75rem 0 0; }
+.look-switch button { font-size: .85rem; }
+.look-switch button[aria-current="true"] { color: var(--ink); font-weight: 700; text-decoration: none; }

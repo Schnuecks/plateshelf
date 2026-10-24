@@ -16,7 +16,7 @@ from starlette.background import BackgroundTask
 
 from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, render, store
 from .i18n import gettext as _
-from .web import APP_VERSION, ONE_YEAR, _local_target, audit, current_user, templates
+from .web import APP_VERSION, LOOKS, ONE_YEAR, _local_target, audit, current_user, templates
 
 router = APIRouter()
 
@@ -174,7 +174,8 @@ def history_settings_save(enabled: str = Form("")):
 
 
 @router.post("/appearance")
-def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None), next: str = Form("/")):
+def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None),
+                    look: str | None = Form(None), next: str = Form("/")):
     """Language and theme from the title bar, stored per browser as a cookie.
 
     Only what was sent is changed; afterwards it goes back to the page.
@@ -186,6 +187,8 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
         response.delete_cookie("sprache")  # default or browser language
     if design in i18n.THEMES:
         response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax", httponly=True)
+    if look is not None and look in LOOKS:
+        response.set_cookie("look", look, max_age=ONE_YEAR, samesite="lax", httponly=True)
     return response
 
 

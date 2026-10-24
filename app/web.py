@@ -272,7 +272,8 @@ def _asset_version() -> str:
     """Checksum over CSS/JS: changes with every update so that browsers reload."""
     import hashlib
     h = hashlib.sha1()
-    for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js"):
+    for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js",
+                 "looks/nachtschicht.css", "looks/katalog.css", "looks/bonbon.css"):
         path = BASE / "static" / name
         if path.exists():
             h.update(path.read_bytes())
@@ -298,6 +299,15 @@ def language_choice(request: Request) -> str:
     return lang if lang in i18n.LANGUAGES else ""
 
 
+# Design proposals (branch design-vorschlaege): an extra stylesheet on top of style.css
+LOOKS = {"": "Klassisch", "nachtschicht": "Nachtschicht", "katalog": "Katalog", "bonbon": "Bonbon"}
+
+
+def look(request: Request) -> str:
+    value = request.cookies.get("look", "")
+    return value if value in LOOKS else ""
+
+
 def current_url(request: Request) -> str:
     return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
@@ -314,7 +324,7 @@ templates.env.globals.update(password_login=auth.password_login, passkey_login=p
 templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
-                             NEXT_THEME=NEXT_THEME)
+                             NEXT_THEME=NEXT_THEME, look=look, LOOKS=LOOKS)
 
 
 def _deleted_entry(request: Request) -> dict | None:
