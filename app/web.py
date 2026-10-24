@@ -273,7 +273,7 @@ def _asset_version() -> str:
     import hashlib
     h = hashlib.sha1()
     for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js",
-                 "looks/nachtschicht.css", "looks/katalog.css", "looks/bonbon.css"):
+                 "looks/bonbon.css"):
         path = BASE / "static" / name
         if path.exists():
             h.update(path.read_bytes())
@@ -300,7 +300,7 @@ def language_choice(request: Request) -> str:
 
 
 # Design proposals (branch design-vorschlaege): an extra stylesheet on top of style.css
-LOOKS = {"": "Klassisch", "nachtschicht": "Nachtschicht", "katalog": "Katalog", "bonbon": "Bonbon"}
+LOOKS = {"": "Klassisch", "bonbon": "Bonbon"}
 
 
 def look(request: Request) -> str:
