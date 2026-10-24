@@ -115,6 +115,36 @@ def test_language_and_theme_in_pages(client, monkeypatch):
     assert '<html lang="en" data-theme="light">' in client.get("/").text  # without default: English
 
 
+
+def test_style_default_and_own_choice(client):
+    """Style: the admin sets the default in the settings, every browser can pick its own."""
+    page = client.get("/").text
+    assert "data-style" not in page and "/static/styles/" not in page  # classic: only style.css
+    assert 'name="stil" value="auto" role="menuitemradio" aria-checked="true"' in page
+    r = client.post("/settings/style", data={"stil": "blaupause"}, follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/settings?style=1#style"
+    page = client.get("/").text
+    assert 'data-style="blaupause"' in page and "/static/styles/blaupause.css" in page
+    assert client.post("/settings/style", data={"stil": "../style"}, follow_redirects=False).status_code == 303
+    assert 'data-style="blaupause"' in client.get("/").text  # unknown values are ignored
+
+    r = client.post("/appearance", data={"stil": "pinnwand", "next": "/history"}, follow_redirects=False)
+    assert r.headers["location"] == "/history" and "stil=pinnwand" in r.headers["set-cookie"]
+    assert "httponly" in r.headers["set-cookie"].lower()
+    client.cookies.clear()
+    client.cookies.set("stil", "pinnwand")
+    page = client.get("/").text
+    assert 'data-style="pinnwand"' in page and 'content="#6B4528"' in page  # browser bar in the frame colour
+    assert 'name="stil" value="pinnwand" role="menuitemradio" aria-checked="true"' in page
+    client.cookies.clear()
+    client.cookies.set("stil", "klassisch")
+    assert "data-style" not in client.get("/").text  # own choice beats the default
+    r = client.post("/appearance", data={"stil": "auto"}, follow_redirects=False)
+    assert 'stil=""' in r.headers["set-cookie"] or "stil=;" in r.headers["set-cookie"]
+    client.cookies.clear()
+    client.cookies.set("stil", "gibtsnicht")
+    assert 'data-style="blaupause"' in client.get("/").text
+
 def test_printer_errors_are_translated(client, monkeypatch):
     from app import printer_import as pi
     monkeypatch.setattr(pi, "sync_all", lambda: None)

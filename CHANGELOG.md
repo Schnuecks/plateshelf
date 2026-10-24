@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- **Four new styles:** besides the classic look, PlateShelf now comes as Candy, Workbench,
+  Blueprint and Pinboard, each in light and dark. Admins set the default under Settings → Style;
+  everyone can pick their own in the palette menu of the title bar.
+- Plates that are only included as a preview are greyed out in the image only; their names stay
+  readable (contrast).
+
 ## 1.0.2
 
 - **Image without pip:** pip is removed after the build. The copy from the Python base image

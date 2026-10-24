@@ -272,7 +272,9 @@ def _asset_version() -> str:
     """Checksum over CSS/JS: changes with every update so that browsers reload."""
     import hashlib
     h = hashlib.sha1()
-    for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js"):
+    for name in ("style.css", "app.js", "viewer.js", "geometry.js", "geometry-worker.js",
+                 "styles/bonbon.css", "styles/werkbank.css", "styles/blaupause.css",
+                 "styles/pinnwand.css"):
         path = BASE / "static" / name
         if path.exists():
             h.update(path.read_bytes())
@@ -298,6 +300,30 @@ def language_choice(request: Request) -> str:
     return lang if lang in i18n.LANGUAGES else ""
 
 
+# Styles: every one except „Klassisch“ is an extra stylesheet in static/styles on top of style.css
+STYLE_LABELS = {"klassisch": "Klassisch", "bonbon": "Bonbon", "werkbank": "Werkbank", "blaupause": "Blaupause",
+                "pinnwand": "Pinnwand"}
+# Browser bar colour (light, dark) = colour at the top of the page
+STYLE_BARS = {"klassisch": ("#FFFFFF", "#1D2227"), "bonbon": ("#FFF3E6", "#160E2E"), "werkbank": ("#E9ECEE", "#4A5056"),
+              "blaupause": ("#F1F3EE", "#0F3B7A"), "pinnwand": ("#6B4528", "#17191C")}
+
+
+def default_style() -> str:
+    """Style for all browsers without their own choice, set by the admin in the settings."""
+    value = store.get_settings().get("stil")
+    return value if value in i18n.STYLES else "klassisch"
+
+
+def style_choice(request: Request) -> str:
+    """Explicitly chosen style of this browser, empty = the default."""
+    value = request.cookies.get("stil", "")
+    return value if value in i18n.STYLES else ""
+
+
+def current_style(request: Request) -> str:
+    return style_choice(request) or default_style()
+
+
 def current_url(request: Request) -> str:
     return request.url.path + (f"?{request.url.query}" if request.url.query else "")
 
@@ -314,7 +340,8 @@ templates.env.globals.update(password_login=auth.password_login, passkey_login=p
 templates.env.globals.update(oidc_offered=oidc_offered, oidc_name=oidc.provider_name,
                              oidc_admin_group=oidc.admin_group_set)
 templates.env.globals.update(language_choice=language_choice, current_url=current_url, THEME_LABELS=THEME_LABELS,
-                             NEXT_THEME=NEXT_THEME)
+                             NEXT_THEME=NEXT_THEME, current_style=current_style, style_choice=style_choice,
+                             default_style=default_style, STYLE_LABELS=STYLE_LABELS, STYLE_BARS=STYLE_BARS)
 
 
 def _deleted_entry(request: Request) -> dict | None:

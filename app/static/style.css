@@ -376,7 +376,7 @@ summary { cursor: pointer; font-weight: 500; }
 .plate-strip .bed { border-radius: 6px; overflow: hidden; outline: 2px solid transparent; }
 .plate-strip .is-sliced .bed { outline-color: var(--accent); }
 .plate-strip .is-sliced a:hover .strip-title { color: var(--accent); }
-.plate-strip .is-preview { opacity: .55; }
+.plate-strip .is-preview .bed { opacity: .55; }  /* only the image, the text stays readable */
 .strip-title { display: block; font-weight: 600; font-size: .88rem; margin-top: .35rem; }
 .strip-sub { display: block; font-size: .8rem; color: var(--muted); }
 .strip-note { padding: 0 1.25rem .75rem; }
@@ -913,3 +913,15 @@ a.icon-btn { text-decoration: none; }
 .viewer-footer a { color: var(--muted); }
 .event-log td { vertical-align: top; }
 .event-log tr.is-warn td:nth-child(2) { color: var(--warn); font-weight: 600; }
+
+/* Settings: choice of style with a small colour sample each */
+.style-choice { gap: .4rem; }
+.settings-section label.style-option { align-items: center; gap: .7rem; padding: .35rem .2rem; }
+.style-option .style-name { font-weight: 600; }
+.style-swatch { display: flex; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+.style-swatch i { width: .9rem; height: 1.3rem; }
+[data-style-preview="klassisch"] i:nth-child(1) { background: #ECEEF0; } [data-style-preview="klassisch"] i:nth-child(2) { background: #0B6E63; } [data-style-preview="klassisch"] i:nth-child(3) { background: #2A2F35; }
+[data-style-preview="bonbon"] i:nth-child(1) { background: #FF5FA2; } [data-style-preview="bonbon"] i:nth-child(2) { background: #FFD23F; } [data-style-preview="bonbon"] i:nth-child(3) { background: #3DDBB0; }
+[data-style-preview="werkbank"] i:nth-child(1) { background: #CFA97A; } [data-style-preview="werkbank"] i:nth-child(2) { background: #FFC20E; } [data-style-preview="werkbank"] i:nth-child(3) { background: #1D1D1B; }
+[data-style-preview="blaupause"] i:nth-child(1) { background: #0F3B7A; } [data-style-preview="blaupause"] i:nth-child(2) { background: #EAF2FF; } [data-style-preview="blaupause"] i:nth-child(3) { background: #D9302A; }
+[data-style-preview="pinnwand"] i:nth-child(1) { background: #C6976A; } [data-style-preview="pinnwand"] i:nth-child(2) { background: #FFE680; } [data-style-preview="pinnwand"] i:nth-child(3) { background: #FBF9F4; }

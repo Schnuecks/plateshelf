@@ -166,6 +166,13 @@ def thumbnails_save(vorschaubilder: str = Form("")):
     return RedirectResponse("/settings?thumbs=1#thumbs", status_code=303)
 
 
+@router.post("/settings/style")
+def style_settings_save(stil: str = Form("")):
+    if stil in i18n.STYLES:
+        store.save_settings({"stil": stil})
+    return RedirectResponse("/settings?style=1#style", status_code=303)
+
+
 @router.post("/settings/history")
 def history_settings_save(enabled: str = Form("")):
     if print_history.env_setting() is None:
@@ -174,7 +181,8 @@ def history_settings_save(enabled: str = Form("")):
 
 
 @router.post("/appearance")
-def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None), next: str = Form("/")):
+def appearance_save(sprache: str | None = Form(None), design: str | None = Form(None),
+                    stil: str | None = Form(None), next: str = Form("/")):
     """Language and theme from the title bar, stored per browser as a cookie.
 
     Only what was sent is changed; afterwards it goes back to the page.
@@ -186,6 +194,10 @@ def appearance_save(sprache: str | None = Form(None), design: str | None = Form(
         response.delete_cookie("sprache")  # default or browser language
     if design in i18n.THEMES:
         response.set_cookie("design", design, max_age=ONE_YEAR, samesite="lax", httponly=True)
+    if stil in i18n.STYLES:
+        response.set_cookie("stil", stil, max_age=ONE_YEAR, samesite="lax", httponly=True)
+    elif stil == "auto":
+        response.delete_cookie("stil")  # the default from the settings
     return response
 
 

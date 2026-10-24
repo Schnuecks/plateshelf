@@ -201,16 +201,30 @@ library. Right after deleting, you can take it back with “Undo”.
 - Items are deleted permanently after `TRASH_DAYS` days (default 30). With
   `TRASH_DAYS=0` they stay until you delete them yourself.
 
-## Language and theme
+## Language, style and theme
 
 In the top right of the title bar you choose the language (globe with a code such as
-“EN”) and the theme: clicking the icon switches between system, light and dark. Both
-apply per browser, so everyone in the household can have their own setting. Numbers,
+“EN”), the style (palette) and the theme: clicking the sun or moon switches between
+system, light and dark. All three apply per browser, so everyone in the household can
+have their own setting. Numbers,
 amounts and dates follow the selected language.
 
 Without a choice, `DEFAULT_LANGUAGE` and `DEFAULT_THEME` from the `.env` apply. If no
 language is set there either, the browser language is used, and English if that isn’t
 one of the six.
+
+### Styles
+
+Besides the classic look there are four styles, each in light and dark:
+
+- **Candy:** bold outlines, hard shadows and candy colours.
+- **Workbench:** a pegboard with stencil lettering, label tape for tags and hazard stripes.
+- **Blueprint:** a technical drawing with grid paper, dimension lines and a title block on
+  every project.
+- **Pinboard:** cork with the prints as polaroids, handwritten captions and sticky notes.
+
+Admins set the style for all browsers under **Settings → Style**. In the palette menu,
+everyone can pick a different one for their browser or go back to the default.
 
 ## On the home screen
 

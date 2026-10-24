@@ -28,6 +28,7 @@ LANGUAGES = {
 FALLBACK = "de"   # language of the texts in the code, also the keys of the translations
 DEFAULT = "en"    # if the browser language is not one of the supported ones
 THEMES = ("system", "light", "dark")
+STYLES = ("klassisch", "bonbon", "werkbank", "blaupause", "pinnwand")
 
 LOCALE_DIR = Path(__file__).parent / "locales"
 _catalogs: dict[str, dict[str, str]] = {}
