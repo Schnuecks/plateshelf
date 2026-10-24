@@ -26,9 +26,12 @@ jobs:
   changes:
     # Only docs changed (Markdown, docs/, licence, issue templates)? Then tests, browser test and
     # image are skipped; GitHub counts skipped required checks as passed. Tags always run everything.
+    # A further push to a pull request that only touches docs (e.g. the version in CHANGELOG.md)
+    # is skipped too, but only if the run for the previous state of the pull request succeeded.
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      actions: read   # result of the previous run
     outputs:
       code: ${{ steps.diff.outputs.code }}
     steps:
@@ -38,10 +41,22 @@ jobs:
       - id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          ACTION: ${{ github.event.action }}
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          docs_only() { ! git diff --name-only "$1" "$2" | grep -qvE '\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/'; }
           code=true
           if [ "$GITHUB_REF_TYPE" != tag ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            git diff --name-only "$BASE" HEAD | grep -qvE '\.md$|^docs/|^LICENSE$|^\.github/ISSUE_TEMPLATE/' || code=false
+            docs_only "$BASE" HEAD && code=false
+          fi
+          if [ "$code" = true ] && [ "$ACTION" = synchronize ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             && docs_only "$BEFORE" "$HEAD_SHA"; then
+            previous=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$BEFORE&event=pull_request" \
+              --jq '[.workflow_runs[] | select(.path == ".github/workflows/ci.yml")][0].conclusion')
+            echo "Only docs since $BEFORE, run for it: $previous"
+            [ "$previous" = success ] && code=false
           fi
           echo "code=$code" | tee -a "$GITHUB_OUTPUT"
 
