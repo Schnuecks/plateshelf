@@ -57,6 +57,7 @@ def _from_tables() -> set[str]:
     found |= {entry[1] for entry in main.SETTING_LABELS} | set(main.BOOL_WORDS.values())
     found |= {"IP-Adresse", "Seriennummer", "Zugangscode", "Passwort", "API-Schlüssel"}  # field names in error messages
     found |= set(web.ROLE_LABELS.values()) | set(web.EVENT_LABELS.values())
+    found |= set(web.STYLE_LABELS.values())
     from app import passkeys
     found |= set(passkeys.MESSAGES)
     return found

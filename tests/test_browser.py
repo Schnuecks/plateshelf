@@ -148,6 +148,18 @@ def test_accessibility(server, page, path, theme):
     _check_accessibility(page, server["url"] + path.format(**server))
 
 
+@pytest.mark.parametrize("path", ["/", "/p/{pid}", "/settings", "/history", "/statistics", "/upload", "/view/{fid}/1"])
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("style", ["bonbon", "werkbank", "blaupause", "pinnwand"])
+def test_accessibility_of_styles(server, page, path, theme, style):
+    """Every style in light and dark: contrast and the rest of WCAG 2 A/AA as for the classic one."""
+    page.context.add_cookies([{"name": "design", "value": theme, "url": server["url"]},
+                              {"name": "stil", "value": style, "url": server["url"]}])
+    _check_accessibility(page, server["url"] + path.format(**server))
+    assert page.locator("html").get_attribute("data-style") == style
+    assert page.errors == []
+
+
 def test_accessibility_sign_in_pages(server, page, monkeypatch):
     """Setup and login are the first things new users see."""
     from app import auth, store
@@ -481,7 +493,7 @@ def test_long_names_do_not_widen_the_project_page(server, browser):
 
 def test_language_and_theme_from_topbar(server, page):
     page.goto(server["url"] + "/")
-    page.locator(".lang-menu summary").click()
+    page.locator(".lang-menu:not(.style-menu) summary").click()
     page.locator('.lang-menu button[value="en"]').click()
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("lang") == "en"
@@ -490,6 +502,11 @@ def test_language_and_theme_from_topbar(server, page):
     page.locator(".theme-btn").click()  # system -> light
     page.wait_for_load_state("load")
     assert page.locator("html").get_attribute("data-theme") == "light"
+    page.locator(".style-menu summary").click()
+    page.locator('.style-menu button[value="werkbank"]').click()
+    page.wait_for_load_state("load")
+    assert page.locator("html").get_attribute("data-style") == "werkbank"
+    assert page.locator('.style-menu button[value="auto"]').text_content().strip() == "Default (Classic)"
     assert page.errors == []
 
 

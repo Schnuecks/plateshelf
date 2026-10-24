@@ -1,4 +1,4 @@
-/* Design proposal „Bonbon“: playful neo-brutalism. Thick outlines, hard offset shadows,
+/* Style „Bonbon“: playful neo-brutalism. Thick outlines, hard offset shadows,
    candy colours, sticker badges and cards that tilt when you point at them. */
 @font-face { font-family: "Bricolage Grotesque"; font-weight: 400; font-display: swap; src: url("fonts/bricolage-grotesque-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
 @font-face { font-family: "Bricolage Grotesque"; font-weight: 400; font-display: swap; src: url("fonts/bricolage-grotesque-latin-ext-400.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
@@ -149,7 +149,7 @@ main { padding-top: 1.8rem; }
 .headline-stats > div:nth-child(2) { background: var(--mint); color: #1D1236; transform: rotate(1deg); }
 .headline-stats > div:nth-child(3) { background: var(--sky); color: #1D1236; transform: rotate(-.7deg); }
 .headline-stats > div:nth-child(4) { background: var(--pink); color: #1D1236; transform: rotate(1.4deg); }
-.headline-stats > div:nth-child(-n+4) :is(dt, .cost-split) { color: #3E3360; }
+.headline-stats > div:nth-child(-n+4) :is(dt, .cost-split) { color: #2A1F4A; }
 .headline-stats dd { font: 900 1.5rem/1.2 var(--display); }
 .file, .edit, .project-strip, .designer, .photos-own, .job-list, .usage, .settings-section, .stat-tiles > div, .chart-card,
 .notice, .trash-item, .about-page section, .login-form {
@@ -157,6 +157,7 @@ main { padding-top: 1.8rem; }
 .side { gap: 1.8rem; }
 .file-head { background: var(--lilac); color: #1D1236; border-bottom: var(--bw) solid var(--stroke); }
 .file-head .file-sub { color: #3E3360; }
+.file-head button.danger-quiet { color: #7A1206; }
 .file-name { font: 800 1rem var(--font); }
 .bed-large { border: var(--bw) solid var(--stroke); border-radius: 18px; }
 .plate-strip .bed, .extra-list .bed { border-radius: 14px; border: 2px solid var(--stroke); }

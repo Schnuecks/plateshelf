@@ -1,4 +1,4 @@
-/* Design proposal „Pinnwand“: the idea board above the printer. Cork (dark: felt), prints as
+/* Style „Pinnwand“: the idea board above the printer. Cork (dark: felt), prints as
    polaroids held by washi tape or pins, handwritten captions and sticky notes for the numbers. */
 @font-face { font-family: "Caveat"; font-weight: 400 500; font-display: swap; src: url("fonts/caveat-latin-500.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
 @font-face { font-family: "Caveat"; font-weight: 400 500; font-display: swap; src: url("fonts/caveat-latin-ext-500.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2C60-2C7F, U+A720-A7FF; }
@@ -25,7 +25,7 @@
   --board-ink: #2B1A0C;
   --muted: #6D6458;
   --line: #E4DED2;
-  --accent: #D2462F;
+  --accent: #B23A22;
   --accent-ink: #FFFFFF;
   --note-1: #FFE680; --note-2: #FFB3C7; --note-3: #A8DDF5; --note-4: #B9EBA4;
   --tape-1: rgb(255 214 120 / .75); --tape-2: rgb(150 210 240 / .75); --tape-3: rgb(250 160 190 / .75); --tape-4: rgb(170 225 150 / .75);
@@ -38,13 +38,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --board: #2C2F34; --speck: rgb(255 255 255 / .05); --bg: #2C2F34; --board-ink: #ECE6DA; --frame: #17191C;
-    --viewer-bg: #1F2226; --surface: #F4F1EA; --ink: #2B2620; --muted: #6D6458; --line: #E0D9CC; --accent: #D2462F;
+    --viewer-bg: #1F2226; --surface: #F4F1EA; --ink: #2B2620; --muted: #6D6458; --line: #E0D9CC; --accent: #B23A22;
     --accent-ink: #FFFFFF; --bed: #2E3135; --bed-grain: #33373B; --warn: #B4341F;
   }
 }
 :root[data-theme="dark"] {
 --board: #2C2F34; --speck: rgb(255 255 255 / .05); --bg: #2C2F34; --board-ink: #ECE6DA; --frame: #17191C;
-  --viewer-bg: #1F2226; --surface: #F4F1EA; --ink: #2B2620; --muted: #6D6458; --line: #E0D9CC; --accent: #D2462F;
+  --viewer-bg: #1F2226; --surface: #F4F1EA; --ink: #2B2620; --muted: #6D6458; --line: #E0D9CC; --accent: #B23A22;
   --accent-ink: #FFFFFF; --bed: #2E3135; --bed-grain: #33373B; --warn: #B4341F;
 }
 
@@ -55,7 +55,7 @@ body {
     radial-gradient(circle at 30% 20%, rgb(255 255 255 / .08), transparent 60%),
     var(--board);
   background-attachment: fixed;
-  color: var(--board-ink);
+  color: var(--paper-ink);
   font-size: 16px;
 }
 ::selection { background: var(--note-1); color: #2B2620; }
@@ -78,7 +78,7 @@ button.quiet, button.danger-quiet, .icon-btn, .lang-menu .menu button, .nav-menu
 .view-toggle button, .seg button, .play-speed, .live-more {
   background: none; box-shadow: none; transform: none; color: inherit; font-family: var(--font); font-size: inherit;
 }
-button.quiet { color: var(--board-ink); font: 700 1.25rem var(--hand); }
+button.quiet { color: inherit; font: 700 1.25rem var(--hand); }
 .filter-toggle { background: var(--note-1); color: #2B2620; }
 .upload-link { font: 700 1.5rem var(--hand); }
 .nav-back { background: rgb(255 255 255 / .12); border: 1px solid rgb(255 255 255 / .3); font: 700 1.35rem var(--hand); }
@@ -127,6 +127,7 @@ main { padding-top: 2rem; }
 .card-meta { color: var(--muted); align-items: center; }
 .status { font: 700 1.3rem/1 var(--hand); padding: .1rem .5rem; color: #2B2620; transform: rotate(3deg); box-shadow: 0 2px 4px rgb(0 0 0 / .2); }
 .status-gedruckt { background: var(--note-4); } .status-geplant { background: var(--note-3); } .status-fehlgeschlagen { background: var(--note-2); }
+.plate-printed { background: var(--note-4); color: #2B2620; }
 .bed-count { background: var(--note-1); color: #2B2620; border-radius: 0; font: 700 1.1rem var(--hand); transform: rotate(-4deg); }
 .bed-live { background: var(--accent); border-radius: 0; font: 700 1.1rem var(--hand); }
 
@@ -147,11 +148,20 @@ main { padding-top: 2rem; }
 .headline-stats dd { font: 700 2.3rem/1 var(--hand); }
 /* Paper sheets pinned to the board */
 .file, .edit, .project-strip, .designer, .photos-own, .job-list, .usage, .settings-section, .stat-tiles > div, .chart-card,
-.notice, .trash-item, .about-page section, .login-form, .bulk-bar, .flash {
+.notice, .trash-item, .about-page section, .login-form, .bulk-bar, .flash, .viewer-panel {
   background: var(--surface); color: var(--paper-ink); border: 0; border-radius: 1px;
   box-shadow: 0 16px 22px -14px rgb(0 0 0 / .55), 0 1px 2px rgb(0 0 0 / .2); }
 :is(.file, .edit, .project-strip, .designer, .photos-own, .settings-section, .chart-card) :is(.hint, .file-sub, .strip-sub, dt, .muted) { color: var(--muted); }
-.history-page, .settings-page, .trash-page, .account-page, .about-page, .upload { color: var(--board-ink); }
+/* Only what hangs directly on the board gets the board's text colour, everything else is on paper */
+.origin, .history-page > h1, .history-page > .hint, .settings-page > h1, .trash-head, .trash-page > .hint, .account-page > h1,
+.account-page > .hint, .about-head, .upload > h1, .empty, .more-projects, .page-tabs a, .tags + p, .viewer-title, .site-footer,
+main > .flash ~ p:not([class]) { color: var(--board-ink); }
+.more-projects .hint { color: var(--board-ink); }
+/* Pages without a sheet of paper: text on the board, the sheets inside switch back to paper ink */
+.history-page, .upload, .trash-page, .account-page, .about-page, .settings-nav a, .page-tabs a,
+.page-tabs a[aria-current="page"], .upload .hint, .empty h2 { color: var(--board-ink); }
+.settings-nav a[aria-current="page"], .settings-nav a:hover { color: var(--paper-ink); background: var(--surface); }
+.history-table, .history-page .flash, .upload input { color: var(--paper-ink); }
 .file-head, .plate + .plate, details { border-color: var(--line); }
 .plate-info h3 { font: 700 1.9rem var(--hand); }
 .bed-large, .plate-strip .bed, .extra-list .bed { border-radius: 0; border: 6px solid #fff; box-shadow: 0 4px 8px rgb(0 0 0 / .25); }

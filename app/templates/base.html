@@ -1,6 +1,6 @@
 <!doctype html>
-{% set t = theme(request) %}{% set lk = look(request) %}
-<html lang="{{ lang() }}"{% if t != 'system' %} data-theme="{{ t }}"{% endif %}{% if lk %} data-look="{{ lk }}"{% endif %}>
+{% set t = theme(request) %}{% set ui_style = current_style(request) %}
+<html lang="{{ lang() }}"{% if t != 'system' %} data-theme="{{ t }}"{% endif %}{% if ui_style != 'klassisch' %} data-style="{{ ui_style }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -9,7 +9,7 @@
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
   <link rel="preload" href="/static/fonts/barlow-latin-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css?v={{ ASSET_V }}">
-  {% if lk %}<link rel="stylesheet" href="/static/looks/{{ lk }}.css?v={{ ASSET_V }}">{% endif %}
+  {% if ui_style != 'klassisch' %}<link rel="stylesheet" href="/static/styles/{{ ui_style }}.css?v={{ ASSET_V }}">{% endif %}
   {% block head %}{% endblock %}
   <link rel="icon" href="/static/logo.svg?v={{ ASSET_V }}" type="image/svg+xml">
   {# As an app on the home screen: manifest for Android/Chrome, icon and title for iOS #}
@@ -18,11 +18,12 @@
   <meta name="apple-mobile-web-app-title" content="{{ APP_NAME }}">
   <meta name="mobile-web-app-capable" content="yes">
   {# Browser bar color = header; with an explicitly chosen theme independent of the system #}
+  {% set bar = STYLE_BARS[ui_style] %}
   {% if t == 'system' %}
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#1D2227" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="{{ bar[0] }}" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="{{ bar[1] }}" media="(prefers-color-scheme: dark)">
   {% else %}
-  <meta name="theme-color" content="{{ '#1D2227' if t == 'dark' else '#FFFFFF' }}">
+  <meta name="theme-color" content="{{ bar[1] if t == 'dark' else bar[0] }}">
   {% endif %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -66,6 +67,20 @@
             {% endfor %}
           </div>
         </details>
+        {% set chosen_style = style_choice(request) %}
+        <details class="lang-menu style-menu" data-menu>
+          <summary class="icon-btn" title="{{ _('Stil: {style}', style=_(STYLE_LABELS[ui_style])) }}" aria-label="{{ _('Stil: {style}', style=_(STYLE_LABELS[ui_style])) }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.7-.8 1.7-1.6 0-.5-.2-.8-.4-1.1-.3-.3-.4-.6-.4-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4.3-4-7.6-9-7.6z"/><circle cx="7.5" cy="11.5" r="1"/><circle cx="10" cy="7.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/><circle cx="17" cy="11" r="1"/></svg>
+            <span class="pref-label">{{ _('Stil') }}</span>
+            <span class="pref-value">{{ _(STYLE_LABELS[ui_style]) }}</span>
+          </summary>
+          <div class="menu" role="menu">
+            <button type="submit" name="stil" value="auto" role="menuitemradio" aria-checked="{{ 'true' if not chosen_style else 'false' }}">{{ _('Standard ({style})', style=_(STYLE_LABELS[default_style()])) }}</button>
+            {% for key, label in STYLE_LABELS.items() %}
+            <button type="submit" name="stil" value="{{ key }}" role="menuitemradio" aria-checked="{{ 'true' if key == chosen_style else 'false' }}">{{ _(label) }}</button>
+            {% endfor %}
+          </div>
+        </details>
         {% set nt = NEXT_THEME[t] %}
         <button type="submit" name="design" value="{{ nt }}" class="icon-btn theme-btn"
                 title="{{ _('Design: {current}. Klicken für: {next}', current=_(THEME_LABELS[t]), next=_(THEME_LABELS[nt])) }}"
@@ -104,11 +119,6 @@
   <footer class="site-footer">
     {{ _('{app} {version} von {author}', app=APP_NAME, version=APP_VERSION, author=APP_AUTHOR) }}, <a href="/about">{{ _('Über {app}', app=APP_NAME) }}</a>, <a href="{{ APP_REPO }}" target="_blank" rel="noopener">{{ _('Quellcode auf GitHub') }}</a>,
     {{ _('Lizenz') }} <a href="{{ APP_REPO }}/blob/main/LICENSE" target="_blank" rel="noopener license">{{ APP_LICENSE }}</a>
-    <form method="post" action="/appearance" class="look-switch">
-      <input type="hidden" name="next" value="{{ current_url(request) }}">
-      <span>Design-Vorschlag:</span>
-      {% for key, label in LOOKS.items() %}<button type="submit" name="look" value="{{ key }}" class="quiet"{% if key == lk %} aria-current="true"{% endif %}>{{ label }}</button>{% endfor %}
-    </form>
   </footer>
   {% endblock %}
   <script id="i18n" type="application/json">{{ js_texts()|tojson }}</script>

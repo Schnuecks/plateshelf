@@ -1,4 +1,4 @@
-/* Design proposal „Blaupause“: a technical drawing. Light is a diazo print (pale paper, blue lines),
+/* Style „Blaupause“: a technical drawing. Light is a diazo print (pale paper, blue lines),
    dark the classic blueprint. Grid paper, a title block on every card and red pencil markups. */
 @font-face { font-family: "Share Tech"; font-weight: 400 700; font-display: swap; src: url("fonts/share-tech-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
 @font-face { font-family: "Share Tech Mono"; font-weight: 400 700; font-display: swap; src: url("fonts/share-tech-mono-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212; }
@@ -18,28 +18,28 @@
   --bg: #F1F3EE;
   --surface: #F7F8F4;
   --ink: #23458F;
-  --muted: #5F78B0;
+  --muted: #4A619C;
   --line: #23458F;
   --grid-minor: rgb(35 69 143 / .08);
   --grid-major: rgb(35 69 143 / .16);
-  --accent: #D9302A;          /* red pencil */
+  --accent: #C0261F;          /* red pencil */
   --accent-ink: #FFFFFF;
   --bed: #E6EAF1;
   --bed-grain: #E6EAF1;
   --viewer-bg: #F1F3EE;
-  --warn: #D9302A;
+  --warn: #C0261F;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0F3B7A; --surface: #12437F; --ink: #EAF2FF; --muted: #A9C2EA; --line: #D7E6FF;
-    --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FF7A6B; --accent-ink: #0F3B7A;
-    --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB0A6;
+    --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FFA398; --accent-ink: #0F3B7A;
+    --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0F3B7A; --surface: #12437F; --ink: #EAF2FF; --muted: #A9C2EA; --line: #D7E6FF;
-  --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FF7A6B; --accent-ink: #0F3B7A;
-  --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB0A6;
+  --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FFA398; --accent-ink: #0F3B7A;
+  --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
 }
 
 /* Grid paper: 5 mm and 25 mm */

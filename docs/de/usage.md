@@ -213,16 +213,31 @@ Unter „Papierkorb“ oben rechts siehst du alle gelöschten Dateien und Projek
 - Nach `TRASH_DAYS` Tagen (Standard 30) werden Einträge automatisch endgültig gelöscht.
   Mit `TRASH_DAYS=0` bleiben sie, bis du sie selbst löschst.
 
-## Sprache und Design
+## Sprache, Stil und Design
 
-Oben rechts in der Titelleiste wählst du die Sprache (Weltkugel mit Kürzel, z. B. „DE“)
-und das Design: Ein Klick auf das Symbol wechselt zwischen System, Hell und Dunkel.
-Beides gilt für den jeweiligen Browser, jeder im Haushalt kann also seine eigene
-Einstellung haben. Zahlen, Beträge und Datumsangaben folgen der gewählten Sprache.
+Oben rechts in der Titelleiste wählst du die Sprache (Weltkugel mit Kürzel, z. B. „DE“),
+den Stil (Farbpalette) und das Design: Ein Klick auf Sonne oder Mond wechselt zwischen
+System, Hell und Dunkel. Alles drei gilt für den jeweiligen Browser, jeder im Haushalt
+kann also seine eigene Einstellung haben. Zahlen, Beträge und Datumsangaben folgen der gewählten Sprache.
 
 Ohne eigene Auswahl gelten `DEFAULT_LANGUAGE` und `DEFAULT_THEME` aus der `.env`. Ist
 keine Sprache vorgegeben, gilt die Sprache des Browsers, und Englisch, wenn diese keine
 der sechs ist.
+
+### Stile
+
+Neben dem klassischen Aussehen gibt es vier Stile, jeweils hell und dunkel:
+
+- **Bonbon:** kräftige Konturen, harte Schatten und Bonbonfarben.
+- **Werkbank:** eine Lochwand mit Schablonenschrift, Prägeband für Tags und Warnstreifen.
+- **Blaupause:** eine technische Zeichnung mit Rasterpapier, Maßlinien und einem Schriftfeld
+  an jedem Projekt.
+- **Pinnwand:** Kork mit den Drucken als Polaroids, handschriftlicher Beschriftung und
+  Notizzetteln.
+
+Admins legen den Stil für alle Browser unter **Einstellungen → Stil** fest. Im Menü mit der
+Farbpalette kann sich jeder für seinen Browser einen anderen aussuchen oder zum Standard
+zurückkehren.
 
 ## Auf dem Homescreen
 
