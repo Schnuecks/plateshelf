@@ -12,7 +12,10 @@ PlateShelf kann geslicte Drucke selbst von deinen Druckern holen:
   LAN-only-Modus ist dafür nicht nötig, sofern die Firmware den Dateizugriff erlaubt.
   PlateShelf holt die `.gcode.3mf`-Dateien aus dem Hauptverzeichnis und die geslicten
   Projekte aus dem Ordner `cache`, in dem die P1- und A1-Serie Drucke aus Bambu Studio
-  ablegt. Der P1S braucht dafür eine microSD-Karte.
+  ablegt. Der P1S braucht dafür eine microSD-Karte. Drucker mit internem Speicher wie der
+  P2S können per „An Drucker senden“ geschickte Dateien auch dort ablegen; an diesen Speicher
+  kommt PlateShelf nicht heran, nur an die SD-Karte. Wähl beim Senden die SD-Karte als
+  Speicher, sonst steht der Druck ohne Datei im Verlauf (siehe unten).
 - **Prusa-Drucker** über PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf holt
   die `.bgcode`- und `.gcode`-Dateien vom USB-Stick oder internen Speicher.
 - **Klipper-Drucker** über [Moonraker](https://moonraker.readthedocs.io), die
@@ -129,6 +132,12 @@ dem bisherigen Fortschritt geschätzt.
 Ein Druck wird der vom Drucker geholten Datei zugeordnet und damit ihrem Projekt. Liegt
 die Datei noch nicht in der Bibliothek, holt PlateShelf sie sofort und ordnet den Druck
 danach zu. Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.
+
+Hat der Drucker keine Datei zum Holen, etwa weil sie im internen Speicher liegt, bleibt der
+Druck ohne Projekt im Verlauf. Exportier die geslicte Datei in Bambu Studio und lade sie in
+PlateShelf hoch: Drucke der letzten 30 Tage werden ihr dann über Projektname und Platte
+zugeordnet. Das passiert erst eine halbe Stunde nach dem Start, damit eine Datei, die der
+Drucker selbst bereitstellt, immer Vorrang hat.
 
 **Notizen pro Druck:** Unter „Notiz“ im Verlauf und auf der Projektseite bewertest du einen
 Druck (👍 gelungen, 👎 misslungen) und hältst fest, was gut oder schief lief, etwa „Warping

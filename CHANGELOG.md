@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- **Prints without a file from the printer** (e.g. the P2S kept the file sent from Bambu Studio
+  in its internal storage, out of reach for PlateShelf) are matched to an uploaded file with the
+  same project name and plate, from half an hour after the start. The docs explain the setup.
+
 ## 1.1.1
 
 - **Bonbon in dark:** the highlighted numbers in the summary above the projects were hard to read,

@@ -63,6 +63,7 @@ def interval() -> int:
 _PLATE_GCODE = re.compile(r"(?:^|/)plate_(\d+)\.gcode$", re.I)
 _PLATE_SUFFIX = re.compile(r"_plate_(\d+)\.gcode\.3mf$", re.I)
 UNNAMED_SLACK = 300  # max. time before print start that a file without plate number may have been fetched
+LIBRARY_GRACE = 1800  # a print without a fetched file is matched to the library after this long
 PLATE_SLACK = 3600  # the same for a single plate of a project (plates are uploaded one by one, then printed)
 _EXT = re.compile(r"(\.gcode)?\.3mf$|\.b?gcode$", re.I)
 
@@ -74,7 +75,38 @@ def _norm(name: str) -> str:
 
 def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = None,
              printer_name: str | None = None, started: float | None = None) -> str | None:
-    """Local file for a print.
+    """Local file for a print: fetched from the printer, otherwise any file in the library.
+
+    The library only counts once the import had time to fetch the file of this very print,
+    otherwise an older file of the same project would win over the new one.
+    """
+    local = _resolve_import(con, printer_id, remote_name, plate, printer_name, started)
+    if local or started is None or started > time.time() - LIBRARY_GRACE:
+        return local
+    return _from_library(con, remote_name, plate, started)
+
+
+def _from_library(con, remote_name: str | None, plate: int | None, started: float | None) -> str | None:
+    """File in the library with the project name the printer reported and this plate sliced.
+
+    For prints whose file never reached the printer's SD card (e.g. the P2S keeps files sent
+    to its internal storage there, out of reach for FTP): uploading the sliced file later is
+    enough. Only by name, never by time, so a generic name like a process profile matches nothing.
+    """
+    wanted = _norm(remote_name or "")
+    if not wanted or plate is None or _PLATE_GCODE.search(remote_name or ""):
+        return None
+    rows = con.execute("""SELECT f.path, f.added FROM files f JOIN plates p ON p.file_id = f.id
+                          WHERE f.missing = 0 AND p.idx = ? AND p.sliced = 1""", (plate,)).fetchall()
+    found = [r for r in rows if _norm(_PLATE_SUFFIX.sub("", r["path"].rsplit("/", 1)[-1])) == wanted]
+    if not found:
+        return None
+    return min(found, key=lambda r: abs((r["added"] or 0) - (started or 0)))["path"]
+
+
+def _resolve_import(con, printer_id: str, remote_name: str | None, plate: int | None = None,
+                    printer_name: str | None = None, started: float | None = None) -> str | None:
+    """File fetched from the printer for a print.
 
     Usual case: the file name on the printer (or just the last part of the path).
     Bambu printers such as the P2S, however, sometimes only report the plate inside the file
