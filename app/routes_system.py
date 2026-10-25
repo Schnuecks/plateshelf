@@ -75,7 +75,7 @@ def api_stats():
     return {
         "projects": len(projects),
         "files": files[0],
-        "plates": sum(len(p["plates"]) for p in projects),
+        "plates": sum(p["plate_count"] for p in projects),
         "print_time_s": time_s,
         "print_time_h": round(time_s / 3600, 1),
         "filament_g": round(weight_g, 1),

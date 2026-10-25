@@ -581,6 +581,11 @@ def scan(force: bool = False, wait: bool = False) -> dict:
         _scan_lock.release()
     if added or updated:
         log.info("Scan: %d neu, %d aktualisiert, %d Fehler", added, updated, errors)
+        from . import print_history  # match prints without a file to new files right away (e.g. after an upload)
+        try:
+            print_history.link_pending()
+        except Exception:  # noqa: BLE001  (the scan itself succeeded)
+            log.exception("Drucke konnten nicht zugeordnet werden")
     if PREBUILD:
         request_prebuild()
     return last_scan

@@ -33,8 +33,8 @@
       <div><dt>{{ _('Filament') }}</dt><dd>{{ p.weight_g|num(1, 'g') }}</dd></div>
       <div><dt>{{ _('Kosten') }}</dt><dd>{{ p.total_cost|money }}</dd>
         <dd class="cost-split">{{ _('Material {material}, Strom {energy}', material=p.cost|money, energy=p.energy_cost|money) }}</dd></div>
-      <div><dt>{{ _('Gesliced') if p.plates_total > p.plates|length else _('Platten') }}</dt><dd>{% if p.plates_total > p.plates|length %}{{ _('{n} von {total}', n=p.plates|length, total=p.plates_total) }}{% else %}{{ p.plates|length }}{% endif %}</dd>
-        {% if p.plates|length > 1 and p.plates_printed %}<dd class="cost-split">{{ _('davon {n} gedruckt', n=p.plates_printed) }}</dd>{% endif %}</div>
+      <div><dt>{{ _('Gesliced') if p.plates_total > p.plate_count else _('Platten') }}</dt><dd>{% if p.plates_total > p.plate_count %}{{ _('{n} von {total}', n=p.plate_count, total=p.plates_total) }}{% else %}{{ p.plate_count }}{% endif %}</dd>
+        {% if p.plate_count > 1 and p.plates_printed %}<dd class="cost-split">{{ _('davon {n} gedruckt', n=p.plates_printed) }}</dd>{% endif %}</div>
     </dl>
   </header>
 
