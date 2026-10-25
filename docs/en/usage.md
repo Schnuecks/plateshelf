@@ -33,6 +33,13 @@ If you export plates individually, each file also contains the preview images of
 other plates. If a plate is available sliced in another file of the project, its
 preview is not shown twice.
 
+**Plates sliced again:** if the same plate is sliced in several files of a project, for
+example because you exported all plates again later, the plate bar shows the versions side
+by side with date and layer height. Versions that are practically the same slice (same layer
+height and filaments, print time and weight within 5 %) appear only once, preferably the one
+that was printed. Print time, filament and costs of the project count every plate once,
+with its latest slice.
+
 **Duplicate files:** if exactly the same file lies in the library more than once, the
 project page says so under the file name and links to the other copies. That helps when
 tidying up, for example after an upload and a direct import of the same print.

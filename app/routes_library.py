@@ -48,7 +48,7 @@ def index(request: Request, q: str = "", material: str = "", printer: str = "", 
         return ((not material or material in p["materials"]) and (not printer or printer in p["printers"])
                 and (status == "" or p["status"] == ("" if status == "ohne" else status))
                 and (printed != "ja" or p["prints"] > 0) and (printed != "nein" or p["prints"] == 0)
-                and (printed != "teilweise" or 0 < p["plates_printed"] < len(p["plates"]))
+                and (printed != "teilweise" or 0 < p["plates_printed"] < p["plate_count"])
                 and (not tag or tag in p["tag_list"]))
 
     shown = [p for p in projects if match(p)]
@@ -93,6 +93,40 @@ def _layer_label(layer) -> str:
     return fmt_num(float(key), 2, "mm") if key else ""
 
 
+SAME_SLICE = 0.05  # print time and weight may differ this much between two slices that count as the same
+
+
+def _same_slice(a: dict, b: dict) -> bool:
+    """Practically the same slice of a plate: same layer height and filaments, nearly the same time and weight
+    (e.g. the plate was sliced again for exporting all plates)."""
+    def close(x, y):
+        return bool(x and y) and abs(x - y) <= SAME_SLICE * max(x, y)
+
+    def filaments(pl):
+        return sorted((f.get("type") or "", (f.get("color") or "").upper()) for f in pl.get("filaments") or [])
+
+    return (_layer_key(a["_version"][1]) == _layer_key(b["_version"][1]) and filaments(a) == filaments(b)
+            and close(a["prediction_s"], b["prediction_s"]) and close(a["weight_g"], b["weight_g"]))
+
+
+def _without_repeated_slices(strip: list[dict]) -> list[dict]:
+    """Each plate once if its versions are practically the same slice: the printed one, otherwise the newest.
+    Versions that really differ (e.g. another layer height) stay side by side."""
+    groups: dict = {}
+    for pl in strip:
+        if pl["sliced"]:
+            groups.setdefault(pl["_sort"][:2], []).append(pl)
+    dropped = set()
+    for group in groups.values():
+        kept: list[dict] = []
+        for pl in sorted(group, key=lambda x: (not x.get("printed"), -(x["_version"][0] or 0))):
+            if any(_same_slice(pl, k) for k in kept):
+                dropped.add(id(pl))
+            else:
+                kept.append(pl)
+    return [pl for pl in strip if id(pl) not in dropped]
+
+
 @router.get("/p/{pid}")
 def project(request: Request, pid: int):
     with store.connect() as con:
@@ -129,6 +163,7 @@ def project(request: Request, pid: int):
                           "_sort": (source, pl["idx"], -(f["mtime"] or 0), natural_key(f["path"])),
                           "_version": (f["mtime"], f["layer_height"])})
     strip.sort(key=lambda x: x["_sort"])
+    strip = _without_repeated_slices(strip)
     # Same plate sliced several times (e.g. resliced and printed again): make versions
     # distinguishable by date and layer height, newest first
     seen: dict = {}

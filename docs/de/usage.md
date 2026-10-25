@@ -35,6 +35,13 @@ Exportierst du Platten einzeln, enthält jede Datei zusätzlich die Vorschaubild
 anderen Platten. Liegt eine Platte in einer anderen Datei des Projekts geslict vor, wird
 ihre Vorschau nicht doppelt angezeigt.
 
+**Neu geslicte Platten:** Ist dieselbe Platte in mehreren Dateien eines Projekts geslict, etwa
+weil du später alle Platten noch einmal exportiert hast, zeigt die Plattenleiste die Fassungen
+nebeneinander mit Datum und Schichthöhe. Fassungen, die praktisch gleich geslict sind (gleiche
+Schichthöhe und Filamente, Druckzeit und Gewicht höchstens 5 % anders), erscheinen nur einmal,
+bevorzugt die gedruckte. Druckzeit, Filament und Kosten des Projekts zählen jede Platte einmal,
+mit ihrer neuesten Fassung.
+
 **Doppelte Dateien:** Liegt genau dieselbe Datei mehrfach in der Bibliothek, sagt das die
 Projektseite unter dem Dateinamen und verlinkt die anderen Kopien. Das hilft beim Aufräumen,
 etwa wenn derselbe Druck hochgeladen und zusätzlich vom Drucker geholt wurde.

@@ -110,7 +110,7 @@
     <a href="/p/{{ p.id }}" class="card-link">
       <div class="bed">
         {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy"{% if p.cover_is_photo %} class="is-photo"{% endif %}>{% else %}<span class="bed-empty">{{ _('Kein Vorschaubild') }}</span>{% endif %}
-        {% if p.plates|length > 1 %}<span class="bed-count">{{ _('{n} Platten', n=p.plates|length) }}</span>{% endif %}
+        {% if p.plate_count > 1 %}<span class="bed-count">{{ _('{n} Platten', n=p.plate_count) }}</span>{% endif %}
         {% if p.printing %}<span class="bed-live" data-live-project="{{ p.id }}" data-label="{{ _('Druckt') }}">{{ _('Druckt') }}{% if p.printings|length > 1 %} {{ p.printings|length }}×{% endif %}{% for j in p.printings if j.progress is not none %} {{ j.progress|num(0) }} %{{ ' /' if not loop.last }}{% endfor %}</span>{% endif %}
       </div>
       <div class="strand" data-css="background: {{ p.filaments|strand }}"></div>
@@ -124,7 +124,7 @@
         <p class="card-meta">
           {{ p.materials|join(', ') or _('Material unbekannt') }}
           {% if p.status %}<span class="status status-{{ p.status }}">{{ _(STATUSES[p.status]) }}</span>{% endif %}
-          {% if p.plates|length > 1 and p.plates_printed %}<span class="prints{{ ' is-complete' if p.plates_printed == p.plates|length }}" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}">{{ _('{n}/{total} Platten gedruckt', n=p.plates_printed, total=p.plates|length) }}</span>
+          {% if p.plate_count > 1 and p.plates_printed %}<span class="prints{{ ' is-complete' if p.plates_printed == p.plate_count }}" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}">{{ _('{n}/{total} Platten gedruckt', n=p.plates_printed, total=p.plate_count) }}</span>
           {% elif p.prints %}<span class="prints" title="{{ _('Fertige Drucke laut Druckverlauf') }}">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', p.prints) }}</span>{% endif %}
         </p>
       </div>

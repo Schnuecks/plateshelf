@@ -84,10 +84,10 @@ def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
     """Re-sliced and printed again: two versions of plate 2, newest first, with date."""
     import os
     import re
-    for folder, stamp in (("Vom Drucker", 1_790_000_000), ("From printer", 1_790_600_000)):
+    for folder, stamp, sec in (("Vom Drucker", 1_790_000_000, 60), ("From printer", 1_790_600_000, 90)):
         path = lib / folder / "P2S" / "Eevee_Chibi_plate_2.gcode.3mf"
         path.parent.mkdir(parents=True)
-        sample(path, [{**PLATE, "idx": 2, "name": "BODY"}])
+        sample(path, [{**PLATE, "idx": 2, "name": "BODY", "sec": sec}])  # really sliced differently
         os.utime(path, (stamp, stamp))
     sample(lib / "From printer" / "P2S" / "Eevee_Chibi_plate_3.gcode.3mf", [{**PLATE, "idx": 3}])
     store.scan(wait=True)
@@ -97,3 +97,30 @@ def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
     dates = re.findall(r'strip-version">([^<]+)<', strip)
     assert dates[0].startswith(time.strftime("%d.%m.%Y", time.localtime(1_790_600_000))), dates
     assert "0,20 mm" in dates[0] and "Platte 3" in strip.split(dates[1])[1]  # Platte 3 without suffix
+
+
+def test_repeated_slice_of_a_plate_counts_once(client, lib, sample):
+    """As on 25.10.: plate 3 was printed from its own file, later all plates were exported again
+    (plate 3 sliced anew, 3 minutes longer). The bar shows plate 3 once, the printed version; the
+    totals count every plate once, with its latest slice."""
+    import os
+    folder = lib / "Gnome"
+    folder.mkdir()
+    old, new = folder / "Gnome_Trio_plate_3.gcode.3mf", folder / "Gnome_Trio.gcode.3mf"
+    sample(old, [{"idx": 3, "sec": 15600, "layers": 2, "fil": [(1, "#00AA00FF", 86.2)]}])
+    sample(new, [{"idx": 1, "sec": 11900, "layers": 2, "fil": [(1, "#00AA00FF", 77.1)]},
+                 {"idx": 2, "sec": 12400, "layers": 2, "fil": [(1, "#00AA00FF", 77.5)]},
+                 {"idx": 3, "sec": 15780, "layers": 2, "fil": [(1, "#00AA00FF", 86.2)]}])
+    os.utime(old, (1_790_000_000, 1_790_000_000))
+    store.scan(wait=True)
+    add_job("Gnome/Gnome_Trio_plate_3.gcode.3mf", plate=3)
+    add_job("Gnome/Gnome_Trio.gcode.3mf", plate=1)
+    p = project("Gnome")  # a subfolder becomes the project
+    assert p["plate_count"] == 3 and p["plates_printed"] == 2
+    assert p["time_s"] == 11900 + 12400 + 15780  # plate 3 once, the latest slice
+    page = client.get(f"/p/{p['id']}").text
+    strip = page[page.index('class="plate-strip"'):page.index("</ol>")]
+    assert strip.count("Platte 3") == 1 and "strip-version" not in strip
+    third = strip[strip.index("Platte 3") - 600:strip.index("Platte 3")]
+    old_id = next(f["id"] for f in p["files"] if f["path"].endswith("_plate_3.gcode.3mf"))
+    assert "plate-done" in third and f"/thumb/{old_id}/plate/3" in third  # the printed version

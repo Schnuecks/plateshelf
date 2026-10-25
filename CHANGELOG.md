@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+- **Plates sliced again count once:** print time, filament, costs and the number of plates of a
+  project counted every version of a plate that was sliced in several files. Now each plate counts
+  once, with its latest slice; "printed" counts a plate if any of its versions was printed.
+- **Plate bar:** versions of a plate that are practically the same slice (same layer height and
+  filaments, time and weight within 5 %) appear only once, preferably the printed one.
+- **Prints are matched right after an upload:** a scan that finds new files now links prints without
+  a file at once, instead of at the next printer sync (up to 10 minutes).
+
 ## 1.2.0
 
 - **Prints without a file from the printer** (e.g. the P2S kept the file sent from Bambu Studio

@@ -101,7 +101,25 @@ def _mark_printed_plates(p: dict, by_plate: dict) -> None:
     for x in p["plates"]:
         counts = by_plate.get(paths.get(x["file_id"]), {})
         x["printed"] = sum(counts.values()) if per_file[x["file_id"]] == 1 else counts.get(x["idx"], 0)
-    p["plates_printed"] = sum(1 for x in p["plates"] if x["printed"])
+    # A plate sliced in several files (versions) is printed if any of its versions is
+    printed_keys = {_plate_key(p, x) for x in p["plates"] if x["printed"]}
+    p["plates_printed"] = len(printed_keys)
+
+
+def _plate_key(p: dict, x: dict) -> tuple:
+    """The same plate of the same model, no matter in which file (version) it was sliced."""
+    return (p["_src"].get(x["file_id"], ""), x["idx"])
+
+
+def latest_versions(p: dict) -> list[dict]:
+    """Each sliced plate once: the version from the most recently modified file."""
+    mtime = {f["id"]: f["mtime"] or 0 for f in p["files"]}
+    latest: dict[tuple, dict] = {}
+    for x in p["plates"]:
+        key = _plate_key(p, x)
+        if key not in latest or mtime[x["file_id"]] > mtime[latest[key]["file_id"]]:
+            latest[key] = x
+    return [x for x in p["plates"] if latest.get(_plate_key(p, x)) is x]
 
 
 def _build(con) -> list[dict]:
@@ -143,7 +161,7 @@ def _build(con) -> list[dict]:
     for p in projects.values():
         # Individually exported plates contain previews of all other plates.
         # Only show these if the plate is not sliced anywhere in the project, and only once.
-        src = {f["id"]: f["source"] for f in p["files"]}
+        src = p["_src"] = {f["id"]: f["source"] for f in p["files"]}
         covered = {(src[x["file_id"]], x["idx"]) for x in p["plates"]}
         seen, extras = set(), []
         for x in p["extra_plates"]:
@@ -167,7 +185,9 @@ def _build(con) -> list[dict]:
     for p in projects.values():
         if not p["files"]:
             continue
-        plates = p["plates"]
+        # Totals count every plate once, a plate sliced again (version) with its latest slice
+        plates = latest_versions(p)
+        p["plate_count"] = len(plates)
         p["time_s"] = sum(x["prediction_s"] or 0 for x in plates)
         p["weight_g"] = sum(x["weight_g"] or 0 for x in plates)
         costs = [x["cost"] for x in plates if x["cost"] is not None]
