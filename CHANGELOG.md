@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0
 
 - **Prints without a file from the printer** (e.g. the P2S kept the file sent from Bambu Studio
   in its internal storage, out of reach for PlateShelf) are matched to an uploaded file with the
