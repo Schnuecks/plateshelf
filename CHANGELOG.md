@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.1
 
 - **Plates sliced again count once:** print time, filament, costs and the number of plates of a
   project counted every version of a plate that was sliced in several files. Now each plate counts
