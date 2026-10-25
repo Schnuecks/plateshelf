@@ -12,7 +12,10 @@ PlateShelf can fetch sliced prints from your printers itself:
   LAN-only mode is not required as long as the firmware allows file access.
   PlateShelf fetches the `.gcode.3mf` files from the main folder and the sliced projects
   from the `cache` folder, where the P1 and A1 series keep prints sent from Bambu Studio.
-  The P1S needs a microSD card for this.
+  The P1S needs a microSD card for this. Printers with internal storage, such as the P2S,
+  can also keep files sent with “Send to printer” there; PlateShelf cannot reach that
+  storage, only the SD card. Choose the SD card as storage when sending, otherwise the
+  print shows up in the history without a file (see below).
 - **Prusa printers** via PrusaLink (MK4, MK3.9, XL, Mini, Core One). PlateShelf fetches
   the `.bgcode` and `.gcode` files from the USB drive or internal storage.
 - **Klipper printers** via [Moonraker](https://moonraker.readthedocs.io), the interface
@@ -124,6 +127,12 @@ progress so far.
 A print is matched to the file fetched from the printer, and thus to its project. If the
 file is not in the library yet, PlateShelf fetches it right away and links the print
 afterwards. A finished print sets a project without status to “Printed”.
+
+If the printer has no file to fetch, for example because it was sent to the internal
+storage, the print stays in the history without a project. Export the sliced file in Bambu
+Studio and upload it to PlateShelf: prints of the last 30 days are then matched to it by
+project name and plate. This only happens half an hour after the start, so a file the printer
+provides itself always wins.
 
 **Notes per print:** under “Note” in the history and on the project page, you rate a
 print (👍 turned out well, 👎 failed) and write down what went well or wrong, for example

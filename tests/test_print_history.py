@@ -739,6 +739,31 @@ def test_running_print_does_not_take_an_old_plate(ready, sample):
     assert jobs()[0]["local_path"] == new
 
 
+def test_print_without_fetched_file_is_matched_to_an_uploaded_file(ready, sample):
+    """As on 25.10.: the P2S kept the file sent from Bambu Studio in its internal storage, so
+    nothing could be fetched. Uploading the sliced file later links the print by project name
+    and plate, but only once the import had time to fetch a file of its own."""
+    now = time.time()
+    with store.connect() as con:
+        for key, plate, start in (("p1", 1, now - 4 * 3600), ("p2", 2, now - 600), ("neu", 1, now - 60),
+                                  ("profil", 1, now - 4 * 3600)):
+            name = "0.2mm layer, 2 walls, 15% infill" if key == "profil" else "Gnome Trio"
+            con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, plate, status, "
+                        "started, ended) VALUES ('SER1', 'P2S', ?, ?, ?, 'completed', ?, ?)",
+                        (key, name, plate, start, start + 300))
+    ph.link_pending()
+    assert all(j["local_path"] is None for j in jobs())
+    upload = "Gnome/Gnome_Trio.gcode.3mf"
+    (ready / "Gnome").mkdir()
+    sample(ready / upload, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]},
+                            {"idx": 2, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    store.scan(wait=True)
+    ph.link_pending()
+    got = {j["job_key"]: j["local_path"] for j in jobs()}
+    # p2 and "neu" started less than LIBRARY_GRACE ago: their own file may still come from the printer
+    assert got == {"p1": upload, "p2": None, "neu": None, "profil": None}
+
+
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")
