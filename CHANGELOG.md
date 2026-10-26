@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2
+
+- **Library matching (1.2.0) could move a print to the wrong file:** it also considered files fetched
+  from another printer, and Bambu names files in its cache folder after the process profile, the very
+  name the P2S reports for many prints. It also replaced existing matches. Now it never takes files
+  from another printer and only fills in prints that have no file at all.
+
 ## 1.2.1
 
 - **Plates sliced again count once:** print time, filament, costs and the number of plates of a

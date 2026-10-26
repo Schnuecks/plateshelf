@@ -83,21 +83,25 @@ def _resolve(con, printer_id: str, remote_name: str | None, plate: int | None = 
     local = _resolve_import(con, printer_id, remote_name, plate, printer_name, started)
     if local or started is None or started > time.time() - LIBRARY_GRACE:
         return local
-    return _from_library(con, remote_name, plate, started)
+    return _from_library(con, remote_name, plate, started, printer_name)
 
 
-def _from_library(con, remote_name: str | None, plate: int | None, started: float | None) -> str | None:
+def _from_library(con, remote_name: str | None, plate: int | None, started: float | None,
+                  printer_name: str | None = None) -> str | None:
     """File in the library with the project name the printer reported and this plate sliced.
 
     For prints whose file never reached the printer's SD card (e.g. the P2S keeps files sent
     to its internal storage there, out of reach for FTP): uploading the sliced file later is
-    enough. Only by name, never by time, so a generic name like a process profile matches nothing.
+    enough. Only by name, never by time. Files fetched from another printer never count: Bambu names the
+    files in its cache folder after the process profile, the name the P2S reports for many prints.
     """
     wanted = _norm(remote_name or "")
     if not wanted or plate is None or _PLATE_GCODE.search(remote_name or ""):
         return None
     rows = con.execute("""SELECT f.path, f.added FROM files f JOIN plates p ON p.file_id = f.id
-                          WHERE f.missing = 0 AND p.idx = ? AND p.sliced = 1""", (plate,)).fetchall()
+                          WHERE f.missing = 0 AND p.idx = ? AND p.sliced = 1 AND f.path NOT IN
+                            (SELECT local_path FROM printer_imports WHERE printer_name != ?)""",
+                       (plate, printer_name or "")).fetchall()
     found = [r for r in rows if _norm(_PLATE_SUFFIX.sub("", r["path"].rsplit("/", 1)[-1])) == wanted]
     if not found:
         return None
@@ -301,15 +305,16 @@ def link_pending() -> None:
     """Match prints without a file afterwards, as soon as the import has fetched it.
 
     0.8.13 and 0.8.14 sometimes matched running prints of single-plate projects to the file of the
-    previous print. Such merely guessed matches are re-checked and corrected here.
+    previous print. Such merely guessed matches are re-checked and corrected here, only against the
+    files fetched from the printer: the library only fills in prints without any file.
     """
     with _lock, store.connect() as con:
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NOT NULL AND remote_name IS NOT NULL "
                                "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
             if not _guessed(con, job):
                 continue
-            local = _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
-                             job["started"])
+            local = _resolve_import(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
+                                    job["started"])
             if local and local != job["local_path"]:
                 log.info("Druck %s: Zuordnung %s -> %s berichtigt", job["id"], job["local_path"], local)
                 con.execute("UPDATE print_jobs SET local_path = ?, applied = 0 WHERE id = ?", (local, job["id"]))
