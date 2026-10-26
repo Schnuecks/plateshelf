@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.2
 
 - **Library matching (1.2.0) could move a print to the wrong file:** it also considered files fetched
   from another printer, and Bambu names files in its cache folder after the process profile, the very
