@@ -764,6 +764,33 @@ def test_print_without_fetched_file_is_matched_to_an_uploaded_file(ready, sample
     assert got == {"p1": upload, "p2": None, "neu": None, "profil": None}
 
 
+def test_library_never_takes_another_printers_file_or_replaces_a_match(ready, sample):
+    """As on 25.10.: the P2S reports only the process profile as name, and a file from the P1S's cache
+    folder is named exactly like that. The library must not pick it, and must not replace the
+    match of an older print whose own file was fetched again later (newer import time)."""
+    now = time.time()
+    p1s = "From printer/P1S/0.2mm layer, 2 walls, 15% infill.gcode.3mf"
+    tissue = "From printer/P2S/Tissue_Box.gcode.3mf"
+    for path in (p1s, tissue):
+        (ready / path).parent.mkdir(parents=True, exist_ok=True)
+        sample(ready / path, [{"idx": 1, "sec": 60, "layers": 2, "fil": [(1, "#FFFFFFFF", 1.0)]}])
+    store.scan(wait=True)
+    with store.connect() as con:
+        for path, printer, remote, at in ((p1s, "P1S", "cache/0.2mm layer, 2 walls, 15% infill.gcode.3mf", now - 20 * 86400),
+                                          (tissue, "P2S", "Tissue_Box.gcode.3mf", now - 60)):  # fetched again today
+            con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                        "VALUES (?, ?, ?, 'x')", (path, printer, remote))
+            con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                        "imported) VALUES (?, ?, 1, 'x', ?, ?, ?)", (printer, remote, path, printer, at))
+        for key, local in (("alt", tissue), ("ohne", None)):
+            con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, plate, local_path, "
+                        "status, started, ended) VALUES ('SER1', 'P2S', ?, '0.2mm layer, 2 walls, 15% infill', 1, ?, "
+                        "'completed', ?, ?)", (key, local, now - 20 * 86400, now - 20 * 86400 + 300))
+    ph.link_pending()
+    got = {j["job_key"]: j["local_path"] for j in jobs()}
+    assert got == {"alt": tissue, "ohne": None}
+
+
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")
