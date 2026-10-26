@@ -1,2 +1,2 @@
 -r requirements-dev.txt
-playwright>=1.63
+playwright>=1.64.0
