@@ -8,6 +8,8 @@
   Database schema 8.
 - **Prints without a file** are marked “No file” in the history, with an explanation and a link to
   upload the sliced file.
+- **Styles:** the sign-in page and the 3D preview now carry each style's own details (tilted card in
+  Candy, a label on the pegboard in Workbench, a drawing sheet in Blueprint, a taped note in Pinboard).
 
 ## 1.2.2
 
