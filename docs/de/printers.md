@@ -137,7 +137,13 @@ Hat der Drucker keine Datei zum Holen, etwa weil sie im internen Speicher liegt,
 Druck ohne Projekt im Verlauf. Exportier die geslicte Datei in Bambu Studio und lade sie in
 PlateShelf hoch: Drucke der letzten 30 Tage werden ihr dann über Projektname und Platte
 zugeordnet. Das passiert erst eine halbe Stunde nach dem Start, damit eine Datei, die der
-Drucker selbst bereitstellt, immer Vorrang hat.
+Drucker selbst bereitstellt, immer Vorrang hat. Der Verlauf markiert solche Drucke mit „Keine
+Datei“ und erklärt das über der Liste.
+
+**Von Hand zuordnen:** „Zuordnen“ neben einem Druck im Verlauf oder auf der Projektseite öffnet
+eine Seite, auf der du die Datei wählst, aus der er stammt (oder „Keine Datei“). Vorgeschlagen
+werden Dateien mit passendem Namen und Dateien, die rund um den Start vom selben Drucker geholt
+wurden. Von Hand zugeordnete Drucke ändert PlateShelf danach nicht mehr von selbst.
 
 **Notizen pro Druck:** Unter „Notiz“ im Verlauf und auf der Projektseite bewertest du einen
 Druck (👍 gelungen, 👎 misslungen) und hältst fest, was gut oder schief lief, etwa „Warping

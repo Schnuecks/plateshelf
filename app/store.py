@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     updated REAL,                   -- letzte Meldung zu diesem Druck
     note TEXT,                      -- Notiz zu diesem Druck
     rating INTEGER,                 -- 1 gelungen, -1 misslungen
+    manual INTEGER NOT NULL DEFAULT 0,   -- file assigned by hand: never changed automatically
     UNIQUE (printer, job_key)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
@@ -256,7 +257,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 7  # 1 = state of 0.7.9; later changes as steps in MIGRATIONS
+SCHEMA_VERSION = 8  # 1 = state of 0.7.9; later changes as steps in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -273,6 +274,7 @@ MIGRATIONS: dict = {
     5: _add_column("users", "oidc_sub", "TEXT"),  # 0.8.8: login via OIDC
     6: lambda con: _rescan_all(),  # 0.8.9: group „Vom Drucker“ by name again
     7: lambda con: None,  # 0.8.17: tables auth_events and passkeys (created by SCHEMA)
+    8: _add_column("print_jobs", "manual", "INTEGER NOT NULL DEFAULT 0"),  # 1.3.0: assign a print by hand
 }
 
 

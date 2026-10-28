@@ -791,6 +791,47 @@ def test_library_never_takes_another_printers_file_or_replaces_a_match(ready, sa
     assert got == {"alt": tissue, "ohne": None}
 
 
+def test_assign_a_print_by_hand(ready, monkeypatch):
+    """A print without a file is marked in the history and can be assigned by hand; the automatic
+    matching never changes such a print again, also not to "no file"."""
+    imported(ready, BAMBU, "Box.gcode.3mf", "From printer/P2S/Box.gcode.3mf")
+    imported(ready, BAMBU, "Other.gcode.3mf", "From printer/P2S/Other.gcode.3mf")
+    with store.connect() as con:  # Box was fetched from this printer around the start: a suggestion
+        con.execute("INSERT INTO printer_imports (local_path, printer_name, remote_name, remote_date) "
+                    "VALUES ('From printer/P2S/Box.gcode.3mf', 'P2S', 'Box.gcode.3mf', 'x')")
+    start = time.time() - 7200
+    ph.record(BAMBU, "x", "completed", remote_name="0.2mm layer, 2 walls, 15% infill", plate=1,
+              started=start, ended=start + 600)
+    from app import main
+    monkeypatch.setenv("SCAN_INTERVAL", "3600")
+    with TestClient(main.app) as client:
+        (job,) = jobs()
+        assert job["local_path"] is None
+        history = client.get("/history").text
+        assert "1 Druck ohne Datei" in history and 'class="job-nofile"' in history
+        assert f'href="/history/{job["id"]}/assign?next=' in history
+        form = client.get(f"/history/{job['id']}/assign").text
+        assert "Druck zuordnen" in form and "Vorschläge" in form and "Box.gcode.3mf" in form
+        with store.connect() as con:
+            fid = con.execute("SELECT id FROM files WHERE path = 'From printer/P2S/Box.gcode.3mf'").fetchone()[0]
+        r = client.post(f"/history/{job['id']}/assign", data={"file": str(fid), "next": "/history"},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/history?job_assigned=1"
+        assert client.post(f"/history/{job['id']}/assign", data={"file": "999"}).status_code == 400
+        assert client.post("/history/999/assign", data={"file": ""}).status_code == 404
+    (job,) = jobs()
+    assert (job["local_path"], job["manual"]) == ("From printer/P2S/Box.gcode.3mf", 1)
+    assert project_status("From printer/P2S/Box.gcode.3mf") == "gedruckt"
+    with store.connect() as con:  # the guessed-match check would otherwise move it
+        con.execute("UPDATE print_jobs SET local_path = 'From printer/P2S/Other.gcode.3mf'")
+    ph.link_pending()
+    ph.record(BAMBU, "x", "completed", remote_name="0.2mm layer, 2 walls, 15% infill", plate=1)
+    assert jobs()[0]["local_path"] == "From printer/P2S/Other.gcode.3mf"
+    ph.assign(job["id"], None)  # "no file" by hand also stays
+    ph.link_pending()
+    assert jobs()[0]["local_path"] is None
+
+
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")

@@ -212,10 +212,12 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
                           (printer["id"], job_key)).fetchone()
         if row and row["status"] in FINAL and status == "running":
             return  # already finished, late report
-        local = (row["local_path"] if row else None) or _resolve(
-            con, printer["id"], remote_name or (row["remote_name"] if row else None),
-            plate if plate is not None else (row["plate"] if row else None), printer["name"],
-            (row["started"] if row else None) or started or now)
+        if row and (row["local_path"] or row["manual"]):
+            local = row["local_path"]  # found before, or assigned by hand (also "no file")
+        else:
+            local = _resolve(con, printer["id"], remote_name or (row["remote_name"] if row else None),
+                             plate if plate is not None else (row["plate"] if row else None), printer["name"],
+                             (row["started"] if row else None) or started or now)
         if row:
             values = {"status": status, "local_path": local, "printer_name": printer["name"], "updated": now}
             if remote_name:
@@ -310,7 +312,7 @@ def link_pending() -> None:
     """
     with _lock, store.connect() as con:
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NOT NULL AND remote_name IS NOT NULL "
-                               "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
+                               "AND manual = 0 AND started > ?", (time.time() - 30 * 86400,)).fetchall():
             if not _guessed(con, job):
                 continue
             local = _resolve_import(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
@@ -319,11 +321,54 @@ def link_pending() -> None:
                 log.info("Druck %s: Zuordnung %s -> %s berichtigt", job["id"], job["local_path"], local)
                 con.execute("UPDATE print_jobs SET local_path = ?, applied = 0 WHERE id = ?", (local, job["id"]))
         for job in con.execute("SELECT * FROM print_jobs WHERE local_path IS NULL AND remote_name IS NOT NULL "
-                               "AND started > ?", (time.time() - 30 * 86400,)).fetchall():
+                               "AND manual = 0 AND started > ?", (time.time() - 30 * 86400,)).fetchall():
             if local := _resolve(con, job["printer"], job["remote_name"], job["plate"], job["printer_name"],
                                  job["started"]):
                 con.execute("UPDATE print_jobs SET local_path = ? WHERE id = ?", (local, job["id"]))
                 _apply_project_status(con, {**dict(job), "local_path": local})
+
+
+def assign(job_id: int, local_path: str | None) -> None:
+    """Assign a print to a file by hand (None: no file). The automatic matching leaves it alone from then on."""
+    with _lock, store.connect() as con:
+        if not con.execute("SELECT 1 FROM print_jobs WHERE id = ?", (job_id,)).fetchone():
+            raise KeyError(job_id)
+        con.execute("UPDATE print_jobs SET local_path = ?, manual = 1, applied = 0 WHERE id = ?", (local_path, job_id))
+        _apply_project_status(con, con.execute("SELECT * FROM print_jobs WHERE id = ?", (job_id,)).fetchone())
+
+
+def assign_choices(job: dict) -> tuple[list[dict], list[dict]]:
+    """Files for assigning a print by hand: (suggestions, all files by project).
+
+    Suggested are files whose name matches the name the printer reported, and files fetched from
+    the same printer within a day around the start.
+    """
+    with store.connect() as con:
+        files = [dict(r) for r in con.execute(
+            """SELECT f.id, f.path, p.name AS project, i.printer_name,
+                      (SELECT MAX(pf.imported) FROM printer_files pf WHERE pf.local_path = f.path) AS imported
+               FROM files f JOIN projects p ON p.id = f.project_id
+               LEFT JOIN printer_imports i ON i.local_path = f.path
+               WHERE f.missing = 0""")]
+    for f in files:
+        f["name"] = f["path"].rsplit("/", 1)[-1]
+    files.sort(key=lambda f: (f["project"].lower(), f["name"].lower()))
+    wanted = _norm(job.get("remote_name") or "")
+    started = job.get("started") or 0
+    suggested = [f for f in files
+                 if (wanted and wanted in (_norm(_PLATE_SUFFIX.sub("", f["name"])), _norm(f["project"])))
+                 or (f["printer_name"] == job.get("printer_name") and f["imported"]
+                     and abs(f["imported"] - started) < 86400)]
+    suggested.sort(key=lambda f: abs((f["imported"] or 0) - started))
+    return suggested[:12], files
+
+
+def get(job_id: int) -> dict | None:
+    with store.connect() as con:
+        row = con.execute("""SELECT j.*, f.project_id, p.name AS project_name FROM print_jobs j
+                             LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
+                             LEFT JOIN projects p ON p.id = f.project_id WHERE j.id = ?""", (job_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def set_note(job_id: int, note: str, rating: int | None) -> None:

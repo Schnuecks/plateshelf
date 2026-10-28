@@ -269,9 +269,16 @@ def photo_delete(pid: int, name: str):
 
 @router.get("/history")
 def history(request: Request):
+    jobs = print_history.recent()
+    now = time.time()
+    for j in jobs:
+        # Without a file: the printer had none to fetch (e.g. kept in its internal storage). A running
+        # print gets a moment, its file is usually fetched right after the start.
+        j["no_file"] = not j["project_id"] and (j["status"] != "running"
+                                                or now - (j["started"] or now) > print_history.LIBRARY_GRACE)
     return templates.TemplateResponse(request, "history.html", {
-        "jobs": print_history.recent(), "enabled": print_history.enabled(),
-        "printers": printer_import.load_printers(),
+        "jobs": jobs, "enabled": print_history.enabled(), "printers": printer_import.load_printers(),
+        "without_file": sum(1 for j in jobs if j["no_file"]),
     })
 
 
@@ -289,6 +296,38 @@ def history_delete(job_id: int, next: str = Form("/history")):
     target = _local_target(next.split("#")[0])
     anchor = "#history" if target.startswith("/p/") else ""
     return RedirectResponse(target + ("&" if "?" in target else "?") + "job_deleted=1" + anchor, status_code=303)
+
+
+@router.get("/history/{job_id}/assign")
+def history_assign_form(request: Request, job_id: int, next: str = "/history"):
+    job = print_history.get(job_id)
+    if not job:
+        raise HTTPException(404, _("Druck nicht gefunden"))
+    suggested, files = print_history.assign_choices(job)
+    groups: dict[str, list] = {}
+    for f in files:
+        groups.setdefault(f["project"], []).append(f)
+    return templates.TemplateResponse(request, "assign.html", {
+        "job": job, "suggested": suggested, "groups": groups, "next": _local_target(next)})
+
+
+@router.post("/history/{job_id}/assign")
+def history_assign(job_id: int, file: str = Form(""), next: str = Form("/history")):
+    path = None
+    if file:
+        with store.connect() as con:
+            row = con.execute("SELECT path FROM files WHERE id = ? AND missing = 0",
+                              (int(file) if file.isdigit() else -1,)).fetchone()
+        if not row:
+            raise HTTPException(400, _("Datei nicht gefunden"))
+        path = row["path"]
+    try:
+        print_history.assign(job_id, path)
+    except KeyError:
+        raise HTTPException(404, _("Druck nicht gefunden")) from None
+    target = _local_target(next.split("#")[0])
+    return RedirectResponse(target + ("&" if "?" in target else "?") + "job_assigned=1"
+                            + ("#history" if target.startswith("/p/") else ""), status_code=303)
 
 
 @router.post("/history/{job_id}/note")
