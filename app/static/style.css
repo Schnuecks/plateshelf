@@ -685,7 +685,8 @@ button.danger-quiet:hover { color: var(--ink); }
 
 /* Diagnostics */
 .diag-text { width: 100%; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical;
-  white-space: pre; overflow-x: auto; }
+  /* long lines wrap instead of scrolling sideways; copying keeps the original lines */
+  white-space: pre-wrap; overflow-wrap: anywhere; field-sizing: content; min-height: 8lh; max-height: 75vh; }
 .diag-actions { align-items: center; gap: 1rem; flex-wrap: wrap; }
 .diag-contents { margin-top: .75rem; }
 .diag-contents summary { cursor: pointer; color: var(--accent); }
