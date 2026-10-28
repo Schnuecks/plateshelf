@@ -132,7 +132,13 @@ If the printer has no file to fetch, for example because it was sent to the inte
 storage, the print stays in the history without a project. Export the sliced file in Bambu
 Studio and upload it to PlateShelf: prints of the last 30 days are then matched to it by
 project name and plate. This only happens half an hour after the start, so a file the printer
-provides itself always wins.
+provides itself always wins. The history marks such prints with “No file” and explains this above
+the list.
+
+**Assigning by hand:** “Assign” next to a print in the history or on the project page opens a
+page where you choose the file it came from (or “No file”). Suggested are files with a matching
+name and files fetched from the same printer around the start. PlateShelf leaves prints assigned
+by hand alone from then on.
 
 **Notes per print:** under “Note” in the history and on the project page, you rate a
 print (👍 turned out well, 👎 failed) and write down what went well or wrong, for example

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0
+
+- **Assign a print by hand:** “Assign” next to every print in the history and on the project page
+  opens a page to choose the file it came from, with suggestions (matching name, fetched from the
+  same printer around the start). The automatic matching never changes such a print again.
+  Database schema 8.
+- **Prints without a file** are marked “No file” in the history, with an explanation and a link to
+  upload the sliced file.
+- **Styles:** the sign-in page and the 3D preview now carry each style's own details (tilted card in
+  Candy, a label on the pegboard in Workbench, a drawing sheet in Blueprint, a taped note in Pinboard).
+- **Diagnostics:** long lines wrap instead of running out of the box to the right; the box grows with
+  its text. Copying keeps the original lines.
+
 ## 1.2.2
 
 - **Library matching (1.2.0) could move a print to the wrong file:** it also considered files fetched

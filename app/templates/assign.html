@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Druck zuordnen') }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="{{ next }}" data-back>{{ _('Zurück') }}</a>{% endblock %}
+
+{% block main %}
+<section class="account-page assign-page">
+  <h1>{{ _('Druck zuordnen') }}</h1>
+  <p class="hint">{{ _('Wähle die Datei, aus der dieser Druck stammt. Von Hand zugeordnete Drucke ändert {app} danach nicht mehr von selbst.', app=APP_NAME) }}</p>
+  <dl class="assign-facts">
+    <div><dt>{{ _('Start') }}</dt><dd>{{ job.started|datetime }}</dd></div>
+    <div><dt>{{ _('Drucker') }}</dt><dd>{{ job.printer_name }}</dd></div>
+    <div><dt>{{ _('Name laut Drucker') }}</dt><dd>{{ (job.remote_name or '–').split('/')[-1] }}{% if job.plate %} · {{ _('Platte {n}', n=job.plate) }}{% endif %}</dd></div>
+    <div><dt>{{ _('Bisher') }}</dt><dd>{% if job.local_path %}{{ job.local_path.split('/')[-1] }}{% if job.project_name %} ({{ job.project_name }}){% endif %}{% else %}{{ _('Keine Datei') }}{% endif %}</dd></div>
+  </dl>
+  <form method="post" action="/history/{{ job.id }}/assign" class="settings-section assign-form">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>{{ _('Datei') }}
+      <select name="file">
+        <option value="" {{ 'selected' if not job.local_path }}>{{ _('Keine Datei') }}</option>
+        {% if suggested %}
+        <optgroup label="{{ _('Vorschläge') }}">
+          {% for f in suggested %}<option value="{{ f.id }}" {{ 'selected' if f.path == job.local_path }}>{{ f.project }} – {{ f.name }}</option>{% endfor %}
+        </optgroup>
+        {% endif %}
+        {% for project, files in groups.items() %}
+        <optgroup label="{{ project }}">
+          {% for f in files %}<option value="{{ f.id }}" {{ 'selected' if f.path == job.local_path and f not in suggested }}>{{ f.name }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="section-foot assign-actions">
+      <a href="{{ next }}">{{ _('Abbrechen') }}</a>
+      <button type="submit">{{ _('Zuordnen') }}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

@@ -151,3 +151,9 @@ button.danger-quiet { color: var(--accent); }
 .history-page h1, .settings-page h1, .trash-head h1, .account-page h1, .upload h1 { font: 400 2.4rem var(--font); text-transform: uppercase; letter-spacing: .06em; }
 .stat-tiles dd { font: 400 1.9rem var(--mono); }
 .site-footer { border-top: 1.5px solid var(--line); font-family: var(--mono); }
+
+/* Sign-in: a drawing sheet with a double border; 3D preview: panel as the drawing's side column */
+.login-form { box-shadow: 0 0 0 5px var(--bg), 0 0 0 6.5px var(--line); }
+.login-form h1 { font: 400 1.6rem/1.1 var(--font); text-transform: uppercase; letter-spacing: .14em; }
+.viewer-panel { border-left: 1.5px solid var(--line); box-shadow: inset 4px 0 0 -2.5px var(--bg), inset 5px 0 0 -2.5px var(--line); }
+.pager-label { text-transform: uppercase; letter-spacing: .1em; font-weight: 400; }

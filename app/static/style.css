@@ -685,7 +685,8 @@ button.danger-quiet:hover { color: var(--ink); }
 
 /* Diagnostics */
 .diag-text { width: 100%; font: .8rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; resize: vertical;
-  white-space: pre; overflow-x: auto; }
+  /* long lines wrap instead of scrolling sideways; copying keeps the original lines */
+  white-space: pre-wrap; overflow-wrap: anywhere; field-sizing: content; min-height: 8lh; max-height: 75vh; }
 .diag-actions { align-items: center; gap: 1rem; flex-wrap: wrap; }
 .diag-contents { margin-top: .75rem; }
 .diag-contents summary { cursor: pointer; color: var(--accent); }
@@ -936,3 +937,13 @@ a.icon-btn { text-decoration: none; }
 [data-style-preview="werkbank"] i:nth-child(1) { background: #CFA97A; } [data-style-preview="werkbank"] i:nth-child(2) { background: #FFC20E; } [data-style-preview="werkbank"] i:nth-child(3) { background: #1D1D1B; }
 [data-style-preview="blaupause"] i:nth-child(1) { background: #0F3B7A; } [data-style-preview="blaupause"] i:nth-child(2) { background: #EAF2FF; } [data-style-preview="blaupause"] i:nth-child(3) { background: #D9302A; }
 [data-style-preview="pinnwand"] i:nth-child(1) { background: #C6976A; } [data-style-preview="pinnwand"] i:nth-child(2) { background: #FFE680; } [data-style-preview="pinnwand"] i:nth-child(3) { background: #FBF9F4; }
+/* Assigning a print by hand */
+.job-nofile { display: inline-block; margin-left: .35rem; font-size: .75rem; font-weight: 600; padding: .05rem .45rem;
+  border-radius: 3px; background: var(--bg); color: var(--warn); white-space: nowrap; }
+.job-assign { font-size: .8rem; margin-left: .35rem; white-space: nowrap; }
+.job-sub .job-assign { margin-left: 0; }
+.assign-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .6rem 1.5rem; margin: 0; }
+.assign-facts dt { color: var(--muted); font-size: .85rem; }
+.assign-facts dd { margin: .1rem 0 0; overflow-wrap: anywhere; }
+.assign-form select { width: 100%; }
+.assign-actions { align-items: center; gap: 1.25rem; }

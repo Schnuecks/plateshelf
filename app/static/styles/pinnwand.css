@@ -178,3 +178,15 @@ main > .flash ~ p:not([class]) { color: var(--board-ink); }
 .stat-tiles dd { font: 700 2.2rem var(--hand); }
 .site-footer { color: var(--board-ink); border-top: 0; }
 .site-footer a { color: var(--board-ink); }
+
+/* Sign-in: a note taped to the board; 3D preview: the side panel is a taped sheet too */
+.login-form { position: relative; overflow: visible; transform: rotate(-1.2deg); }
+.login-form::before { content: ""; position: absolute; top: -13px; left: 50%; width: 110px; height: 28px; translate: -50% 0; rotate: 3deg;
+  background: var(--tape-2); box-shadow: 0 1px 2px rgb(0 0 0 / .15);
+  clip-path: polygon(2% 0, 98% 4%, 100% 30%, 97% 60%, 100% 100%, 3% 96%, 0 70%, 2% 40%); }
+.login-form h1 { font: 700 2.4rem/1 var(--hand); }
+.viewer-panel { position: relative; }
+.viewer-panel::before { content: ""; position: absolute; top: 6px; left: 50%; width: 90px; height: 22px; translate: -50% 0; rotate: -2deg;
+  background: var(--tape-1); clip-path: polygon(2% 0, 98% 4%, 100% 30%, 97% 60%, 100% 100%, 3% 96%, 0 70%, 2% 40%); pointer-events: none; }
+.viewer-panel { padding-top: 2rem; }
+.pager-label { font: 700 1.5rem/1 var(--hand); }

@@ -11,6 +11,14 @@
     <a href="/statistics">{{ _('Statistik') }}</a>
   </nav>
   {% if request.query_params.get('job_deleted') %}<p class="flash" role="status">{{ _('Druck aus dem Verlauf entfernt.') }}</p>{% endif %}
+  {% if request.query_params.get('job_assigned') %}<p class="flash" role="status">{{ _('Druck zugeordnet.') }}</p>{% endif %}
+  {% if without_file %}
+  <div class="notice notice-warn" role="status">
+    <p><strong>{{ ngettext('{n} Druck ohne Datei', '{n} Drucke ohne Datei', without_file) }}</strong></p>
+    <p>{{ _('Der Drucker hatte dafür keine Datei zum Holen, etwa weil sie in seinem internen Speicher liegt statt auf der SD-Karte. Lade die geslicte Datei hoch: Drucke der letzten 30 Tage werden ihr dann über Projektname und Platte zugeordnet. Oder ordne den Druck mit „Zuordnen“ von Hand zu.') }}
+      {% if can_edit(request) %}<a href="/upload">{{ _('Datei hochladen') }}</a>{% endif %}</p>
+  </div>
+  {% endif %}
   <p class="hint">
     {{ _('{app} schreibt mit, was deine Drucker drucken: Bambu-Drucker melden jeden Druck sofort, Klipper-Drucker liefern ihren eigenen Verlauf, Prusa- und OctoPrint-Drucker werden jede Minute abgefragt. Jeder Druck wird der vom Drucker geholten Datei und damit ihrem Projekt zugeordnet.', app=APP_NAME) }}
     {{ _('Ein fertiger Druck setzt ein Projekt ohne Status auf „Gedruckt“.') }}
@@ -39,7 +47,9 @@
       {% for j in jobs %}
       <tr>
         <td class="nowrap">{{ j.started|datetime }}</td>
-        <td>{% if j.project_id %}<a href="/p/{{ j.project_id }}">{{ j.project_name }}</a>{% else %}{{ (j.remote_name or '–').split('/')[-1] }}{% endif %}</td>
+        <td>{% if j.project_id %}<a href="/p/{{ j.project_id }}">{{ j.project_name }}</a>{% else %}{{ (j.remote_name or '–').split('/')[-1] }}{% endif %}
+          {% if j.no_file %}<span class="job-nofile">{{ _('Keine Datei') }}</span>{% endif %}
+          {% if can_edit(request) %}<a class="job-assign" href="/history/{{ j.id }}/assign?next={{ current_url(request)|urlencode }}">{{ _('Zuordnen') }}</a>{% endif %}</td>
         <td>{{ j.printer_name }}</td>
         <td class="r nowrap">{% if j.ended and j.started %}{{ (j.duration_s or (j.ended - j.started))|duration }}{% else %}–{% endif %}</td>
         <td><span class="job-status job-{{ j.status }}"{% if j.status == 'running' %} data-live-job="{{ j.id }}" data-label="{{ _(JOB_STATUSES[j.status]) }}"{% endif %}>{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span></td>
