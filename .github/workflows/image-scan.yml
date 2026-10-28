@@ -35,6 +35,14 @@ jobs:
           ref="ghcr.io/${GITHUB_REPOSITORY,,}:latest"
           docker pull "$ref"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      # Overview of critical and high findings that have a fix …
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
       # Critical and high findings for Security -> Code scanning (not for test runs on pull
       # requests: their token may not write security events)
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -46,20 +54,12 @@ jobs:
           format: sarif
           output: trivy.sarif
           exit-code: "0"
+          skip-setup-trivy: true
       - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: github.event_name != 'pull_request'
         with:
           sarif_file: trivy.sarif
           category: image-scan
-      # Overview of critical and high findings that have a fix …
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ steps.image.outputs.ref }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          format: table
-          exit-code: "0"
-          skip-setup-trivy: true
       # … only critical ones fail the run
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
