@@ -43,6 +43,7 @@ weiter.
 | `PRINTER_IMPORT_DIR` | From printer | Zielordner für importierte Drucke in der Bibliothek |
 | `PRINT_HISTORY` | – | `true` oder `false` legt den Druckverlauf fest; ohne Angabe gilt der Schalter in den Einstellungen (Standard an) |
 | `PRINT_HISTORY_INTERVAL` | 60 | Sekunden zwischen zwei Abfragen von Klipper-, Prusa- und OctoPrint-Druckern |
+| `PRINT_SEND` | – | `true` oder `false` legt „Drucken“ für Bambu-Lab-Drucker fest; ohne Angabe gilt der Schalter in den Einstellungen (Standard aus) |
 
 **Oberfläche**
 

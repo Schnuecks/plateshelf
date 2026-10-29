@@ -39,6 +39,8 @@ Kosten, die wichtigsten Druckeinstellungen und eine 3D-Vorschau der Druckbahnen.
   Moonraker (etwa Creality K1/K2, Sovol SV08, Qidi, Voron) und OctoPrint
 - **Druckverlauf und Statistik:** was wann auf welchem Drucker gedruckt wurde und ob der
   Druck durchlief, mit Notiz und Bewertung pro Druck
+- **Erneut drucken (optional, Bambu Lab):** eine geslicte Platte wieder an den Drucker schicken
+  und starten, mit Zuordnung der Filamente zu den AMS-Fächern
 - **Benutzerkonten** mit Rollen (Admin, Benutzer, Nur lesen), Geräteliste und API-Tokens;
   Single Sign-on mit Authelia, Authentik, Keycloak & Co. (OIDC)
   nur zum Lesen
@@ -73,6 +75,21 @@ docker compose up -d
 Öffne `http://<server>:8000` und lege das Admin-Konto an; den Einrichtungscode findest du im
 Protokoll (`docker compose logs plateshelf`). Danach legst du deine Druckdateien in den Ordner `library`.
 Aktualisieren: `docker compose pull && docker compose up -d`.
+
+## Drucken aus PlateShelf (optional)
+
+Standardmäßig aus. Um eine geslicte Platte direkt von der Projektseite auf einem Bambu-Lab-Drucker
+zu drucken:
+
+1. Den Drucker für den Direktimport einrichten und den Druckverlauf eingeschaltet lassen.
+2. Am Drucker den **LAN-Only-Modus** und danach den **Entwicklermodus** einschalten (Einstellungen
+   → Netzwerk). Sonst lehnt neuere Bambu-Firmware Startbefehle von anderen Programmen ab. In
+   diesem Modus ist der Drucker **nicht mit der Bambu-Cloud verbunden**: kein Fernzugriff über
+   Bambu Handy, keine Cloud-Drucke.
+3. In PlateShelf **Einstellungen → Druckverlauf → Drucken aus PlateShelf erlauben** einschalten
+   (oder `PRINT_SEND=true` in der `.env` setzen).
+
+Danach steht bei den Platten **Drucken**. Mehr unter [Drucker](docs/de/printers.md#erneut-drucken-bambu-lab).
 
 ## Dokumentation
 

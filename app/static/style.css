@@ -947,3 +947,11 @@ a.icon-btn { text-decoration: none; }
 .assign-facts dd { margin: .1rem 0 0; overflow-wrap: anywhere; }
 .assign-form select { width: 100%; }
 .assign-actions { align-items: center; gap: 1.25rem; }
+
+/* Print again (print.html) */
+.button.is-disabled { opacity: .45; filter: grayscale(1); cursor: not-allowed; pointer-events: none; }
+.print-page .print-map select { width: 100%; }
+.print-page .print-options { border: 0; padding: 0; margin: 1rem 0 0; display: grid; gap: .35rem; }
+.print-page .print-options legend { font-weight: 600; margin-bottom: .3rem; }
+.print-page .print-confirm { margin-top: 1rem; font-weight: 600; }
+.print-page button[type=submit]:disabled { opacity: .45; filter: grayscale(1); cursor: not-allowed; }

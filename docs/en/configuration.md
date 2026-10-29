@@ -42,6 +42,7 @@ All settings live in the `.env`. The `compose.yaml` passes them to the container
 | `PRINTER_IMPORT_DIR` | From printer | Target folder for imported prints in the library |
 | `PRINT_HISTORY` | – | `true` or `false` fixes the print history; unset, the switch in the settings applies (default on) |
 | `PRINT_HISTORY_INTERVAL` | 60 | Seconds between two queries of Klipper, Prusa and OctoPrint printers |
+| `PRINT_SEND` | – | `true` or `false` fixes “Print” for Bambu Lab printers; unset, the switch in the settings applies (default off) |
 
 **Interface**
 

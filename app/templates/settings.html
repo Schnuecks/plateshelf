@@ -242,6 +242,22 @@
           <button type="submit" data-autosubmit-button>{{ _('Druckverlauf speichern') }}</button>
         </form>
         {% endif %}
+
+        <h3 id="print-send">{{ _('Drucken aus {app}', app=APP_NAME) }}</h3>
+        <p class="hint">{{ _('Zeigt bei geslicten Platten „Drucken“: {app} lädt die Datei auf einen Bambu-Lab-Drucker und startet sie. Neuere Bambu-Firmware nimmt das nur im LAN-Modus mit eingeschaltetem Entwicklermodus an; der Drucker ist dann nicht mit der Bambu-Cloud verbunden. Braucht den Druckverlauf.', app=APP_NAME) }}</p>
+        {% if request.query_params.get('send') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        {% if send_env is not none %}
+        <p class="hint">{{ _('Über die Umgebungsvariable {env} festgelegt: {state}.', env='<code>PRINT_SEND</code>', state=_('eingeschaltet') if send_env else _('ausgeschaltet'))|safe }}</p>
+        {% else %}
+        <form method="post" action="/settings/print-send" class="toggle-form">
+          <label class="switch">
+            <input type="checkbox" name="send_enabled" value="1" {{ 'checked' if send_on }} data-autosubmit>
+            <span class="switch-track" aria-hidden="true"></span>
+            {{ _('Drucken aus {app} erlauben', app=APP_NAME) }}
+          </label>
+          <button type="submit" data-autosubmit-button>{{ _('Einstellung speichern') }}</button>
+        </form>
+        {% endif %}
       </section>
 
       <section class="settings-section" id="users" data-section>

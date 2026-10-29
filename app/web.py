@@ -116,7 +116,7 @@ def allowed(role: str, method: str, path: str) -> bool:
     if role == "user":
         return True
     if method in SAFE_METHODS:
-        return path != "/upload"
+        return path != "/upload" and not path.startswith("/print/")
     return path in ("/logout", "/appearance") or path == "/account" or path.startswith("/account/")
 
 

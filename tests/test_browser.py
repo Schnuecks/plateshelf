@@ -416,13 +416,15 @@ def test_settings_sections(server, page, monkeypatch):
     assert page.locator("#power").is_visible() and not page.locator("#printers").is_visible()
     assert page.locator('.settings-nav a[href="#power"]').get_attribute("aria-current") == "page"
     page.locator('.settings-nav a[href="#history"]').click()
-    assert not page.locator("[data-autosubmit-button]").is_visible()
-    page.locator(".switch").click()  # switch off, saves without a button
+    buttons = page.locator("[data-autosubmit-button]")
+    assert buttons.count() >= 1 and not any(buttons.nth(i).is_visible() for i in range(buttons.count()))
+    history = page.locator('input[name="enabled"][data-autosubmit]')
+    page.locator(".switch").first.click()  # switch off, saves without a button
     page.wait_for_url("**/settings?history=1#history")
-    assert page.locator("#history").is_visible() and not page.locator("[data-autosubmit]").is_checked()
-    page.locator(".switch").click()
+    assert page.locator("#history").is_visible() and not history.is_checked()
+    page.locator(".switch").first.click()
     page.wait_for_load_state("load")
-    assert page.locator("[data-autosubmit]").is_checked()
+    assert history.is_checked()
     assert page.errors == []
 
 

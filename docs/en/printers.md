@@ -157,3 +157,30 @@ the `.env` fixes the setting; the switch in the interface is then hidden.
 finished prints, print time, filament and costs, prints per month (finished and cancelled
 or failed), costs per month, filament by material and the success rate per printer.
 Filament and costs only count finished prints.
+
+## Print again (Bambu Lab)
+
+A sliced plate from the library can be sent back to a Bambu printer and started: **“Print”** next
+to the plate on the project page. Nothing is sliced again; the file already holds the G-code.
+
+This is **off by default**. Switch it on in **Settings → Print history → Allow printing from
+PlateShelf** (or with `PRINT_SEND=true`), and on the printer switch on **LAN-only mode** and then
+**developer mode** (Settings → Network). Without developer mode the printer answers “mqtt message
+verify failed” and PlateShelf shows that it refused. In this mode the printer is not connected to
+the Bambu cloud (no Bambu Handy remote access, no cloud or MakerWorld prints).
+
+1. Choose the printer (if there are several). PlateShelf shows whether it is connected and free.
+2. Check the filaments: for each filament of the plate, PlateShelf suggests the AMS slot with the
+   same material and the closest colour. Plates with a single filament can also use the external
+   spool.
+3. Options: level the bed first (on by default) and record a timelapse.
+4. Confirm that the bed is clear and the right build plate is in place, then **Start print**.
+
+PlateShelf uploads the file to the SD card over the same connection the import uses and starts the
+plate over MQTT. The print then appears in the history like any other.
+
+- Only possible while the printer is idle, and only for admins and users (not “Read only”).
+- Needs the print history (MQTT connection) to be on.
+- Newer Bambu firmware only accepts start commands from other programs in **LAN mode with
+  developer mode** switched on.
+- Prusa, Klipper and OctoPrint are not supported yet.

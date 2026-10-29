@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Drucken') }} – {{ APP_NAME }}{% endblock %}
+{% block back %}<a class="nav-back" href="{{ back }}" data-back>{{ _('Zurück') }}</a>{% endblock %}
+
+{% block main %}
+<section class="account-page print-page">
+  <h1>{{ _('Platte {n} drucken', n=plate.idx) }}{% if plate.name %}: {{ plate.name }}{% endif %}</h1>
+  <p class="hint">{{ _('Die Datei ist bereits gesliced. {app} lädt sie auf den Drucker und startet die gewählte Platte.', app=APP_NAME) }}</p>
+  {% if error %}<p class="flash flash-warn" role="alert">{{ error }}</p>{% endif %}
+
+  <dl class="assign-facts">
+    <div><dt>{{ _('Datei') }}</dt><dd>{{ file.path.split('/')[-1] }}</dd></div>
+    <div><dt>{{ _('Zeit') }}</dt><dd>{{ plate.prediction_s|duration }}</dd></div>
+    <div><dt>{{ _('Gewicht') }}</dt><dd>{{ plate.weight_g|num(1, 'g') }}</dd></div>
+  </dl>
+
+  {% if not printers %}
+  <p class="warn">{{ _('Kein Bambu-Lab-Drucker eingerichtet. Drucker trägst du in den Einstellungen ein.') }}</p>
+  {% else %}
+  {% if printers|length > 1 %}
+  <form method="get" class="settings-section print-choose">
+    <label>{{ _('Drucker') }}
+      <select name="printer" data-autosubmit>
+        {% for p in printers %}<option value="{{ p.id }}" {{ 'selected' if p.id == printer.id }}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit">{{ _('Auswählen') }}</button></noscript>
+  </form>
+  {% endif %}
+
+  {% if not connected %}
+  <p class="warn">{{ _('Keine Verbindung zu {name}. Ist der Drucker an und der Druckverlauf in den Einstellungen eingeschaltet?', name=printer.name) }}</p>
+  {% elif not idle and running and gcode_state == 'PAUSE' %}
+  <p class="warn">{{ _('{name} hat „{job}“ bei {percent} % pausiert. Starten geht erst, wenn der Druck beendet oder abgebrochen ist.', name=printer.name, job=running.name, percent=running.percent if running.percent is not none else '–') }}
+    <a href="/history">{{ _('Druckverlauf') }}</a></p>
+  {% elif not idle and running %}
+  <p class="warn">{{ _('{name} druckt gerade „{job}“: {percent} %, noch {left}. Starten geht erst, wenn er frei ist.', name=printer.name, job=running.name, percent=running.percent if running.percent is not none else '–', left=running.remaining_s|duration) }}
+    <a href="/history">{{ _('Druckverlauf') }}</a></p>
+  {% elif not idle %}
+  <p class="warn">{{ _('{name} ist gerade beschäftigt ({state}). Starten geht erst, wenn er frei ist.', name=printer.name, state=gcode_state) }}</p>
+  {% endif %}
+
+  <form method="post" action="/print/{{ file.id }}/{{ plate.idx }}" class="settings-section print-form">
+    <input type="hidden" name="printer" value="{{ printer.id }}">
+    <h2>{{ _('Filamente') }}</h2>
+    <p class="hint">{{ _('Vorgeschlagen ist das Fach mit gleichem Material und der ähnlichsten Farbe. Prüfe die Zuordnung vor dem Start.') }}</p>
+    <table class="filaments print-map">
+      <thead><tr><th scope="col">{{ _('In der Datei') }}</th><th scope="col">{{ _('Fach am Drucker') }}</th></tr></thead>
+      <tbody>
+      {% for fi in plate.filaments %}
+        <tr>
+          <td><span class="swatch" data-css="background: {{ fi.color }}" title="{{ fi.color }}"></span>{{ fi.slot }} · {{ fi.type }}{% if fi.name %}<span class="fil-name">{{ fi.name }}</span>{% endif %}</td>
+          <td>
+            <select name="slot_{{ fi.slot }}" required aria-label="{{ _('Fach für Filament {n}', n=fi.slot) }}">
+              {% set proposed = suggestion.get(fi.slot) %}
+              {% if proposed is none %}<option value="" selected disabled>{{ _('Bitte wählen') }}</option>{% endif %}
+              {% for t in trays %}
+              <option value="{{ t.slot }}" {{ 'selected' if t.slot == proposed }}>{{ _('AMS {unit} · Fach {tray}', unit=t.unit + 1, tray=t.tray + 1) if t.unit < 128 else _('AMS HT {unit}', unit=t.unit - 127) }} – {{ t.name or t.type }} ({{ t.color }})</option>
+              {% endfor %}
+              {% if plate.filaments|length == 1 %}<option value="{{ external }}">{{ _('Externe Spule') }}</option>{% endif %}
+            </select>
+            {% if fi.slot in color_off %}<p class="warn">{{ _('Farbe weicht ab: kein Fach mit dieser Farbe gefunden.') }}</p>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    <fieldset class="print-options">
+      <legend>{{ _('Optionen') }}</legend>
+      <label class="check"><input type="checkbox" name="bed_leveling" value="1" checked> {{ _('Druckbett vorher vermessen') }}</label>
+      <label class="check"><input type="checkbox" name="timelapse" value="1"> {{ _('Zeitraffer aufnehmen') }}</label>
+    </fieldset>
+
+    <label class="check print-confirm"><input type="checkbox" name="bed_clear" value="1" required>
+      {{ _('Das Druckbett ist leer und die richtige Druckplatte liegt auf.') }}</label>
+
+    <div class="section-foot assign-actions">
+      <a href="{{ back }}">{{ _('Abbrechen') }}</a>
+      <button type="submit" {{ 'disabled' if not (connected and idle) }}>{{ _('Druck starten') }}</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

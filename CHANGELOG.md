@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+
+- **Print again (Bambu Lab, optional):** “Print” next to a sliced plate on the project page sends
+  the file to a Bambu printer and starts the plate. PlateShelf suggests an AMS slot for every
+  filament (same material, closest colour) and points out when the colour differs, checks that the
+  printer is free (and shows what it is printing if not) and asks to confirm that the bed is clear.
+  If the printer refuses the command, the page says so. Not for “Read only” users.
+  **Off by default:** switch it on in Settings → Print history or with `PRINT_SEND=true`; newer
+  Bambu firmware needs LAN-only mode with developer mode on the printer.
+
 ## 1.3.0
 
 - **Assign a print by hand:** “Assign” next to every print in the history and on the project page

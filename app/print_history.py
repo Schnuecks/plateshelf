@@ -650,6 +650,7 @@ class BambuWatcher:
         self.client.reconnect_delay_set(5, 300)
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
+        self.replies: dict[str, dict] = {}  # answers to our own commands, by sequence_id (print_send)
 
     def _on_connect(self, client, _userdata, _flags, reason, _props=None):
         if reason.is_failure:
@@ -664,6 +665,9 @@ class BambuWatcher:
         try:
             payload = json.loads(msg.payload)
             captures.remember(self.printer["id"], "mqtt report", payload, merge=True)
+            report = payload.get("print")
+            if isinstance(report, dict) and report.get("result") is not None and report.get("sequence_id"):
+                self.replies[str(report["sequence_id"])] = report
             self.tracker.update(payload)
         except Exception:  # noqa: BLE001
             log.exception("%s: Meldung nicht auswertbar", self.printer["name"])
