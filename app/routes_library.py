@@ -20,10 +20,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
-from . import gcode_file, i18n, photos, print_history, printer_import, render, statistics, store, trash
+from . import gcode_file, i18n, photos, print_history, print_send, printer_import, render, statistics, store, \
+    trash
 from .i18n import fmt_date, fmt_num, gettext as _
 from .projects import _key_settings, file_stamp, load_projects, natural_key
-from .web import ONE_YEAR, STATUSES, _local_target, templates
+from .web import ONE_YEAR, STATUSES, _local_target, can_edit, templates
 
 router = APIRouter()
 PAGE = 60  # Projects per step in the overview; keeps large libraries fast
@@ -198,10 +199,13 @@ def project(request: Request, pid: int):
         dupes = store.duplicates_of(con, list(file_rows))
     for f in file_rows.values():
         f["duplicates"] = dupes.get(f["id"], [])
+    bambu = print_send.printers() if can_edit(request) else []
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
         "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
+        "can_print": can_edit(request) and bool(bambu),
+        "print_busy": bool(bambu) and print_send.all_busy(bambu),
     })
 
 

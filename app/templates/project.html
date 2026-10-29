@@ -9,6 +9,9 @@
   {% if request.query_params.get('restored') %}
   <p class="flash" role="status">{{ _('Aus dem Papierkorb wiederhergestellt, mit Notizen und Tags.') if p.notes or p.tags else _('Aus dem Papierkorb wiederhergestellt.') }}</p>
   {% endif %}
+  {% if request.query_params.get('print_started') %}
+  <p class="flash" role="status">{{ _('Druck gestartet. Den Fortschritt siehst du im Druckverlauf.') }}</p>
+  {% endif %}
   {% if request.query_params.get('uploaded') %}
   {% set up = request.query_params.get('uploaded')|int(0) %}
   <p class="flash" role="status">{{ ngettext('{n} Datei hochgeladen und eingelesen.', '{n} Dateien hochgeladen und eingelesen.', up) }}</p>
@@ -125,6 +128,7 @@
               <h3>{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</h3>
               {% if pl.printed %}<span class="plate-printed">{{ _('Gedruckt') }}{% if pl.printed > 1 %} ({{ pl.printed }}×){% endif %}</span>{% endif %}
               <a class="button button-small" href="/view/{{ f.id }}/{{ pl.idx }}">{{ _('3D-Vorschau') }}</a>
+              {% if can_print and pl.sliced and f.path.lower().endswith('.gcode.3mf') %}{% if print_busy %}<span class="button button-small is-disabled" aria-disabled="true" title="{{ _('Der Drucker druckt gerade.') }}">{{ _('Drucken') }}</span>{% else %}<a class="button button-small" href="/print/{{ f.id }}/{{ pl.idx }}">{{ _('Drucken') }}</a>{% endif %}{% endif %}
             </div>
             <dl class="stats">
               <div><dt>{{ _('Zeit') }}</dt><dd>{{ pl.prediction_s|duration }}</dd></div>

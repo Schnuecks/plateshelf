@@ -164,3 +164,33 @@ entfällt dann.
 Monate: fertige Drucke, Druckzeit, Filament und Kosten, Drucke pro Monat (fertig sowie
 abgebrochen oder fehlgeschlagen), Kosten pro Monat, Filament nach Material und die
 Erfolgsquote je Drucker. Filament und Kosten zählen nur fertige Drucke.
+
+## Erneut drucken (Bambu Lab)
+
+Eine geslicte Platte aus der Bibliothek lässt sich wieder an einen Bambu-Drucker schicken und
+starten: **„Drucken“** neben der Platte auf der Projektseite. Neu gesliced wird dabei nichts, die
+Datei enthält den G-Code schon.
+
+Das ist **standardmäßig aus**. Einschalten unter **Einstellungen → Druckverlauf → Drucken aus
+PlateShelf erlauben** (oder mit `PRINT_SEND=true`), und am Drucker den **LAN-Only-Modus** und danach
+den **Entwicklermodus** einschalten (Einstellungen → Netzwerk). Ohne Entwicklermodus antwortet der
+Drucker „mqtt message verify failed“, und PlateShelf zeigt an, dass er abgelehnt hat. In diesem
+Modus ist der Drucker nicht mit der Bambu-Cloud verbunden (kein Fernzugriff über Bambu Handy, keine
+Cloud- oder MakerWorld-Drucke).
+
+1. Drucker wählen (bei mehreren). PlateShelf zeigt, ob er verbunden und frei ist.
+2. Filamente prüfen: Für jedes Filament der Platte schlägt PlateShelf das AMS-Fach mit gleichem
+   Material und der ähnlichsten Farbe vor. Platten mit nur einem Filament können auch die externe
+   Spule nehmen.
+3. Optionen: Druckbett vorher vermessen (voreingestellt) und Zeitraffer aufnehmen.
+4. Bestätigen, dass das Druckbett leer ist und die richtige Druckplatte aufliegt, dann **Druck
+   starten**.
+
+PlateShelf lädt die Datei über dieselbe Verbindung wie der Import auf die SD-Karte und startet die
+Platte per MQTT. Der Druck erscheint danach wie jeder andere im Druckverlauf.
+
+- Geht nur, wenn der Drucker frei ist, und nur für Admins und Benutzer (nicht „Nur lesen“).
+- Der Druckverlauf (MQTT-Verbindung) muss eingeschaltet sein.
+- Neuere Bambu-Firmware nimmt Startbefehle von anderen Programmen nur im **LAN-Modus mit
+  Entwicklermodus** an.
+- Prusa, Klipper und OctoPrint werden noch nicht unterstützt.

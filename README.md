@@ -38,6 +38,8 @@ print settings and a 3D preview of the actual toolpaths.
   Moonraker (e.g. Creality K1/K2, Sovol SV08, Qidi, Voron) and OctoPrint
 - **Print history and statistics:** what was printed when, on which printer, and whether it
   finished, with a note and rating per print
+- **Print again (optional, Bambu Lab):** send a sliced plate back to the printer and start it,
+  with the filaments mapped to the AMS slots
 - **User accounts** with roles (admin, user, read only), device list and read-only API tokens;
   single sign-on with Authelia, Authentik, Keycloak & co. (OIDC)
 - **Six languages** and **five styles** (Classic, Candy, Workbench, Blueprint, Pinboard), each
@@ -68,6 +70,19 @@ docker compose up -d
 Open `http://<server>:8000` and create the admin account; the setup code is in the log
 (`docker compose logs plateshelf`). Then put your print files into the `library` folder. To update:
 `docker compose pull && docker compose up -d`.
+
+## Printing from PlateShelf (optional)
+
+Off by default. To print a sliced plate straight from its project page on a Bambu Lab printer:
+
+1. Set up the printer for the direct import and keep the print history switched on.
+2. On the printer, switch on **LAN-only mode** and then **developer mode** (Settings → Network).
+   Newer Bambu firmware refuses start commands from other programs otherwise. In this mode the
+   printer is **not connected to the Bambu cloud**: no Bambu Handy remote access, no cloud prints.
+3. In PlateShelf, switch on **Settings → Print history → Allow printing from PlateShelf** (or set
+   `PRINT_SEND=true` in `.env`).
+
+Plates then show **Print**. Details in [Printers](docs/en/printers.md#print-again-bambu-lab).
 
 ## Documentation
 

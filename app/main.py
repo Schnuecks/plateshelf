@@ -20,7 +20,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import auth, backup, crypto, diagnostics, i18n, oidc, print_history, printer_import, routes_account, \
-    routes_library, routes_preview, routes_settings, routes_system, store, trash
+    routes_library, routes_preview, routes_print, routes_settings, routes_system, store, trash
 from .i18n import gettext as _
 from .web import APP_NAME, BASE, EARLY_SCRIPT, IMPORTMAP, SAFE_METHODS, allowed, current_url, current_user, \
     is_public
@@ -184,5 +184,5 @@ def same_origin(request: Request) -> bool:
 
 mimetypes.add_type("application/manifest+json", ".webmanifest")  # web app manifest (home screen)
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
-for module in (routes_account, routes_library, routes_settings, routes_preview, routes_system):
+for module in (routes_account, routes_library, routes_settings, routes_preview, routes_print, routes_system):
     app.include_router(module.router)

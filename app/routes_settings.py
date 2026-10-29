@@ -14,7 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from starlette.background import BackgroundTask
 
-from . import auth, backup, crypto, diagnostics, i18n, print_history, printer_import, render, store
+from . import auth, backup, crypto, diagnostics, i18n, print_history, print_send, printer_import, render, store
 from .i18n import gettext as _
 from .web import APP_VERSION, ONE_YEAR, _local_target, audit, current_user, templates
 
@@ -64,6 +64,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "import_dir": printer_import.import_dir(),
         "thumbs_mode": render.mode(settings),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
+        "send_on": print_send.enabled(), "send_env": print_send.env_setting(),
         "diagnostics": diagnostics.report(APP_VERSION),
         "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
         "users": auth.list_users() if auth.enabled() else [], "tokens": auth.list_tokens(),
@@ -178,6 +179,13 @@ def history_settings_save(enabled: str = Form("")):
     if print_history.env_setting() is None:
         print_history.set_enabled(enabled == "1")
     return RedirectResponse("/settings?history=1#history", status_code=303)
+
+
+@router.post("/settings/print-send")
+def print_send_settings_save(send_enabled: str = Form("")):
+    if print_send.env_setting() is None:
+        print_send.set_enabled(send_enabled == "1")
+    return RedirectResponse("/settings?send=1#history", status_code=303)
 
 
 @router.post("/appearance")
