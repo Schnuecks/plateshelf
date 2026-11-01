@@ -26,6 +26,8 @@
   --accent-ink: #FFFFFF;
   --bed: #E6EAF1;
   --bed-grain: #E6EAF1;
+  --bed-dark: #CBD5E4;
+  --bed-dark-grain: #CBD5E4;
   --viewer-bg: #F1F3EE;
   --warn: #C0261F;
 }
@@ -33,13 +35,13 @@
   :root:not([data-theme="light"]) {
     --bg: #0F3B7A; --surface: #12437F; --ink: #EAF2FF; --muted: #A9C2EA; --line: #D7E6FF;
     --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FFA398; --accent-ink: #0F3B7A;
-    --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
+    --bed: #0C3268; --bed-grain: #0C3268; --bed-dark: #3F6AA3; --bed-dark-grain: #3F6AA3; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0F3B7A; --surface: #12437F; --ink: #EAF2FF; --muted: #A9C2EA; --line: #D7E6FF;
   --grid-minor: rgb(215 230 255 / .08); --grid-major: rgb(215 230 255 / .18); --accent: #FFA398; --accent-ink: #0F3B7A;
-  --bed: #0C3268; --bed-grain: #0C3268; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
+  --bed: #0C3268; --bed-grain: #0C3268; --bed-dark: #3F6AA3; --bed-dark-grain: #3F6AA3; --viewer-bg: #0F3B7A; --warn: #FFB8AF;
 }
 
 /* Grid paper: 5 mm and 25 mm */
