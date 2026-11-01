@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_job_note.html" import job_note with context %}
+{% from "_job_filament.html" import job_filament %}
 {% block title %}{{ p.name }} – {{ APP_NAME }}{% endblock %}
 {% block back %}<a class="nav-back" href="/" data-back>{{ _('Alle Projekte') }}</a>{% endblock %}
 
@@ -292,7 +293,7 @@
             </form>
             {% endif %}
             <span class="job-status job-{{ j.status }}"{% if j.status == 'running' %} data-live-job="{{ j.id }}" data-label="{{ _(JOB_STATUSES[j.status]) }}"{% endif %}>{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</span>
-            <span class="job-when">{{ j.started|datetime }}</span>
+            <span class="job-when">{{ job_filament(j) }}{{ j.started|datetime }}</span>
             <span class="job-sub">{{ j.printer_name }}{% if j.file_name %}, {{ j.file_name }}{% endif %}{% if j.ended and j.started %}, <span class="nowrap">{{ (j.duration_s or (j.ended - j.started))|duration }}</span>{% endif %}
               {%- if can_edit(request) %} · <a class="job-assign" href="/history/{{ j.id }}/assign?next={{ ('/p/' ~ p.id)|urlencode }}">{{ _('Zuordnen') }}</a>{% endif %}</span>
             <div class="job-note-line">{{ job_note(j, request) }}</div>
@@ -305,12 +306,26 @@
 
       {% if p.filaments %}
       <section class="usage">
-        <h2>{{ _('Filament im Projekt') }}</h2>
+        <h2>{{ _('Filament') }}</h2>
+        {% if printed %}
+        <h3 class="usage-sub">{{ _('Gedruckt') }}</h3>
+        <ul>
+          {% for fi in printed %}
+          <li><span class="swatch" data-css="background: {{ fi.color }}"></span>{{ fi.type }}
+            <span class="usage-count">{{ ngettext('{n} Druck', '{n} Drucke', fi.prints) }}</span><span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
+          {% endfor %}
+        </ul>
+        <details class="usage-planned">
+          <summary>{{ _('Benötigt für alle Platten') }}</summary>
+        {% else %}
+        <h3 class="usage-sub">{{ _('Benötigt') }}</h3>
+        {% endif %}
         <ul>
           {% for fi in p.filaments %}
           <li><span class="swatch" data-css="background: {{ fi.color }}"></span>{{ fi.type }}<span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
           {% endfor %}
         </ul>
+        {% if printed %}</details>{% endif %}
       </section>
       {% endif %}
     </aside>

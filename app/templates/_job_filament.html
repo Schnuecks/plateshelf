@@ -1,0 +1,5 @@
+{# Filament a print actually ran with (reported by the printer), as small colour dots #}
+{% macro job_filament(j) -%}
+{%- set known = (j.used or [])|rejectattr('planned')|list -%}
+{%- if known %}<span class="job-fil">{% for f in known %}<span class="swatch" role="img" aria-label="{{ f.type }} {{ f.color }}" title="{{ f.type }} {{ f.color }}" data-css="background: {{ f.color }}"></span>{% endfor %}</span>{% endif -%}
+{%- endmacro %}

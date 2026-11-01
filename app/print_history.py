@@ -573,6 +573,92 @@ BAMBU_ACTIVE = ("PREPARE", "RUNNING", "PAUSE", "SLICING")
 BAMBU_CANCELLED = (0, 50348044)  # 0300400C: cancelled by the user
 
 
+UNUSED_SLOT = 65535   # "mapping": slicer filament not used by this print
+EXTERNAL_SLOTS = (254, 255)  # "mapping": the external spool holder
+
+
+def _merge_ams(old: dict, new: dict) -> dict:
+    """P1 and A1 only send what changed: merge AMS units and trays by their id."""
+    merged = {**old, **{k: v for k, v in new.items() if k != "ams"}}
+    if isinstance(new.get("ams"), list):
+        units = {str(u.get("id")): u for u in old.get("ams") or [] if isinstance(u, dict)}
+        for unit in new["ams"]:
+            if not isinstance(unit, dict):
+                continue
+            prev = units.get(str(unit.get("id")), {})
+            trays = {str(t.get("id")): t for t in prev.get("tray") or [] if isinstance(t, dict)}
+            for tray in unit.get("tray") or []:
+                if isinstance(tray, dict):
+                    trays[str(tray.get("id"))] = {**trays.get(str(tray.get("id")), {}), **tray}
+            units[str(unit.get("id"))] = {**prev, **unit, "tray": list(trays.values())}
+        merged["ams"] = list(units.values())
+    return merged
+
+
+def actual_filaments(state: dict) -> list[dict] | None:
+    """Filament the running print uses per slicer slot, from the printer's AMS mapping:
+    [{slot, type, color, name}]. None if the printer does not report it."""
+    from .print_send import _color, trays  # print_send imports this module
+    mapping = state.get("mapping")
+    if not isinstance(mapping, list) or not mapping:
+        return None
+    loaded = {t["slot"]: t for t in trays(state)}
+    external = state.get("vt_tray") if isinstance(state.get("vt_tray"), dict) else {}
+    out = []
+    for index, slot in enumerate(mapping):
+        if not isinstance(slot, int) or slot == UNUSED_SLOT:
+            continue
+        if slot in EXTERNAL_SLOTS and external.get("tray_type"):
+            tray = {"type": external["tray_type"], "color": _color(external.get("tray_color", "")),
+                    "name": external.get("tray_sub_brands") or ""}
+        elif slot in loaded:
+            tray = loaded[slot]
+        else:
+            continue
+        out.append({"slot": index + 1, "type": tray["type"], "color": tray["color"], "name": tray.get("name") or ""})
+    return out or None
+
+
+def job_filaments(job: dict) -> list[dict]:
+    """Filament a print ran with, as far as the printer reported it."""
+    try:
+        return json.loads(job.get("filaments_json") or "[]")
+    except ValueError:
+        return []
+
+
+def printed_usage(jobs: list[dict], plates_of_file: dict[str, list[dict]]) -> list[dict]:
+    """Filament of all finished prints by material and colour: [{type, color, used_g, prints}].
+
+    Weight per slot from the printed plate of the file; material and colour from what the printer
+    reported, otherwise from the file. Each job gets "used" with its own list for the display.
+    """
+    total: dict[tuple, dict] = {}
+    for j in jobs:
+        plates = plates_of_file.get(j.get("local_path") or "", [])
+        plate = next((x for x in plates if x["idx"] == j.get("plate")), plates[0] if len(plates) == 1 else None)
+        planned = {f.get("slot"): f for f in (plate["filaments"] if plate else [])}
+        actual = job_filaments(j)
+        used = ([{**f, "used_g": (planned.get(f["slot"]) or {}).get("used_g")} for f in actual] if actual
+                else [{"slot": f.get("slot"), "type": f.get("type"), "color": f.get("color"), "used_g": f.get("used_g"),
+                       "planned": True} for f in planned.values()])
+        j["used"] = used
+        if j.get("status") != "completed":
+            continue
+        for f in used:
+            key = ((f.get("type") or "").upper(), (f.get("color") or "").upper())
+            entry = total.setdefault(key, {"type": f.get("type"), "color": f.get("color"), "used_g": 0.0, "prints": 0})
+            entry["used_g"] += f.get("used_g") or 0
+            entry["prints"] += 1
+    return sorted(total.values(), key=lambda e: -e["used_g"])
+
+
+def set_filaments(printer_id: str, job_key: str, filaments: list[dict]) -> None:
+    with _lock, store.connect() as con:
+        con.execute("UPDATE print_jobs SET filaments_json = ? WHERE printer = ? AND job_key = ?",
+                    (json.dumps(filaments), printer_id, job_key))
+
+
 class BambuTracker:
     """Evaluates the status reports of a Bambu printer (P1/A1 only send changes)."""
 
@@ -581,6 +667,7 @@ class BambuTracker:
         self.state: dict = {}
         self.job_key: str | None = None
         self.progress = None  # last saved: (percent, remaining minutes)
+        self.filaments = None  # last saved filament of the running print
 
     def _key(self, remote: str) -> str:
         for field in ("subtask_id", "task_id"):
@@ -596,7 +683,10 @@ class BambuTracker:
         report = message.get("print")
         if not isinstance(report, dict):
             return
-        self.state.update(report)
+        ams = report.get("ams")
+        self.state.update({k: v for k, v in report.items() if k != "ams"})
+        if isinstance(ams, dict):
+            self.state["ams"] = _merge_ams(self.state.get("ams") or {}, ams)
         gstate = str(self.state.get("gcode_state") or "").upper()
         # Usually the file name on the SD card; the P2S instead reports "…/Metadata/plate_2.gcode"
         # and the project name separately in subtask_name
@@ -618,6 +708,10 @@ class BambuTracker:
             elif current != self.progress:  # at most about once per minute
                 self.progress = current
                 record(self.printer, self.job_key, "running", progress=current[0], remaining_s=remaining)
+            filaments = actual_filaments(self.state)
+            if filaments and filaments != self.filaments:  # the mapping can come a moment after the start
+                self.filaments = filaments
+                set_filaments(self.printer["id"], self.job_key, filaments)
         elif gstate in ("FINISH", "FAILED"):
             key = self.job_key
             if key is None and (job := running_job(self.printer["id"])):
@@ -630,8 +724,10 @@ class BambuTracker:
                 status = "cancelled" if int(self.state.get("print_error") or 0) in BAMBU_CANCELLED else "failed"
             record(self.printer, key, status, progress=self.state.get("mc_percent"))
             self.job_key = None
+            self.filaments = None
         elif gstate == "IDLE":
             self.job_key = None
+            self.filaments = None
 
 
 class BambuWatcher:
