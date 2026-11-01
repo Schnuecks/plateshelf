@@ -21,7 +21,7 @@ mit axe-core aus `tests/vendor/`, im hellen und im dunklen Design):
 ```bash
 pip install -r requirements-browser.txt
 python -m playwright install chromium
-python -m pytest -q tests/test_browser.py
+python -m pytest -q -n auto tests/test_browser.py
 ```
 
 ## Übersetzungen
@@ -75,7 +75,8 @@ Antworten liegen nur im Arbeitsspeicher, verschickt wird nichts.
      git tag -a v1.2.3 -m "PlateShelf 1.2.3" && git push --tags
      ```
 
-  3. GitHub Actions testet, baut das Image für alle Plattformen, veröffentlicht es als
+  3. GitHub Actions baut das Image für alle Plattformen (die Tests liefen schon im Pull
+     Request), prüft es und veröffentlicht es als
      `1.2.3`, `1.2`, `1` und `latest` und legt das GitHub-Release mit den Notizen aus dem
      Changelog an. Anschließend werden ältere Versionen entfernt, die letzten fünf Releases
      bleiben erhalten.

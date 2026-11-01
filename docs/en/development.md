@@ -21,7 +21,7 @@ in the light and the dark theme):
 ```bash
 pip install -r requirements-browser.txt
 python -m playwright install chromium
-python -m pytest -q tests/test_browser.py
+python -m pytest -q -n auto tests/test_browser.py
 ```
 
 ## Translations
@@ -72,7 +72,8 @@ called “printer 1” etc.); file names stay. The answers are only kept in memo
      git tag -a v1.2.3 -m "PlateShelf 1.2.3" && git push --tags
      ```
 
-  3. GitHub Actions tests, builds the image for all platforms and publishes it as
+  3. GitHub Actions builds the image for all platforms (the tests already ran in the pull
+     request), scans it and publishes it as
      `1.2.3`, `1.2`, `1` and `latest`, and creates the GitHub release with the notes from
      the changelog. Older versions are then removed; the last five releases are kept.
 
