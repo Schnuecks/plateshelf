@@ -94,7 +94,7 @@ def test_same_plate_sliced_twice_shows_both_versions(client, lib, sample):
     page = client.get(f"/p/{project('Eevee Chibi')['id']}").text
     strip = page[page.index('class="plate-strip"'):page.index("</ol>")]
     assert strip.count("Platte 2: BODY") == 2 and strip.count("strip-version") == 2
-    dates = re.findall(r'strip-version">([^<]+)<', strip)
+    dates = re.findall(r'strip-version">(?:<span[^>]*></span>)*([^<]+)<', strip)  # after the colour dots
     assert dates[0].startswith(time.strftime("%d.%m.%Y", time.localtime(1_790_600_000))), dates
     assert "0,20 mm" in dates[0] and "Platte 3" in strip.split(dates[1])[1]  # Platte 3 without suffix
 

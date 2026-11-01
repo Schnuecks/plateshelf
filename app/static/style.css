@@ -964,3 +964,5 @@ a.icon-btn { text-decoration: none; }
 .usage-planned { border-top: 1px solid var(--line); margin-top: .6rem; padding: .5rem 0 0; }
 .usage-planned summary { font-size: .85rem; color: var(--muted); }
 .usage-planned ul { margin-top: .3rem; }
+.usage li.usage-total { font-weight: 600; border-bottom: 0; }
+.strip-version .swatch { width: .7rem; height: .7rem; margin-right: .3rem; vertical-align: -.05rem; }

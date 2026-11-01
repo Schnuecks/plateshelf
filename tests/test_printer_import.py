@@ -707,3 +707,40 @@ def test_octoprint_sync(lib, octoprint):
     assert pi.sync_printer(printer)["new"] == 0
     wrong = pi.sync_printer({**printer, "code": "falsch"})
     assert wrong["auth_failed"] and wrong["error"].startswith("Anmeldung abgelehnt, API-Schlüssel prüfen")
+
+
+def test_changed_file_with_prints_is_kept_as_a_version(lib, sample, tmp_path, monkeypatch):
+    """As on 01.11.: Bambu Studio sent the Echo Dot holder again under the same name, re-sliced in
+    black. The white file with its print stays, the black one comes next to it in the same project,
+    and the project page shows both as versions of the plate, each with its colour."""
+    white, black = tmp_path / "white.gcode.3mf", tmp_path / "black.gcode.3mf"
+    sample(white, [{"idx": 1, "sec": 3000, "layers": 2, "fil": [(1, "#FFFFFFFF", 25.2)]}])
+    sample(black, [{"idx": 1, "sec": 3000, "layers": 2, "fil": [(1, "#000000FF", 25.2)]}], colours=("#000000FF",))
+    pi.init()
+    fake = FakePrinter({"Echo_Dot.gcode.3mf": (white, "Nov 01 11:13")})
+    pi.sync_printer(PRINTER, connect=fake)
+    target = lib / "From printer" / "P2S"
+    with store.connect() as con:
+        con.execute("INSERT INTO print_jobs (printer, printer_name, job_key, local_path, status, started, ended, plate) "
+                    "VALUES ('SER1', 'P2S', 'w', 'From printer/P2S/Echo_Dot.gcode.3mf', 'completed', 1, 2, 1)")
+    fake.files["Echo_Dot.gcode.3mf"] = (black, "Nov 01 12:13")
+    assert pi.sync_printer(PRINTER, connect=fake)["updated"] == 1
+    assert sorted(os.listdir(target)) == ["Echo_Dot (2).gcode.3mf", "Echo_Dot.gcode.3mf"]
+    assert (target / "Echo_Dot.gcode.3mf").read_bytes() == white.read_bytes()
+    # Nothing printed from the new one yet: a further change replaces it
+    fake.files["Echo_Dot.gcode.3mf"] = (white, "Nov 01 13:00")
+    pi.sync_printer(PRINTER, connect=fake)
+    assert sorted(os.listdir(target)) == ["Echo_Dot (2).gcode.3mf", "Echo_Dot.gcode.3mf"]
+    fake.files["Echo_Dot.gcode.3mf"] = (black, "Nov 01 13:30")
+    pi.sync_printer(PRINTER, connect=fake)
+    store.scan(wait=True)
+    with store.connect() as con:
+        assert con.execute("SELECT COUNT(DISTINCT project_id) FROM files").fetchone()[0] == 1
+        pid = con.execute("SELECT project_id FROM files").fetchone()[0]
+    from fastapi.testclient import TestClient
+    from app import main
+    monkeypatch.setenv("SCAN_INTERVAL", "3600")
+    with TestClient(main.app) as client:
+        strip = client.get(f"/p/{pid}").text
+    strip = strip[strip.index('class="plate-strip"'):strip.index("</ol>")]
+    assert strip.count("strip-version") == 2 and "#FFFFFF" in strip and "#000000" in strip

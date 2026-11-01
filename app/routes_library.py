@@ -193,6 +193,7 @@ def project(request: Request, pid: int):
     others = sorted((o for o in projects.values() if o["id"] != pid), key=lambda o: o["name"].lower())
     jobs = print_history.jobs_for([f["path"] for f in file_rows.values()])
     printed = print_history.printed_usage(jobs, {f["path"]: f["plates"] for f in file_rows.values()})
+    printed_prints = sum(1 for j in jobs if j["status"] == "completed")
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
     for j in jobs:
         j["file_name"] = names.get(j["local_path"], "")
@@ -204,6 +205,7 @@ def project(request: Request, pid: int):
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
         "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions, "printed": printed,
+        "printed_g": sum(e["used_g"] for e in printed), "printed_prints": printed_prints,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
         "can_print": can_edit(request) and bool(bambu),
         "print_busy": bool(bambu) and print_send.all_busy(bambu),

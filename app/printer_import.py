@@ -421,6 +421,35 @@ def _local_name(remote: str) -> str:
     return _SAFE_NAME.sub("_", remote).strip(" .") or "Unbenannt.gcode.3mf"
 
 
+def _printed(path: Path) -> bool:
+    rel = path.relative_to(store.LIBRARY_DIR).as_posix()
+    with store.connect() as con:
+        return bool(con.execute("SELECT 1 FROM print_jobs WHERE local_path = ? AND hidden = 0", (rel,)).fetchone())
+
+
+def _keep_printed(target: Path, previous: str | None = None) -> Path:
+    """Target for a fetched file without overwriting one that prints already belong to.
+
+    Bambu Studio sends a sliced project again under the same name, e.g. re-sliced in another colour.
+    The old file stays with its prints; the new one gets " (2)", " (3)" … and lands in the same
+    project, where both show up as versions of the plate. A version nothing was printed from yet
+    (previous: where this printer file went last time) is simply replaced.
+    """
+    stem = target.name[:-len(".gcode.3mf")] if target.name.lower().endswith(".gcode.3mf") else target.stem
+    suffix = target.name[len(stem):]
+    if previous:
+        last = store.LIBRARY_DIR / previous
+        if (last.parent == target.parent and re.fullmatch(re.escape(stem) + r"( \(\d+\))?" + re.escape(suffix), last.name)
+                and last.exists() and not _printed(last)):
+            return last
+    if not target.exists() or not _printed(target):
+        return target  # nothing printed from it yet: replacing it is fine
+    n = 2
+    while (candidate := target.with_name(f"{stem} ({n}){suffix}")).exists():
+        n += 1
+    return candidate
+
+
 def _plate_file_name(remote: str, downloaded: Path) -> str:
     """Name of the local file, with the printed plate in the name.
 
@@ -756,7 +785,7 @@ def sync_printer(printer: dict, connect=None) -> dict:
                 if same:
                     tmp.unlink()
                 else:
-                    final = target_dir / _plate_file_name(f["name"], tmp)
+                    final = _keep_printed(target_dir / _plate_file_name(f["name"], tmp), prev and prev["local_path"])
                     os.replace(tmp, final)
                     _keep_printer_date(final, f["date"])
             except (OSError, ftplib.Error) as exc:

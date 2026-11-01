@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0
+
+- **A file sent again under the same name no longer replaces a printed one:** Bambu Studio sends a
+  project again under its name, e.g. re-sliced in another colour. If something was already printed
+  from the fetched file, PlateShelf keeps it and stores the new one next to it as `Name (2)`. Both
+  appear in the project as versions of the plate, and every print stays with its file.
+- **Plate bar:** versions of a plate show their filament colours next to the date.
+- **Filament box:** “Printed” adds a line with the total of all prints; the filament from the files
+  is now labelled “For one print of all plates”.
+
 ## 1.5.0
 
 - **Filament per print (Bambu Lab):** PlateShelf keeps the material and colour of the AMS trays (or
