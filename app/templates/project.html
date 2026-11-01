@@ -68,7 +68,7 @@
             <span class="strip-title">{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
             {% if pl.sliced %}
               <span class="strip-sub">{{ pl.prediction_s|duration }}, {{ pl.weight_g|num(1, 'g') }}</span>
-              {% if pl.version %}<span class="strip-sub strip-version">{{ pl.version }}</span>{% endif %}
+              {% if pl.version %}<span class="strip-sub strip-version">{% for f in pl.filaments %}<span class="swatch" role="img" aria-label="{{ f.type }} {{ f.color }}" data-css="background: {{ f.color }}"></span>{% endfor %}{{ pl.version }}</span>{% endif %}
             {% else %}
               <span class="strip-sub">{{ _('nicht gesliced') }}</span>
             {% endif %}
@@ -314,9 +314,12 @@
           <li><span class="swatch" data-css="background: {{ fi.color }}"></span>{{ fi.type }}
             <span class="usage-count">{{ ngettext('{n} Druck', '{n} Drucke', fi.prints) }}</span><span class="r">{{ fi.used_g|num(1, 'g') }}</span></li>
           {% endfor %}
+          {% if printed|length > 1 or printed_prints > 1 %}
+          <li class="usage-total">{{ _('Zusammen') }} <span class="usage-count">{{ ngettext('{n} Druck', '{n} Drucke', printed_prints) }}</span><span class="r">{{ printed_g|num(1, 'g') }}</span></li>
+          {% endif %}
         </ul>
         <details class="usage-planned">
-          <summary>{{ _('Benötigt für alle Platten') }}</summary>
+          <summary>{{ _('Für einen Druck aller Platten') }}</summary>
         {% else %}
         <h3 class="usage-sub">{{ _('Benötigt') }}</h3>
         {% endif %}

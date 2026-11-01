@@ -135,11 +135,17 @@ project name and plate. This only happens half an hour after the start, so a fil
 provides itself always wins. The history marks such prints with “No file” and explains this above
 the list.
 
+**Sent again under the same name:** Bambu Studio sends a project again under the same name, for
+example re-sliced in another colour. If something was already printed from the file PlateShelf
+fetched before, it keeps that file and stores the new one next to it as `Name (2).gcode.3mf`. Both
+end up in the same project and appear as versions of the plate, each with its colour; every print
+stays with the file it came from. A file nothing was printed from yet is simply replaced.
+
 **Filament per print (Bambu Lab):** at the start of a print, the printer reports which AMS tray
 (or the external spool) each filament of the sliced file uses. PlateShelf keeps material and colour
 of these trays with the print, so a file printed once in white and once in black shows both: as
 colour dots next to each print, and in the project's filament box under “Printed” with the weight
-per colour. “Needed for all plates” below it is the filament from the files. Other printers do not
+per colour. “For one print of all plates” below it is the filament from the files. Other printers do not
 report their spools; their prints count with the filament from the file.
 
 **Assigning by hand:** “Assign” next to a print in the history or on the project page opens a

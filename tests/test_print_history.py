@@ -877,7 +877,7 @@ def test_same_file_printed_in_two_colours(ready, sample, monkeypatch):
     box = page[page.index('class="usage"'):]
     box = box[:box.index("</section>")]
     assert "Gedruckt" in box and box.count("1 Druck") == 2 and "#FFFFFF" in box and "#000000" in box
-    assert "Benötigt für alle Platten" in box
+    assert "Für einen Druck aller Platten" in box and "Zusammen" in box and "50,4 g" in box
     assert page.count('class="job-fil"') == 2
 
 

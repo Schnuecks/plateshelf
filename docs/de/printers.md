@@ -140,11 +140,17 @@ zugeordnet. Das passiert erst eine halbe Stunde nach dem Start, damit eine Datei
 Drucker selbst bereitstellt, immer Vorrang hat. Der Verlauf markiert solche Drucke mit „Keine
 Datei“ und erklärt das über der Liste.
 
+**Erneut unter gleichem Namen gesendet:** Bambu Studio schickt ein Projekt erneut unter demselben
+Namen, etwa in einer anderen Farbe neu geslict. Wurde aus der vorher geholten Datei schon gedruckt,
+behält PlateShelf sie und legt die neue daneben als `Name (2).gcode.3mf` ab. Beide landen im selben
+Projekt und erscheinen als Fassungen der Platte, jeweils mit ihrer Farbe; jeder Druck bleibt bei der
+Datei, aus der er stammt. Eine Datei, aus der noch nichts gedruckt wurde, wird einfach ersetzt.
+
 **Filament je Druck (Bambu Lab):** Beim Start eines Drucks meldet der Drucker, welche AMS-Spule
 (oder die externe Spule) jedes Filament der geslicten Datei nutzt. PlateShelf merkt sich Material
 und Farbe dieser Spulen beim Druck. Eine Datei, die einmal in Weiß und einmal in Schwarz gedruckt
 wurde, zeigt deshalb beides: als Farbpunkte neben jedem Druck und im Filament-Kasten des Projekts
-unter „Gedruckt“ mit dem Gewicht je Farbe. „Benötigt für alle Platten“ darunter ist das Filament
+unter „Gedruckt“ mit dem Gewicht je Farbe. „Für einen Druck aller Platten“ darunter ist das Filament
 aus den Dateien. Andere Drucker melden ihre Spulen nicht; ihre Drucke zählen mit dem Filament aus
 der Datei.
 
