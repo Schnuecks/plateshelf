@@ -701,11 +701,20 @@ function start(data) {
   const visibleShare = () => shareOf(range.lo, range.hi);
 
   // Colors: tool t = filament slot t + 1. Without tool changes the only filament applies.
+  // Black and very dark filament is lifted to a dark anthracite like in the preview images,
+  // otherwise light and shade leave a flat black shape (the legend keeps the real colour).
+  const visible = (hex) => {
+    const c = new THREE.Color(hex);
+    const hsl = {};
+    c.getHSL(hsl, THREE.SRGBColorSpace);
+    if (hsl.l < 0.21) c.setHSL(hsl.h, hsl.s, 0.21 + hsl.l * 0.5, THREE.SRGBColorSpace);
+    return c;
+  };
   const bySlot = Object.fromEntries(filaments.map((f) => [f.slot, f]));
   const toolFil = (t) => bySlot[t + 1] || (meta.tools.length === 0 ? filaments[0] : null);
   for (let t = 0; t < 32; t++) {
     const f = toolFil(t);
-    if (f) mat.uniforms.toolColors.value[t].set(f.color);
+    if (f) mat.uniforms.toolColors.value[t].copy(visible(f.color));
   }
   meta.features.forEach((name, i) => mat.uniforms.featureColors.value[i].set(FEATURE_COLORS[name] || "#7F868C"));
   const ranges = meta.metrics || {};

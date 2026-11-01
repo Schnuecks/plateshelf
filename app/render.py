@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 log = logging.getLogger(__name__)
 
-VERSION = 5  # new number = old images are redrawn
+VERSION = 6  # new number = old images are redrawn
 SIZE = 512          # like the images from Bambu Studio
 SUPERSAMPLE = 2     # draw at double size and downscale: smooth edges
 MARGIN = 0.07
@@ -75,6 +75,18 @@ def _hex(color: str) -> tuple[int, int, int]:
         return int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
     except (ValueError, IndexError):
         return _hex(DEFAULT_COLOR)
+
+
+DARK_LIFT = 90  # brightness (0-255) very dark filament is lifted to, so light and shade stay visible
+
+
+def _visible(rgb: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Black and very dark filament for drawing: lifted to a dark anthracite, otherwise the shading
+    (a factor on the colour) leaves a flat black silhouette without any detail."""
+    brightness = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+    if brightness >= DARK_LIFT * 0.6:
+        return rgb
+    return tuple(int(v * 0.5 + DARK_LIFT * 0.75) for v in rgb)
 
 
 def _shade(rgb, f: float) -> tuple[int, int, int]:
@@ -132,7 +144,7 @@ def render(base: Path, out: Path, colors: dict[int, str], bed: list[float] | Non
     layers = meta["layers"] or [0.0]
     view = _View(top)
     first = next(iter(colors.values()), DEFAULT_COLOR)
-    palette = {t: _hex(colors.get(t, first if not meta.get("tools") else DEFAULT_COLOR))
+    palette = {t: _visible(_hex(colors.get(t, first if not meta.get("tools") else DEFAULT_COLOR)))
                for t in range(32)}
 
     hidden = {i for i, name in enumerate(meta.get("features") or []) if name in HIDDEN_FEATURES}

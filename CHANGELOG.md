@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.1
+
+- **Black prints show their shape:** own preview images and the 3D preview draw black and very dark
+  filament as a dark anthracite, so light and shade stay visible instead of a flat black silhouette.
+  Swatches, the filament strand and the tables keep the real colour. Preview images are redrawn once.
+- **Background behind dark prints:** cards, the plate bar and the large plate image get a muted
+  background tuned to each style (light and dark) when the main filament is very dark.
+
 ## 1.6.0
 
 - **A file sent again under the same name no longer replaces a printed one:** Bambu Studio sends a

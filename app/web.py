@@ -179,6 +179,29 @@ def strand(filaments: list[dict]) -> str:
     return f"linear-gradient(90deg, {', '.join(stops)})"
 
 
+DARK_PRINT = 0.06  # relative luminance below which a print hardly shows on the dark build plate
+
+
+def _luminance(color: str) -> float | None:
+    c = (color or "").lstrip("#")[:6]
+    if len(c) != 6:
+        return None
+    try:
+        rgb = [int(c[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    except ValueError:
+        return None
+    lin = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def dark_print(filaments: list[dict]) -> bool:
+    """The main filament (most weight) is so dark that the print vanishes on the dark plate:
+    its preview then gets a light background (class bed-dark-print)."""
+    main = max(filaments or [], key=lambda f: f.get("used_g") or 0, default=None)
+    lum = _luminance(main.get("color", "")) if main else None
+    return lum is not None and lum < DARK_PRINT
+
+
 def fmt_size(n) -> str:
     if not n:
         return "0 MB"
@@ -195,6 +218,7 @@ templates.env.filters.update(duration=fmt_duration, num=fmt_num, money=fmt_money
                              datetime=fmt_datetime,
                              printer_date=fmt_printer_date,
                              size=fmt_size)
+templates.env.filters["dark_print"] = dark_print
 templates.env.globals["STATUSES"] = STATUSES
 templates.env.globals.update(_=_, ngettext=ngettext, lang=i18n.current, theme=current_theme,
                              LANGUAGES=i18n.LANGUAGES)

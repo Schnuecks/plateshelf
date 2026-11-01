@@ -42,6 +42,8 @@
   --accent-ink: #FFFFFF;
   --bed: #2A2F35;
   --bed-grain: #33393F;
+  --bed-dark: #8D959E;           /* behind black prints */
+  --bed-dark-grain: #88909A;
   --warn: #9A5B00;
   --status-ok: #1E8E4E;   /* Traffic-light colors for reachability, independent of the accent color */
   --status-bad: #C0392B;
@@ -66,6 +68,8 @@
     --accent-ink: #0C1A18;
     --bed: #0E1114;
     --bed-grain: #161A1E;
+    --bed-dark: #59616A;
+    --bed-dark-grain: #555D66;
     --warn: #E0A64A;
     --status-ok: #4CC38A;
     --status-bad: #F07070;
@@ -87,6 +91,8 @@
   --accent-ink: #0C1A18;
   --bed: #0E1114;
   --bed-grain: #161A1E;
+  --bed-dark: #59616A;
+  --bed-dark-grain: #555D66;
   --warn: #E0A64A;
   --status-ok: #4CC38A;
   --status-bad: #F07070;
@@ -966,3 +972,5 @@ a.icon-btn { text-decoration: none; }
 .usage-planned ul { margin-top: .3rem; }
 .usage li.usage-total { font-weight: 600; border-bottom: 0; }
 .strip-version .swatch { width: .7rem; height: .7rem; margin-right: .3rem; vertical-align: -.05rem; }
+/* Black and very dark prints: light build plate behind the (transparent) preview, in every style */
+.bed.bed-dark-print { --bed: var(--bed-dark); --bed-grain: var(--bed-dark-grain); }

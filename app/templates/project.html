@@ -63,7 +63,7 @@
           {% for pl in strip %}
           <li class="{{ 'is-sliced' if pl.sliced else 'is-preview' }}" title="{{ pl.file_name }}"{% if versions %} data-version="{{ pl.vkey }}"{% endif %}>
             {% if pl.sliced %}<a href="#platte-{{ pl.fid }}-{{ pl.idx }}" data-plate-link="platte-{{ pl.fid }}-{{ pl.idx }}">{% endif %}
-            <div class="bed">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}
+            <div class="bed{{ ' bed-dark-print' if pl.filaments|dark_print }}">{% if pl.has_thumb %}<img src="/thumb/{{ pl.fid }}/plate/{{ pl.idx }}?v={{ pl.v }}" alt="" loading="lazy">{% endif %}
               {% if pl.printed %}<span class="plate-done" title="{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}"><span aria-hidden="true">✓</span><span class="visually-hidden">{{ ngettext('{n}× gedruckt', '{n}× gedruckt', pl.printed) }}</span></span>{% endif %}</div>
             <span class="strip-title">{{ _('Platte {n}', n=pl.idx) }}{% if pl.name %}: {{ pl.name }}{% endif %}</span>
             {% if pl.sliced %}
@@ -112,7 +112,7 @@
 
         {% for pl in f.plates %}
         <div class="plate" id="platte-{{ f.id }}-{{ pl.idx }}">
-          <figure class="bed bed-large" data-thumbs>
+          <figure class="bed bed-large{{ ' bed-dark-print' if pl.filaments|dark_print }}" data-thumbs>
             {% if pl.has_thumb %}
               <img src="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ pl.v }}" data-iso="/thumb/{{ f.id }}/plate/{{ pl.idx }}?v={{ pl.v }}"
                    {% if pl.has_top %}data-top="/thumb/{{ f.id }}/top/{{ pl.idx }}?v={{ pl.v }}"{% endif %} alt="{{ _('Platte {n}', n=pl.idx) }}">

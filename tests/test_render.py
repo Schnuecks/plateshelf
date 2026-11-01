@@ -105,3 +105,13 @@ def test_own_thumbnails_replace_the_slicer_image(lib, sample, monkeypatch):
         render.ensure(fid, 1)
         assert client.get(f"/thumb/{fid}/plate/1").content not in (slicer_png, own.content)
         assert 'value="ohne_platte" checked' in client.get("/settings").text
+
+
+def test_black_filament_keeps_its_shading():
+    """Black would stay flat black under the shading factor: it is lifted to a dark anthracite."""
+    from app import render
+    black, navy, white = render._visible((0, 0, 0)), render._visible((10, 20, 60)), render._visible((240, 240, 240))
+    assert 55 <= black[0] <= 80 and black[0] == black[1] == black[2]
+    assert navy[2] > navy[0]  # keeps its hue
+    assert white == (240, 240, 240)
+    assert render._shade(black, 1.0) != render._shade(black, 0.62)  # light and shade differ
