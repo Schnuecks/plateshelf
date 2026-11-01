@@ -1,9 +1,11 @@
 name: CI
 
-# Pull requests and version tags run everything: linter (Ruff), Python tests, browser test
-# (Playwright), image build for all platforms and a Trivy scan for known vulnerabilities.
+# Pull requests run everything: linter (Ruff), Python tests, browser test (Playwright, in
+# parallel on all cores) and, at the same time, an image build for all platforms with a Trivy
+# scan for known vulnerabilities.
 # A push to main is almost always the squash of a PR that was just checked: only the linter
 # and Python tests run there as a safety net, browser test and image build would be redundant.
+# A version tag sits on such a checked squash: it only builds, scans and publishes the image.
 # For pull requests the image is only test-built (not uploaded) to save storage and
 # bandwidth and so a failure on one platform shows up before the release.
 # It is only uploaded for a version tag (v1.2.3); afterwards the last
@@ -25,7 +27,7 @@ env:
 jobs:
   changes:
     # Only docs changed (Markdown, docs/, licence, issue templates)? Then tests, browser test and
-    # image are skipped; GitHub counts skipped required checks as passed. Tags always run everything.
+    # image are skipped; GitHub counts skipped required checks as passed. Tags always build the image.
     # A further push to a pull request that only touches docs (e.g. the version in CHANGELOG.md)
     # is skipped too, but only if the run for the previous state of the pull request succeeded.
     runs-on: ubuntu-24.04
@@ -62,7 +64,7 @@ jobs:
 
   test:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && github.ref_type != 'tag'
     runs-on: ubuntu-24.04  # pinned so a change of ubuntu-latest does not change anything unexpectedly
     permissions:
       contents: read
@@ -80,7 +82,7 @@ jobs:
   browser:
     needs: changes
     # Pages and 3D preview in real Chromium (software WebGL), without JavaScript errors
-    if: needs.changes.outputs.code == 'true' && (github.event_name != 'push' || github.ref_type == 'tag')
+    if: needs.changes.outputs.code == 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -93,10 +95,10 @@ jobs:
           cache-dependency-path: requirements-browser.txt
       - run: pip install -r requirements-browser.txt
       - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest -q tests/test_browser.py
+      - run: python -m pytest -q -n auto tests/test_browser.py  # every worker starts its own test server
 
   image:
-    needs: [changes, test, browser]
+    needs: changes  # in parallel with the tests; a red test blocks the merge anyway
     if: needs.changes.outputs.code == 'true' && (github.event_name != 'push' || github.ref_type == 'tag')
     runs-on: ubuntu-24.04
     permissions:
