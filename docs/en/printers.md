@@ -135,6 +135,13 @@ project name and plate. This only happens half an hour after the start, so a fil
 provides itself always wins. The history marks such prints with “No file” and explains this above
 the list.
 
+**Filament per print (Bambu Lab):** at the start of a print, the printer reports which AMS tray
+(or the external spool) each filament of the sliced file uses. PlateShelf keeps material and colour
+of these trays with the print, so a file printed once in white and once in black shows both: as
+colour dots next to each print, and in the project's filament box under “Printed” with the weight
+per colour. “Needed for all plates” below it is the filament from the files. Other printers do not
+report their spools; their prints count with the filament from the file.
+
 **Assigning by hand:** “Assign” next to a print in the history or on the project page opens a
 page where you choose the file it came from (or “No file”). Suggested are files with a matching
 name and files fetched from the same printer around the start. PlateShelf leaves prints assigned

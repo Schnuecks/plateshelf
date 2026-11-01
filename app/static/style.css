@@ -955,3 +955,12 @@ a.icon-btn { text-decoration: none; }
 .print-page .print-options legend { font-weight: 600; margin-bottom: .3rem; }
 .print-page .print-confirm { margin-top: 1rem; font-weight: 600; }
 .print-page button[type=submit]:disabled { opacity: .45; filter: grayscale(1); cursor: not-allowed; }
+/* Filament a print actually ran with; printed and needed filament of a project */
+.job-fil { display: inline-flex; gap: .2rem; margin-right: .4rem; vertical-align: -.1rem; }
+.job-fil .swatch { width: .8rem; height: .8rem; margin: 0; }
+.usage-sub { font: 600 .8rem/1.2 var(--font); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: .6rem 0 .2rem; }
+.usage h2 + .usage-sub { margin-top: 0; }
+.usage-count { margin-left: .5rem; color: var(--muted); font-size: .8rem; }
+.usage-planned { border-top: 1px solid var(--line); margin-top: .6rem; padding: .5rem 0 0; }
+.usage-planned summary { font-size: .85rem; color: var(--muted); }
+.usage-planned ul { margin-top: .3rem; }

@@ -832,6 +832,55 @@ def test_assign_a_print_by_hand(ready, monkeypatch):
     assert jobs()[0]["local_path"] is None
 
 
+AMS = {"ams": [{"id": "0", "tray": [{"id": "0", "tray_type": "PLA", "tray_color": "0056B8FF"},
+                                     {"id": "1", "tray_type": "PLA", "tray_color": "000000FF"},
+                                     {"id": "2", "tray_type": "PLA", "tray_color": "CBC6B8FF"},
+                                     {"id": "3", "tray_type": "PLA", "tray_color": "FFFFFFFF"}]}]}
+
+
+def test_actual_filament_from_the_ams_mapping():
+    """The P2S reports which AMS tray each slicer slot uses ("mapping"); P1/A1 send only changes."""
+    state = {"ams": AMS, "mapping": [65535, 3]}
+    assert ph.actual_filaments(state) == [{"slot": 2, "type": "PLA", "color": "#FFFFFF", "name": ""}]
+    merged = ph._merge_ams(AMS, {"ams": [{"id": "0", "tray": [{"id": "3", "tray_type": "PETG", "tray_color": "FF0000FF"}]}]})
+    trays = merged["ams"][0]["tray"]
+    assert len(trays) == 4 and trays[3]["tray_type"] == "PETG" and trays[1]["tray_color"] == "000000FF"
+    external = {"mapping": [254], "vt_tray": {"tray_type": "TPU", "tray_color": "00FF00FF"}}
+    assert ph.actual_filaments(external) == [{"slot": 1, "type": "TPU", "color": "#00FF00", "name": ""}]
+    assert ph.actual_filaments({"ams": AMS}) is None and ph.actual_filaments({"mapping": [65535]}) is None
+
+
+def test_same_file_printed_in_two_colours(ready, sample, monkeypatch):
+    """As on 01.11.: the Echo Dot holder printed in white, then again in black from the same file.
+    Each print keeps its colour, and the project shows both under "Gedruckt"."""
+    local = "From printer/P2S/Echo_Dot.gcode.3mf"
+    (ready / "From printer" / "P2S").mkdir(parents=True)
+    sample(ready / local, [{"idx": 1, "sec": 3000, "layers": 2, "fil": [(2, "#000000FF", 25.2)]}],
+           colours=("#FFFFFFFF", "#000000FF"), types=("PLA", "PLA"), costs=("20", "20"))
+    store.scan(wait=True)
+    with store.connect() as con:
+        con.execute("INSERT INTO printer_files (printer, remote_name, size, remote_date, local_path, printer_name, "
+                    "imported) VALUES ('SER1', 'Echo_Dot.gcode.3mf', 1, 'x', ?, 'P2S', ?)", (local, time.time()))
+    t = ph.BambuTracker(BAMBU)
+    for key, tray in (("1", 3), ("2", 1)):  # white, then black
+        t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "Echo_Dot.gcode.3mf", "task_id": key,
+                            "ams": AMS, "mapping": [65535, tray]}})
+        t.update({"print": {"gcode_state": "FINISH"}})
+    got = [(j["local_path"], ph.job_filaments(j)[0]["color"]) for j in jobs()]
+    assert got == [(local, "#FFFFFF"), (local, "#000000")]
+    from app import main
+    monkeypatch.setenv("SCAN_INTERVAL", "3600")
+    with TestClient(main.app) as client:
+        with store.connect() as con:
+            pid = con.execute("SELECT project_id FROM files").fetchone()[0]
+        page = client.get(f"/p/{pid}").text
+    box = page[page.index('class="usage"'):]
+    box = box[:box.index("</section>")]
+    assert "Gedruckt" in box and box.count("1 Druck") == 2 and "#FFFFFF" in box and "#000000" in box
+    assert "Benötigt für alle Platten" in box
+    assert page.count('class="job-fil"') == 2
+
+
 def test_overview_version_follows_prints_but_not_progress(ready, monkeypatch):
     """The overview reloads when a print starts or ends, not on every percent."""
     monkeypatch.setenv("PRINT_HISTORY", "true")

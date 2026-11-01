@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0
+
+- **Filament per print (Bambu Lab):** PlateShelf keeps the material and colour of the AMS trays (or
+  the external spool) a print actually ran with, from the printer's mapping at the start. A file
+  printed once in white and once in black shows both: colour dots next to each print in the history
+  and on the project page.
+- **Filament box on the project page:** shows what was printed, by material and colour with weight
+  and number of prints; the filament needed for all plates sits below it, folded. Projects never
+  printed show the needed filament as before. Database schema 9.
+
 ## 1.4.0
 
 - **Print again (Bambu Lab, optional):** “Print” next to a sliced plate on the project page sends

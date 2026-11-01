@@ -192,6 +192,7 @@ def project(request: Request, pid: int):
             pl["vkey"] = file_rows[pl["fid"]]["vkey"]
     others = sorted((o for o in projects.values() if o["id"] != pid), key=lambda o: o["name"].lower())
     jobs = print_history.jobs_for([f["path"] for f in file_rows.values()])
+    printed = print_history.printed_usage(jobs, {f["path"]: f["plates"] for f in file_rows.values()})
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
     for j in jobs:
         j["file_name"] = names.get(j["local_path"], "")
@@ -202,7 +203,7 @@ def project(request: Request, pid: int):
     bambu = print_send.printers() if can_edit(request) else []
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
-        "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions,
+        "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions, "printed": printed,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
         "can_print": can_edit(request) and bool(bambu),
         "print_busy": bool(bambu) and print_send.all_busy(bambu),
@@ -280,6 +281,7 @@ def history(request: Request):
         # print gets a moment, its file is usually fetched right after the start.
         j["no_file"] = not j["project_id"] and (j["status"] != "running"
                                                 or now - (j["started"] or now) > print_history.LIBRARY_GRACE)
+        j["used"] = print_history.job_filaments(j)
     return templates.TemplateResponse(request, "history.html", {
         "jobs": jobs, "enabled": print_history.enabled(), "printers": printer_import.load_printers(),
         "without_file": sum(1 for j in jobs if j["no_file"]),
