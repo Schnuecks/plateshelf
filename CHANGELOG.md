@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
 - **See where a running print is:** a box on the project page (“Watch live in 3D”) and the percentage
   in the print history open the 3D preview at the point the printer has reached and follow the print
   every 15 seconds; it can be switched off in the settings. Klipper and OctoPrint report their read
   position in the file, Bambu Lab printers the current layer. The 3D preview is prepared once more
   for this the next time it is opened.
+- **Colour switches in the 3D preview stay on one line:** a rule for the statistics bars made them
+  wrap in some styles.
+- Updated dependencies: FastAPI 0.162, python-multipart 0.0.33, heatshrink2 0.15.
 
 ## 1.6.1
 
