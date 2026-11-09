@@ -43,8 +43,10 @@ def test_layer_positions_inside_a_3mf(tmp_path):
 def test_bambu_reports_the_layer_until_the_end(ready):
     imported(ready, BAMBU, "Benchy.gcode.3mf", "From printer/P2S/Benchy_plate_1.gcode.3mf")
     t = ph.BambuTracker(BAMBU)
-    t.update({"print": {"gcode_state": "RUNNING", "gcode_file": "/sdcard/Benchy.gcode.3mf", "task_id": "5",
-                        "mc_percent": 10, "layer_num": 3}})
+    t.update({"print": {"gcode_state": "PREPARE", "gcode_file": "/sdcard/Benchy.gcode.3mf", "task_id": "5",
+                        "mc_percent": 0, "layer_num": 523}})  # still the last layer of the previous print
+    assert jobs()[0]["layer"] is None
+    t.update({"print": {"gcode_state": "RUNNING", "mc_percent": 10, "layer_num": 3}})
     assert jobs()[0]["layer"] == 3
     t.update({"print": {"layer_num": 4}})  # new layer, same percentage: still saved
     assert jobs()[0]["layer"] == 4

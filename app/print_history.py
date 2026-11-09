@@ -717,7 +717,8 @@ class BambuTracker:
         if gstate in BAMBU_ACTIVE:
             minutes = self.state.get("mc_remaining_time")
             remaining = minutes * 60 if isinstance(minutes, (int, float)) and minutes >= 0 else None
-            layer = self.state.get("layer_num")
+            # While preparing, the printer still reports the last layer of the previous print
+            layer = self.state.get("layer_num") if gstate == "RUNNING" else None
             layer = layer if isinstance(layer, int) and layer > 0 else None
             current = (self.state.get("mc_percent"), minutes, layer)
             if self.job_key is None:
