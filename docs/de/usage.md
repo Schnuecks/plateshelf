@@ -127,8 +127,9 @@ Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
 
 **Wo ist der Druck gerade?**
 
-Während ein Druck läuft, ist seine Prozentangabe auf der Projektseite und im Druckverlauf
-ein Link. Er öffnet die 3D-Vorschau der gedruckten Platte an der Stelle, die der Drucker
+Während ein Druck läuft, zeigt die Projektseite oben einen Kasten mit Drucker, Fortschritt
+und dem Knopf „Live in 3D ansehen“; auch die Prozentangabe im Druckverlauf ist ein Link.
+Beides öffnet die 3D-Vorschau der gedruckten Platte an der Stelle, die der Drucker
 erreicht hat; die Düse markiert den Punkt. Die Vorschau folgt dem Druck alle 15 Sekunden.
 Verschiebst du den Schichtregler selbst, bleibt sie dort stehen; „Zur aktuellen Stelle“
 springt zurück.
@@ -140,6 +141,8 @@ springt zurück.
 - PrusaLink meldet einen zeitbasierten Prozentwert, die Stelle ist dort nur ungefähr.
 
 Der Link erscheint nur, wenn der Druck einer Datei zugeordnet und die Platte bekannt ist.
+Abschalten lässt sich das unter Einstellungen › Druckverlauf („Live-Position laufender
+Drucke zeigen“).
 
 **Ansicht**
 

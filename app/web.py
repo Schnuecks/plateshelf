@@ -291,6 +291,7 @@ def live_prints() -> list[dict]:
 
 
 templates.env.globals["live_prints"] = live_prints
+templates.env.globals["live_view_on"] = print_history.live_view_enabled
 
 
 def _asset_version() -> str:

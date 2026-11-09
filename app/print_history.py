@@ -372,6 +372,15 @@ def get(job_id: int) -> dict | None:
     return dict(row) if row else None
 
 
+def live_view_enabled() -> bool:
+    """Show running prints at their position in the 3D preview (link, box on the project page)."""
+    return bool(store.get_settings().get("live_ansicht", 1))
+
+
+def set_live_view(on: bool) -> None:
+    store.save_settings({"live_ansicht": 1 if on else 0})
+
+
 def view_target(job: dict) -> tuple[int, int] | None:
     """File id and plate of a print for the 3D preview, if the plate is known: the plate the
     printer reported, otherwise the only sliced plate of the file."""

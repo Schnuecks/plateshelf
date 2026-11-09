@@ -54,7 +54,8 @@ def viewer(request: Request, fid: int, idx: int, job: int | None = None):
     f, pl, proj, path = _plate_for_view(fid, idx)
     # ?job=: show where this running print is, if it belongs to this plate
     live_job = None
-    if job is not None and (row := print_history.get(job)) and print_history.view_target(row) == (fid, idx):
+    if job is not None and print_history.live_view_enabled() and (row := print_history.get(job)) \
+            and print_history.view_target(row) == (fid, idx):
         live_job = job
     siblings = []
     if proj:
@@ -107,7 +108,7 @@ def preview_points(fid: int, idx: int):
 def live_view(job_id: int):
     """Opens the 3D preview of a running print at the point the printer has reached."""
     job = print_history.get(job_id)
-    target = print_history.view_target(job) if job else None
+    target = print_history.view_target(job) if job and print_history.live_view_enabled() else None
     if not target:
         raise HTTPException(404, _("Für diesen Druck ist keine 3D-Vorschau bekannt"))
     return RedirectResponse(f"/view/{target[0]}/{target[1]}?job={job_id}", status_code=303)

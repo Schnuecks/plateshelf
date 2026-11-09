@@ -40,6 +40,14 @@
       <div><dt>{{ _('Gesliced') if p.plates_total > p.plate_count else _('Platten') }}</dt><dd>{% if p.plates_total > p.plate_count %}{{ _('{n} von {total}', n=p.plate_count, total=p.plates_total) }}{% else %}{{ p.plate_count }}{% endif %}</dd>
         {% if p.plate_count > 1 and p.plates_printed %}<dd class="cost-split">{{ _('davon {n} gedruckt', n=p.plates_printed) }}</dd>{% endif %}</div>
     </dl>
+    {% for j in live_jobs %}
+    {% set live_label = _('Druckt auf {printer}', printer=j.printer_name) %}
+    <div class="live-banner">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span class="live-banner-text"><strong data-live-job="{{ j.id }}" data-label="{{ live_label }}">{{ live_label }}{% if j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</strong>{% if p.plate_count > 1 %} · {{ _('Platte {n}', n=j.plate_idx) }}{% endif %}</span>
+      <a class="button" href="/live/{{ j.id }}">{{ _('Live in 3D ansehen') }}</a>
+    </div>
+    {% endfor %}
   </header>
 
   <div class="project-layout">
@@ -292,7 +300,7 @@
               <button type="submit" class="icon-quiet" title="{{ _('Aus dem Verlauf entfernen') }}" aria-label="{{ _('Aus dem Verlauf entfernen') }}">×</button>
             </form>
             {% endif %}
-            {% set live_link = j.status == 'running' and j.local_path %}<{{ 'a' if live_link else 'span' }} class="job-status job-{{ j.status }}{{ ' job-live-link' if live_link }}"{% if live_link %} href="/live/{{ j.id }}" title="{{ _('In der 3D-Vorschau zeigen, wo der Druck gerade ist') }}"{% endif %}{% if j.status == 'running' %} data-live-job="{{ j.id }}" data-label="{{ _(JOB_STATUSES[j.status]) }}"{% endif %}>{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</{{ 'a' if live_link else 'span' }}>
+            {% set live_link = j.status == 'running' and j.local_path and live_view_on() %}<{{ 'a' if live_link else 'span' }} class="job-status job-{{ j.status }}{{ ' job-live-link' if live_link }}"{% if live_link %} href="/live/{{ j.id }}" title="{{ _('In der 3D-Vorschau zeigen, wo der Druck gerade ist') }}"{% endif %}{% if j.status == 'running' %} data-live-job="{{ j.id }}" data-label="{{ _(JOB_STATUSES[j.status]) }}"{% endif %}>{{ _(JOB_STATUSES[j.status]) }}{% if j.status == 'running' and j.progress is not none %} {{ j.progress|num(0) }} %{% endif %}</{{ 'a' if live_link else 'span' }}>
             <span class="job-when">{{ job_filament(j) }}{{ j.started|datetime }}</span>
             <span class="job-sub">{{ j.printer_name }}{% if j.file_name %}, {{ j.file_name }}{% endif %}{% if j.ended and j.started %}, <span class="nowrap">{{ (j.duration_s or (j.ended - j.started))|duration }}</span>{% endif %}
               {%- if can_edit(request) %} · <a class="job-assign" href="/history/{{ j.id }}/assign?next={{ ('/p/' ~ p.id)|urlencode }}">{{ _('Zuordnen') }}</a>{% endif %}</span>

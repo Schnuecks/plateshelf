@@ -77,6 +77,10 @@ def test_link_opens_the_preview_of_the_printed_plate(ready, sample):
     assert (live["status"], live["progress"], live["fid"], live["plate"]) == ("running", 42.0, fid, 1)
     page = client.get("/history").text
     assert f'href="/live/{job}"' in page
+    with store.connect() as con:
+        pid = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()[0]
+    page = client.get(f"/p/{pid}").text
+    assert "live-banner" in page and "Live in 3D ansehen" in page and "Druckt auf Voron 42 %" in page
 
 
 def test_no_link_target_with_several_plates_and_none_reported(ready, sample):
@@ -87,3 +91,19 @@ def test_no_link_target_with_several_plates_and_none_reported(ready, sample):
     with store.connect() as con:
         con.execute("UPDATE print_jobs SET plate = 2")
     assert ph.view_target(ph.get(job)) == (fid, 2)
+
+
+def test_live_view_can_be_switched_off(ready, sample):
+    from app.main import app
+    job, fid = _running_print(ready, sample)
+    client = TestClient(app)
+    assert client.post("/settings/live-view", data={}, follow_redirects=False).status_code == 303
+    assert not ph.live_view_enabled()
+    with store.connect() as con:
+        pid = con.execute("SELECT project_id FROM files WHERE id = ?", (fid,)).fetchone()[0]
+    assert "live-banner" not in client.get(f"/p/{pid}").text
+    assert f'href="/live/{job}"' not in client.get("/history").text
+    assert client.get(f"/live/{job}", follow_redirects=False).status_code == 404
+    assert 'data-job="' not in client.get(f"/view/{fid}/1?job={job}").text
+    client.post("/settings/live-view", data={"live_enabled": "1"})
+    assert ph.live_view_enabled() and "live-banner" in client.get(f"/p/{pid}").text

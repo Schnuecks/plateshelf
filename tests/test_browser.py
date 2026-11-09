@@ -710,11 +710,13 @@ def test_overview_tile_shows_print_progress(server, page, monkeypatch):
                                timeout=5_000)
         pid = page.locator("[data-live-project]").get_attribute("data-live-project")
         page.goto(f"{server['url']}/p/{pid}")                      # project page: print list
-        assert "55 %" in page.locator("[data-live-job]").inner_text()
+        assert "55 %" in page.locator(".job-status[data-live-job]").inner_text()
+        assert "55 %" in page.locator(".live-banner [data-live-job]").inner_text()   # box above the plates
+        assert page.locator(".live-banner a").get_attribute("href").startswith("/live/")
         print_history.record(printer, "live1", "running", remote_name="Zylinder.gcode.3mf", progress=70)
         page.clock.run_for(16_000)
-        page.wait_for_function("document.querySelector('[data-live-job]').textContent.includes('70')",
-                               timeout=5_000)
+        page.wait_for_function("[...document.querySelectorAll('[data-live-job]')]"
+                               ".every((el) => el.textContent.includes('70'))", timeout=5_000)
         print_history.record(printer, "live1", "completed", remote_name="Zylinder.gcode.3mf")  # end without progress
         page.clock.run_for(16_000)
         page.wait_for_function("!document.querySelector('[data-live-job]')", timeout=5_000)   # reloaded

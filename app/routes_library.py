@@ -197,6 +197,12 @@ def project(request: Request, pid: int):
     names = {f["path"]: f["path"].split("/")[-1] for f in file_rows.values()}
     for j in jobs:
         j["file_name"] = names.get(j["local_path"], "")
+    # Running prints with a known plate: prominent link to the live position in the 3D preview
+    live_jobs = []
+    for j in jobs if print_history.live_view_enabled() else []:
+        if j["status"] == "running" and (j["updated"] or j["started"] or 0) > time.time() - print_history.LIVE_MAX_AGE:
+            if target := print_history.view_target(j):
+                live_jobs.append({**j, "plate_idx": target[1]})
     with store.connect() as con:
         dupes = store.duplicates_of(con, list(file_rows))
     for f in file_rows.values():
@@ -205,6 +211,7 @@ def project(request: Request, pid: int):
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "files": list(file_rows.values()), "others": others, "designer": designer,
         "writable": _library_writable(), "strip": strip, "jobs": jobs, "versions": versions, "printed": printed,
+        "live_jobs": live_jobs,
         "printed_g": sum(e["used_g"] for e in printed), "printed_prints": printed_prints,
         "photos": photos.list_photos(p["group_key"]), "photo_max_mb": photos.MAX_UPLOAD_MB,
         "can_print": can_edit(request) and bool(bambu),
