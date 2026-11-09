@@ -834,8 +834,8 @@ a.icon-btn { text-decoration: none; }
   align-items: center; outline-offset: 2px; }
 .column:hover .bar-stack, .column:focus-visible .bar-stack { filter: brightness(1.15); }
 .bar-stack { width: min(100%, 2.2rem); display: flex; flex-direction: column; gap: 2px; min-height: 0; }
-.seg { display: block; min-height: 2px; }
-.seg:first-child { border-radius: 4px 4px 0 0; }
+.bar-stack .seg { display: block; min-height: 2px; }
+.bar-stack .seg:first-child { border-radius: 4px 4px 0 0; }
 .seg-ok { background: var(--chart-ok); }
 .seg-bad { background: var(--chart-bad); }
 .column-label { position: absolute; bottom: -1.3rem; font-size: .72rem; color: var(--muted); white-space: nowrap; }
