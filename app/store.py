@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS print_jobs (
     rating INTEGER,                 -- 1 gelungen, -1 misslungen
     manual INTEGER NOT NULL DEFAULT 0,   -- file assigned by hand: never changed automatically
     filaments_json TEXT,            -- filament actually loaded per slicer slot (Bambu: AMS mapping)
+    layer INTEGER,                  -- current layer (1-based) while printing, if the printer reports it
     UNIQUE (printer, job_key)
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_path ON print_jobs(local_path);
@@ -258,7 +259,7 @@ def _ensure_autoincrement(con: sqlite3.Connection, table: str) -> None:
     log.info("Tabelle %s auf fortlaufende IDs umgestellt", table)
 
 
-SCHEMA_VERSION = 9  # 1 = state of 0.7.9; later changes as steps in MIGRATIONS
+SCHEMA_VERSION = 10  # 1 = state of 0.7.9; later changes as steps in MIGRATIONS
 
 
 def _add_column(table: str, column: str, decl: str):
@@ -277,6 +278,7 @@ MIGRATIONS: dict = {
     7: lambda con: None,  # 0.8.17: tables auth_events and passkeys (created by SCHEMA)
     8: _add_column("print_jobs", "manual", "INTEGER NOT NULL DEFAULT 0"),  # 1.3.0: assign a print by hand
     9: _add_column("print_jobs", "filaments_json", "TEXT"),  # 1.5.0: filament a print actually ran with
+    10: _add_column("print_jobs", "layer", "INTEGER"),  # current layer for the live position in the 3D preview
 }
 
 

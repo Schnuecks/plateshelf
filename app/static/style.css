@@ -506,6 +506,11 @@ summary { cursor: pointer; font-weight: 500; }
 .viewer-loading { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; gap: .6rem; padding: 2rem; background: var(--viewer-bg); }
 .viewer-loading p { margin: 0; }
 .viewer-loading progress { width: min(22rem, 70vw); accent-color: var(--accent); }
+.viewer-live { position: absolute; top: .75rem; left: .75rem; right: .75rem; width: fit-content; max-width: calc(100% - 1.5rem); z-index: 2;
+  display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: .4rem .75rem; border: 1px solid var(--line);
+  border-radius: 999px; background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--ink); font-size: .85rem; font-weight: 600; }
+.viewer-live[hidden] { display: none; }
+.viewer-live button { padding: .15rem .6rem; font-size: .8rem; }
 .viewer-panel { background: var(--surface); border-left: 1px solid var(--line); padding: 1rem 1.1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { flex: 1; border-radius: 0; background: none; color: var(--ink); font-weight: 500; padding: .4rem .5rem; }
@@ -864,6 +869,8 @@ a.icon-btn { text-decoration: none; }
   .history-table td:first-child { white-space: normal; }
 }
 .job-status { font-size: .8rem; font-weight: 600; white-space: nowrap; }
+a.job-live-link { text-decoration: underline dotted; text-underline-offset: 3px; }
+a.job-live-link:hover { text-decoration-style: solid; }
 .job-completed { color: var(--accent); }
 .job-running { color: var(--ink); }
 .job-cancelled { color: var(--muted); }

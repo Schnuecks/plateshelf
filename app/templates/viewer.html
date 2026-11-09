@@ -15,6 +15,13 @@
      data-fid="{{ file.id }}" data-plate="{{ plate.idx }}" data-nozzle="{{ file.nozzle or 0.4 }}"{% if bed %} data-bed="{{ bed|join(',') }}"{% endif %}>
   <div class="viewer-stage">
     <canvas id="viewer-canvas" aria-label="{{ _('3D-Vorschau der Druckbahnen') }}"></canvas>
+    {% if live_job %}
+    <div class="viewer-live" id="viewer-live" data-job="{{ live_job }}" hidden>
+      <span class="live-dot" aria-hidden="true"></span>
+      <span id="viewer-live-text" role="status"></span>
+      <button type="button" class="quiet" id="viewer-live-follow" hidden>{{ _('Zur aktuellen Stelle') }}</button>
+    </div>
+    {% endif %}
     <div class="viewer-loading" id="viewer-loading" role="status">
       <p id="viewer-loading-text">{{ _('Vorschau wird vorbereitet') }}</p>
       <progress id="viewer-loading-bar" max="100"></progress>

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **See where a running print is:** the percentage of a running print on the project page and in
+  the print history opens the 3D preview at the point the printer has reached and follows the print
+  every 15 seconds. Klipper and OctoPrint report their read position in the file, Bambu Lab printers
+  the current layer. The 3D preview is prepared once more for this the next time it is opened.
+
 ## 1.6.1
 
 - **Black prints show their shape:** own preview images and the 3D preview draw black and very dark

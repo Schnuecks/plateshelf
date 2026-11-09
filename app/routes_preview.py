@@ -8,9 +8,9 @@ import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
-from . import gcode_file, gcode_preview, store
+from . import gcode_file, gcode_preview, print_history, store
 from .parser import read_member
 from .i18n import gettext as _
 from .projects import _plate_dict, natural_key
@@ -50,8 +50,12 @@ def _preview_base(fid: int, idx: int) -> Path:
 
 
 @router.get("/view/{fid}/{idx}")
-def viewer(request: Request, fid: int, idx: int):
+def viewer(request: Request, fid: int, idx: int, job: int | None = None):
     f, pl, proj, path = _plate_for_view(fid, idx)
+    # ?job=: show where this running print is, if it belongs to this plate
+    live_job = None
+    if job is not None and (row := print_history.get(job)) and print_history.view_target(row) == (fid, idx):
+        live_job = job
     siblings = []
     if proj:
         with store.connect() as con:
@@ -66,7 +70,7 @@ def viewer(request: Request, fid: int, idx: int):
         "next": siblings[pos + 1] if pos + 1 < len(siblings) else None,
     }
     return templates.TemplateResponse(request, "viewer.html", {
-        "nav": nav, "bed": bed_area(path),
+        "nav": nav, "bed": bed_area(path), "live_job": live_job,
         "file": dict(f), "plate": pl, "project": dict(proj) if proj else None,
         "filaments": [{"slot": x["slot"], "color": x["color"], "type": x["type"], "name": x.get("name", "")}
                       for x in pl["filaments"]],
@@ -97,3 +101,25 @@ def preview_points(fid: int, idx: int):
         raise HTTPException(404)
     return FileResponse(p, media_type="application/octet-stream",
                         headers={"Content-Encoding": "gzip", "Cache-Control": "no-cache"})
+
+
+@router.get("/live/{job_id}")
+def live_view(job_id: int):
+    """Opens the 3D preview of a running print at the point the printer has reached."""
+    job = print_history.get(job_id)
+    target = print_history.view_target(job) if job else None
+    if not target:
+        raise HTTPException(404, _("Für diesen Druck ist keine 3D-Vorschau bekannt"))
+    return RedirectResponse(f"/view/{target[0]}/{target[1]}?job={job_id}", status_code=303)
+
+
+@router.get("/api/jobs/{job_id}/live")
+def live_position(job_id: int):
+    """State of a print for the live position in the 3D preview (refreshed every 15 s)."""
+    job = print_history.get(job_id)
+    if not job or job["hidden"]:
+        raise HTTPException(404)
+    target = print_history.view_target(job)
+    return {"status": job["status"], "progress": job["progress"], "layer": job.get("layer"),
+            "printer": job["printer_name"], "remaining_s": job["remaining_s"],
+            "fid": target[0] if target else None, "plate": target[1] if target else None}
