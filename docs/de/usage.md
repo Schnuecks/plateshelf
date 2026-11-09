@@ -125,6 +125,25 @@ Linientypen erkennt sie bei Bambu Studio, OrcaSlicer, PrusaSlicer und Cura.
   Stelle einer Schicht von Hand an.
 - Pfeiltasten links und rechts wechseln zwischen den Platten eines Projekts.
 
+**Wo ist der Druck gerade?**
+
+Während ein Druck läuft, zeigt die Projektseite oben einen Kasten mit Drucker, Fortschritt
+und dem Knopf „Live in 3D ansehen“; auch die Prozentangabe im Druckverlauf ist ein Link.
+Beides öffnet die 3D-Vorschau der gedruckten Platte an der Stelle, die der Drucker
+erreicht hat; die Düse markiert den Punkt. Die Vorschau folgt dem Druck alle 15 Sekunden.
+Verschiebst du den Schichtregler selbst, bleibt sie dort stehen; „Zur aktuellen Stelle“
+springt zurück.
+
+- Klipper und OctoPrint melden, wie weit sie die G-Code-Datei gelesen haben. Die Stelle
+  ist damit recht genau.
+- Bambu-Lab-Drucker melden die aktuelle Schicht; die Stelle innerhalb der Schicht ist
+  geschätzt.
+- PrusaLink meldet einen zeitbasierten Prozentwert, die Stelle ist dort nur ungefähr.
+
+Der Link erscheint nur, wenn der Druck einer Datei zugeordnet und die Platte bekannt ist.
+Abschalten lässt sich das unter Einstellungen › Druckverlauf („Live-Position laufender
+Drucke zeigen“).
+
 **Ansicht**
 
 - Drehen mit der linken, Verschieben mit der rechten Maustaste, Zoomen mit dem Mausrad

@@ -65,6 +65,7 @@ def _render_settings(request: Request, error: str = "", form_rows: list | None =
         "thumbs_mode": render.mode(settings),
         "history_on": print_history.enabled(), "history_env": print_history.env_setting(),
         "send_on": print_send.enabled(), "send_env": print_send.env_setting(),
+        "live_on": print_history.live_view_enabled(),
         "diagnostics": diagnostics.report(APP_VERSION),
         "key": crypto.status(), "plaintext_codes": printer_import.stored_plaintext(), "auth_on": auth.enabled(),
         "users": auth.list_users() if auth.enabled() else [], "tokens": auth.list_tokens(),
@@ -179,6 +180,12 @@ def history_settings_save(enabled: str = Form("")):
     if print_history.env_setting() is None:
         print_history.set_enabled(enabled == "1")
     return RedirectResponse("/settings?history=1#history", status_code=303)
+
+
+@router.post("/settings/live-view")
+def live_view_settings_save(live_enabled: str = Form("")):
+    print_history.set_live_view(live_enabled == "1")
+    return RedirectResponse("/settings?live=1#history", status_code=303)
 
 
 @router.post("/settings/print-send")

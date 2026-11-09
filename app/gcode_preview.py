@@ -3,7 +3,9 @@
 """Converts a plate's G-code (from .gcode.3mf, .gcode or .bgcode) into a compact preview for the 3D viewer.
 
 Output per plate (cached under DATA_DIR/preview/):
-  <fid>_<plate>.json   layer heights, filaments, line types, value ranges
+  <fid>_<plate>.json   layer heights, filaments, line types, value ranges and
+                       where each layer starts in the G-code file (share 0..1 of
+                       its size, to show a running print at the printer's progress)
   <fid>_<plate>.bin.gz points as Uint16 (x, y in 0.01 mm, shifted by 100 mm),
                        the table of paths (Uint32) and four metrics per point
                        (Uint16) for the path segment ending at that point:
@@ -35,7 +37,7 @@ from .parser import read_member
 
 MAX_PLATE_GCODE = 4 * 1024 ** 3  # unpacked size of one plate's G-code in a 3MF
 
-VERSION = 5
+VERSION = 6
 OFFSET_MM = 100.0
 SCALE = 100.0  # 0.01 mm
 # Metrics per point: name, factor for storage as Uint16, unit
@@ -201,6 +203,8 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
         retracted = False         # several consecutive retract commands count once
         polys = array("I")        # start, count, layer, tool, line type (5 values each)
         layer_z: list[float] = []
+        layer_pos: list[float] = []  # position in the file (share 0..1) where each layer starts
+        end_pos = 0.0                # ... and where the last path ends
         feature_names: list[str] = []
         feature_idx: dict[str, int] = {}
         tools_used: set[int] = set()
@@ -221,6 +225,19 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
         head = list(itertools.islice(lines, 50_000))
         markers = any(line.startswith(LAYER_MARKS) for line in head)
         lines = itertools.chain(head, lines)
+        # The look-ahead has already read the first lines: positions there come from the line lengths
+        head_start = list(itertools.accumulate((len(line.encode()) for line in head), initial=0))
+        exact_head = not bgcode.is_bgcode(Path(src_path).name)
+
+        def pos_at(n: int) -> float:
+            if exact_head and n < len(head):
+                return min(1.0, head_start[n] / total)
+            try:
+                return min(1.0, position())
+            except ValueError:  # the last path is closed after the file has been read
+                return 1.0
+
+        n_line = 0
         z_known = False     # layer height from a comment instead of from the Z move
         cur_start = -1  # point index of the current path, -1 = none open
         # Last two points of the open path (for simplification), in mm
@@ -237,9 +254,10 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
             return feature_idx[label]
 
         def close():
-            nonlocal cur_start, cur_n
+            nonlocal cur_start, cur_n, end_pos
             if cur_start >= 0 and cur_n >= 2:
                 polys.extend((cur_start, cur_n, layer, tool, feat if feat >= 0 else feature_id("")))
+                end_pos = pos_at(n_line)
             elif cur_start >= 0:
                 del pts[cur_start * 2:]
                 del mets[cur_start * 4:]
@@ -307,6 +325,7 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                     if layer < 0 or layer_used:  # Orca writes two markers per change
                         layer += 1
                         layer_z.append(zpos)
+                        layer_pos.append(pos_at(n_line))
                         layer_used = z_known = False
                 elif line.startswith(("; Z_HEIGHT:", ";Z:")) and layer >= 0:
                     try:
@@ -358,6 +377,7 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
                         close()  # G-code without layer markers: new height, new layer
                         layer += 1
                         layer_z.append(zpos)
+                        layer_pos.append(pos_at(n_line))
                         layer_used, z_known = False, True
                     if layer >= 0 and de > 0 and moved and code != "G0":
                         if not layer_used:
@@ -441,6 +461,7 @@ def convert(src_path: Path, plate: int, out_base: Path, progress: dict | None = 
         "scale": SCALE,
         "tolerance": tol,
         "layers": layer_z,
+        "layer_pos": [round(v, 6) for v in layer_pos] + [round(max(end_pos, layer_pos[-1] if layer_pos else 0), 6)],
         "features": feature_names,
         "tools": sorted(tools_used),
         "bbox": [minx, miny, maxx, maxy, max(layer_z) if layer_z else 0],

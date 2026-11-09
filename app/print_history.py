@@ -204,7 +204,7 @@ def _apply_project_status(con, job) -> None:
 def record(printer: dict, job_key: str, status: str, *, remote_name: str | None = None,
            started: float | None = None, ended: float | None = None, duration_s: float | None = None,
            filament_mm: float | None = None, progress: float | None = None,
-           remaining_s: float | None = None, plate: int | None = None) -> None:
+           remaining_s: float | None = None, plate: int | None = None, layer: int | None = None) -> None:
     """Creates a print or updates it with its new state."""
     now = time.time()
     with _lock, store.connect() as con:
@@ -225,11 +225,12 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
             if plate is not None:
                 values["plate"] = plate
             for key, value in (("duration_s", duration_s), ("filament_mm", filament_mm), ("progress", progress),
-                               ("remaining_s", remaining_s)):
+                               ("remaining_s", remaining_s), ("layer", layer)):
                 if value is not None:
                     values[key] = value
             if status in FINAL:
                 values["remaining_s"] = None
+                values["layer"] = None
             if status == "completed":
                 values["progress"] = 100.0  # Klipper sends no final progress, the last value would remain
             if status in FINAL and not row["ended"]:
@@ -239,12 +240,12 @@ def record(printer: dict, job_key: str, status: str, *, remote_name: str | None 
         else:
             con.execute(
                 """INSERT INTO print_jobs (printer, printer_name, job_key, remote_name, local_path, status,
-                       started, ended, duration_s, filament_mm, progress, remaining_s, updated, plate)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       started, ended, duration_s, filament_mm, progress, remaining_s, updated, plate, layer)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (printer["id"], printer["name"], job_key, remote_name, local, status, started or now,
                  (ended or now) if status in FINAL else None, duration_s, filament_mm,
                  100.0 if status == "completed" else progress,
-                 None if status in FINAL else remaining_s, now, plate))
+                 None if status in FINAL else remaining_s, now, plate, None if status in FINAL else layer))
         job = con.execute("SELECT * FROM print_jobs WHERE printer = ? AND job_key = ?",
                           (printer["id"], job_key)).fetchone()
         _apply_project_status(con, job)
@@ -369,6 +370,33 @@ def get(job_id: int) -> dict | None:
                              LEFT JOIN files f ON f.path = j.local_path AND f.missing = 0
                              LEFT JOIN projects p ON p.id = f.project_id WHERE j.id = ?""", (job_id,)).fetchone()
     return dict(row) if row else None
+
+
+def live_view_enabled() -> bool:
+    """Show running prints at their position in the 3D preview (link, box on the project page)."""
+    return bool(store.get_settings().get("live_ansicht", 1))
+
+
+def set_live_view(on: bool) -> None:
+    store.save_settings({"live_ansicht": 1 if on else 0})
+
+
+def view_target(job: dict) -> tuple[int, int] | None:
+    """File id and plate of a print for the 3D preview, if the plate is known: the plate the
+    printer reported, otherwise the only sliced plate of the file."""
+    if not job.get("local_path"):
+        return None
+    with store.connect() as con:
+        f = con.execute("SELECT id FROM files WHERE path = ? AND missing = 0", (job["local_path"],)).fetchone()
+        if not f:
+            return None
+        plates = [r["idx"] for r in con.execute(
+            "SELECT idx FROM plates WHERE file_id = ? AND sliced = 1 ORDER BY idx", (f["id"],))]
+    if job.get("plate") in plates:
+        return f["id"], job["plate"]
+    if len(plates) == 1:
+        return f["id"], plates[0]
+    return None
 
 
 def set_note(job_id: int, note: str, rating: int | None) -> None:
@@ -666,7 +694,7 @@ class BambuTracker:
         self.printer = printer
         self.state: dict = {}
         self.job_key: str | None = None
-        self.progress = None  # last saved: (percent, remaining minutes)
+        self.progress = None  # last saved: (percent, remaining minutes, layer)
         self.filaments = None  # last saved filament of the running print
 
     def _key(self, remote: str) -> str:
@@ -698,16 +726,20 @@ class BambuTracker:
         if gstate in BAMBU_ACTIVE:
             minutes = self.state.get("mc_remaining_time")
             remaining = minutes * 60 if isinstance(minutes, (int, float)) and minutes >= 0 else None
-            current = (self.state.get("mc_percent"), minutes)
+            # While preparing, the printer still reports the last layer of the previous print
+            layer = self.state.get("layer_num") if gstate == "RUNNING" else None
+            layer = layer if isinstance(layer, int) and layer > 0 else None
+            current = (self.state.get("mc_percent"), minutes, layer)
             if self.job_key is None:
                 self.job_key = self._key(remote)
                 printer_import.request_sync()  # fetch the file so the print can be matched to it
                 record(self.printer, self.job_key, "running", remote_name=remote or None,
-                       progress=current[0], remaining_s=remaining, plate=plate)
+                       progress=current[0], remaining_s=remaining, plate=plate, layer=layer)
                 self.progress = current
-            elif current != self.progress:  # at most about once per minute
+            elif current != self.progress:  # at most about once per minute, or with each new layer
                 self.progress = current
-                record(self.printer, self.job_key, "running", progress=current[0], remaining_s=remaining)
+                record(self.printer, self.job_key, "running", progress=current[0], remaining_s=remaining,
+                       layer=layer)
             filaments = actual_filaments(self.state)
             if filaments and filaments != self.filaments:  # the mapping can come a moment after the start
                 self.filaments = filaments

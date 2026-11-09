@@ -228,7 +228,8 @@ JS_TEXTS = [
     "{pct} % übertragen", "Wird eingelesen …", "Übertragung fehlgeschlagen. Bitte erneut versuchen.",
     "G-Code wird aufbereitet: {pct} %", "Druckbahnen werden geladen", "Darstellung wird abgestimmt",
     "Die Vorschau konnte nicht erstellt werden: {error}", "Vorschau nicht verfügbar", "Aufbereitung fehlgeschlagen",
-    "Abspielen", "Anhalten", "Geometrie wird aufgebaut: {pct} %", "Vollbild", "Vollbild beenden", "Platte {n}", "Geschwindigkeit", "Volumenstrom", "Lüfter", "Düsentemperatur", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
+    "Abspielen", "Anhalten", "{printer}: {pct} %, Schicht {n} von {total}", "{printer}: Druck wird vorbereitet",
+    "{printer}: Druck beendet", "Geometrie wird aufgebaut: {pct} %", "Vollbild", "Vollbild beenden", "Platte {n}", "Geschwindigkeit", "Volumenstrom", "Lüfter", "Düsentemperatur", "{n} von {total} ({mm} mm)", "Werkzeug {n}",
     "Außenwand", "Innenwand", "Überhangwand", "Infill", "Massives Infill", "Oberfläche", "Unterseite", "Brücke",
     "Lückenfüllung", "Schwebende Hülle", "Stützen", "Stützen-Kontakt", "Stützen-Übergang", "Reinigungsturm",
     "Brim", "Skirt", "Glätten", "Sonstiges", "{n} Drucke · nächster {pct} %",
@@ -290,6 +291,7 @@ def live_prints() -> list[dict]:
 
 
 templates.env.globals["live_prints"] = live_prints
+templates.env.globals["live_view_on"] = print_history.live_view_enabled
 
 
 def _asset_version() -> str:

@@ -243,6 +243,18 @@
         </form>
         {% endif %}
 
+        <h3 id="live-view">{{ _('Live-Position in der 3D-Vorschau') }}</h3>
+        <p class="hint">{{ _('Zeigt bei laufenden Drucken auf der Projektseite einen Kasten mit „Live in 3D ansehen“ und macht die Prozentangabe im Druckverlauf zum Link. Die 3D-Vorschau zeigt dann, wo der Druck gerade ist.') }}</p>
+        {% if request.query_params.get('live') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}
+        <form method="post" action="/settings/live-view" class="toggle-form">
+          <label class="switch">
+            <input type="checkbox" name="live_enabled" value="1" {{ 'checked' if live_on }} data-autosubmit>
+            <span class="switch-track" aria-hidden="true"></span>
+            {{ _('Live-Position laufender Drucke zeigen') }}
+          </label>
+          <button type="submit" data-autosubmit-button>{{ _('Einstellung speichern') }}</button>
+        </form>
+
         <h3 id="print-send">{{ _('Drucken aus {app}', app=APP_NAME) }}</h3>
         <p class="hint">{{ _('Zeigt bei geslicten Platten „Drucken“: {app} lädt die Datei auf einen Bambu-Lab-Drucker und startet sie. Neuere Bambu-Firmware nimmt das nur im LAN-Modus mit eingeschaltetem Entwicklermodus an; der Drucker ist dann nicht mit der Bambu-Cloud verbunden. Braucht den Druckverlauf.', app=APP_NAME) }}</p>
         {% if request.query_params.get('send') %}<p class="flash" role="status">{{ _('Gespeichert.') }}</p>{% endif %}

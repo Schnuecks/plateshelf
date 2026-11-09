@@ -909,6 +909,85 @@ function start(data) {
     setPlaying(!playing);
   });
 
+  // --- Live position of a running print (/view/…?job=<id>) ----------------------------
+  // The printer's progress is the read position in the G-code file (Klipper, OctoPrint), the
+  // preview knows where each layer starts in it. Bambu reports the layer itself; there the
+  // progress only refines the position within that layer.
+  const liveBox = document.getElementById("viewer-live");
+  const liveText = document.getElementById("viewer-live-text");
+  const followBtn = document.getElementById("viewer-live-follow");
+  let follow = true;
+  let liveSpot = null;
+  const layerAt = (share) => {
+    const lpos = meta.layer_pos;
+    if (!lpos || !lpos.length || share < lpos[0]) return null;  // still in the start G-code
+    let lo = 0, hi = nLayers - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (lpos[mid] <= share) lo = mid; else hi = mid - 1; }
+    const a = lpos[lo], b = lpos[lo + 1] ?? 1;
+    return { layer: lo, frac: b > a ? Math.min(1, (share - a) / (b - a)) : 1 };
+  };
+  const liveSpotFor = (st) => {
+    const share = st.progress != null ? st.progress / 100 : null;
+    const byShare = share != null ? layerAt(share) : null;
+    if (st.layer && st.layer <= nLayers) {
+      const l = st.layer - 1;
+      if (!byShare || byShare.layer === l) return { layer: l, frac: byShare ? byShare.frac : 0.5 };
+      return { layer: l, frac: byShare.layer < l ? 0 : 1 };
+    }
+    return byShare;
+  };
+  const goLive = () => {
+    if (!liveSpot) return;
+    if (playing) setPlaying(false);
+    single.checked = false;
+    slider.value = liveSpot.layer;
+    applyLayers(true);
+    const [a, b] = layerLen(liveSpot.layer);
+    setCut(a + (b - a) * Math.min(liveSpot.frac, 0.9999));
+    render();
+  };
+  const stopFollowing = () => {
+    if (!liveSpot || !follow) return;
+    follow = false;
+    if (followBtn) followBtn.hidden = false;
+  };
+  const startLive = () => {
+    if (!liveBox) return;
+    [slider, single, progress, playBtn].forEach((el) => el?.addEventListener("input", stopFollowing));
+    playBtn?.addEventListener("click", stopFollowing);
+    single.addEventListener("change", stopFollowing);
+    window.addEventListener("keydown", (e) => { if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === " ") stopFollowing(); });
+    followBtn?.addEventListener("click", () => { follow = true; followBtn.hidden = true; goLive(); });
+    let timer = null;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/jobs/${liveBox.dataset.job}/live`, { headers: { Accept: "application/json" } });
+        if (!res.ok) return;
+        const st = await res.json();
+        liveBox.hidden = false;
+        const printer = st.printer || "";
+        if (st.status !== "running") {
+          liveText.textContent = t("{printer}: Druck beendet", { printer });
+          if (followBtn) followBtn.hidden = true;
+          liveBox.classList.add("is-done");
+          clearInterval(timer);
+          return;
+        }
+        liveSpot = liveSpotFor(st);
+        if (!liveSpot) {
+          liveText.textContent = t("{printer}: Druck wird vorbereitet", { printer });
+          return;
+        }
+        liveText.textContent = t("{printer}: {pct} %, Schicht {n} von {total}", {
+          printer, pct: Math.round(st.progress ?? 0).toLocaleString(LOCALE), n: liveSpot.layer + 1, total: nLayers,
+        });
+        if (follow) goLive();
+      } catch (e) { /* offline for a moment: try again on the next round */ }
+    };
+    poll();
+    timer = setInterval(() => { if (!document.hidden) poll(); }, 15000);
+  };
+
   // Legend with show/hide
   const legend = document.getElementById("legend");
   const metricLegend = (key) => {
@@ -1257,6 +1336,7 @@ function start(data) {
   applyLayers();
   loading.hidden = true;
   panel.hidden = false;
+  startLive();
 }
 
 (async () => {

@@ -119,6 +119,22 @@ for Bambu Studio, OrcaSlicer, PrusaSlicer and Cura.
   speed 1×, 10× or 50×). “Position in layer” moves to any point of a layer by hand.
 - The left and right arrow keys switch between the plates of a project.
 
+**Where is the print right now?**
+
+While a print is running, the project page shows a box with the printer, the progress and a
+“Watch live in 3D” button; the percentage in the print history is a link as well. Both open
+the 3D preview of the printed plate at the point the printer has reached, with
+the nozzle marking the spot, and follow the print every 15 seconds. Once you move the layer
+slider yourself, the preview stays there; “Go to current position” jumps back.
+
+- Klipper and OctoPrint report how far they have read the G-code file, so the position is
+  quite exact.
+- Bambu Lab printers report the current layer; the position within the layer is estimated.
+- PrusaLink reports a time-based percentage, so the position is only approximate.
+
+The link only appears when the print is matched to a file and the plate is known. It can be
+switched off under Settings › Print history (“Show the live position of running prints”).
+
 **View**
 
 - Rotate with the left mouse button, pan with the right, zoom towards the cursor with
