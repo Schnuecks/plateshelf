@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.1
+
+- **Security updates in the image:** the image now installs the Debian security updates that the base image does not contain yet. This fixes two vulnerabilities in zlib (CVE-2026-76844, CVE-2026-85091) and one in apt (CVE-2026-109518) that the weekly image scan reported.
+- **Python 3.15:** the image is based on Python 3.15.
+
 ## 1.7.0
 
 - **See where a running print is:** a box on the project page (“Watch live in 3D”) and the percentage

@@ -1,5 +1,5 @@
 # Pinned to the digest of the multi-platform index; Dependabot keeps it current
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 # Set to the tag by GitHub Actions on release (e.g. v0.2.0)
 ARG VERSION=dev
@@ -17,6 +17,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /srv
 COPY requirements.txt .
+# Security fixes Debian has published since the base image was built (e.g. zlib)
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 # pip is only needed for the build; the base image's pip bundles its own (sometimes outdated) certifi
 RUN pip install --no-cache-dir -r requirements.txt \
  && pip uninstall -y pip

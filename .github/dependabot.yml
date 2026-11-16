@@ -37,7 +37,7 @@ updates:
     commit-message:
       prefix: "CI"
 
-  # Base image in the Dockerfile (python:3.14-slim)
+  # Base image in the Dockerfile (python:3.15-slim)
   - package-ecosystem: docker
     directory: "/"
     schedule:
